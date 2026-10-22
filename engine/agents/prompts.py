@@ -1887,7 +1887,10 @@ def summarise_receipt(receipt: dict[str, Any]) -> str:
     # A challenge step that killed (v0.17 T4, `runner.resolve`) the same way.
     died = result.get("death") if skill in ("resolve_scene_card", "resolve_challenge") else None
     death_line = str(died.get("text") or "").strip() if isinstance(died, dict) else ""
-    return " ".join(x for x in (line, *closed, death_line) if x)
+    # A phone story's typed line (v0.23.0 addendum 4 §3): what the engine read it as, first. Set only by
+    # `engine/social/typed.py::mark`, so no other receipt's sentence changes.
+    typed_line = str(receipt.get("typed_line") or "").strip()
+    return " ".join(x for x in (typed_line, line, *closed, death_line) if x)
 
 
 def _closed_sets(result: Any) -> list[str]:

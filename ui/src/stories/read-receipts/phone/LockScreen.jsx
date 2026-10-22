@@ -1,8 +1,10 @@
 /**
  * The lock screen (spec §15.3, §18.2): the time, what the phone has to say
  * (a new run's opening, or "While you were away: ..." after a resume), the
- * notifications newest first, "Put it down" -- the `wait` action, time
- * passing until the next thing happens -- and a way into the phone.
+ * notifications newest first, "Put the phone down" -- the `put_down` action
+ * (v0.23.0 spec §8.2): the phone goes down and the world comes forward -- and a
+ * way into the phone. (The v0.22 "Put it down", which only waited, is gone: the
+ * status bar's "Put the phone down" is the same action.)
  */
 import React from "react";
 
@@ -12,7 +14,6 @@ import { clockOf, stampOf } from "./format.js";
 export default function LockScreen({ phone, lock, act, pending, onUnlock, onOpenThread }) {
   const now = phone.now;
   const rows = [...(phone.notifications || [])].reverse();
-  const waiting = Boolean(pending && pending.action === "wait");
   return (
     <div className="rr-lock" data-testid="lock-screen">
       <div className="rr-lock__clock">
@@ -41,14 +42,6 @@ export default function LockScreen({ phone, lock, act, pending, onUnlock, onOpen
         ))}
       </ol>
       <div className="rr-lock__actions">
-        <button
-          type="button"
-          className="rr-btn rr-btn--quiet"
-          disabled={waiting}
-          onClick={() => act({ action: "wait", target: "", args: { until: "next" }, text: "" })}
-        >
-          {waiting ? "Waiting…" : "Put it down"}
-        </button>
         <button type="button" className="rr-btn rr-lock__open" onClick={onUnlock}>
           Open phone
         </button>

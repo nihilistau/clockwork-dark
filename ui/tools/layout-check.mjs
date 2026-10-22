@@ -66,7 +66,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { chromium } from "playwright-core";
 
-import { clippedControlsIn, probeHeader, probeLayout, probePhone, probeStart, shelfHeadingVisible } from "./layout-probe.js";
+import { clippedControlsIn, probeHeader, probeLayout, probePhone, probeStart, probeWorld, shelfHeadingVisible } from "./layout-probe.js";
 
 export const SIZES = [
   { name: "1366x768", width: 1366, height: 768, phone: false, strict: true },
@@ -209,6 +209,9 @@ async function probe(browser, opts, tag, player, size) {
  */
 async function phoneScreens(page, opts, tag, size) {
   const bezel = size.width >= 900;
+  // A run left with the phone down (an earlier probe's put_down is saved) is picked up first.
+  if (await page.locator(".rr-world__pickup").count()) await page.click(".rr-world__pickup");
+  await page.waitForSelector(".rr-screen", { state: "visible" });
   const menu = bezel ? ".rr-top__btn" : ".rr-status__menu";
   await page.evaluate(async () => { await document.fonts.ready; });
   await page.waitForTimeout(500);
@@ -273,6 +276,81 @@ async function phoneScreens(page, opts, tag, size) {
   } else {
     skipped.push("tiletalk");
   }
+  // v0.23.0 T23: the Places app, and the plan sheet ("Ask to meet" on a contact who has given their number).
+  await page.click(".rr-homebar__btn");
+  await page.waitForSelector(".rr-home");
+  if (await page.locator('[data-testid="app-places"]').count()) {
+    await page.click('[data-testid="app-places"]');
+    await page.waitForSelector(".rr-app--places");
+    const venues = await page.locator(".rr-places__go").count();
+    await step("places", [".rr-status__lock", ".rr-homebar__btn", ...(venues ? [".rr-places__go"] : [])], true);
+    if (!venues) skipped.push("places (none listed)");
+    await page.click(".rr-homebar__btn");
+    await page.waitForSelector(".rr-home");
+  } else {
+    skipped.push("places");
+  }
+  if (await page.locator('[data-testid="app-contacts"]').count()) {
+    await page.click('[data-testid="app-contacts"]');
+    const row = page.locator('[data-testid^="contact-row-"]').first();
+    if (await row.count()) {
+      await row.click();
+      await page.waitForSelector(".rr-contact__actions", { timeout: 5000 }).catch(() => {});
+      const ask = page.getByRole("button", { name: "Ask to meet" });
+      if (await ask.count()) {
+        await ask.click();
+        await page.waitForSelector(".rr-plan");
+        await step("plan", [".rr-plan select", ".rr-plan .rr-btn", ".rr-back", ".rr-status__lock"], true);
+      } else {
+        skipped.push("plan sheet");
+      }
+      // The card is a sheet beside the phone on a wide window: closed, so the world is probed unobscured.
+      await page.locator(".rr-contact .rr-back").first().click();
+      await page.waitForTimeout(200);
+    } else {
+      skipped.push("plan sheet");
+    }
+    if (!(await page.locator(".rr-home").count())) await page.click(".rr-homebar__btn");
+    await page.waitForSelector(".rr-home");
+  } else {
+    skipped.push("plan sheet");
+  }
+  // v0.23.0 T21: the world layer. 1200px and over shows it beside the phone: probed greyed (the phone up, with
+  // its note), then the phone put down. Under it the world is shown only with the phone down.
+  const wide = size.width >= 1200;
+  if (wide) {
+    await page.waitForSelector('[data-testid="rr-world-layer"]');
+    const up = await page.evaluate(probeWorld, { expectNote: true });
+    steps["world-up"] = up;
+    for (const failure of up.failures) failures.push(`world-up: ${failure}`);
+  }
+  await page.click(".rr-status__down");
+  await page.waitForFunction(() => !document.querySelector(".rr-status__down"), null, { timeout: 15000 });
+  await page.waitForTimeout(500);
+  const down = await page.evaluate(probeWorld, { expectNote: false });
+  const worldPng = join(opts.out, `${opts.story}-${tag}-${size.name}${opts.suffix}-world.png`);
+  await page.screenshot({ path: worldPng, animations: "disabled" });
+  steps.world = { ...down, png: worldPng };
+  for (const failure of down.failures) failures.push(`world: ${failure}`);
+  // Put the phone back in the saved run: pick it up, then act (opening a thread is an act, so the server
+  // raises it too), so the next size meets the phone up as a player's run does.
+  await page.click(".rr-world__pickup");
+  await page.waitForSelector(".rr-screen", { state: "visible" });
+  await page.click(".rr-homebar__btn").catch(() => {});
+  await page.waitForSelector(".rr-home");
+  await page.click('[data-testid="app-matchstick"]');
+  await page.waitForSelector(".rr-app--matchstick");
+  for (const at of [3, 2]) {
+    await page.click(`.rr-app--matchstick .rr-tab:nth-child(${at})`);
+    if (await page.locator(".rr-chat").count()) {
+      await page.locator(".rr-chat").first().click();
+      break;
+    }
+  }
+  await page.waitForTimeout(500);
+  if (!down.choices) failures.push("world: the resumed run offers no world choices (the resume frame's `away.world_choices`)");
+  if (tag === "scene" && !down.companion) failures.push("world: the scene run shows no companion card");
+  if (!down.banner) skipped.push("buzz banner");
   return { failures, phone: steps, skipped, advisories: [] };
 }
 

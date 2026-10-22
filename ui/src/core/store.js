@@ -550,6 +550,9 @@ function handleSocket(state, event, payload) {
         premises: premisesOf(payload, next.premises),
         saveId: payload.save_id || next.saveId,
         presence: payload.assistant || next.presence,
+        // A turn that carries its plate (READ RECEIPTS' world layer: a phone action, a world turn, an arrival)
+        // sets it; one with none (every other story's, whose plate rides on `image_ready`) keeps the last.
+        sceneImage: payload.scene_image || next.sceneImage,
         // Sticky once set. The turn that locks an ending is the only one
         // carrying it, and a later turn -- an autosave echo, a reconnect
         // replaying the last payload -- must not take the ending screen away

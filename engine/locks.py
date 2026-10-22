@@ -85,7 +85,7 @@ What the order means in practice:
   reads and fills a dict (v0.20.0 T8: one index lock per save folder, shared
   by every ``SaveStore`` over it).
 
-LEAF LOCKS. Twenty-one locks sit outside the list because nothing is ever taken
+LEAF LOCKS. Twenty-two locks sit outside the list because nothing is ever taken
 under them: their holders make no BLOCKING acquisition of any
 other lock (the config's included -- a caller reads what it needs from the
 config before it takes one). A non-blocking try, which cannot wait, is the
@@ -112,6 +112,7 @@ one thing allowed under a leaf.
 - engine.media.comfy.jobs.MediaJobWorker._lock
 - engine.media.tts.SpeechWorker._lock
 - engine.social.games.wordgame._WORDS_LOCK
+- engine.social.turnstile.Turnstile._cond
 
 (``_PROFILES_LOCK``, v0.22.0 T3, and ``_WORDS_LOCK``, v0.22.0 T22, are the two
 MODULE locks among the leaves. The population's profile LRU is only looked
@@ -192,6 +193,19 @@ TWO MORE, HELD ACROSS WHOLE OPERATIONS, and safe for a different reason:
   One is only ever taken while the thread holds no lock in the list and no
   leaf (a lane may be taken inside another lane, or under a turn lock), and
   always with a timeout.
+
+THE NARRATION TURNSTILE (v0.23.0, READ RECEIPTS only): a per-session hold
+taken BEFORE the turn lock and before every lock in the list above
+(``engine/social/turnstile.py``, spec §20.1). A world turn waits for it
+(``acquire_world``, bounded by ``turnstile.world_wait_seconds``) holding NO
+lock, then tries the turn lock non-blocking; a voice pass only ever TRIES it
+(``try_acquire_voice``), once per model call, holding nothing, and takes the
+turn lock (tried) and its lane under it. Nothing takes the turnstile while
+holding a turn lock or any listed lock. Its condition's lock
+(``Turnstile._cond``) is a leaf (above). It is per session, built in the
+worker by ``SessionStore._build`` after any fork, so ``renew_after_fork`` has
+no module lock to register for it. ``tests/lock_order.py`` checks it as
+``TURNSTILE`` against ``TURN``.
 
 THE SUPERVISOR'S OWN PROCESS (v0.20.0 T10, ``engine/hosting/supervisor/``)
 serves no turn and takes none of the locks above. Its story table's lock

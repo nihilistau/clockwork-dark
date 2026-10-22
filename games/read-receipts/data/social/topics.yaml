@@ -1,0 +1,84 @@
+# READ RECEIPTS -- topics.yaml (paths.social, v0.23.0 spec §6.7).
+#
+# What people talk about, each topic one kind of the closed disclosure
+# vocabulary (engine/social/growth.py `KINDS`). Read by engine/social/growth.py.
+#
+# The design is docs/superpowers/specs/2026-10-14-v0.23.0-read-receipts-rework-design.md.
+#
+# Rows: {id, kind, label, when?, follows_up?}. Any other key, a kind outside
+# the vocabulary or a repeated id is a load error (growth.check_data).
+#   label   how the topic reads ("their shifts"), given to the voice
+#   when    {job, job_shape, flag, hobby, life}: each an id or a list of ids
+#           (population.yaml's, and life_events.yaml's ids); every key given
+#           must hold, each when any of its ids does
+#
+# Each person draws `growth.yaml` `topics_per_kind` of these per kind, once
+# (a counterless key on SOCIAL_GROWTH), among the rows whose `when` holds for
+# them. Every kind keeps at least one row with no `when`, so nobody draws
+# none. At their current rung and below they talk about them; the next
+# rung's they still keep to themselves (spec §6.6).
+
+topics:
+  # -- small_talk ------------------------------------------------------------
+  - {id: t_neighbourhood, kind: places, label: the part of town they live in}
+  - {id: t_favourite_spots, kind: places, label: their favourite spots in town}
+  - {id: t_the_sea, kind: places, label: the best stretches of the coast, when: {hobby: [open_water_swimming, surfing, sailing, paddleboarding, fishing]}}
+  - {id: t_weekends, kind: hobbies, label: what they get up to at weekends}
+  - {id: t_main_hobby, kind: hobbies, label: the thing they are into}
+  - {id: t_instrument, kind: hobbies, label: the instrument they play, when: {flag: plays_an_instrument}}
+  - {id: t_their_pet, kind: hobbies, label: their pet, when: {flag: has_pet}}
+  - {id: t_job_outline, kind: work_outline, label: what they do for work}
+  - {id: t_work_hours, kind: work_outline, label: the hours they keep}
+  - {id: t_the_apps, kind: the_apps, label: how the apps are going}
+  - {id: t_app_stories, kind: the_apps, label: the odd matches the apps have sent them}
+
+  # -- everyday --------------------------------------------------------------
+  - {id: t_their_day, kind: daily_life, label: how their day went}
+  - {id: t_getting_around, kind: daily_life, label: getting around town}
+  - {id: t_flatmates, kind: daily_life, label: their flatmates, when: {flag: lives_with_flatmates}}
+  - {id: t_work_week, kind: work, label: how work is going}
+  - {id: t_work_people, kind: work, label: the people they work with}
+  - {id: t_shifts, kind: work, label: their shifts, when: {job_shape: [shifts]}}
+  - {id: t_night_work, kind: work, label: working nights, when: {job_shape: [nights]}}
+  - {id: t_studies, kind: work, label: their studies, when: {job_shape: [student]}}
+  - {id: t_best_friend, kind: friends, label: their best friend}
+  - {id: t_friend_group, kind: friends, label: their group of friends}
+  - {id: t_this_weekend, kind: plans, label: their plans for the weekend}
+  - {id: t_next_trip, kind: plans, label: somewhere they want to go soon}
+  - {id: t_films_and_shows, kind: opinions, label: the films and shows they rate}
+  - {id: t_food_opinions, kind: opinions, label: the food they swear by}
+  - {id: t_the_city, kind: opinions, label: what they make of the city}
+
+  # -- personal_stories ------------------------------------------------------
+  - {id: t_where_they_grew_up, kind: upbringing, label: where they grew up}
+  - {id: t_school_days, kind: upbringing, label: their school days}
+  - {id: t_sister, kind: family_outline, label: their sister}
+  - {id: t_parents_outline, kind: family_outline, label: their parents}
+  - {id: t_last_relationship, kind: past, label: how their last relationship ended}
+  - {id: t_first_job, kind: past, label: their first job}
+  - {id: t_old_city, kind: past, label: a city they used to live in}
+  - {id: t_best_trip, kind: travel, label: the best trip they have taken}
+  - {id: t_trip_gone_wrong, kind: travel, label: a trip that went wrong}
+  - {id: t_proud_moment, kind: proud_of, label: something they are proud of}
+  - {id: t_work_win, kind: proud_of, label: a win at work}
+
+  # -- hopes_and_fears -------------------------------------------------------
+  - {id: t_the_dream, kind: hopes, label: what they would do if nothing stopped them}
+  - {id: t_few_years, kind: hopes, label: where they hope to be in a few years}
+  - {id: t_what_keeps_them_up, kind: worries, label: what keeps them up at night}
+  - {id: t_work_worries, kind: worries, label: their worries about work}
+  - {id: t_do_differently, kind: regrets, label: something they would do differently}
+  - {id: t_lost_touch, kind: regrets, label: someone they lost touch with}
+  - {id: t_what_matters, kind: values, label: what matters most to them}
+  - {id: t_wont_compromise, kind: values, label: what they will not compromise on}
+
+  # -- family_and_future -----------------------------------------------------
+  - {id: t_family_now, kind: family, label: their family now}
+  - {id: t_their_kids, kind: family, label: their kids, when: {flag: has_kids}}
+  - {id: t_wanting_family, kind: family, label: whether they want a family of their own}
+  - {id: t_settling, kind: future_plans, label: where they would settle}
+  - {id: t_career_future, kind: future_plans, label: where their work is heading}
+  - {id: t_what_home_is, kind: home_life, label: what a home should feel like}
+  - {id: t_running_a_house, kind: home_life, label: how they run a house}
+  - {id: t_money_habits, kind: money, label: how they are with money}
+  - {id: t_saving_for, kind: money, label: what they are saving for}

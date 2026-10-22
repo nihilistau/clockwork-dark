@@ -4,9 +4,6 @@
  * answer when it opens, and Escape taken as that answer -- kept inside the
  * phone, so core never reads it as "open the menu". The caller returns focus
  * to whatever opened it.
- *
- * An open confirm also pauses "Let time pass" (settings/letTimePass.js finds
- * it by its role).
  */
 import React, { useEffect, useId, useRef } from "react";
 

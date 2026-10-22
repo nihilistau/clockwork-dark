@@ -19,3 +19,5 @@ content/scenes/clockwork/static/dist/index.html text eol=lf
 # Tile Talk's word list (v0.22.0 T22) is data recorded by its SHA-256 in the story's README:
 # LF on every checkout, so the bytes match what was recorded.
 games/read-receipts/data/social/words.txt text eol=lf
+# The build's source-hash marker (ui/tools/build-source-hash.mjs) is LF everywhere.
+content/scenes/clockwork/static/dist/build-source.txt text eol=lf

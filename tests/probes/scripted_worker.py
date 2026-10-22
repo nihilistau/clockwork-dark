@@ -125,12 +125,32 @@ class Probe:
     def _file(self, suffix: str) -> Path:
         return self.control / f"{self.name}.{suffix}"
 
+    def _plant_if_asked(self) -> None:
+        """``<process>.plant`` (v0.23.0 T28): JSON of play-text sentinels, planted once through the engine's own
+        writers into every live phone run (`plant_play_text`), then removed. Never raises into a request."""
+        flag = self._file("plant")
+        if not flag.exists():
+            return
+        with self._lock:
+            try:
+                words = json.loads(flag.read_text(encoding="utf-8"))
+                flag.unlink()
+            except (OSError, ValueError):
+                return
+        try:
+            plant_play_text(words)
+        except Exception:  # noqa: BLE001 -- the probe never fails a request; the test sees the sentinel missing
+            import logging
+
+            logging.getLogger("tests.probes.scripted_worker").exception("plant failed")
+
     def __call__(self, environ: dict[str, Any], start_response: Callable[..., Any]) -> Any:
         path = str(environ.get("PATH_INFO", ""))
         if "HTTP_X_CLOCKWORK_PROXY" in environ:
             with self._lock:
                 with self.requests.open("a", encoding="utf-8") as handle:
                     handle.write(f"{environ.get('REQUEST_METHOD', '')} {path}\n")
+        self._plant_if_asked()
         if path == "/probe/redirect":
             start_response("302 Found", [("Location", "/probe/elsewhere"), ("Content-Length", "0")])
             return [b""]
@@ -318,18 +338,24 @@ def script_the_phone(control: Optional[Path] = None) -> None:
 def _always_replies(flag: Path) -> None:
     import dataclasses
 
-    from engine.social import behaviour, messaging
+    from engine.social import behaviour, convo
 
     real_archetype = behaviour.archetype
-    real_interest, real_burst = messaging._interest_factor, messaging._burst_factor
+    real_ghost, real_reply = convo._ghost_factor, convo._reply_factor
 
     def archetype(name: str) -> Any:
         arch = real_archetype(name)
-        return dataclasses.replace(arch, ghost_per_exchange=0.0, reply_prob=1.0) if flag.exists() else arch
+        return dataclasses.replace(arch, ghost_per_episode=0.0, reply_prob=1.0) if flag.exists() else arch
 
     behaviour.archetype = archetype  # type: ignore[assignment]
-    messaging._interest_factor = lambda interest: 1.0 if flag.exists() else real_interest(interest)  # type: ignore[assignment]
-    messaging._burst_factor = lambda burst: 1.0 if flag.exists() else real_burst(burst)  # type: ignore[assignment]
+    # v0.23.0: the per-episode-start draws (convo, spec §4.6) forced while the flag exists.
+    convo._ghost_factor = lambda state, pid: 0.0 if flag.exists() else real_ghost(state, pid)  # type: ignore[assignment]
+    convo._reply_factor = lambda state, pid: 100.0 if flag.exists() else real_reply(state, pid)  # type: ignore[assignment]
+    # T28: availability and the boundary are the other draws a person's reply (a voice note's too) can fall
+    # to ("their voice note never fell due" in a batch run, a person asleep or at work): forced while the flag exists.
+    real_available, real_boundary = convo.available, convo.boundary_minutes
+    convo.available = lambda state, pid, at: convo.Availability(True) if flag.exists() else real_available(state, pid, at)  # type: ignore[assignment]
+    convo.boundary_minutes = lambda state, pid, at: None if flag.exists() else real_boundary(state, pid, at)  # type: ignore[assignment]
 
 
 def _media_yes(flag: Path) -> None:
@@ -339,6 +365,57 @@ def _media_yes(flag: Path) -> None:
     media.unlocked = lambda *a, **k: True if flag.exists() else real_unlocked(*a, **k)  # type: ignore[assignment]
     media.budget_of = lambda *a, **k: 2.0 if flag.exists() else real_budget(*a, **k)  # type: ignore[assignment]
     media.accept_p = lambda *a, **k: 1.0 if flag.exists() else real_accept(*a, **k)  # type: ignore[assignment]
+
+
+def plant_play_text(words: dict[str, str]) -> None:
+    """
+    Play text only the engine's own paths write, put into the live READ RECEIPTS run(s) of this worker the way
+    play puts it (v0.23.0 T28): a RECAP and a STORY in a person's memory (`memory.add_recap`, `commit_fold`), a
+    scene's narration and a CHANCE scene's as `scene` rows in the run's archive (`archive.append`), and a HELD
+    text as a landed message that waited while they were together (`messaging.new_message`, the decision's
+    `after_together`). Keys: ``recap``, ``story``, ``scene``, ``chance``, ``held``. Each run is saved after.
+    """
+    from engine import social
+
+    if not social.declared():
+        return
+    from engine.scenes.default_scene import get_store
+    from engine.session.store import release_turn
+    from engine.social import archive, memory, messaging, saves
+
+    pause = threading.Event()
+    for session in get_store().live_sessions():
+        state = session.engine.state
+        if not (state.social or {}).get("threads"):
+            continue
+        for _ in range(200):
+            if session.lock.acquire(blocking=False):
+                break
+            pause.wait(0.05)
+        else:
+            continue
+        try:
+            tid = next(iter(state.social["threads"]))
+            pid = str(state.social["threads"][tid]["pid"])
+            row = {"kind": "chat", "where": "", "topics": [], "end_reason": "", "from_at": 0.0, "to_at": 0.1}
+            memory.add_recap(state, pid, {**row, "id": "plant-0", "recap": "an earlier evening"})
+            memory.add_recap(state, pid, {**row, "id": "plant-1", "recap": words["recap"]})
+            oldest = memory.person(state, pid)["episodes"][0]
+            memory.commit_fold(state, {"pid": pid, "episode": {"id": oldest["id"]},
+                                       "story": str(memory.person(state, pid)["story"] or "")}, words["story"])
+            messaging.new_message(state, tid, pid, "text", at=float(state.world_clock_hours),
+                                  bubbles=[words["held"]], voiced=True, decision={"after_together": True})
+            directory = archive.save_dir(session)
+            number = 9000
+            for kind, text in (("scene", words["scene"]), ("chance", words["chance"])):
+                number += 1
+                archive.append(directory, [{"id": f"m{number}", "thread_id": tid, "from": "system", "kind": "scene",
+                                            "pid": pid, "at": round(float(state.world_clock_hours), 4),
+                                            "bubbles": [text], "scene": kind}], kind="scene")
+            saves.mark_dirty(session, "action")
+            saves.save_now(session)
+        finally:
+            release_turn(session)
 
 
 def fail_when_asked(control: Path, name: str) -> None:

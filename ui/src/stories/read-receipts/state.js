@@ -22,6 +22,9 @@ export const initialState = Object.freeze({
   lockSeq: 0,
   lock: null,
   sessionId: "",
+  // A world choice the server refused because the phone is up (409 `phone_up`): counted, with its words.
+  upSeq: 0,
+  upWords: "",
 });
 
 /**
@@ -72,6 +75,7 @@ export function reduce(slice, action) {
       // A busy answer that reaches the store is the second one: the action
       // is not sent. Any other turn_error answered it (a refusal, a fault).
       if (action.stale) return s;
+      if (payload.phone_up) return { ...s, upSeq: s.upSeq + 1, upWords: String(payload.message || "Put the phone down first."), turnSeq: s.turnSeq + 1 };
       return payload.busy ? { ...s, busySeq: s.busySeq + 1 } : { ...s, turnSeq: s.turnSeq + 1 };
     case "game_started":
     case "game_resumed":
@@ -250,4 +254,13 @@ function withMedia(phone, body) {
     return { ...m, media };
   });
   return { ...phone, open_thread: { ...open, messages } };
+}
+
+/**
+ * Whether the phone is in the player's hand (v0.23.0 spec §8.2, §14.1): `phone.world.phone_up`. A payload with no
+ * `world` section (a block older than v0.23.0) is a phone that is up, as v0.22.0 played it.
+ */
+export function phoneUpOf(phone) {
+  const world = phone && phone.world;
+  return world && typeof world.phone_up === "boolean" ? world.phone_up : true;
 }

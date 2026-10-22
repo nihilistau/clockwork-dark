@@ -5,10 +5,10 @@
 import React from "react";
 
 import AppIcon from "./AppIcon.jsx";
-import { DOCK } from "./apps.js";
+import { appsOf, DOCK } from "./apps.js";
 
 export default function Home({ phone, onOpenApp }) {
-  const apps = phone.apps || [];
+  const apps = appsOf(phone);
   const docked = DOCK.map((id) => apps.find((a) => a.id === id)).filter(Boolean);
   const grid = apps.filter((a) => !DOCK.includes(a.id));
   return (

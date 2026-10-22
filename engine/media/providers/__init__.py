@@ -34,6 +34,10 @@ def build_provider(name: str) -> Optional[ImageProvider]:
         from engine.media.providers.grokbuild import GrokImagineProvider
 
         return GrokImagineProvider()
+    if name == "xai":
+        from engine.media.providers.xai import XaiImageProvider
+
+        return XaiImageProvider()
     if name == "comfyui":
         from engine.media.providers.comfy import ComfyProvider
 

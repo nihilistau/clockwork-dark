@@ -27,9 +27,10 @@ logger = logging.getLogger(__name__)
 
 _ROOT = Path(__file__).resolve().parents[2]
 
-#: Every fixed file name the directory may hold (spec §2.1).
+#: Every fixed file name the directory may hold (spec §2.1; v0.23.0 §22 adds the second row).
 FILES: tuple[str, ...] = (
     "creation", "population", "behaviours", "apps", "relationships", "media", "venues", "games",
+    "conversation", "promises", "growth", "topics", "layers", "plans", "scenes", "life_events", "homes",
 )
 
 #: name -> parsed YAML, for the ACTIVE story. NULLED_ATTRIBUTES row; read once
@@ -46,6 +47,24 @@ def social_dir() -> Optional[Path]:
 def declared() -> bool:
     """Whether the running story declares `paths.social`."""
     return social_dir() is not None
+
+
+def world_dir() -> Optional[Path]:
+    """The directory of `paths.locations` (Plan decision 6): `activities.yaml` is found beside it."""
+    rel = str(get_config().get("paths.locations", "") or "").strip()
+    return (_ROOT / rel).parent if rel else None
+
+
+def scene_open(state: Any) -> bool:
+    """
+    Whether a social scene owns the turn (spec §10.1; Plan decision 15).
+    Reads `state.social["scene"]` only: no submodule is imported, so
+    `intents.scene_owns_turn` and `director.ensure_scene` may ask it for
+    every story. False unless the running story declares `paths.social`.
+    """
+    if not declared():
+        return False
+    return bool(((getattr(state, "social", None) or {}).get("scene") or {}).get("pid"))
 
 
 def load_file(directory: Path, name: str) -> dict[str, Any]:
@@ -75,6 +94,10 @@ def load_all() -> dict[str, dict[str, Any]]:
         if cached is None:
             directory = social_dir()
             cached = {name: load_file(directory, name) for name in FILES} if directory else {}
+            if directory:
+                # The world's activities sit beside `paths.locations` (Plan decision 6); {} when absent.
+                world = world_dir()
+                cached["activities"] = load_file(world, "activities") if world else {}
             _check_loaded(cached)
             _DATA_CACHE = cached
     return cached
@@ -82,11 +105,6 @@ def load_all() -> dict[str, dict[str, Any]]:
 
 def _check_loaded(loaded: dict[str, dict[str, Any]]) -> None:
     """Blocks checked once, at load, rather than at every use (a ValueError naming file and key)."""
-    pacing = (loaded.get("behaviours") or {}).get("pacing")
-    if pacing is not None:
-        from engine.social import behaviour   # lazily: behaviour imports this module
-
-        behaviour.check_pacing(pacing)
     behaviours_data = loaded.get("behaviours") or {}
     if behaviours_data:
         from engine.social import behaviour   # lazily: behaviour imports this module
@@ -103,10 +121,20 @@ def _check_loaded(loaded: dict[str, dict[str, Any]]) -> None:
         from engine.social import media   # lazily: media imports this module
 
         media.check_data(media_data, loaded.get("population") or {}, relationships_data or {})
+    traits = frozenset(str(t["id"]) for t in (loaded.get("population") or {}).get("traits") or []
+                       if isinstance(t, dict) and t.get("id"))
     if loaded.get("venues") or "meets" in (relationships_data or {}):
-        from engine.social import meets   # lazily: meets imports this module
+        from engine.social import places, scene   # lazily: each imports this module
 
-        meets.check_data(loaded.get("venues") or {}, relationships_data or {}, loaded.get("population") or None)
+        faults = (places.venue_faults(loaded.get("venues") or {}, loaded.get("population") or None)
+                  + scene.meets_faults(relationships_data or {}, venues_declared=bool(loaded.get("venues"))))
+        if faults:
+            source, key, message = faults[0]
+            raise ValueError(f"social: {source}: {key}: {message}")
+    if loaded.get("scenes"):
+        from engine.social import scene   # lazily: scene imports this module
+
+        scene.check_data(loaded["scenes"], traits=traits)   # move keys closed; fit.traits population traits (F23)
     games_data = loaded.get("games") or {}
     if "wordgame" in games_data:
         from engine.social.games import wordgame   # lazily: wordgame imports this module
@@ -116,6 +144,32 @@ def _check_loaded(loaded: dict[str, dict[str, Any]]) -> None:
         from engine.social.games import this_or_that   # lazily: this_or_that imports this module
 
         this_or_that.check_data(games_data["this_or_that"], loaded.get("population") or None)
+    if loaded.get("conversation"):
+        from engine.social import convo   # lazily: convo imports this module
+
+        archetypes = (loaded.get("behaviours") or {}).get("archetypes") or {}
+        convo.check_data(loaded["conversation"], archetypes=archetypes if isinstance(archetypes, dict) else ())
+    if loaded.get("growth"):
+        from engine.social import growth   # lazily: growth imports this module
+
+        growth.check_data(loaded["growth"], loaded.get("topics") or {}, loaded.get("layers") or {}, traits=traits)
+    if loaded.get("promises"):
+        from engine.social import promises   # lazily: promises imports this module
+
+        promises.check_data(loaded["promises"])
+    if loaded.get("plans"):
+        from engine.social import plans   # lazily: plans imports this module
+
+        plans.check_data(loaded["plans"])
+    if loaded.get("life_events"):
+        from engine.social import life   # lazily: life imports this module
+
+        moods = ((relationships_data or {}).get("mood") or {}).get("values")
+        life.check_data(loaded["life_events"], moods=tuple(moods) if isinstance(moods, list) else None)
+    if loaded.get("activities"):
+        from engine.social import world   # lazily: world imports this module
+
+        world.check_activities(loaded["activities"])
 
 
 def data(name: str) -> dict[str, Any]:
@@ -129,6 +183,8 @@ def setting(key: str, default: Any) -> Any:
 
 def boot() -> None:
     """Import every submodule, registering its effect kinds, verbs and payload sections."""
+    # FIRST, so every drawer registered by a later import finds the registry (v0.23.0 Plan decision 7).
+    from engine.social import attrs  # noqa: F401  (v0.23 T1)
     # One line per task, in task order (Plan decision 12):
     from engine.social import population  # noqa: F401  (T3)
     from engine.social import creation  # noqa: F401  (T4)
@@ -146,7 +202,15 @@ def boot() -> None:
     from engine.social import away  # noqa: F401  (T16)
     from engine.social import media  # noqa: F401  (T19)
     from engine.social import games  # noqa: F401  (T22)
-    from engine.social import meets  # noqa: F401  (T24)
+    from engine.social import growth  # noqa: F401  (v0.23 T2)
+    from engine.social import convo, windows  # noqa: F401  (v0.23 T3)
+    from engine.social import promises  # noqa: F401  (v0.23 T4)
+    from engine.social import places  # noqa: F401  (v0.23 T10)
+    from engine.social import world  # noqa: F401  (v0.23 T11)
+    from engine.social import plans  # noqa: F401  (v0.23 T12)
+    from engine.social import scene  # noqa: F401  (v0.23 T13)
+    from engine.social import life  # noqa: F401  (v0.23 T17)
+    from engine.social import migrate  # noqa: F401  (v0.23 T20)
 
 
 #: Names already reported by import_fault (a log_once row): one ERROR per process, not one per advance.

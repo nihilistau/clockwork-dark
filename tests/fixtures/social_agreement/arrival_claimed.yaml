@@ -1,0 +1,59 @@
+# Agreement check "arrival claimed" (v0.23.0 addendum 4 W4, I5; T23C): they say they are at the place the two of
+# them planned to meet while they are still on their way. Judged only while they have a plan open with the player
+# (fix round 1, I2a), and never over someone else's arrival (a contact's name or "my <relation>" before it, I2b).
+# A claim (relationships.yaml
+# `arrival_claims.any`) passes only while a `now` / `tonight` plan of theirs is open and they have got there:
+# `arrived: true`, or `now` at or past its `arrives_at` (a row with no arrival fields counts as there).
+# Statements only: "where are you?" is a question. "I'm here for you" is no arrival.
+# `bad` must fail the check; `good` must pass EVERY check.
+base: &base
+  stage: meeting
+  now: 19.0
+  person: {name: Maya, age: 31, job: nurse, neighbourhood: old_town}
+  player: {name: Sam, age: 29, neighbourhood: harbourside, attributes: {job: accountant}}
+  contacts: [Jordan, Priya]
+  decision: {situation: reply}
+  plans: [{id: pl1, status: open, when: now, kind: drinks, venue: the_anchor, due_at: 18.5, arrives_at: 19.5,
+           arrived: false}]
+
+bad:
+  # still on their way
+  - {<<: *base, reply: {bubbles: [{text: "i'm here! where are you?"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "just got here x"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "on my way"}, {text: "ok I've arrived, got us a table"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "I'm at the bar."}]}}
+  # a tonight plan not yet due
+  - {<<: *base, plans: [{id: pl1, status: open, when: tonight, due_at: 21.0, arrives_at: 21.3, arrived: false}],
+     reply: {bubbles: [{text: "im here already lol"}]}}
+  # their own arrival, not someone else's: "my" or a name AFTER the phrase leaves it theirs
+  - {<<: *base, reply: {bubbles: [{text: "i am here, my table's by the window"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "ok I'm here, Jordan says hi"}]}}
+  # a soon plan names no time, so nobody is there yet
+  - {<<: *base, plans: [{id: pl1, status: open, when: soon}], reply: {bubbles: [{text: "I'm here!"}]}}
+
+good:
+  # they have got there
+  - {<<: *base, plans: [{id: pl1, status: open, when: now, due_at: 18.5, arrives_at: 18.9, arrived: true}],
+     reply: {bubbles: [{text: "i'm here! where are you?"}]}}
+  # its arrival time reached, the mark not yet written (a snapshot taken at the minute)
+  - {<<: *base, now: 19.5, reply: {bubbles: [{text: "just got here x"}]}}
+  # a row written before the arrival fields counts as there
+  - {<<: *base, plans: [{id: pl1, status: open, when: now}], reply: {bubbles: [{text: "I'm at the bar."}]}}
+  # asked, not stated
+  - {<<: *base, reply: {bubbles: [{text: "where are you?"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "are you here yet?"}]}}
+  # not an arrival
+  - {<<: *base, reply: {bubbles: [{text: "I'm here for you, always"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "i'm here if you need to talk"}]}}
+  # negated, and someone else's
+  - {<<: *base, reply: {bubbles: [{text: "not there yet, nearly"}, {text: "haven't arrived yet sorry"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "on my way, see you soon"}]}}
+  # no plan open with the player at all, or only one that is over: an ordinary reply (fix round 1, I2a)
+  - {<<: *base, plans: [], reply: {bubbles: [{text: "I'm at the bar with work people"}]}}
+  - {<<: *base, plans: [], reply: {bubbles: [{text: "just got here, long shift ahead"}]}}
+  - {<<: *base, plans: [{id: pl1, status: cancelled, when: now, arrived: true}],
+     reply: {bubbles: [{text: "grabbed us a table"}]}}
+  # someone else's arrival: "my <relation>" or a contact's name before it (fix round 1, I2b)
+  - {<<: *base, reply: {bubbles: [{text: "my mum just got here, gotta go"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "my friend got us a table"}]}}
+  - {<<: *base, told: [Priya], reply: {bubbles: [{text: "Priya just got here"}]}}

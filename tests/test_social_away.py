@@ -6,6 +6,11 @@ stamped and saved), the resume frame's lock screen, the voicing pass a
 resume and a join request, the run's 19:00 start, and the 72-hour survival
 test: the phone reads no hunger, hp or stamina, so an absence changes only
 the time and what arrived.
+
+Since v0.23.0 the default is `social.away.mode: none` (spec §3.6): a resume
+moves the clock by 0 (tests/test_social_convo.py). The `real` mode is kept as
+a config option, and these tests run under it (`_away_real`), but for
+`test_mode_none_advances_nothing`, which sets `none` itself.
 """
 
 from __future__ import annotations
@@ -19,6 +24,14 @@ from tests.social_fixtures import (  # noqa: F401
 )
 
 NOW = 1_800_000_000.0
+
+
+@pytest.fixture(autouse=True)
+def _away_real(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`social.away.mode: real` for every test here (the option these tests are about; v0.23.0's default is none)."""
+    from engine import social
+
+    monkeypatch.setattr(social, "setting", _with(social.setting, away={"mode": "real", "rate": 1.0, "max_hours": 72}))
 
 
 def _wall_hours_ago(state, hours: float, now: float = NOW) -> float:
@@ -196,7 +209,7 @@ def test_the_next_mechanics_action_clears_away_since(receipts_active) -> None:
     now = _wall_hours_ago(session.engine.state, 3)
     away.apply_on_resume(session, wall=lambda: now)
     assert away.away_since(session.engine.state) is not None
-    _phone(scene, session, "wait", args={"until": "15m"})
+    _phone(scene, session, "wait", args={"until": "1h"})
     assert away.away_since(session.engine.state) is None
     assert "away_since" not in session.engine.state.social
 
@@ -228,7 +241,7 @@ def test_the_lock_screen_counts_what_arrived(receipts_active, monkeypatch) -> No
     _clock_at(monkeypatch, NOW)
     again = scene.store.resume(session.save_id)
     frame = again.last_turn
-    assert frame["resumed"] is True and frame["choices"] == [] and frame["narration"] == ""
+    assert frame["resumed"] is True and frame["narration"] == ""
     screen = frame["lock_screen"]
     assert screen["lines"] == ["3 messages from 2 people", "1 match expired"]
     assert screen["text"] == "While you were away: 3 messages from 2 people, 1 match expired"
@@ -305,7 +318,7 @@ def test_a_reload_after_acting_past_the_lock_screen_does_not_show_it_again(recei
     _clock_at(monkeypatch, NOW)
     again = scene.store.resume(session.save_id)
     assert _joined(scene, again)["opening"]["lock_screen"]["text"].startswith("While you were away")
-    _phone(scene, again, "wait", args={"until": "15m"})
+    _phone(scene, again, "wait", args={"until": "1h"})
     assert not (_joined(scene, again)["opening"].get("lock_screen") or {}).get("text")
 
 
@@ -415,7 +428,7 @@ def test_no_phone_module_reads_hunger_hp_or_stamina() -> None:
         text = path.read_text(encoding="utf-8")
         for word in banned:
             assert f'"{word}"' not in text and f".{word}" not in text and f"'{word}'" not in text, (path, word)
-    for name in ("texter.md", "thread_summary.md", "date_recap.md"):
+    for name in ("texter.md", "episode_recap.md"):
         text = (repo / "games" / "read-receipts" / "prompts" / name).read_text(encoding="utf-8").lower()
         assert not any(f" {w} " in text for w in banned)
 
@@ -464,3 +477,21 @@ def test_a_hosted_resume_advances_only_its_own_accounts_run(hosted_receipts, mon
     again = store.get(alice.sid, owner=alice.account_id)
     assert again.engine.state.world_clock_hours - clock == pytest.approx(5.0, abs=1e-9)
     assert store.get(bob.sid, owner=bob.account_id).engine.state.world_clock_hours == their_clock
+
+
+def test_a_resume_frame_offers_the_worlds_legal_choices(receipts_active) -> None:
+    """v0.23.0 T22 (T21 carry-over 6): a resumed run's world layer is not a dead end. The frame offers a
+    narrated look and every world verb the engine honours now, each with the intent the engine will run."""
+    from engine.game import intents
+    from engine.social import away
+
+    _scene, session = _live_session()
+    frame = away.resume_frame(session.engine.state)
+    choices = frame["choices"]
+    assert choices and choices[0] == {"id": "resume_look", "text": intents.ENGINE_CHOICE_WORDS["look"]}
+    legal = {(v.action, t) for v in intents.legal_intents(session.engine.state)
+             if (v.action in intents.SOCIAL_WORLD_ACTIONS or v.action == "travel") for t, _ in v.options}
+    assert legal, "the entry offers a world verb"
+    offered = {(c["intent"]["action"], c["intent"]["target"]) for c in choices if c.get("intent")}
+    assert offered == legal
+    assert all(c["text"] and c["id"].startswith("resume_") for c in choices)

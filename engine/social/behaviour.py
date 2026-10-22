@@ -29,7 +29,7 @@ from typing import Any, Optional
 from engine import social
 from engine.game.rng import stable_rng
 from engine.game.state import GameState
-from engine.social.kinds import STAGES, stage_rank
+from engine.social.kinds import stage_rank
 
 #: Day 1 is a Monday; `schedules` rows are keyed by these.
 WEEKDAYS: tuple[str, ...] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
@@ -39,29 +39,32 @@ STATUSES: tuple[str, ...] = ("asleep", "work", "free", "out")
 
 #: Every key an archetype row must carry (spec §5.1).
 ARCHETYPE_KEYS: tuple[str, ...] = (
-    "reply_minutes", "read_minutes", "reply_prob", "opener_prob", "ghost_per_exchange",
+    "reply_minutes", "reply_prob", "opener_prob", "ghost_per_episode",
     "left_on_read_sensitivity", "warmth_mult", "warmth_cap_band", "cool_off_step", "flake_prob",
-    "double_text", "initiations", "media", "games", "arc",
+    "double_text", "initiations", "media", "games", "arc", "growth", "promise_prob", "offer_number_prob",
 )
+
+#: An archetype's `growth:` block (v0.23.0 spec §6.2): pace, the phone and in-person depth caps,
+#: and the loss multiplier (a ghoster's openness "decays twice as fast", Plan decision 19).
+GROWTH_KEYS: tuple[str, ...] = ("pace", "cap", "cap_in_person", "decay_mult")
 
 #: Spec §10.5: `cool_off` lowers interest by the archetype's step, at most this.
 COOL_OFF_STEP_MAX = 5
 
+#: An initiation row's keys (v0.23.0 spec §4.7).
+INITIATION_KEYS: frozenset[str] = frozenset({"id", "kind", "window", "prob", "when", "instruction"})
+
 #: An initiation's `when` conditions, read by messaging.when_holds (T8).
 WHEN_KEYS: tuple[str, ...] = ("stage_min", "hours_since_player", "days_since_last", "ghosted", "weekend")
-
-#: The `pacing:` block's keys (spec §9.2, read by messaging, T8).
-PACING_KEYS: tuple[str, ...] = ("interest_factor", "burst_factor", "status_mult", "stage_factor")
 
 
 @dataclass(frozen=True)
 class Archetype:
     name: str
-    reply_minutes: tuple[float, float]       # (median, spread), lognormal
-    read_minutes: tuple[float, float]
-    reply_prob: float
+    reply_minutes: tuple[float, float]       # (median, spread), lognormal: an opener's or a game's delay
+    reply_prob: float                        # the reply draw at an episode's start (v0.23.0 §4.6)
     opener_prob: float
-    ghost_per_exchange: float
+    ghost_per_episode: float                 # the ghost draw at an episode's start (v0.23.0 §4.6)
     left_on_read_sensitivity: float
     warmth_mult: float
     warmth_cap_band: Optional[str]
@@ -72,6 +75,9 @@ class Archetype:
     media: dict[str, Any]
     games: dict[str, Any]
     arc: Optional[str]
+    growth: dict[str, Any]                   # {pace, cap, cap_in_person, decay_mult} (v0.23.0 §6.2)
+    promise_prob: float = 0.0                # a sign-off carries a promise (v0.23.0 §5.2; drawn from T4)
+    offer_number_prob: float = 0.0           # they offer their number at depth 1 (v0.23.0 §15; drawn from T5)
 
 
 # -- loading ------------------------------------------------------------------
@@ -117,17 +123,26 @@ def _latency(row: dict[str, Any], key: str, where: str) -> tuple[float, float]:
 
 
 def _initiation(raw: Any, where: str) -> dict[str, Any]:
+    """One `initiations:` row (v0.23.0 spec §4.7): {id, kind, window, prob: [d0..d4], when?, instruction?}."""
+    from engine.social import growth, windows   # lazily: both import this module
+
     if not isinstance(raw, dict):
-        raise _fault(where, "must be a mapping {id, kind, prob | prob_per_day, ...}")
+        raise _fault(where, "must be a mapping {id, kind, window, prob, ...}")
     if not isinstance(raw.get("id"), str) or not raw["id"]:
         raise _fault(f"{where}.id", "must be a non-empty id")
     where = f"{where}({raw['id']})"
     if not isinstance(raw.get("kind"), str) or not raw["kind"]:
         raise _fault(f"{where}.kind", "must be a message kind")
-    chances = [k for k in ("prob", "prob_per_day") if k in raw]
-    if len(chances) != 1:
-        raise _fault(where, "needs exactly one of prob, prob_per_day")
-    _number(raw, chances[0], where, high=1.0)
+    retired = sorted(k for k in ("at_hours", "prob_per_day") if k in raw)
+    if retired:
+        raise _fault(where, f"{', '.join(retired)} went in v0.23.0: a row names its `window` and `prob` per depth")
+    if raw.get("window") not in windows.INITIATION_WINDOWS:
+        raise _fault(f"{where}.window", f"must be one of {', '.join(windows.INITIATION_WINDOWS)}, "
+                                        f"not {raw.get('window')!r}")
+    prob = raw.get("prob")
+    if (not isinstance(prob, list) or len(prob) != len(growth.RUNGS)
+            or not all(isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 1 for v in prob)):
+        raise _fault(f"{where}.prob", f"must be {len(growth.RUNGS)} chances 0-1, one per depth, not {prob!r}")
     if "when" in raw:
         when = raw["when"]
         if not isinstance(when, dict):
@@ -144,13 +159,11 @@ def _initiation(raw: Any, where: str) -> dict[str, Any]:
         for key in ("ghosted", "weekend"):
             if key in when and not isinstance(when[key], bool):
                 raise _fault(f"{where}.when", f"{key} must be true or false")
-    if "at_hours" in raw:
-        hours = raw["at_hours"]
-        if (not isinstance(hours, list) or not hours
-                or not all(isinstance(h, int) and not isinstance(h, bool) and 0 <= h <= 23 for h in hours)):
-            raise _fault(f"{where}.at_hours", "must be a non-empty list of whole hours 0-23")
     if "instruction" in raw and (not isinstance(raw["instruction"], str) or not raw["instruction"]):
         raise _fault(f"{where}.instruction", "must be a situation id")
+    unknown = sorted(str(k) for k in raw if k not in INITIATION_KEYS)
+    if unknown:
+        raise _fault(where, f"has unknown keys {', '.join(unknown)}")
     return dict(raw)
 
 
@@ -192,14 +205,14 @@ def build_archetype(name: str, row: Any, arcs: dict[str, Any]) -> Archetype:
     games = _mapping(row, "games", where)
     _number(games, "skill", f"{where}.games", high=1.0)
     _number(games, "invite_prob_per_day", f"{where}.games", high=1.0)
+    growth = _growth(row, where)
 
     return Archetype(
         name=name,
         reply_minutes=_latency(row, "reply_minutes", where),
-        read_minutes=_latency(row, "read_minutes", where),
         reply_prob=_number(row, "reply_prob", where, high=1.0),
         opener_prob=_number(row, "opener_prob", where, high=1.0),
-        ghost_per_exchange=_number(row, "ghost_per_exchange", where, high=1.0),
+        ghost_per_episode=_number(row, "ghost_per_episode", where, high=1.0),
         left_on_read_sensitivity=_number(row, "left_on_read_sensitivity", where),
         warmth_mult=_number(row, "warmth_mult", where),
         warmth_cap_band=band,
@@ -210,7 +223,28 @@ def build_archetype(name: str, row: Any, arcs: dict[str, Any]) -> Archetype:
         media=dict(media),
         games=dict(games),
         arc=arc,
+        growth=growth,
+        promise_prob=_number(row, "promise_prob", where, high=1.0),
+        offer_number_prob=_number(row, "offer_number_prob", where, high=1.0),
     )
+
+
+def _growth(row: dict[str, Any], where: str) -> dict[str, Any]:
+    """The `growth:` block (v0.23.0 spec §6.2): every key, pace above 0, each cap a depth 0-4."""
+    block = _mapping(row, "growth", where)
+    at = f"{where}.growth"
+    missing = [key for key in GROWTH_KEYS if key not in block]
+    if missing:
+        raise _fault(at, f"is missing {', '.join(missing)}")
+    unknown = sorted(str(k) for k in block if k not in GROWTH_KEYS)
+    if unknown:
+        raise _fault(at, f"has unknown keys {', '.join(unknown)}")
+    if _number(block, "pace", at) <= 0:
+        raise _fault(f"{at}.pace", "must be above 0")
+    _whole(block, "cap", at, high=4)
+    _whole(block, "cap_in_person", at, high=4)
+    _number(block, "decay_mult", at)
+    return dict(block)
 
 
 def _span(spec: dict[str, Any], key: str, where: str) -> None:
@@ -241,35 +275,6 @@ def check_arc(name: str, spec: Any) -> dict[str, Any]:
         if not isinstance(spec[key], dict) or not spec[key]:
             raise _fault(f"{where}.{key}", "must be a non-empty mapping")
     return dict(spec)
-
-
-def check_pacing(block: Any) -> dict[str, Any]:
-    """The `pacing:` block (spec §9.2): every key, each the shape messaging reads."""
-    if not isinstance(block, dict):
-        raise _fault("pacing", "required: a mapping of " + ", ".join(PACING_KEYS))
-    missing = [key for key in PACING_KEYS if key not in block]
-    if missing:
-        raise _fault("pacing", f"is missing {', '.join(missing)}")
-    factor = block["interest_factor"]
-    if not (isinstance(factor, list) and len(factor) == 2
-            and all(isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0 for v in factor)):
-        raise _fault("pacing.interest_factor", f"must be [at 0, at 100], two numbers 0 or more, not {factor!r}")
-    burst = block["burst_factor"]
-    if (not isinstance(burst, list) or not burst
-            or not all(isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0 for v in burst)):
-        raise _fault("pacing.burst_factor", f"must be a non-empty list of numbers 0 or more, not {burst!r}")
-    for key, known in (("status_mult", STATUSES), ("stage_factor", STAGES)):
-        table = block[key]
-        if not isinstance(table, dict):
-            raise _fault(f"pacing.{key}", "must be a mapping")
-        for name, value in table.items():
-            if name not in known:
-                raise _fault(f"pacing.{key}", f"{name!r} is not one of {', '.join(known)}")
-            _number(table, name, f"pacing.{key}")
-    missing_status = [s for s in STATUSES if s not in block["status_mult"]]
-    if missing_status:
-        raise _fault("pacing.status_mult", f"is missing {', '.join(missing_status)}")
-    return block
 
 
 def _arcs() -> dict[str, Any]:

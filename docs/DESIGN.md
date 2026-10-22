@@ -259,6 +259,19 @@ are byte-for-byte what they were.
 The order of a turn is what makes "never invent an outcome" achievable:
 
 1. The player picks a choice. `resolve_player_intent` reads the intent off it.
+   Typed text carries **no intent at the route**, for every story: nobody wrote
+   an option for it, and the route never accepts a client's `intent`. A phone
+   story (`paths.social`, v0.23.0 addendum 4 §3) reads the typed line LATER, on
+   the server, in `default_scene._run_world_turn` -- the turnstile and the turn
+   lock held, the inbox drained -- against what the engine offers at that
+   moment (`engine/social/typed.py::intent_for`): one offered activity or room
+   move by a conservative, closed matcher, or in a scene a topic move or
+   `talk`, each re-checked against `legal_intents`, so it never comes back as a
+   refusal; otherwise nothing, and the line is narrated only. It never infers a
+   venue, a closer, a plan, a promise, an approach, work or a phone action. Its
+   receipt carries `typed: true` and the narrator's line "The player said this;
+   the engine read it as: ..." (`typed.mark`); the line itself is play text,
+   never logged.
 2. `run_turn` executes it **before anything plans or narrates**, through the
    ordinary skills (`GameEngine.move_to`, `checks.resolve`, `survival.rest`, …),
    so every write still funnels through `effects.apply_effect` and
@@ -401,10 +414,17 @@ seeded: a person is a pure function of the seed and an index, drawn from
 `population.yaml`'s tables (and their app's `culture`) whenever needed and
 never stored; only what happens between them and the player is kept, per
 person, in `state.social["people"]`. **Behaviour** (`behaviour.py`,
-`messaging.py`) is an archetype's numbers -- latencies, reply, ghost and
-opener chances, initiations, double texts -- run as events at exact
-in-game hours on one queue (`events.py`) walked inside `clock.advance_time`
-(below), with a `daily` event at 04:00 for every module's morning step.
+`messaging.py`) is an archetype's numbers -- reply, ghost and opener
+chances, initiations, double texts -- run as events at exact in-game hours
+on one queue (`events.py`) walked inside `clock.advance_time` (below), with
+a `daily` event at 04:00 for every module's morning step. **Conversations**
+(`convo.py`, v0.23.0) are episodes: while one is going a reply is due at the
+minute the player's message was sent (no reply latency at all); a person who
+is not available (their schedule and phone habits) reads at their next
+available hour; the ghost and reply draws are made once per episode start;
+and an episode ends at a natural point, nudged by its drawn length, the
+person's energy and their next schedule boundary, never by a fixed gap.
+Time moves only by what the player does (`wait`, and the world's actions).
 **Matching** (`apps.py`, `matching.py`) is a deterministic compatibility
 and one like-back draw per pair. **Relationships** (`relationships.py`) are
 stages behind gates of warmth, trust, exchanges, days and good meet-ups,
@@ -420,10 +440,30 @@ write is a `social_*` effect (rule 3), every draw a named `SOCIAL_*` stream
 to what the engine holds (the third audit question: does the prose agree
 with the receipt).
 
-### The phone turn (v0.22.0)
+### The phone turn (v0.22.0) and the world turn (v0.23.0)
 
-A story declaring `paths.social` (READ RECEIPTS) is not played through
-`player_choice`: the player presses the phone, and each press is a
+**Two layers, one clock (v0.23.0, spec §8.2-§8.5).** A phone story's pacing
+is the player's own: in-game time moves only by what they do -- a phone
+action's cost, a `wait`, or a WORLD action. The world is the engine's
+ordinary narrated turn (`player_choice`), opened for a phone story in v0.23.0
+and refused only while the phone is up (`state.social["phone_up"]`: any phone
+action picks it up, the phone verb `put_down` puts it down). Its own verbs
+are `do {activity}` (`data/world/activities.yaml`: minutes, or until the
+morning, the evening or the end of the player's work band) and `go {to}`
+(the venues, homes and registry office, which have no edges: an action's
+travel minutes, then the `social_go` effect), both system-only skills that
+`execute_intent` resolves as the system (`intents.SOCIAL_WORLD_ACTIONS`). A
+long activity (`interruptible`) advances event by event through
+`clock.advance_time` and stops at the first notification that may wake the
+player, so a promise into the work band lands mid-shift and the player may
+text and carry on; asleep, only a promise or a late-night person's message
+wakes them, and only with "wake me for messages" on. The narrator is told
+where the player is and the buzz -- how many notifications and whose names,
+never their words (`world.narration_block`, through the `SocialWorld`
+directive).
+
+A story declaring `paths.social` (READ RECEIPTS) is played on the phone
+through phone actions: the player presses the phone, and each press is a
 `phone_action` -- a structured `{action, target, args, text}` intent checked
 against `engine/social/intents.py`'s catalogue, rebuilt from the live state,
 and executed by a system-only `social_*` skill (rule 1; the typed words are
@@ -437,9 +477,14 @@ replies, written by the model -- is a separate pass the player never waits
 for (`engine/social/voicer.py`, v0.22.0 T14), requested once the action has
 released its lock when anything is due. The call (`engine/social/voicing.py`,
 T13): `snapshot_of` copies one person's thread under the lock, and `voice` --
-pure over that snapshot, writing nothing -- composes the seven-block prompt
-(`texter.md`'s persona section as the system message), calls the `texter`
-profile with a per-call schema, checks the reply (`agreement.check`), retries
+pure over that snapshot, writing nothing -- composes the prompt
+(`texter.md`'s persona section as the system message, then eight blocks from
+stable to volatile, v0.23.0 T7: who they are now, your story together, what
+they know, what is still open, you and them, this conversation, right now,
+format), trimmed to a window derived per call (the binding's context less the
+reply mode's cap, degraded under `social.voice.window_tokens`), calls the
+`texter` profile with the mode's `max_tokens` and a per-call schema, checks
+the reply (`agreement.check`), retries
 once with a one-line correction, drops what still disagrees, or falls back
 to the story's own seeded line, which proposes `regard.fallback`.
 
@@ -448,15 +493,22 @@ is bound to the session OBJECT and its build (`GameSession.epoch`), never to
 its id: before admission, before its snapshot and before every commit it
 checks that this very object is still its store's live run, of that build,
 and not ending -- and ends, committing and saving nothing, when it is not
-(a resume, a sweep, an end). Hosted, it is ADMITTED before it marks
+(a resume, a sweep, an end). Since v0.23.0 (T8, spec §20.1) it works ONE
+MODEL CALL AT A TIME, each holding the run's narration turnstile
+(`GameSession.narration_turnstile`, `engine/social/turnstile.py`), which it
+only TRIES: held or wanted by a world turn, the pass answers `deferred` --
+not an attempt -- and is re-queued on `social.voice.commit_retry_ms`. Hosted,
+each call is ADMITTED before it marks
 anything (`admit_turn(label="voice", account=<owner>)`, a short
 `social.voice.admit_wait_seconds`, a deadline and the pass's cancel); busy,
-it is re-queued with backoff and dropped after `social.voice.max_attempts`.
-Under the turn lock (tried, never waited for) it reads the due messages by
-priority, at most `social.voice.max_per_pass` people, copies each person's
-snapshot and MARKS those messages in `session.voicing` -- in memory, never
-in state or a save, so a save reloads with them simply due. It calls the
-model per person holding no lock (`session.typing` names the thread
+it is re-queued with backoff and dropped after `social.voice.max_attempts`
+-- but an OPEN episode's due reply is then committed as its templated
+fallback, never left silent (`commit_open_fallbacks`, also at the pass's
+deadline). Under the turn lock (tried, never waited for) each call reads
+the ONE next person by priority, up to `social.voice.max_per_pass` calls a
+pass, copies their snapshot and MARKS those messages in `session.voicing`
+-- in memory, never in state or a save, so a save reloads with them simply
+due. It calls the model holding no lock (`session.typing` names the thread
 meanwhile, read by every payload built then), and commits each reply under
 the lock, re-validated against the live state: still wanted, proposals
 legal now, the state-dependent agreement checks re-run; then one
@@ -469,7 +521,9 @@ holder. The due messages of a person who left (unmatched, blocked, ended)
 are withdrawn the first time the voicer sees them (`voiced: "withdrawn"`,
 no words, out of the payload), so nothing is voiced into a closed or
 reopened conversation. A hosted pass with nothing due or parked takes no
-narration ticket. At most one thread summary follows, written off the lock. The
+narration ticket. At most one memory job follows -- a closed conversation's
+recap, or the fold of a person's oldest recap into their story -- written
+off the lock (a pass with only that to do asks no ticket). The
 scheduler is one per process: a bounded queue (`social.voice.queue_max`),
 one entry per session object, `social.voice.workers` threads; the store's
 release cancels a gone run's passes, a hosted drain cancels every pass and
@@ -484,7 +538,10 @@ which refuses -- writing nothing -- a session an admin is ending (checked
 FIRST, before anything is written, so a purged folder is never re-created)
 and, hosted, an account `owner_open` says is closed: the two checks a
 turn's save and `SessionStore.owner_write` make. Then it spills each
-thread's messages past `social.state_messages` to the save directory's
+thread's messages past what it keeps (`archive.keep_for`, since v0.23.0 T9
+fix round 2: the conversation going on in it, what the player has not read,
+its last turn as far as a reply reads it, and one screen, `social.state_messages`, for the thread the player has open;
+any other thread `social.closed_thread_tail`, 0) to the save directory's
 `phone_archive.jsonl` (`engine/social/archive.py`: appended first, then
 taken out of state through `social_message` `op: archive`; a crash between
 leaves a duplicate line, dropped by id on read; a message still waiting for
@@ -492,7 +549,10 @@ its words never moves) -- and, since v0.22.0 T26, a dead or left-behind
 thread's every message, a stamp of its last one kept for the readers --
 cuts each swiped-only person to the swipe and forgets answered requests
 past `social.requests_kept` (`saves.compact`), and calls
-`default_state._autosave`, which writes a phone story's `save.json` compact. A save happens
+`default_state._autosave`, which writes a phone story's `save.json` compact, its
+slice packed (`engine/social/packing.py`: a message's decision without its
+default fields, a message's own `thread_id` and a media row's default fields
+left out, each put back exactly on load). A save happens
 at once inside the mechanics action after a match, a stage change or an
 ending (the effect's result carries `save_reason`; the transcript line
 names the phone action); otherwise the action marks the run dirty and the
@@ -517,13 +577,15 @@ Inside a session the phone's clock moves only by the player's actions (the
 wall-clock tick is off; `wait` passes time on request). A new run is born at
 19:00 on day 1 (`creation.yaml`'s `start_hour`, given to the new `GameState`
 by `procgen.new_game_state`: a birth, no hour advanced; every other story
-keeps 08:00). When the player comes back -- `SessionStore.resume`, after
+keeps 08:00). Since v0.23.0 the default is `social.away.mode: none`
+(spec §3.6): a returning player picks up at the same in-game minute, and
+the lock screen shows what was waiting. Under `mode: real` (kept as an
+option), when the player comes back -- `SessionStore.resume`, after
 `_build` and before the resume frame, under the run's turn lock -- the time
 they were gone passes as ONE `clock.advance_time`: the real seconds since
 `state.social["last_active_wall"]` (stamped by every mechanics action and by
 the advance itself) times `social.away.rate`, capped at
-`social.away.max_hours` (72), fractional hours kept; `social.away.mode:
-none` advances nothing. The advance is recorded in the transcript as
+`social.away.max_hours` (72), fractional hours kept; `none` advances nothing. The advance is recorded in the transcript as
 `{kind: away, hours, real_seconds}` and saved at once, so a second resume
 of the same save adds only the minutes between, never the absence twice, and
 a wall clock that went backwards adds nothing. The resume frame
@@ -542,29 +604,33 @@ transcript with its hours; a replay from the inputs reproduces it, and its
 events run inside `advance_time` exactly as a `wait` of the same length
 would. Within a session nothing moves on the wall clock.
 
-**Memory: one per relationship** (`engine/social/memory.py`, v0.22.0 T12,
-spec §12). The storyteller's ledger is one memory per run; the phone keeps
-one per PERSON, and nothing crosses between them. Each person's dynamic
-slice holds `canon` (what they shared about themselves -- a reply's checked
-`shared` facts, an arc's reveal from `behaviours.yaml`'s `canon:` -- bounded
-at `social.canon_max`, the oldest folded into the summary of each of their
-threads), `knows` (what they learned about the player, bounded at
-`social.knows_max`) and `told` (the player's contacts named to them,
-recorded as messages leave state for the archive, read by
-`agreement.view_from_state`). Each thread holds a running `summary` (at
-most `social.memory.summary_words`) through `summary_through`, folding the
-conversation older than the voice's verbatim window by
-`summarizer.summarize_with` -- the call the ledger's `summarize` also makes,
-its own bytes unchanged -- on the `small` profile (a utility call: hosted, a
-busy lane is the deterministic fallback). The summary reads the archive
-file for messages the spill took past it, since the spill runs under the
-turn lock where no model may be called: `thread_view` copies state under
-the lock, and `with_archive` reads the file off it, from its end; an
-archive missing such messages leaves the watermark where it is. Every write is a `social_memory`
-effect; a summary written from a snapshot carries the summary it was
-written over and is refused as stale if that moved. `memory.budgeted` fits
-the voice prompt (§12.4). The voicing pass writes both: a reply's facts at
-its commit, and at most one thread's summary per pass, after its replies.
+**Memory: one per person** (`engine/social/memory.py`, v0.22.0 T12; per
+person, not per thread, since v0.23.0 T6, spec §7). The storyteller's
+ledger is one memory per run; the phone keeps one per PERSON,
+`people[pid]["memory"]`, whatever app the conversation is on, and nothing
+crosses between people. It holds `current` (the open conversation, both
+sides, every app, word for word: `note_spoken` from `social_message` and
+`social_voiced`), `bridge` (how the last one ended), `episodes` (each closed
+conversation's recap, at most `social.memory.episodes_kept`), `story` (the
+oldest recaps folded in, at most `story_words`), `open` (follow-ups the
+person will raise when due), and `canon` (what they shared about
+themselves -- a reply's checked `shared` facts, an arc's reveal from
+`behaviours.yaml`'s `canon:` -- bounded at `social.canon_max`, the oldest
+folded into the story), `knows` (what they learned about the player,
+bounded at `social.knows_max`), `told` (the player's contacts named to
+them, recorded as messages leave state for the archive, read by
+`agreement.view_from_state`) and `history`. A thread keeps only its
+messages. A conversation that closes waits in `recap_due` until the
+voicing pass recaps it: the view copied under the turn lock, the archive
+read off it for the episode's messages the spill took, one
+`summarizer.summarize_with` call -- the call the ledger's `summarize` also
+makes, its own bytes unchanged -- over `prompts/episode_recap.md` on the
+`small` profile (a utility call: hosted, a busy lane is the deterministic
+fallback, built from the engine's facts), committed under the lock and
+refused as stale if its row was recapped already. Every write is a
+`social_memory` effect. `memory.budgeted` fits the voice prompt (§12.4).
+The voicing pass writes both: a reply's facts at its commit, and at most
+one recap or fold per pass, after its replies.
 
 ---
 
@@ -1302,11 +1368,12 @@ fails any test that takes a lock out of order. v0.22.0 added four to the
 order, each held only while it builds or drops one thing: the social data
 cache (`engine/social/__init__.py::_DATA_LOCK`), the phone's dirty saver
 (`engine/social/saves.py`), the voicing scheduler (`engine/social/voicer.py`)
-and the media job worker (`engine/media/comfy/jobs.py`). Twenty-one locks
-are leaves (nothing is taken under them): nineteen per-object locks --
+and the media job worker (`engine/media/comfy/jobs.py`). Twenty-two locks
+are leaves (nothing is taken under them): twenty per-object locks --
 among them READ RECEIPTS' dirty timer, its voicing scheduler's queue, each
-run's inbox, the media job worker's queue and the speech worker's requests
-(`engine/social/saves.py`, `voicer.py`, `inbox.py`,
+run's inbox, each run's narration turnstile's condition, the media job
+worker's queue and the speech worker's requests
+(`engine/social/saves.py`, `voicer.py`, `inbox.py`, `turnstile.py`,
 `engine/media/comfy/jobs.py`, `engine/media/tts.py`) -- and two module
 locks, READ RECEIPTS' profile cache (`engine/social/population.py`) and
 Tile Talk's word list (`engine/social/games/wordgame.py`). A turn lock is only ever taken
@@ -1327,6 +1394,29 @@ server's gate, the media workers) and `not_served_hosted` (MCP, the studio).
 fails on any global, class-level container, instance, `lru_cache`, thread or
 pool it finds unclassified;
 `tests/test_thread_safety.py` forces each fixed race with a barrier.
+
+**The phone story's narration turnstile** (v0.23.0 T8, spec §20.1;
+`engine/social/turnstile.py`). Under one account the supervisor refuses a
+second narration ticket (`other_window`), so a READ RECEIPTS player's world
+turn and their voicing pass must never both ask. Each such session gets a
+`Turnstile` (`GameSession.narration_turnstile`, built by
+`SessionStore._build` only when `paths.social` is declared, never saved;
+every other story's session has none, pinned per story in
+`tests/test_social_seam.py`), and only its holder may ask for the ticket.
+The ORDER is turnstile, then turn lock, then every lock in the list: a
+world turn waits for it (`acquire_world`, bounded by
+`turnstile.world_wait_seconds`) holding NO lock, then tries the turn lock;
+a voicing pass only ever TRIES it (`try_acquire_voice`), per model call, so
+no scheduler thread waits on it and a world turn waits at most one call.
+Nothing takes it under a turn lock. Its condition's lock is a leaf (the
+twenty-second); `tests/lock_order.py` checks the hold as `TURNSTILE`
+against the turn lock, `TURN`. The world side is `run_guarded`'s (v0.23.0
+T11): a turn with no `runner` on a session that has a turnstile goes through
+`default_scene._run_world_turn` -- the turnstile, then the turn lock tried,
+the `phone_up` re-check, the inbox drained, the turn (`_run_locked`, the
+body `run_guarded` always ran), the inbox drained again, the lock then the
+turnstile released, and a voicing pass requested at once (`request(now=True)`
+brings a deferred pass forward rather than leaving it to its backoff).
 
 ---
 
@@ -1575,6 +1665,7 @@ the engine and what is one story's answer?* What landed:
 | **Declared state** | `state.yaml` — every value a story shows, with bounds, owners and a visibility (`public` / `veiled` / `hidden`). One declaration reaches the prompt, the sheet and the save |
 | **The roster** | `agents.yaml` — the cast, its voices, and what each agent may read and write. The multi-agent turn (plan → negotiate → commit) is `engine/agents/pipeline.py` |
 | **Declared capabilities** | Doom, decks, threads, endings, epilogues, recipes, challenges: each runs only for a story that declares it |
+| **The director's four waits** | `director.ensure_scene` deals nothing while a hand is open, a job is under way, an encounter is open, or (a story declaring `paths.social`) an in-person social scene is open; the deal waits unspent |
 | **The default scene** | Moved from `content/scenes/clockwork/` into `engine/scenes/`; it was serving every story already |
 | **The UI plugin** | `ui.plugin` in the manifest picks a client plugin, so two stories can share one look. A borrowed plugin lends its look and not its voice |
 | **The finale chain** | Ending eligibility → lock → Speak·Act·Seal → epilogue, all story-declared |

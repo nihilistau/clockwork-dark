@@ -94,8 +94,16 @@ SOCIAL_MATCH = "social.match"
 SOCIAL_PACE = "social.pace"
 SOCIAL_BEHAVIOUR = "social.behaviour"
 SOCIAL_MEDIA = "social.media"
-SOCIAL_MEET = "social.meet"
 SOCIAL_GAME = "social.game"
+# v0.23.0 (READ RECEIPTS rework). A fixed per-person attribute is drawn from
+# a COUNTERLESS key, stable_rng(seed, f"{stream}:{pid}:{name}")
+# (engine/social/attrs.py), so no draw order can change it; the per-episode
+# and per-event draws use person_rng or world_rng on the same streams.
+SOCIAL_CONVO = "social.convo"     # per-episode draws; the `habits` attribute
+SOCIAL_GROWTH = "social.growth"   # pace, topics, layer picks
+SOCIAL_LIFE = "social.life"       # life events and the seen draw
+SOCIAL_SCENE = "social.scene"     # moments, flakes, stay answers; the `home` attribute
+SOCIAL_VENUE = "social.venue"     # an engine-picked plan's venue tie (v0.23.0 T19; rule 4: not the scene's stream)
 
 
 def _mix(seed: int, stream: str, counter: int) -> int:

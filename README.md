@@ -33,7 +33,7 @@ settles the result, and a model on your own machine writes the prose.
   shipped art packs mean scenes have pictures without any of them. Serving
   it to other people, with accounts, is opt-in (hosted mode).
 
-**Status:** **v0.22.0** is the current release: a new story, READ RECEIPTS, a dating story played on a phone, whose cast the engine runs. Seven stories ship. Six
+**Status:** **v0.23.0** is the current release: READ RECEIPTS, the dating story played on a phone (new in v0.22.0), reworked -- people who grow closer at their own pace, no set time on dating, phone numbers that work, a world outside the phone (your flat and 28 places with 48 plates, meet-ups played in person) and life events. Its balance pass, live play and whole-branch review were deferred by the owner to the end of v0.24.0. Seven stories ship. Six
 can be played to an ending (HUE & CRY eight ways); READ RECEIPTS is endless
 (`endless: true`, no ending, by the owner's brief). The engine
 is model-server agnostic: LM Studio stays the default, and llama-server,
@@ -244,11 +244,13 @@ the seed and run by the engine, never stored and never invented by the
 model. Each has an archetype (a romantic, a slow burner, a dry texter, a
 ghoster, a breadcrumber...) and a week of their own, so they read and reply
 on their own clock, write first, double-text, start conversations, go quiet
-or ghost. A relationship moves from just matched to talking, swapped
+or ghost. Each remembers the whole history with you, whatever app you
+talk on: a conversation that ends is recapped into what they remember.
+A relationship moves from just matched to talking, swapped
 numbers (which opens Texts and Natter), seeing each other and on, by gates
 of warmth, trust and time together, and can cool off, fade or take a turn.
 Photos, voice notes and videos are rare and earned, decided by the engine;
-meet-ups are planned in the calendar and the engine decides how they went;
+plans to meet have a kind, a place and a time of day in words, never a slot, and are kept by going to them in time;
 Tile Talk (a word game) and This or That are played turn by turn. The model
 writes only what they say, checked against what the engine holds; with no
 model server the story's own fallback lines answer, and the game still
@@ -262,6 +264,14 @@ there too, and the phone opens on its lock screen with what you missed.
 | A Natter conversation: a photo, a video, a Tile Talk game and an ask | Tile Talk on a phone (390 x 844) |
 |---|---|
 | ![A Natter thread: procedural photo and video tiles, fallback replies, a Tile Talk card and a pending ask for a video](docs/images/read-receipts-thread.png) | ![Tile Talk on a phone: the 11x11 board with its premium squares, the rack and Play, Pass, Swap and Resign](docs/images/read-receipts-tiletalk.png) |
+
+| The world with the phone put away (900 x 600) | A meet-up in the Copper Kettle |
+|---|---|
+| ![The flat's lounge at night on the scene plate, Pick up the phone, and the world's choices: the dining room, the hall, tidy up, read and the city's places](docs/images/read-receipts-world.jpg) | ![The Copper Kettle's plate with Yusuf's card and who else is here, the scene's choices, and the phone beside it](docs/images/read-receipts-scene.jpg) |
+
+| The phone up beside the world |
+|---|
+| ![The lounge's plate with the world's choices greyed under Put the phone down to act, and the phone's home screen beside it](docs/images/read-receipts-beside.jpg) |
 
 </details>
 
@@ -349,7 +359,10 @@ declared meters and clocks.
   like-back, messaging, relationships with stages and closeness bands,
   engine-decided photos, voice notes and videos (ComfyUI and TTS optional),
   meet-ups and two games; the model only voices the people, and every reply
-  is checked against what the engine holds. The story draws its own play
+  is checked against what the engine holds. Since v0.23.0 the people grow
+  at their own pace, conversations are episodes with instant replies, and
+  the world outside the phone is played (places, in-person scenes, homes,
+  life events). The story draws its own play
   screen ([docs/AUTHORING.md §3.15](docs/AUTHORING.md)).
 - **Clocks** (progress clocks that fill and force scenes), **threads**
   (contracts, bribes, blackmail and repeatable lines of credit, with a
@@ -797,7 +810,7 @@ running game; AGENTS.md's "The client" says how.
 .\.venv\Scripts\python.exe scripts\simulate_hoard.py     # hoarder: the anchors, the Hoard, the squeezes (--no-pass, --severity)
 .\.venv\Scripts\python.exe scripts\simulate_acts.py      # investigator: Acts I-II, the trail and the reveal (--opening, --gate)
 .\.venv\Scripts\python.exe scripts\simulate_endings.py   # eleven policies to the ending each run locks (--fair-day, --break-out)
-.\.venv\Scripts\python.exe scripts\simulate_social.py --game read-receipts --days 60 --seeds 40 --policy attentive   # READ RECEIPTS' phone (--policy attentive|swiper|picky|slow|neglectful|pushy|all, --voice romantic_model|cold_model|zero|no_model|all, --first-seed, --raw OUT, --fold RAW..., --json OUT)
+.\.venv\Scripts\python.exe scripts\simulate_social.py --game read-receipts --sessions 6 --seeds 10 --policy attentive --model-seconds 30   # READ RECEIPTS' phone (--policy attentive|swiper|picky|slow|neglectful|pushy|devoted|bachelor|flaky|chatty|all, --voice neutral_model|romantic_model|cold_model|zero|no_model|all, --model-seconds 6|15|30, --first-seed, --raw OUT, --fold RAW..., --json OUT)
 ```
 
 ```sh
@@ -812,7 +825,7 @@ running game; AGENTS.md's "The client" says how.
 .venv/bin/python scripts/simulate_hoard.py
 .venv/bin/python scripts/simulate_acts.py
 .venv/bin/python scripts/simulate_endings.py
-.venv/bin/python scripts/simulate_social.py --game read-receipts --days 60 --seeds 40 --policy attentive
+.venv/bin/python scripts/simulate_social.py --game read-receipts --sessions 6 --seeds 10 --policy attentive --model-seconds 30
 ```
 
 (The same flags as the PowerShell lines above.)
@@ -831,10 +844,13 @@ careful pickpocket; `--policy living` plays that harness's thieves who pay their
 `scripts/simulate_decks.py --game wicked-garden` walks a deck
 story the same way: every ending, card and clock, over seeded runs.
 `scripts/simulate_social.py --game read-receipts` plays READ RECEIPTS' phone
-through its own mechanics action, a scripted player (six policies) against a
-stub voice (no model is called), and reports match rates, conversations
-started, ghosting, numbers swapped, reply latency, interest's half-life and how
-fast each archetype warms. A 60-day run is long: seed ranges run side by side
+through its own mechanics action, a scripted player (ten policies) against a
+stub voice (no model is called), in sessions of 40 REAL minutes: each action
+is priced in real seconds (a send 30, a swipe 4, a bubble read 3, and the
+model's seconds a reply, `--model-seconds` 6, 15 or 30). It reports how long
+conversations run and why they end, cold messages left unanswered, ghosting,
+the real minutes from a match to a phone number, promises kept, and the
+in-game minutes a real minute buys. Seed ranges run side by side
 (`--first-seed`, `--raw`) fold into one report with `--fold`.
 NEON CITY's and THE LONG CON's numbers are authored judgement and haven't been
 simulated; their READMEs say so, and `simulate.py --game` refuses them (and
@@ -905,8 +921,8 @@ fixed; details may change as each release lands.
 | v0.21.0 | **UI/UX overhaul**, together with HUE & CRY's screens: engine panels (wanted poster, job panel, casing board, people, encounter, rolls), a layout that holds, a connection that recovers, HUE & CRY's skin; the legacy aliases removed | **shipped** |
 | v0.21.1 | **Test speed** (patch): tiers, parallel hybrid runs, bounded runs, `scripts/run_tests.py` | **shipped** |
 | v0.22.0 | **A new story: READ RECEIPTS**, a dating simulation played through a phone of apps -- two dating apps, texts and a messenger, photos, voice notes and videos, meet-ups, two two-player games -- with a cast the engine runs and no endgame | **shipped** |
-| v0.23.0 | **READ RECEIPTS rework**: people who grow closer at their own pace, no set time on dating, phone numbers that work, places (the player's apartment, the cast's homes) with art, and real-life events and meet-ups outside the phone | next |
-| v0.24.0 | **Sound effects** for the engine and every story: alerts, ringtones, button presses | planned |
+| v0.23.0 | **READ RECEIPTS rework**: people who grow closer at their own pace, no set time on dating, phone numbers that work, places (the player's apartment, the cast's homes) with art, and real-life events and meet-ups outside the phone -- and, after the owner's first playtest, a world you can type into and people who turn up where you wait for them (staff at venues, a contact you run into; no strangers yet) | **shipped** (its full balance pass, live play and whole-branch review moved to the end of v0.24.0) |
+| v0.24.0 | **Sound effects** for the engine and every story: alerts, ringtones, button presses -- with READ RECEIPTS' morning scene, four more life-event decks, and the v0.23.0 tail (the full balance pass, live play, the docs pass and the whole-branch review) | **next** |
 | v0.25.0 | **The Clockwork Dark overhaul** | planned |
 | v0.26.0 | **The Wicked Garden overhaul** | planned |
 | v0.27.0 | **NEON CITY overhaul** | planned |

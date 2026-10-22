@@ -72,14 +72,19 @@ def _snapshot(*, decision: dict[str, Any] | None = None, **over: Any):
 
 
 def test_the_voice_prompt_is_exactly_its_blocks(receipts_active) -> None:
+    """v0.23.0 spec §13.2 (rewritten in place, pre-flight F25): the persona as the system message, then
+    exactly the eight titled blocks, stable to volatile, each `f"{title}\n{body}"`."""
     from engine.social import voicing
 
+    assert voicing.BLOCK_TITLES == ("WHO YOU ARE NOW", "YOUR STORY TOGETHER", "WHAT YOU KNOW ABOUT THEM",
+                                    "STILL OPEN", "YOU AND THEM", "THIS CONVERSATION", "RIGHT NOW", "FORMAT")
     snap = _snapshot()
     msgs = voicing.messages(snap)
     assert [m["role"] for m in msgs] == ["system", "user"]
     assert msgs[0]["content"] == voicing.texter_prompt().persona
     titles = [part.split("\n", 1)[0] for part in msgs[1]["content"].split("\n\n") if part.split("\n", 1)[0].isupper()]
     assert titles == list(voicing.BLOCK_TITLES)
+    assert all(part.split("\n", 1)[0].isupper() for part in msgs[1]["content"].split("\n\n"))   # nothing else
     assert "SITUATION:" in msgs[1]["content"].split("RIGHT NOW\n", 1)[1].split("\n\nFORMAT\n", 1)[0]
 
 
@@ -112,11 +117,12 @@ def test_the_prompt_carries_what_they_know_and_said(receipts_active) -> None:
     from engine.social import voicing
 
     user = voicing.messages(_snapshot())[1]["content"]
-    assert "I grew up by the sea" in user.split("WHERE YOU ARE WITH THEM")[0]       # canon in WHO YOU ARE
-    assert "They run on Sundays" in user.split("WHAT YOU KNOW ABOUT THEM\n")[1].split("\n\nTHE CONVERSATION")[0]
-    conversation = user.split("THE CONVERSATION\n")[1].split("\n\nRIGHT NOW")[0]
+    you_and_them = user.split("YOU AND THEM\n")[1].split("\n\nTHIS CONVERSATION")[0]
+    assert "I grew up by the sea" in you_and_them                    # canon: what you have told them (T7)
+    assert "Day 1: Matched on Matchstick" in you_and_them
+    assert "They run on Sundays" in user.split("WHAT YOU KNOW ABOUT THEM\n")[1].split("\n\nSTILL OPEN")[0]
+    conversation = user.split("THIS CONVERSATION\n")[1].split("\n\nRIGHT NOW")[0]
     assert "Sam: what are you up to this weekend?" in conversation and "you: hey you" in conversation
-    assert "Day 1: Matched on Matchstick" in user
 
 
 # -- the schema (§11.2) ---------------------------------------------------------------------------
@@ -292,27 +298,32 @@ def test_the_fallback_is_a_pure_function_of_the_snapshot(receipts_active) -> Non
     assert kept.failures == ["media_claimed", "stage_claimed"] and kept.fallback
 
 
-def test_no_model_play_moves_warmth_up_across_days(receipts_state, matched, monkeypatch) -> None:
+def test_no_model_play_moves_warmth_up_across_episodes(receipts_state, matched, monkeypatch) -> None:
     """The §10.2 ruling: fallback replies, applied through `social_regard` (`apply_regard`, as T14's
-    commit does), grow warmth day by day -- and the per-day cap still holds within a day."""
+    commit does), grow warmth episode by episode -- and the per-episode cap still holds within one (v0.23.0 T5)."""
     from engine import social
+    from engine.game.effects import apply_effect
     from engine.social import relationships, voicing
-    from tests.social_fixtures import _force_archetype
+    from tests.social_fixtures import _force_archetype, _open_episode
 
-    pid = matched("matchstick").split(":", 1)[1]
+    thread = matched("matchstick")
+    pid = thread.split(":", 1)[1]
     _force_archetype(monkeypatch, receipts_state, pid, "steady")        # no band cap, warmth_mult 1.0
     person = receipts_state.social["people"][pid]
     start = int(person.get("warmth", social.data("relationships")["regard"]["start"]["warmth"]))
     snap = _snapshot()
-    cap = int(social.data("relationships")["regard"]["per_day_gain"]["warmth"])
-    by_day = []
-    for day in (1, 2, 3):
+    cap = int(social.data("relationships")["regard"]["per_episode_gain"]["warmth"])
+    by_episode = []
+    for _ in (1, 2, 3):
+        _open_episode(receipts_state, pid, thread)
         for _ in range(20):                               # far more replies than the cap allows
             reply = voicing.fallback_reply(snap, "no model")
-            assert relationships.apply_regard(receipts_state, pid, reply.regard, day=day)["ok"]
-        by_day.append(int(receipts_state.social["people"][pid]["warmth"]))
-    assert start < by_day[0] < by_day[1] < by_day[2], (start, by_day)
-    assert by_day[0] - start <= cap
+            assert relationships.apply_regard(receipts_state, pid, reply.regard, day=receipts_state.world_day)["ok"]
+        by_episode.append(int(receipts_state.social["people"][pid]["warmth"]))
+        apply_effect(receipts_state, {"type": "social_episode", "op": "close", "pid": pid,
+                                      "at": receipts_state.world_clock_hours, "end": "lapsed"})
+    assert start < by_episode[0] < by_episode[1] < by_episode[2], (start, by_episode)
+    assert by_episode[0] - start <= cap
 
 
 # -- the view, and no writes ----------------------------------------------------------------------
@@ -414,6 +425,12 @@ def test_an_unknown_situation_is_a_load_time_fault(receipts_active) -> None:
                              "```yaml\ndry_texter:\n  serenade: [\"la\"]\n```\n")
 
 
+def _without_row(text: str, row: str) -> str:
+    """texter.md without one instruction row and its `any:` fallbacks (`<row>.<mode>`), nothing else."""
+    lines = text.splitlines(keepends=True)
+    return "".join(x for x in lines if not x.startswith(f"- `{row}`:") and not x.startswith(f"  {row}."))
+
+
 def test_the_validator_reports_a_situation_without_a_row(tmp_path: Path) -> None:
     import shutil
 
@@ -425,13 +442,12 @@ def test_the_validator_reports_a_situation_without_a_row(tmp_path: Path) -> None
     shutil.copytree(story / "data" / "social", tmp_path / "data" / "social")
     (tmp_path / "prompts").mkdir()
     text = (story / "prompts" / "texter.md").read_text(encoding="utf-8")
-    start = text.index("- `late_night`:")
-    (tmp_path / "prompts" / "texter.md").write_text(text[:start] + text[text.index("\n", start) + 1:],
-                                                   encoding="utf-8")
+    # (v0.23.0: late_night is retired as a bare situation; T7: its `any:` fallbacks go with the row)
+    (tmp_path / "prompts" / "texter.md").write_text(_without_row(text, "breadcrumb"), encoding="utf-8")
     validator = StoryValidator(registry.get("read-receipts"))
     validator._check_texter(tmp_path / "data" / "social")
     named = {(i.source, i.ref_id) for i in validator.issues if i.severity == "error"}
-    assert named == {("prompts/texter.md", "behaviours.yaml archetypes.night_owl.initiations[0].instruction")}, \
+    assert named == {("prompts/texter.md", "behaviours.yaml archetypes.breadcrumber.initiations[0].instruction")}, \
         validator.issues
     clean = StoryValidator(registry.get("read-receipts"))
     clean._check_texter(story / "data" / "social")
@@ -443,7 +459,7 @@ def test_the_texter_profile_overrides_big(receipts_active) -> None:
 
     cfg = profiles._config_for("texter")
     assert (cfg["require_tools"], cfg["min_context"], cfg["reasoning_budget"], cfg["lane"]) == (False, 4096, 0, "narration")
-    assert (cfg["max_tokens"], cfg["reasoning"], cfg["temperature"]) == (360, "off", 0.9)
+    assert (cfg["max_tokens"], cfg["reasoning"], cfg["temperature"]) == (800, "off", 0.9)   # a ceiling (v0.23.0)
 
 
 def test_production_llm_fn_calls_the_texter_profile(receipts_active, monkeypatch) -> None:
@@ -468,6 +484,7 @@ def test_production_llm_fn_calls_the_texter_profile(receipts_active, monkeypatch
 
     fake = Backend()
     monkeypatch.setattr(backend_mod, "get_backend", lambda: fake)
+    monkeypatch.setattr(voicing.TexterCall, "usable_context", lambda self: 8192)   # no binding is resolved
     reply = voicing.voice(_snapshot(), voicing.production_llm_fn())
     assert not reply.fallback and reply.bubbles == ["how was your day?"]
     assert seen[0]["profile"] == "texter" and seen[0]["reasoning"] == "off" and seen[0]["label"] == "social_voice"
@@ -549,16 +566,24 @@ def test_every_fallback_row_agrees_with_its_situation(receipts_active) -> None:
 
     snap = _snapshot()
     view = agreement.AgreementView(stage="talking", person=voicing.person_of(snap), player=dict(snap.player),
-                                   contacts=("Jordan", "Maya", "Kai"))
+                                   contacts=("Jordan", "Maya", "Kai"),
+                                   promise_windows=("lunch", "after_work", "tonight", "morning", "at_work"))
     prompt = voicing.texter_prompt()
+    # v0.23.0 T7: keys are `<situation>` or `<situation>.<mode>`, and a line's fields are engine facts.
+    facts = {"reason": "I've got work soon", "promise_words": "I'll message you after work.",
+             "promise_when": "after work", "followup": "your interview", "topic": "their shifts", "them": "Sam"}
     bad = []
     for archetype, rows in prompt.fallbacks.items():
         for key, lines in rows.items():
             decline = key == voicing.DECLINE_KEY
-            decision = Decision("answer_request" if decline else key, kind="decline" if decline else "text",
-                                max_bubbles=1)
+            situation, _, mode = key.partition(".")
+            decision = Decision("answer_request" if decline else situation, kind="decline" if decline else "text",
+                                max_bubbles=1, mode=mode or "quick")
+            # T23C: an `arrived` text is decided only when they have got to the plan's place (`plan_arrive`).
+            seen = (dataclasses.replace(view, plans=({"id": "pl1", "status": "open", "when": "now", "arrived": True},))
+                    if situation == "arrived" else view)
             for line in lines:
-                found = agreement.check({"bubbles": [line]}, decision, view)
+                found = agreement.check({"bubbles": [voicing._fill(line, facts)]}, decision, seen)
                 if found:
                     bad.append((archetype, key, line, [f.check for f in found]))
     assert bad == []
@@ -576,7 +601,7 @@ def test_an_unparsed_reply_is_retried_with_one_line(receipts_active) -> None:
 
 
 def test_the_validator_requires_a_post_meet_row(tmp_path: Path) -> None:
-    """T31 fix: meet-ups emit `post_meet` (meets.py), so a texter.md without its row is a validator
+    """T31 fix: meet-ups emit `post_meet` (scene.py since v0.23.0 T13), so a texter.md without its row is a validator
     error like any other situation the engine emits, not a reply that fails in play."""
     import shutil
 
@@ -590,9 +615,7 @@ def test_the_validator_requires_a_post_meet_row(tmp_path: Path) -> None:
     shutil.copytree(story / "data" / "social", tmp_path / "data" / "social")
     (tmp_path / "prompts").mkdir()
     text = (story / "prompts" / "texter.md").read_text(encoding="utf-8")
-    start = text.index("- `post_meet`:")
-    (tmp_path / "prompts" / "texter.md").write_text(text[:start] + text[text.index("\n", start) + 1:],
-                                                   encoding="utf-8")
+    (tmp_path / "prompts" / "texter.md").write_text(_without_row(text, "post_meet"), encoding="utf-8")
     validator = StoryValidator(registry.get("read-receipts"))
     validator._check_texter(tmp_path / "data" / "social")
     named = {(i.source, i.ref_id) for i in validator.issues if i.severity == "error"}

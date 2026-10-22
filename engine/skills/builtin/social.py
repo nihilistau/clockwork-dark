@@ -1,9 +1,12 @@
 """
-The phone's skills (v0.22.0 spec §7.3). System-only (Plan decision 4): no
-storyteller or MCP agent can call them; the phone catalogue is their one
-caller (tool_dispatcher.execute_phone_intent). Each is a thin shell over the
-owning engine.social module, imported lazily so a story without paths.social
-never loads it (spec §2.1).
+The phone's skills (v0.22.0 spec §7.3) and, since v0.23.0 T11, the world's
+(`social_do`, `social_go`; T13 `social_scene`, `social_close`: category WORLD). System-only (Plan decision 4): no
+storyteller or MCP agent can call them; the phone catalogue
+(tool_dispatcher.execute_phone_intent) calls the phone's, and a narrated
+turn's chosen option (tool_dispatcher.execute_intent, which resolves
+`intents.SOCIAL_WORLD_ACTIONS` as the system) the world's. Each is a thin
+shell over the owning engine.social module, imported lazily so a story
+without paths.social never loads it (spec §2.1).
 """
 
 from __future__ import annotations
@@ -67,6 +70,16 @@ def social_wait(target: str = "", args: Optional[dict] = None, text: str = "") -
     return _answer(lambda: turn.wait(get_active_engine().state, args or {}))
 
 
+@_phone_skill("Say talk later in a conversation going now, with a promise: the player's to message them in a "
+              "window, or theirs to message the player (the engine resolves the window and keeps it).")
+def social_sign_off(target: str = "", args: Optional[dict] = None, text: str = "") -> str:
+    from engine.social import promises
+
+    args = args or {}
+    return _answer(lambda: promises.sign_off(get_active_engine().state, target, str(args.get("who") or ""),
+                                             str(args.get("window") or ""), text))
+
+
 @_phone_skill("Edit one of the player's profile fields on an app.")
 def social_edit_profile(target: str = "", args: Optional[dict] = None, text: str = "") -> str:
     from engine.social import turn
@@ -79,6 +92,13 @@ def social_set_receipts(target: str = "", args: Optional[dict] = None, text: str
     from engine.social import turn
 
     return _answer(lambda: turn.set_receipts(get_active_engine().state, target, args or {}))
+
+
+@_phone_skill("Turn \"Wake me for messages\" on or off: whether a message can wake the player from a sleep.")
+def social_set_wake(target: str = "", args: Optional[dict] = None, text: str = "") -> str:
+    from engine.social import turn
+
+    return _answer(lambda: turn.set_wake(get_active_engine().state, args or {}))
 
 
 def _deck(action: str, target: str, args: Optional[dict]) -> str:
@@ -137,12 +157,15 @@ def social_open_thread(target: str = "", args: Optional[dict] = None, text: str 
     return _answer(lambda: messaging.open_thread(get_active_engine().state, target))
 
 
-@_phone_skill("Ask the person in a thread for something: their number, to be exclusive, a meet-up "
-              "(the engine picks where and when), or a photo, a voice note or a video (the person decides).")
+@_phone_skill("Ask the person in a thread for something: their number, to be exclusive, a plan to meet (a kind, "
+              "a venue and now, tonight or soon; the engine picks what is left out), or a photo, a voice note or "
+              "a video (the person decides).")
 def social_ask(target: str = "", args: Optional[dict] = None, text: str = "") -> str:
     from engine.social import messaging
 
-    return _answer(lambda: messaging.ask(get_active_engine().state, target, str((args or {}).get("what") or "")))
+    args = args or {}
+    meet = {k: args.get(k) for k in ("kind", "venue", "when") if args.get(k)}
+    return _answer(lambda: messaging.ask(get_active_engine().state, target, str(args.get("what") or ""), meet))
 
 
 @_phone_skill("Answer a request of theirs: yes, no or later.")
@@ -159,23 +182,6 @@ def social_end(target: str = "", args: Optional[dict] = None, text: str = "") ->
     return _answer(lambda: relationships.end(get_active_engine().state, target))
 
 
-@_phone_skill("Propose a meet-up to someone: a venue, a day ahead and a slot (the engine answers: yes, "
-              "another time, or not yet).")
-def social_propose_meet(target: str = "", args: Optional[dict] = None, text: str = "") -> str:
-    from engine.social import meets
-
-    args = args or {}
-    return _answer(lambda: meets.propose(get_active_engine().state, target, str(args.get("venue") or ""),
-                                         int(args.get("day") or 0), str(args.get("slot") or "")))
-
-
-@_phone_skill("Go to a meet-up that is due, or cancel a planned one (the engine resolves how it went).")
-def social_meet(target: str = "", args: Optional[dict] = None, text: str = "") -> str:
-    from engine.social import meets
-
-    return _answer(lambda: meets.meet(get_active_engine().state, target, str((args or {}).get("do") or "")))
-
-
 @_phone_skill("Start a game with someone (Tile Talk): it starts at once, and the player moves first.")
 def social_game_invite(target: str = "", args: Optional[dict] = None, text: str = "") -> str:
     from engine.social import games
@@ -188,3 +194,78 @@ def social_game_move(target: str = "", args: Optional[dict] = None, text: str = 
     from engine.social import games
 
     return _answer(lambda: games.move(get_active_engine().state, target, dict(args or {})))
+
+
+@_phone_skill("Put the phone down: the world comes forward (the next narrated turn may run).")
+def social_put_down(target: str = "", args: Optional[dict] = None, text: str = "") -> str:
+    from engine.social import world
+
+    return _answer(lambda: world.put_down(get_active_engine().state))
+
+
+@_phone_skill("Go somewhere from the phone's Places app: the phone goes down and the player goes (the engine "
+              "charges the travel).")
+def social_places_go(target: str = "", args: Optional[dict] = None, text: str = "") -> str:
+    from engine.social import world
+
+    return _answer(lambda: world.places_go(get_active_engine().state, target))
+
+
+# -- the world's verbs (v0.23.0 T11, spec §8.4-§8.5; Plan decision 4) --------------------------------
+#
+# System-only like the phone's (a storyteller-callable skill would join every story's tool list), but
+# reached by a narrated turn's chosen option: `execute_intent` resolves `intents.SOCIAL_WORLD_ACTIONS`
+# as AGENT_SYSTEM, and those actions are legal only in a story declaring `paths.social`.
+
+WORLD_CATEGORY = "WORLD"
+
+
+def _world_skill(description: str) -> Callable[[Callable[..., str]], Callable[..., str]]:
+    register = skill(pack=PACK, description=description, category=WORLD_CATEGORY,
+                     trigger=TRIGGER_SYSTEM, agents=[AGENT_SYSTEM])
+
+    def decorator(func: Callable[..., str]) -> Callable[..., str]:
+        @functools.wraps(func)
+        def logged(*args: Any, **kwargs: Any) -> str:
+            try:
+                return func(*args, **kwargs)
+            except Exception:
+                logger.exception("[social] A world skill raised (operation=%s)", func.__name__)
+                raise
+
+        return register(logged)
+
+    return decorator
+
+
+@_world_skill("Do something in the world (an activity of the place the player is in): the engine spends its time.")
+def social_do(activity: str = "") -> str:
+    from engine.social import world
+
+    return json.dumps(world.do(get_active_engine().state, activity), default=str)
+
+
+@_world_skill("Go somewhere in the city (a venue, a home with a plan, or home): the engine charges the travel.")
+def social_go(to: str = "") -> str:
+    from engine.social import world
+
+    return json.dumps(world.go(get_active_engine().state, to), default=str)
+
+
+# -- a scene's verbs (v0.23.0 T13, spec §10.3-§10.4; Plan decision 5) ---------------------------------
+
+
+@_world_skill("Make a move in an in-person scene (ask about one of their topics, tell them about yours, be playful, "
+              "let a silence sit, talk): the engine scores it and spends its minutes.")
+def social_scene(target: str = "") -> str:
+    from engine.social import scene
+
+    return json.dumps(scene.move(get_active_engine().state, target), default=str)
+
+
+@_world_skill("End or move on an in-person scene (call it a night, another round, go somewhere else, walk them "
+              "home, back to yours or theirs): the engine records what was agreed and charges the travel.")
+def social_close(target: str = "") -> str:
+    from engine.social import scene
+
+    return json.dumps(scene.close(get_active_engine().state, target), default=str)

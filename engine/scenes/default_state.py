@@ -822,7 +822,11 @@ def resolve_player_intent(
         choice_id: The option they picked.
         custom_text: Free text, if they typed instead of picking. Typed input
             declares no intent by definition -- nobody wrote an option for it,
-            so there is nothing pre-authorised to run.
+            so there is nothing pre-authorised to run. (A phone story reads
+            the line LATER, on the server, under the turn lock, against what
+            the engine offers at that moment: ``default_scene._run_world_turn``
+            and ``engine/social/typed.py``, v0.23.0 addendum 4 §3. This
+            function still returns ``{}`` for it, for every story.)
 
     Returns:
         The intent object, or ``{}``. Empty is the ordinary case: an option
@@ -1267,11 +1271,37 @@ def run_turn(
 
             scene_at_start = scene_owns_turn(state)
 
+        # READ RECEIPTS (v0.23.0 T15, spec §10.6): who the player was with in person as the turn BEGAN --
+        # a closer may end the scene, and its prose is checked all the same. "" for every other story
+        # (`paths.social` undeclared: nothing imported, nothing read).
+        from engine import social
+
+        scene_pid = ""
+        scene_lines = ""
+        began_in_scene = False
+        if social.declared():
+            from engine.social import scene as social_scene
+
+            began_in_scene = social.scene_open(state)
+            # The scene's person, or (T18, spec §12.3) the household partner at home and free: either is
+            # with the player in person, voiced from the companion block and fact-checked the same way.
+            scene_pid = social_scene.present_pid(state)
+            if scene_pid:
+                # The scene line and companion block as the turn began (review I1): a closer ends the scene
+                # before the prompt is built, and its goodbye is narrated -- and checked -- against these.
+                scene_lines = social_scene.narrator_lines(state)
+
         intent_receipts: list[dict[str, Any]] = []
         if intent:
             from engine.agents.tool_dispatcher import execute_intent
 
             intent_receipts = execute_intent(intent, session.engine)
+            if social.declared() and isinstance(intent, dict) and intent.get("typed"):
+                # A phone story's typed line, read under the lock (v0.23.0 addendum 4 §3): its receipt says so,
+                # and the narrator is told what the engine read it as. Only `engine/social/typed.py` sets `typed`.
+                from engine.social import typed as social_typed
+
+                social_typed.mark(intent, intent_receipts)
 
         # WHAT THE AUTHOR SAID THE CHOICE DOES BEYOND ITS INTENT. After the
         # intent, so the deed is witnessed where the choice left the player and
@@ -1412,12 +1442,34 @@ def run_turn(
             llm_fn=session.storyteller.llm_fn,
         )
 
+        # The scene's fact checks on the prose (v0.23.0 T15): passed only on a turn that began in a scene,
+        # so every other turn's call is exactly the one it was.
+        checks: dict[str, Any] = {}
+        agreed_text = narration_block(agreed)
+        if scene_pid:
+            from engine.scenes.default_scene import report_scene_prose_fallback
+            from engine.social import scene as social_scene
+
+            checks["prose_check"] = social_scene.prose_check(
+                state, scene_pid, intent_receipts,
+                on_fallback=lambda: report_scene_prose_fallback(
+                    session, (time.perf_counter() - started_at) * 1000.0),
+                context=scene_lines,
+                at_home=not began_in_scene,     # the household partner, no scene: the home checks (T18 fix I3)
+            )
+            if began_in_scene and not social.scene_open(state):
+                # The scene ended inside the intent: the world block no longer carries it, so the lines read
+                # before the intent go to this turn's prompt as a system block. A turn begun at home with no
+                # scene appends nothing: a partner who went out is told by the world block's household line.
+                agreed_text = "\n\n".join(filter(None, [agreed_text, scene_lines]))
+
         try:
             storyteller_result = session.storyteller.run_turn(
                 player_action,
                 on_delta=stream_to_client,
-                agreed_block=narration_block(agreed),
+                agreed_block=agreed_text,
                 intent_receipts=intent_receipts,
+                **checks,
             )
         finally:
             # What the prompt rendered from the moved journal has now been
@@ -1562,6 +1614,14 @@ def run_turn(
     if ending is not None:
         turn_payload["ending"] = ending.to_dict()
 
+    # A phone story's world layer (READ RECEIPTS) draws its plate from the frame, so its world turn carries the
+    # plate for the room or venue it ended in, and `last_turn` (a refresh) with it. Every other story's payload
+    # is unchanged (its plate rides on `image_ready`; the turn goldens pin it). `engine.social` is config-only.
+    from engine import social
+
+    if social.declared():
+        turn_payload["scene_image"] = scene_image_url(state)
+
     session.last_turn = turn_payload
 
     if quest_events:
@@ -1584,6 +1644,17 @@ def run_turn(
             "(operation=run_turn): %s",
             exc,
         )
+
+    # READ RECEIPTS (v0.23.0 T13, pre-flight F30): a scene turn's narration goes to the run's archive as a
+    # `scene` row, never into state or memory (spec §7.1). Before the autosave, which keeps the row's number.
+    # `engine.social` itself is config-only (v0.22 Plan decision 2): for every other story this reads
+    # `paths.social`, finds none, and imports and runs nothing.
+    from engine import social
+
+    if social.declared():
+        from engine.social import scene as social_scene
+
+        social_scene.archive_turn(session, storyteller_result.narration)
 
     _record_memory(session, player_action, storyteller_result)
     _autosave(session, player_action, storyteller_result.narration)

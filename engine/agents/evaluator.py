@@ -68,6 +68,12 @@ _CLAIMS_SUCCESS = re.compile(
 _CLAIMS_ARRIVAL = re.compile(
     r"(?i)(?:^|[.!?]\s+|\band\s+)you\s+(?:arrive|reach|come\s+out\s+at|step\s+into)\b"
 )
+# READ RECEIPTS' in-person scenes (v0.23.0 spec §10.3): a moment narrated as landing over a receipt whose
+# band is `misstep`. Anchored the same way, so "Whether it lands is another matter" is no claim. Read only
+# from `social_scene` receipts, so no other story's evaluation moves (§19.5).
+_CLAIMS_LANDED = re.compile(
+    r"(?i)(?:^|[.!?]\s+|\band\s+)(?:it|that|the\s+(?:joke|question|story))\s+(?:lands|landed|goes\s+down\s+well|went\s+down\s+well)\b"
+)
 # The Law's own opposite: a clean getaway claimed over a witness the engine
 # already recorded. ANCHORED, same discipline as `_CLAIMS_SUCCESS` /
 # `_CLAIMS_ARRIVAL`: a bare "unseen"/"unnoticed" matched ANY use of either
@@ -137,7 +143,9 @@ def contradicts(narration: str, receipts: Sequence[Mapping[str, Any]]) -> str:
     ENTRY stage receipt whose ``outcome`` is ``noisy``/``seen``, or getting
     inside claimed over an ENTRY stage receipt whose ``advanced`` is ``False`` --
     ``job_stage``'s own words for "that did not go quietly" and "that did not
-    get you past the door". Both claims are entry-only: at every later stage
+    get you past the door" -- and (READ RECEIPTS, v0.23.0) a moment narrated
+    as landing over a ``social_scene`` receipt whose ``band`` is ``misstep``.
+    The two job claims are entry-only: at every later stage
     (``inside``, ``score``, ``getaway``) the thief is ALREADY inside, so
     ``advanced: False`` means a roll failed in there -- "You're inside, but
     the dog has your scent" is the honest narration of exactly that -- and a
@@ -178,6 +186,11 @@ def contradicts(narration: str, receipts: Sequence[Mapping[str, Any]]) -> str:
                 and _CLAIMS_GOT_IN.search(narration)
             ):
                 return "narrated getting inside over an entry stage that did not advance"
+        # A scene's moment (v0.23.0): its four bands are its outcomes (`lands`, `fine`, `flat`, `misstep`);
+        # the unambiguous opposite is a landing narrated over a misstep.
+        if skill == "social_scene" and str(result.get("band") or "") == "misstep":
+            if _CLAIMS_LANDED.search(narration):
+                return "narrated a moment landing over a misstep"
     return ""
 
 

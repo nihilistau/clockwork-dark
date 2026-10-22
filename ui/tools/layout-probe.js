@@ -644,3 +644,110 @@ export function probePhone({ bezel = false, controls = [], scroll = false } = {}
     frame: { width: Math.round(f.width), height: Math.round(f.height) },
   };
 }
+
+/**
+ * READ RECEIPTS' world layer (v0.23.0 T21 fix round): the plate, the log, the choices (and the "Put the phone
+ * down to act" note and the buzz banner when drawn) must lie wholly in the window, not overlap one another,
+ * and every choice must be reachable: scrolled to within its own scroller, not cut off by it and not covered.
+ * `expectNote` fails a world that should be greyed (the phone up) but shows no note.
+ */
+export function probeWorld({ expectNote = false } = {}) {
+  const layer = document.querySelector('[data-testid="rr-world-layer"]');
+  if (!layer) return { failures: ["no world layer on the page"], present: false };
+  const failures = [];
+  const box = (el) => el.getBoundingClientRect();
+  const l = box(layer);
+  if (l.width <= 0 || l.height <= 0) return { failures: ["the world layer has no box"], present: true };
+  const page = document.scrollingElement;
+  if (page && (page.scrollHeight > innerHeight + 1 || page.scrollWidth > innerWidth + 1)) {
+    failures.push(`the page scrolls (${page.scrollWidth}x${page.scrollHeight} in ${innerWidth}x${innerHeight})`);
+  }
+  const parts = {};
+  for (const [name, selector] of [["plate", ".rr-world__plate"], ["log", ".rr-world__log"], ["choices", ".rr-world__choices"], ["buzz", ".rr-buzz"], ["compose", '[data-testid="rr-compose"]']]) {
+    const el = layer.querySelector(selector);
+    if (!el) continue;
+    const b = box(el);
+    parts[name] = { top: Math.round(b.top), bottom: Math.round(b.bottom), height: Math.round(b.height) };
+    if (b.height <= 0 || b.width <= 0) failures.push(`the ${name} has no box`);
+    else if (b.top < -0.5 || b.left < -0.5 || b.bottom > innerHeight + 0.5 || b.right > innerWidth + 0.5) {
+      failures.push(`the ${name} is not wholly in the window (${Math.round(b.top)}..${Math.round(b.bottom)})`);
+    }
+  }
+  const order = ["plate", "buzz", "log", "choices", "compose"].filter((n) => parts[n]);
+  const rects = order.map((n) => [n, box(layer.querySelector({ plate: ".rr-world__plate", buzz: ".rr-buzz", log: ".rr-world__log", choices: ".rr-world__choices", compose: '[data-testid="rr-compose"]' }[n]))]);
+  for (let i = 0; i < rects.length; i += 1) {
+    for (let j = i + 1; j < rects.length; j += 1) {
+      const a = rects[i][1];
+      const b = rects[j][1];
+      if (Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1 && Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1) {
+        failures.push(`the ${rects[i][0]} overlaps the ${rects[j][0]}`);
+      }
+    }
+  }
+  if (parts.log && parts.log.height < 40) failures.push(`the log is ${parts.log.height}px tall, under one line's floor`);
+  // A4 W6: the compose box is in the window, its input is hit-testable when the phone is down, and it is
+  // greyed (not hidden) while the phone is up.
+  const compose = layer.querySelector('[data-testid="rr-compose"]');
+  if (!compose) failures.push("the world layer has no compose box");
+  else {
+    const input = compose.querySelector("input");
+    const send = compose.querySelector('button[type="submit"]');
+    if (!input || !send) failures.push("the compose box lacks its input or Send");
+    else {
+      const greyedNow = input.getAttribute("aria-disabled") === "true";
+      if (greyedNow !== expectNote) failures.push(`the compose box is ${greyedNow ? "greyed" : "live"} with the phone ${expectNote ? "up" : "down"}`);
+      for (const [label, el] of [["input", input], ["Send", send]]) {
+        const b = box(el);
+        if (b.width <= 0 || b.height <= 0 || b.top < -0.5 || b.bottom > innerHeight + 0.5 || b.left < -0.5 || b.right > innerWidth + 0.5) {
+          failures.push(`the compose ${label} is not wholly in the window`);
+        } else if (!expectNote) {
+          const hit = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+          if (hit && hit !== el && !el.contains(hit)) failures.push(`the compose ${label} is covered by ${(typeof hit.className === "string" && hit.className) || hit.tagName}`);
+        }
+      }
+    }
+  }
+  const note = layer.querySelector(".choices__note");
+  if (expectNote && !note) failures.push('the phone is up but no "Put the phone down to act" note is drawn');
+  if (!expectNote && note) failures.push("the phone is down but the note is still drawn");
+  const chips = [...layer.querySelectorAll(".rr-world__choices .chip")];
+  const scroller = layer.querySelector(".rr-world__choices");
+  for (const el of chips) {
+    el.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const b = box(el);
+    const label = `choice (${(el.textContent || "").trim().slice(0, 30)})`;
+    const s = scroller ? box(scroller) : l;
+    if (b.top < Math.max(0, s.top) - 0.5 || b.bottom > Math.min(innerHeight, s.bottom) + 0.5) {
+      failures.push(`${label} is cut off or outside the window (${Math.round(b.top)}..${Math.round(b.bottom)})`);
+      continue;
+    }
+    if (!el.disabled) {
+      const hit = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+      if (hit && hit !== el && !el.contains(hit)) failures.push(`${label} is covered by ${(typeof hit.className === "string" && hit.className) || hit.tagName}`);
+    }
+  }
+  // T23: the companion / household card sits on the plate, wholly inside it and the window.
+  const card = layer.querySelector(".rr-companion, .rr-household");
+  const plate = layer.querySelector(".rr-world__plate");
+  if (card && plate) {
+    const c = box(card);
+    const pl = box(plate);
+    if (c.width <= 0 || c.height <= 0) failures.push("the companion card has no box");
+    else if (c.top < pl.top - 0.5 || c.bottom > pl.bottom + 0.5 || c.left < Math.max(0, pl.left) - 0.5 || c.right > Math.min(innerWidth, pl.right) + 0.5) {
+      failures.push(`the companion card is not wholly on the plate (${Math.round(c.left)},${Math.round(c.top)}..${Math.round(c.right)},${Math.round(c.bottom)})`);
+    }
+    const where = layer.querySelector(".rr-world__where");
+    if (where) {
+      const w = box(where);
+      if (Math.min(c.bottom, w.bottom) - Math.max(c.top, w.top) > 1 && Math.min(c.right, w.right) - Math.max(c.left, w.left) > 1) {
+        failures.push("the companion card overlaps the place label");
+      }
+    }
+  }
+  const buzz = layer.querySelector(".rr-buzz__pick");
+  if (buzz) {
+    const b = box(buzz);
+    if (b.top < 0 || b.bottom > innerHeight || b.left < 0 || b.right > innerWidth) failures.push("the buzz banner's button is not in the window");
+  }
+  return { present: true, failures, parts, choices: chips.length, note: Boolean(note), banner: Boolean(buzz), companion: Boolean(card), compose: Boolean(compose) };
+}

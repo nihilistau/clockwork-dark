@@ -43,6 +43,24 @@ export const ASK_MENU = [
   ["video", "A video"],
   ["meet", "To meet up"],
   ["exclusive", "To be exclusive"],
+  ["move_in", "To move in together"],
+  ["propose", "To marry you"],
+];
+
+/**
+ * The asks only a stage unlocks: the menu offers one only while the thread row's `asks` lists it (the
+ * engine's `messaging.ready_asks`), never on a client guess. (`number` and `exclusive` predate the rule
+ * and keep their own handling in the compose bar.)
+ */
+export const STAGE_ASKS = ["move_in", "propose"];
+
+/** The promise chips of "Talk later" (`sign_off {who, window}`), in the engine's `CHIP_WINDOWS` order. */
+export const SIGN_OFF_WINDOWS = [
+  ["lunch", "at lunch"],
+  ["after_work", "after work"],
+  ["tonight", "tonight"],
+  ["morning", "in the morning"],
+  ["at_work", "at work"],
 ];
 
 /** The games' names (games.yaml's labels, for a request that names only its id). */
@@ -62,6 +80,12 @@ export function askLine(what, who, mine, game = "") {
       return mine ? `You asked ${who} to meet up.` : `${who} asked to meet up.`;
     case "game":
       return mine ? `You invited ${who} to ${named || "a game"}.` : `${who} invited you to ${named || "a game"}.`;
+    case "move_in":
+      return mine ? `You asked ${who} to move in with you.` : `${who} asked to move in with you.`;
+    case "propose":
+      return mine ? `You asked ${who} to marry you.` : `${who} asked you to marry them.`;
+    case "stay_or_go":
+      return `${who} has been offered a job elsewhere.`;
     default:
       if (ONE_OF[what]) return mine ? `You asked ${who} for ${ONE_OF[what]}.` : `${who} asked you for ${ONE_OF[what]}.`;
       return mine ? `You asked ${who} something.` : `${who} asked you something.`;

@@ -38,11 +38,11 @@ def test_a_swipe_with_no_follow_up_is_on_disk_within_autosave_seconds(receipts_a
     session = scene.store.require(sid)
     store = session.saves
     before = store.load(session.save_id)[0].world_clock_hours
-    http.post("/api/phone/action", json={"session_id": sid, "action": "wait", "args": {"until": "15m"}})
+    http.post("/api/phone/action", json={"session_id": sid, "action": "wait", "args": {"until": "1h"}})
     deadline = _time.monotonic() + 5.0
     while _time.monotonic() < deadline and store.load(session.save_id)[0].world_clock_hours == before:
         _time.sleep(0.05)
-    assert store.load(session.save_id)[0].world_clock_hours == pytest.approx(before + 0.25)
+    assert store.load(session.save_id)[0].world_clock_hours == pytest.approx(before + 1.0)
     assert session.dirty is False
 
 
@@ -56,7 +56,7 @@ def test_a_purge_after_an_admin_end_is_not_undone_by_any_phone_save(hosted_recei
     run = hosted_receipts.login_and_start("alice")
     store = hosted_receipts.scene.store
     session = store.require(run.sid, owner=run.account_id)
-    run.client.post("/api/phone/action", json={"session_id": run.sid, "action": "wait", "args": {"until": "15m"}})
+    run.client.post("/api/phone/action", json={"session_id": run.sid, "action": "wait", "args": {"until": "1h"}})
     assert session.dirty is True
     folder = session.saves.path_for(session.save_id)
     if mid_turn:
@@ -128,8 +128,8 @@ def test_the_archive_moves_old_messages_and_dedupes_a_crash_duplicate(receipts_a
     from engine import social
     from engine.social import archive, messaging, saves
 
-    monkeypatch.setattr(social, "setting", _with(social.setting, state_messages=5))
-    monkeypatch.setattr(messaging, "schedule_reply", lambda *a, **k: None)   # the player's 12 alone in the thread
+    monkeypatch.setattr(social, "setting", _with(social.setting, state_messages=5, closed_thread_tail=5))
+    monkeypatch.setattr(messaging.convo, "on_player_send", lambda *a, **k: None)   # the player's 12 alone in the thread
     scene, session = _live_session()
     thread = _matched_in(session, "matchstick")
     for i in range(12):
@@ -218,14 +218,15 @@ def test_the_spill_never_moves_a_due_message_and_remembers_an_archived_opener(re
     from engine.game.effects import apply_effect
     from engine.social import archive, messaging
 
-    monkeypatch.setattr(social, "setting", _with(social.setting, state_messages=2))
-    monkeypatch.setattr(messaging, "schedule_reply", lambda *a, **k: None)
+    monkeypatch.setattr(social, "setting", _with(social.setting, state_messages=2, closed_thread_tail=2))
+    monkeypatch.setattr(messaging.convo, "on_player_send", lambda *a, **k: None)
     _scene, session = _live_session()
     state = session.engine.state
     thread = _matched_in(session, "matchstick")
     pid = state.social["threads"][thread]["pid"]
     with session.lock:
-        messaging.new_message(state, thread, pid, "text", bubbles=["hi"], decision={"situation": "opener"})
+        hi = messaging.new_message(state, thread, pid, "text", bubbles=["hi"], decision={"situation": "opener"})
+        hi["read_at"] = state.world_clock_hours     # read: an unread message stays in state (archive.keep_for)
         messaging.new_message(state, thread, pid, "text", voiced=False, decision={"situation": "reply"})
         for i in range(3):
             messaging.new_message(state, thread, "player", "text", bubbles=[f"p{i}"])
@@ -242,8 +243,8 @@ def test_paging_walks_back_through_the_archive_by_before(receipts_active, monkey
     from engine import social
     from engine.social import archive, messaging, saves
 
-    monkeypatch.setattr(social, "setting", _with(social.setting, state_messages=3))
-    monkeypatch.setattr(messaging, "schedule_reply", lambda *a, **k: None)
+    monkeypatch.setattr(social, "setting", _with(social.setting, state_messages=3, closed_thread_tail=3))
+    monkeypatch.setattr(messaging.convo, "on_player_send", lambda *a, **k: None)
     scene, session = _live_session()
     thread = _matched_in(session, "matchstick")
     for i in range(8):
@@ -311,7 +312,7 @@ def test_a_drain_and_shutdown_flush_every_free_dirty_run(hosted_receipts) -> Non
     run = hosted_receipts.login_and_start("alice")
     store = hosted_receipts.scene.store
     session = store.require(run.sid, owner=run.account_id)
-    run.client.post("/api/phone/action", json={"session_id": run.sid, "action": "wait", "args": {"until": "15m"}})
+    run.client.post("/api/phone/action", json={"session_id": run.sid, "action": "wait", "args": {"until": "1h"}})
     assert session.dirty is True
     assert hosting.drain(store, 1.0) is True
     assert session.dirty is False
@@ -345,18 +346,18 @@ def test_a_torn_last_line_is_closed_before_the_next_append(receipts_active, monk
     from engine import social
     from engine.social import archive, messaging, saves
 
-    monkeypatch.setattr(social, "setting", _with(social.setting, state_messages=2))
-    monkeypatch.setattr(messaging, "schedule_reply", lambda *a, **k: None)
+    monkeypatch.setattr(social, "setting", _with(social.setting, state_messages=2, closed_thread_tail=2))
+    monkeypatch.setattr(messaging.convo, "on_player_send", lambda *a, **k: None)
     scene, session = _live_session()
     thread = _matched_in(session, "matchstick")
     path = session.saves.path_for(session.save_id) / archive.ARCHIVE_FILE
     path.write_text('{"id": "m999", "thread_id": "' + thread + '", "fr', encoding="utf-8")   # torn
-    for i in range(3):
+    for i in range(6):           # the last turn's three stay in state (archive.keep_for), three spill
         _phone(scene, session, "send", target=thread, args={"kind": "text"}, text=f"t{i}")
     with session.lock:
         saves.save_now(session)
     lines = path.read_text(encoding="utf-8").splitlines()
-    assert len(lines) == 2                                                  # the torn one, then the batch
+    assert len(lines) == 1 + 3                                              # the torn one, then the batch of three
     first = json.loads(lines[1])
     page = archive.page(path.parent, session.engine.state, thread, before="", limit=50)
     assert first["id"] in [m["id"] for m in page["messages"]]
@@ -456,8 +457,8 @@ def _archived_session(monkeypatch, sends: int = 14):
     from engine import social
     from engine.social import archive, messaging, saves
 
-    monkeypatch.setattr(social, "setting", _with(social.setting, state_messages=4))
-    monkeypatch.setattr(messaging, "schedule_reply", lambda *a, **k: None)
+    monkeypatch.setattr(social, "setting", _with(social.setting, state_messages=4, closed_thread_tail=4))
+    monkeypatch.setattr(messaging.convo, "on_player_send", lambda *a, **k: None)
     scene, session = _live_session()
     thread = _matched_in(session, "matchstick")
     path = session.saves.path_for(session.save_id) / archive.ARCHIVE_FILE

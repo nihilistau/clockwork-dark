@@ -1,0 +1,125 @@
+# READ RECEIPTS -- life_events.yaml (paths.social, v0.23.0 spec §11, §12.4).
+#
+# Life events both ways; being seen. Read by engine/social/life.py, which checks every row at load
+# (`life.check_data`): an unknown key, a bad id or number is a load error naming this file.
+#
+# The design is docs/superpowers/specs/2026-10-14-v0.23.0-read-receipts-rework-design.md (§11).
+# Life events are the world's calendar, which is why their odds and cooldowns are in DAYS (R15).
+# They are ordinary life: a boiler, a parcel, a holiday, a job offer, illness, family news (rule 12).
+# A row's text is a plain fact.
+#
+# Top keys:
+#   kept       {past: n}: the past events a person (and the player) keeps in a save besides what is
+#              running or still on cooldown; older ones leave at each save (`life.forget_past`)
+#   player     the player's own events, drawn from `world_rng(SOCIAL_LIFE)` once a day
+#   person     each live person's events, drawn once a day per person from their own SOCIAL_LIFE counter
+#   seen       §12.4: being seen out with someone else while together with a partner (exclusive or
+#              later): `prob` (one draw at the end of each such scene), `trust` (each partner's trust
+#              moves by it, 0 or less), `mood_days` (their mood is `hurt` that long); they are also
+#              `guarded` once more, and their history says "They found out" (engine/social/life.py
+#              `seen_check`). The existing `cold:` rule (relationships.yaml) is the repair
+#
+# A row (both sides):
+#   id                 unique on its side
+#   when               {stage_min | stages}: the person's stage must be at least / one of (person rows only)
+#   prob_per_week      the odds in a week (a day draws prob_per_week / 7)
+#   cooldown_days      days after one begins before another of its id can
+#   text               the plain fact (the "Since you met" line, and a player event's note); a person
+#                      row may name it `canon` instead, which also writes it to what they shared
+#   lasts_days         how long it runs (a window of days); none: it happens and is over
+#   news               `news` (person: told once, in the next conversation's reply) | `player_news`
+#                      (the player's: offered as a tell_about topic and a sign-off reason)
+#   followup           {about, when}: a follow-up in their memory ("days:3", "tomorrow", "after:<window>")
+#   mood               {value, days}: a mood for that long (relationships.yaml mood.values)
+#   unavailable        true: they do not answer while it runs
+#   blocked_by_open_promise  true: it does not begin while a promise to or from them is open
+#   support            true: a reply of yours, or a scene with them, while it runs gains `support` once
+#   proposal           stay_or_go: they ask you; your answer decides it through growth.yaml willing.stay_or_go
+#   job                draw: they take a new job (a counterless draw; who_now reads it)
+#   home               redraw: they move (a counterless draw over homes.yaml)
+#   plan               wedding: the wedding's row (v0.23.0 T18, §12.2): eligible only at `stages:
+#                      [engaged]` once relationships.yaml `wedding_after_days` have passed since the
+#                      engagement and no wedding plan is open; it queues the registry office plan. Its
+#                      odds are 1 a day (prob_per_week 7)
+# A player row also:
+#   label              the topic in words ("your boiler"), for tell_about
+#   sign_off           the reason the engine gives when YOU end a chat while it runs
+#   flag               a story flag `life_<id>` held while it runs (a deck's `when:`, an activity's)
+#   scene              the deck dealt for it (data/scenes/<id>.yaml)
+#   schedule           {work_extra_hours | lift_extra_minutes: n} while it runs
+#   effects            social effects applied when it begins (none shipped)
+#
+# Every number here is a balance constant (rule 10): first values, measured at the balance task.
+#
+# Version: v0.2.0
+
+kept: {past: 4}
+
+player:
+  - {id: boiler, when: {}, prob_per_week: 0.08, cooldown_days: 60, effects: [], scene: boiler, news: player_news,
+     flag: life_boiler, lasts_days: 2, text: "Your boiler has gone", label: "your boiler",
+     sign_off: "you have the boiler to sort out"}
+  - {id: parcel, when: {}, prob_per_week: 0.5, cooldown_days: 5, effects: [], scene: parcel, news: player_news,
+     flag: life_parcel, lasts_days: 1, text: "A parcel is waiting for you at reception", label: "the parcel"}
+  - {id: overtime, when: {}, prob_per_week: 0.1, cooldown_days: 30, schedule: {work_extra_hours: 2}, lasts_days: 7,
+     news: player_news, text: "You are working late this week", label: "working late",
+     sign_off: "you have to work late"}
+  - {id: rough_week, when: {}, prob_per_week: 0.1, cooldown_days: 30, lasts_days: 5, news: player_news,
+     text: "You are having a rough week at work", label: "your week at work"}
+  - {id: promotion, when: {}, prob_per_week: 0.02, cooldown_days: 180, news: player_news,
+     text: "You were promoted at work", label: "your promotion"}
+  - {id: a_cold, when: {}, prob_per_week: 0.08, cooldown_days: 45, lasts_days: 4, news: player_news,
+     text: "You have a cold", label: "your cold", sign_off: "you are not feeling great"}
+  - {id: friends_birthday, when: {}, prob_per_week: 0.06, cooldown_days: 40, lasts_days: 1, news: player_news,
+     text: "It is a friend's birthday and there are drinks", label: "your friend's birthday",
+     sign_off: "you are heading out for a friend's birthday"}
+  - {id: family_visit, when: {}, prob_per_week: 0.04, cooldown_days: 60, lasts_days: 3, news: player_news,
+     text: "Your family are visiting", label: "your family visiting", sign_off: "your family are over"}
+  - {id: wedding_invite, when: {}, prob_per_week: 0.02, cooldown_days: 120, news: player_news,
+     text: "You have been invited to a wedding", label: "the wedding invitation"}
+  - {id: lift_out, when: {}, prob_per_week: 0.05, cooldown_days: 30, schedule: {lift_extra_minutes: 5},
+     lasts_days: 3, news: player_news, text: "The lift in your building is out", label: "the broken lift"}
+  - {id: neighbour_party, when: {}, prob_per_week: 0.06, cooldown_days: 30, lasts_days: 1, news: player_news,
+     text: "Your neighbour is having a party", label: "your neighbour's party"}
+  - {id: payday, when: {}, prob_per_week: 0.25, cooldown_days: 25, lasts_days: 1, news: player_news,
+     text: "It is payday", label: "payday"}
+
+person:
+  - {id: new_job, when: {stage_min: talking}, prob_per_week: 0.02, cooldown_days: 120, canon: "They started a new job",
+     followup: {about: "their first week at the new job", when: "days:3"}, news: news, job: draw}
+  - {id: holiday, when: {stage_min: talking}, prob_per_week: 0.04, cooldown_days: 90, blocked_by_open_promise: true,
+     lasts_days: 7, mood: {value: playful, days: 7}, news: news, unavailable: true, text: "They went on holiday",
+     followup: {about: "their holiday", when: "days:8"}}
+  - {id: job_offer_elsewhere, when: {stage_min: dating}, prob_per_week: 0.01, cooldown_days: 365, proposal: stay_or_go,
+     news: news, text: "They were offered a job elsewhere"}
+  - {id: lost_job, when: {stage_min: talking}, prob_per_week: 0.01, cooldown_days: 200, lasts_days: 14, support: true,
+     mood: {value: tired, days: 5}, news: news, text: "They lost their job",
+     followup: {about: "how the job search is going", when: "days:4"}}
+  - {id: moved_house, when: {stage_min: talking}, prob_per_week: 0.015, cooldown_days: 200, home: redraw,
+     canon: "They moved house", followup: {about: "settling into the new place", when: "days:3"}, news: news}
+  - {id: new_pet, when: {stage_min: talking}, prob_per_week: 0.03, cooldown_days: 150, canon: "They got a new pet",
+     mood: {value: fond, days: 3}, news: news}
+  - {id: family_illness, when: {stage_min: talking}, prob_per_week: 0.02, cooldown_days: 120, lasts_days: 10,
+     support: true, mood: {value: tired, days: 5}, news: news, text: "Someone in their family is ill",
+     followup: {about: "how their family is doing", when: "days:3"}}
+  - {id: siblings_wedding, when: {stage_min: talking}, prob_per_week: 0.015, cooldown_days: 200, lasts_days: 3,
+     news: news, text: "Their sibling got married", followup: {about: "their sibling's wedding", when: "days:3"}}
+  - {id: birthday, when: {stage_min: talking}, prob_per_week: 0.02, cooldown_days: 365, lasts_days: 1,
+     mood: {value: fond, days: 1}, news: news, canon: "It was their birthday"}
+  - {id: ex_reappears, when: {stage_min: talking}, prob_per_week: 0.01, cooldown_days: 180, lasts_days: 5,
+     support: true, news: news, text: "An ex of theirs got back in touch"}
+  - {id: promotion, when: {stage_min: talking}, prob_per_week: 0.015, cooldown_days: 200, news: news,
+     canon: "They were promoted at work"}
+  - {id: race, when: {stage_min: talking}, prob_per_week: 0.02, cooldown_days: 120, lasts_days: 2, news: news,
+     canon: "They ran a race they had trained for", followup: {about: "how the race went", when: "days:1"}}
+  - {id: friends_breakup, when: {stage_min: talking}, prob_per_week: 0.02, cooldown_days: 90, lasts_days: 7,
+     support: true, mood: {value: tired, days: 3}, news: news, text: "A close friend of theirs went through a bad breakup"}
+  - {id: a_bad_month, when: {stage_min: talking}, prob_per_week: 0.015, cooldown_days: 120, lasts_days: 30,
+     support: true, mood: {value: tired, days: 5}, news: news, text: "They are having a bad month"}
+  - {id: wedding, when: {stages: [engaged]}, prob_per_week: 7, cooldown_days: 7, plan: wedding,
+     text: "A date was set at the registry office"}
+
+seen:                               # §12.4 (T18): first values, measured at the balance task
+  prob: 0.25
+  trust: -25
+  mood_days: 5

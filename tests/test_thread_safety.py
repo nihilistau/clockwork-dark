@@ -1178,6 +1178,9 @@ def test_a_scheduled_voicing_pass_holds_only_released_leaves(lock_order, monkeyp
         social.boot()
         from engine.social import messaging, saves, voicer
 
+        # A scheduler an earlier test built (before this test's checker wrapped `threading`) is dropped,
+        # so the one this test drives is built under the checker (the test passed only run first).
+        voicer.reset()
         held_during_call: list[list[str]] = []
         stub = StubVoice("zero")
 
@@ -1206,6 +1209,99 @@ def test_a_scheduled_voicing_pass_holds_only_released_leaves(lock_order, monkeyp
         assert held_during_call and all(not held for held in held_during_call), held_during_call
         assert "engine.social.voicer.VoicingScheduler._lock" in lock_order.acquired
         assert "engine.social.inbox.SessionInbox._lock" in lock_order.acquired
+    finally:
+        voicer_module = sys.modules.get("engine.social.voicer")
+        if voicer_module is not None:
+            voicer_module.reset()
+        saves_module = sys.modules.get("engine.social.saves")
+        if saves_module is not None:
+            saves_module.reset_dirty_saver()
+        registry.deactivate()
+
+
+def test_the_turnstile_and_turn_lock_race_in_order(lock_order, monkeypatch):
+    """
+    v0.23.0 T8 (spec §20.1, engine/locks.py "THE NARRATION TURNSTILE"): under the
+    checker, with every turnstile hold tracked as ``TURNSTILE`` and the session's
+    turn lock as ``TURN``, four threads -- two world turns (the ``hold_world``
+    side: the turnstile waited for holding nothing, then the turn lock tried)
+    and two voicing passes (the turnstile tried per call, then the turn lock) --
+    race 200 times in all on one session. No acquisition is out of order: the
+    turnstile is never taken under a turn lock nor waited for holding anything.
+    """
+    from engine import social
+    from engine.games import registry
+    from tests.social_fixtures import _live_session, _three_due
+    from tests.social_stub import StubVoice
+
+    registry.activate("read-receipts")
+    try:
+        social.boot()
+        from engine.session.store import release_turn
+        from engine.social import turnstile, voicer
+
+        voicer.set_llm_fn(StubVoice("zero"))
+        voicer.set_summary_fn(lambda messages: "")
+        voicer.get_scheduler().pause()
+        lock_order_helper.install_turnstile(monkeypatch, lock_order)
+        voice_took: list[int] = []
+        tracked_try = turnstile.Turnstile.try_acquire_voice
+
+        def counted_try(self: Any) -> bool:
+            got = tracked_try(self)
+            if got:
+                voice_took.append(1)
+            return got
+
+        monkeypatch.setattr(turnstile.Turnstile, "try_acquire_voice", counted_try)
+        _scene, session = _live_session()
+        _three_due(session)
+        lock_order_helper.track_turn_lock(session, lock_order)
+        gate = session.narration_turnstile
+        start = threading.Barrier(4, timeout=JOIN_SECONDS)
+        errors: list[BaseException] = []
+        took = {"world": 0, "turn": 0}
+
+        def world() -> None:
+            try:
+                _wait(start)
+                for _ in range(50):
+                    assert gate.acquire_world(JOIN_SECONDS), "a world turn waited past one call"
+                    try:
+                        if session.lock.acquire(blocking=False):
+                            took["turn"] += 1
+                            release_turn(session)
+                        took["world"] += 1
+                    finally:
+                        gate.release(turnstile.WORLD)
+            except BaseException as exc:  # noqa: BLE001 -- reported by the main thread
+                errors.append(exc)
+
+        def voice() -> None:
+            # 50 passes, then on until a voice pass has held the turnstile at least once: once both
+            # world threads have ended it is free, so the loop ends whatever the interleaving was.
+            try:
+                _wait(start)
+                for i in range(10_000):
+                    if i >= 50 and voice_took:
+                        break
+                    outcome = voicer.run_pass(voicer.VoicePass(session, session.epoch),
+                                              llm_fn=StubVoice("zero"), admit=False)
+                    assert outcome in voicer.OUTCOMES, outcome
+            except BaseException as exc:  # noqa: BLE001 -- reported by the main thread
+                errors.append(exc)
+
+        threads = [threading.Thread(target=f) for f in (world, world, voice, voice)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(JOIN_SECONDS * 6)
+        assert not any(t.is_alive() for t in threads), "a racing thread never ended"
+        assert not errors, errors
+        assert took["world"] == 100 and gate.holder is None and gate.world_waiting == 0
+        assert lock_order_helper.TURNSTILE in lock_order.acquired
+        assert lock_order_helper.TURN in lock_order.acquired
+        assert voice_took, "no voice pass ever held the turnstile"
     finally:
         voicer_module = sys.modules.get("engine.social.voicer")
         if voicer_module is not None:

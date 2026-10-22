@@ -144,6 +144,7 @@
         "label": "Picture provider",
         "options": [
           "grokbuild",
+          "xai",
           "comfyui",
           "procedural"
         ],

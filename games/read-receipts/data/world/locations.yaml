@@ -1,24 +1,291 @@
-# READ RECEIPTS -- the world graph: one node, no edges (spec §2.5).
+# READ RECEIPTS -- the world graph (v0.23.0 spec §8.1): 28 locations.
 #
-# The phone is the whole stage, so `travel` is never offered. Meet-up venues
-# are rows of data/social/venues.yaml, not locations.
+# The seven rooms of the player's flat and building are joined by one-minute edges (`minutes`, the
+# optional edge key of engine/game/locations.py; AUTHORING §2.1), and the street is one more minute
+# from reception. The 15 venues (the ids of data/social/venues.yaml), the 4 homes (the ids of
+# data/social/homes.yaml) and the registry office have no edges: they are reached by `go`, which
+# charges the row's `travel_minutes`. Names and descriptions only (rule 12).
 #
-# Version: v0.1.1
+# The edgeless places are tagged `sentinel` (the validator's "placed by an effect, not by walking"):
+# the `go` verb (T11) puts the player there.
+#
+# IDS PINNED: game.yaml's `entry.location_id` (apt_lounge), and the venue and home ids above.
+# Tags: the player's flat is `home`, the building `building`, the cast's homes `residence`
+# (engine/social/places.py reads them).
+#
+# Version: v0.2.0
 
 version: 1
 
 rings:
   0: "Home"
+  1: "The city"
 
 locations:
-
-  home:
-    name: "Your flat"
+  apt_lounge:
+    name: "Lounge"
     ring: 0
-    evil_multiplier: 0.1          # the engine's floor (locations._EVIL_MULTIPLIER_RANGE): what 0.0 was clamped to
-    # ID PINNED: game.yaml's `entry.location_id`.
+    evil_multiplier: 0.1
     summary: >-
-      A rented flat in Port Merrow, half unpacked. The sofa is the only
-      thing that has found its place.
-    tags: [interior, home, quiet]
+      The sofa is the only thing in the room that has found its place; the rest is boxes and a lamp on the floor.
+    tags: [interior, home, lounge]
+    connections:
+      apt_hall: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+      apt_dining: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+
+  apt_bedroom:
+    name: "Bedroom"
+    ring: 0
+    evil_multiplier: 0.1
+    summary: >-
+      A bed against the long wall and a window onto the roofs; the wardrobe door never quite shuts.
+    tags: [interior, home, bedroom]
+    connections:
+      apt_hall: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+
+  apt_kitchen:
+    name: "Kitchen"
+    ring: 0
+    evil_multiplier: 0.1
+    summary: >-
+      A galley kitchen with a window over the lane; the kettle is the newest thing in it.
+    tags: [interior, home, kitchen]
+    connections:
+      apt_hall: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+      apt_dining: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+
+  apt_dining:
+    name: "Dining room"
+    ring: 0
+    evil_multiplier: 0.1
+    summary: >-
+      A table by the window that does for meals, laptop and post alike.
+    tags: [interior, home, dining]
+    connections:
+      apt_lounge: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+      apt_kitchen: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+
+  apt_hall:
+    name: "Hall"
+    ring: 0
+    evil_multiplier: 0.1
+    summary: >-
+      A narrow hall with hooks, a mirror and the front door; every other room opens off it.
+    tags: [interior, home, hall]
+    connections:
+      apt_bedroom: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+      apt_lounge: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+      apt_kitchen: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+      bldg_lift: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+
+  bldg_lift:
+    name: "Lift"
+    ring: 0
+    evil_multiplier: 0.1
+    summary: >-
+      A small lift with a brass panel, slow and a little loud.
+    tags: [interior, building, lift]
+    connections:
+      apt_hall: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+      bldg_reception: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+
+  bldg_reception:
+    name: "Lobby"
+    ring: 0
+    evil_multiplier: 0.1
+    summary: >-
+      The building's lobby: a tiled floor, a row of post boxes and a desk that is staffed in the day.
+    tags: [interior, building, lobby]
+    connections:
+      bldg_lift: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+      merrow_street: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+
+  merrow_street:
+    name: "Merrow Street"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      The street outside the building, shops below and flats above, the harbour a few turnings away.
+    tags: [exterior, street]
+    connections:
+      bldg_reception: {minutes: 1, danger_dc: 0, awareness_delta: 0}
+
+  copper_kettle:
+    name: "The Copper Kettle"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A low-beamed Old Town cafe with mismatched cups and a window table everyone wants.
+    tags: [interior, venue, coffee, sentinel]
+    connections: {}
+
+  driftwood_roasters:
+    name: "Driftwood Roasters"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A harbourside roastery in a former chandlery, the counter built from salvaged boards.
+    tags: [interior, venue, coffee, sentinel]
+    connections: {}
+
+  the_anchor:
+    name: "The Anchor"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A quayside pub with a quiz on Thursdays and a fire that is lit from October.
+    tags: [interior, venue, drinks, sentinel]
+    connections: {}
+
+  lantern_wine_bar:
+    name: "The Lantern Wine Bar"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A narrow wine bar in the Lanes, candles on every ledge and a short, handwritten list.
+    tags: [interior, venue, drinks, sentinel]
+    connections: {}
+
+  salt_and_ember:
+    name: "Salt & Ember"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A harbourside restaurant with an open grill and a long room with the sea behind the glass.
+    tags: [interior, venue, dinner, sentinel]
+    connections: {}
+
+  merrow_noodle_house:
+    name: "Merrow Noodle House"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A steamed-up Northgate noodle house with a short menu and bench seating.
+    tags: [interior, venue, dinner, sentinel]
+    connections: {}
+
+  westcliff_path:
+    name: "The Westcliff Path"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      The clifftop path above Westcliff, gorse on one side and the open sea on the other.
+    tags: [exterior, venue, walk, sentinel]
+    connections: {}
+
+  river_walk:
+    name: "The River Walk"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A towpath along the river with allotments on one bank and herons on the other.
+    tags: [exterior, venue, walk, sentinel]
+    connections: {}
+
+  saltmarsh_boardwalk:
+    name: "The Saltmarsh Boardwalk"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A raised boardwalk over the saltmarsh, reeds, mud and a great deal of sky.
+    tags: [exterior, venue, walk, sentinel]
+    connections: {}
+
+  harbour_gallery:
+    name: "The Harbour Gallery"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A bright converted warehouse hung with local painters and one very large photograph.
+    tags: [interior, venue, gallery, sentinel]
+    connections: {}
+
+  castle_hill_museum:
+    name: "Castle Hill Museum"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      The city's museum on the hill: ships in bottles, a stuffed gull and good views.
+    tags: [interior, venue, museum, sentinel]
+    connections: {}
+
+  the_rialto:
+    name: "The Rialto"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      An old single-screen cinema in Old Town with red seats and a sweet counter.
+    tags: [interior, venue, film, sentinel]
+    connections: {}
+
+  the_crate:
+    name: "The Crate"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A climbing gym in an Eastfield warehouse, chalk on everything and a cafe in the corner.
+    tags: [interior, venue, climbing, sentinel]
+    connections: {}
+
+  the_dice_box:
+    name: "The Dice Box"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A games cafe in the Lanes with shelves of boxes and a table for any number.
+    tags: [interior, venue, games, sentinel]
+    connections: {}
+
+  the_vinyl_cellar:
+    name: "The Vinyl Cellar"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A basement record shop and gig room on the Quays, low ceiling, loud when it counts.
+    tags: [interior, venue, gig, sentinel]
+    connections: {}
+
+  home_harbour_studio:
+    name: "A studio flat on the harbour"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A one-room flat above the harbour, bed, desk and kettle all in sight of the window.
+    tags: [interior, residence, sentinel]
+    connections: {}
+
+  home_terrace_share:
+    name: "A shared terrace house"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A narrow terrace house shared by several people, shoes in the hall and a rota on the fridge.
+    tags: [interior, residence, sentinel]
+    connections: {}
+
+  home_westcliff_house:
+    name: "A house in Westcliff"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A square house in Westcliff with a small garden and the sound of the sea in the evening.
+    tags: [interior, residence, sentinel]
+    connections: {}
+
+  home_quays_loft:
+    name: "A loft in the Quays"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A converted loft in the Quays, beams, brick and a skylight over the table.
+    tags: [interior, residence, sentinel]
+    connections: {}
+
+  registry_office:
+    name: "Registry Office"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A civic building near the old customs house: a waiting room, a numbered ticket machine and tall double doors.
+    tags: [interior, civic, sentinel]
     connections: {}

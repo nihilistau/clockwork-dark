@@ -360,6 +360,7 @@ body[data-story-skin="read-receipts"] {
 .rr-icon[data-app="photos"] .rr-icon__tile { background: var(--rr-app-photos); }
 .rr-icon[data-app="calendar"] .rr-icon__tile { background: var(--rr-app-calendar); }
 .rr-icon[data-app="contacts"] .rr-icon__tile { background: var(--rr-app-contacts); }
+.rr-icon[data-app="places"] .rr-icon__tile { background: var(--rr-app-places); }
 .rr-icon__label {
   font-size: 11px;
   max-width: 100%;
@@ -1850,4 +1851,305 @@ body[data-story-skin="read-receipts"] {
   list-style: none;
   display: flex;
   flex-direction: column;
+}
+
+/* ---- the two layers: the world and the phone (v0.23.0 spec §14.1) ----
+   One stage holds both. 1200px wide and over: the world beside the phone. Under it: the phone covers the
+   world while it is up (the world dimmed behind) and is gone while it is down. */
+
+.rr-stage {
+  position: relative;
+}
+.rr-phone-layer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.rr-stage[data-layers="two"] > .rr-phone-layer {
+  width: auto;
+}
+.rr-world-layer {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  color: var(--rr-desk-ink);
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+.rr-world-layer.dimmed {
+  filter: brightness(0.45);
+  pointer-events: none;
+}
+/* under 1200: the phone lies over the world */
+.rr-stage[data-layers="two"] > .rr-phone-layer.over {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: auto;
+  height: auto;
+}
+.rr-stage[data-layers="two"] > .rr-phone-layer.over.down {
+  display: none;
+}
+@media (max-width: 899.98px) {
+  .rr-stage[data-layers="two"] > .rr-phone-layer.over {
+    background: var(--rr-screen);
+  }
+}
+/* 1200 and over: beside; a lowered phone is dimmed but stays one tap from a thread */
+.rr-stage[data-layers="two"] > .rr-phone-layer.beside {
+  position: static;
+  flex: none;
+  height: 100%;
+}
+.rr-phone-layer.beside.down .rr-frame {
+  opacity: 0.55;
+}
+
+.rr-world {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+.rr-world__plate {
+  position: relative;
+  flex: none;
+  height: 28vh;
+  min-height: 90px;
+  max-height: 260px;
+  overflow: hidden;
+  border-radius: 12px;
+}
+.rr-world__plate > * {
+  height: 100%;
+}
+.rr-also-here {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  max-width: calc(50% - 15px);
+  margin: 0;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--rr-shade);
+  color: var(--rr-photo-ink);
+  font-size: 0.9em;
+  height: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rr-world__where {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  max-width: calc(50% - 15px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--rr-shade);
+  color: var(--rr-photo-ink);
+  font-weight: 600;
+  height: auto;
+}
+.rr-companion,
+.rr-household {
+  position: absolute;
+  right: 10px;
+  top: 8px;
+  max-width: calc(100% - 20px);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 10px 2px 4px;
+  border-radius: 999px;
+  background: var(--rr-shade);
+  color: var(--rr-photo-ink);
+  height: auto;
+}
+.rr-household {
+  padding-left: 10px;
+}
+.rr-companion__portrait {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.rr-companion__portrait--none {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--rr-photo-ink);
+  color: var(--rr-shade);
+  font-weight: 700;
+}
+.rr-companion__text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+  min-width: 0;
+}
+.rr-companion__stage,
+.rr-companion__close {
+  opacity: 0.85;
+}
+.rr-world__log {
+  flex: 1 1 0;
+  min-height: 3.2em;
+  display: flex;
+  flex-direction: column;
+}
+.rr-world__log > * {
+  flex: 1;
+  min-height: 0;
+}
+.rr-world__choices {
+  flex: none;
+  max-height: 34%;
+  overflow-y: auto;
+}
+.rr-world__compose {
+  flex: none;
+  flex-wrap: nowrap;
+  padding-top: 6px;
+}
+.rr-world__compose .compose__input {
+  min-width: 0;
+}
+.rr-world__choices .choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.choices__note {
+  margin: 0;
+  font-style: italic;
+  color: var(--text-muted);
+}
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* the buzz banner */
+.rr-buzz {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--rr-glass-strong);
+  border: 1px solid var(--rr-line);
+}
+.rr-buzz__text {
+  flex: 1;
+  min-width: 0;
+}
+.rr-buzz__pick {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--rr-accent);
+  color: var(--rr-accent-ink);
+  cursor: pointer;
+}
+
+/* "Put the phone down" in the status bar */
+.rr-status__down {
+  flex: none;
+  border: 1px solid var(--rr-line);
+  border-radius: 999px;
+  background: none;
+  padding: 3px 10px;
+  font-size: 11px;
+  min-height: 28px;
+  cursor: pointer;
+}
+.rr-status__down:hover {
+  background: var(--rr-raised);
+}
+.rr-status--wall .rr-status__down {
+  border-color: var(--rr-wall-soft);
+}
+.rr-status__day {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Under 900px the status bar is tight: "Day N" goes before the weekday can truncate (v0.23.0 T21 fix round). */
+@media (max-width: 899.98px) {
+  .rr-status__n {
+    display: none;
+  }
+}
+
+/* the way back to the phone while it is down (under 1200px the phone layer is gone until it is picked up) */
+.rr-world__pickup {
+  flex: none;
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--rr-line);
+  border-radius: 999px;
+  background: var(--rr-glass);
+  color: var(--rr-desk-ink);
+  cursor: pointer;
+}
+
+/* ---- the conversation UI (v0.23.0 T22, spec §14.2) ---- */
+.rr-thread__avail {
+  font-size: 11px;
+  color: var(--rr-ink-soft);
+  font-style: italic;
+}
+.rr-compose__menu--plan {
+  max-height: none;
+  overflow-y: visible;
+}
+.rr-compose__menu--plan .rr-plan {
+  width: 100%;
+}
+.rr-contact__closer {
+  margin: 0;
+  font-weight: 600;
+  color: var(--rr-accent);
+}
+.rr-contact__open {
+  margin: 4px 0 0;
+  padding: 0 0 0 10px;
+  list-style: none;
+  font-size: 13px;
+  border-left: 2px solid var(--rr-line);
+}
+.rr-places {
+  margin: 0;
+  padding: 0 12px 12px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rr-places__go {
+  width: 100%;
+  text-align: left;
 }

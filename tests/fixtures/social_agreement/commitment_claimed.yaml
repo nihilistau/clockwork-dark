@@ -1,0 +1,47 @@
+# Agreement check "commitment claimed" (v0.23.0 spec §13.4, T7): a reply that states or asks a step --
+# relationships.yaml `claims.commitment`, phrased in the second person -- whose growth.yaml `willing:` row
+# does not hold (`willing`, the commitments that hold, from `agreement.willing_now`) and which no closer
+# recorded (`recorded`, empty until T13). Asking is the step, so a question counts; a negated one does
+# not, and neither does one with a third-person subject before it (T7 fix round 1, I3: "my brother
+# wants to ..."). Facts, never tone.
+# `bad` must fail the check; `good` must pass EVERY check.
+base: &base
+  stage: talking
+  person: {name: Maya, age: 31, job: nurse, neighbourhood: old_town}
+  player: {name: Sam, age: 29, neighbourhood: harbourside, attributes: {job: accountant}}
+  contacts: [Jordan, Priya]
+  willing: []
+  decision: {situation: reply}
+
+bad:
+  - {<<: *base, reply: {bubbles: [{text: "honestly, let's move in together"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "will you marry me?"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "I think we should be exclusive"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "fancy it?"}, {text: "want to come over tonight?"}]}}
+  - {<<: *base, willing: [exclusive, come_over], reply: {bubbles: [{text: "we should get married"}]}}
+  - {<<: *base, willing: [move_in], reply: {bubbles: [{text: "will you be exclusive with me?"}]}}
+  - {<<: *base, recorded: [exclusive], reply: {bubbles: [{text: "you should come over"}]}}
+  # "my" is no third-person subject, and a comma ends the lookback (re-review minor)
+  - {<<: *base, reply: {bubbles: [{text: "honestly my love, will you marry me"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "my flat's empty, you should come over"}]}}
+
+good:
+  # the step holds
+  - {<<: *base, willing: [move_in], reply: {bubbles: [{text: "let's move in together"}]}}
+  - {<<: *base, willing: [come_over], reply: {bubbles: [{text: "do you want to come over?"}]}}
+  - {<<: *base, willing: [propose], reply: {bubbles: [{text: "will you marry me?"}]}}
+  # a closer recorded it (T13)
+  - {<<: *base, recorded: [exclusive], reply: {bubbles: [{text: "let's make it official"}]}}
+  # negated
+  - {<<: *base, reply: {bubbles: [{text: "I'm not saying let's move in together, relax"}]}}
+  # no step named
+  - {<<: *base, reply: {bubbles: [{text: "I really like talking to you"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "my sister just got married, it was lovely"}]}}
+  # someone else's step, told as news (I3)
+  - {<<: *base, reply: {bubbles: [{text: "my brother wants to move in with me, help"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "my sister said she'd come over to mine tonight"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "should my flatmate move in with me? he keeps asking"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "they said we should get married lol, my mum is relentless"}]}}
+  # small talk that asks, never a step (I3)
+  - {<<: *base, reply: {bubbles: [{text: "do you think you'd ever want to live by the sea?"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "would you ever move in with a flatmate again?"}]}}

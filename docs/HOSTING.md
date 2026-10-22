@@ -687,20 +687,57 @@ server: one queue for every story).
   (no place in the narration queue, no turn slot), only the run's own turn
   lock, briefly.
 - **Phone replies** (v0.22.0): the people's replies are written afterwards,
-  by a background voicing pass the player never waits for. Each pass takes
-  **one narration place, briefly waited for**: it asks for it before it
-  touches the run, waiting at most `social.voice.admit_wait_seconds` (5),
-  as the run's account (so under the supervisor an account's phone holds at
-  most one narration place, as its turns do), with
-  `hosting.turn_deadline_seconds` as its deadline. A busy queue sends the
-  pass back to wait, 2, 4, 8, 16 and 32 seconds, and after
-  `social.voice.max_attempts` (6) it is dropped: the messages stay "…" and
-  the player's next phone action asks again. The model call itself is made
+  by a background voicing pass the player never waits for. Each reply
+  (one person's, since v0.23.0) takes **one narration place, briefly
+  waited for**: it asks for it before it touches the run, waiting at most
+  `social.voice.admit_wait_seconds` (5), as the run's account (so under the
+  supervisor an account's phone holds at most one narration place, as its
+  turns do), with `hosting.turn_deadline_seconds` as its deadline, and only
+  while it holds the run's narration turnstile (v0.23.0, spec §20.1), which
+  it never waits for: if the player's own world turn wants or holds it, the
+  pass steps aside and comes back shortly, so one player's world turn and
+  replies never ask for two places. A busy queue sends the pass back to
+  wait, 2, 4, 8, 16 and 32 seconds, and after `social.voice.max_attempts`
+  (6) it is dropped: the messages stay "…" and the player's next phone
+  action asks again -- except a reply in a conversation still going, which
+  is sent as the person's templated line instead. The model call itself is made
   holding no lock, so the player keeps swiping and sending while a reply is
   being written. A pass is called off when the player's last game
   connection to the run closes (local mode keeps writing, so the replies
   are there on return). Its thread summary is a utility call, made after
   the place is given back.
+- **A phone story's world turns** (v0.23.0, spec §20.1): READ RECEIPTS'
+  life outside the phone is an ordinary narrated turn -- a choice, admitted,
+  with its one narration place, as any story's turn -- refused only while the
+  player has the phone up ("Put the phone down first."). Before it touches
+  the run it takes the run's narration turnstile, the only thing it ever
+  waits for, holding no lock: at most one reply's model call, bounded by
+  `hosting.queue_wait_seconds` (past it the turn is answered "busy" and the
+  player tries again). Phone actions never take the turnstile, so the player
+  keeps using the phone while the turn waits; if they pick it up meanwhile,
+  the turn is refused once it has the run. Replies parked while it waited are
+  delivered first, and when it ends a voicing pass it set aside is asked for
+  at once, not after its backoff. A world turn's wait for the turnstile is
+  `hosting.queue_wait_seconds` (local mode: `llm.timeout_seconds`).
+  A scene's turn, a chance scene's and an arrival's second frame
+  (`turn_update`) are world turns like any other, and an arrival (someone who
+  reaches the player's place while the turn runs) calls no model and takes no
+  second place, so a world turn that opens a scene beside a voicing pass is
+  never refused "another window".
+- **The narration share** (v0.23.0 T28): how the turnstile is split between an
+  account's world turns and its voice calls, as the existing `phone` metric
+  (no new kind): at most once a minute per run, after a side lets go, two
+  rows, `narration_world` and `narration_voice`, status `ok`, `ms` the
+  milliseconds that side held the turnstile since the last report (a side
+  that held nothing sends no row). Seconds and counts only, never text.
+  Local mode records nothing. A run that goes quiet within a minute of its
+  last report leaves that tail unreported.
+- **A drain and a phone story's turns** (v0.23.0 T28): the drain waits for
+  the world turns still at the turnstile as well as those holding a run's
+  turn lock (a turn waits for the turnstile before it takes the lock), so a
+  scene's turn finishes rather than being cut; passes are cancelled, and a
+  recap job or held text they leave is parked in the run's state
+  (`recap_due`, the queue), which the flush saves and a resume reads.
 - **Typed input:** any text a player sends -- a typed action, a chosen
   option's id, a save's label, an archetype, a seed -- longer than
   `hosting.max_input_chars` (1000 characters), and a player name longer than
@@ -1758,7 +1795,7 @@ one of a fixed list of words:
 | `login` | the account (none for a name that is no account) and `ok`, `failed`, `limited`, `disabled` or `must_change` | the front door |
 | `error` | the process, the player's reference (when one was shown), the exception's class and the logger's name | every process |
 | `process` | a child `started`, `ready`, `unhealthy`, `exited` (with its code), `restarted`, `held_down` or `stopped` | the supervisor |
-| `phone` | a phone story's (v0.22.0) story and account, the `event` (`action`: one mechanics action; `voice_pass`: one voicing pass; `media_job`: one media job handed back), its time in ms, and `ok`, `busy`, `refused`, `fallback`, `failed`, `discarded` or `dropped`. A phone action is never a `turn`: one refused -- over its text cap, past the phone bucket, or declined by the engine (an action not legal now) -- is a `phone` `refused` | each worker |
+| `phone` | a phone story's (v0.22.0) story and account, the `event` (`action`: one mechanics action; `voice_pass`: one voicing pass; `media_job`: one media job handed back; `scene_prose`, v0.23.0: an in-person scene turn whose narration failed its fact checks twice, always `fallback`, the engine's receipt lines shipped in its place; `narration_world` and `narration_voice`, v0.23.0: the milliseconds an account's world turns and voice calls each held its narration turnstile since the last report, at most once a minute, always `ok`), its time in ms, and `ok`, `busy`, `refused`, `fallback`, `failed`, `discarded` or `dropped`. A phone action is never a `turn`: one refused -- over its text cap, past the phone bucket, or declined by the engine (an action not legal now) -- is a `phone` `refused` | each worker |
 
 A lane a profile opened under its own name is not recorded (the schema names
 only `narration` and `utility`). The supervisor stamps each metric's process

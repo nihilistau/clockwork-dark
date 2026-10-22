@@ -176,7 +176,9 @@ def _explain_failure(completed: subprocess.CompletedProcess[bytes]) -> str:
     text = (completed.stdout or b"").decode("utf-8", "replace")
     try:
         payload = json.loads(text)
-        return str(payload.get("text") or payload.get("error") or "no image produced")[:300]
+        # Grok 1.0.x reports a failed session as {"type": "error", "message": ...} (a signed-out CLI, v0.23.0 T27).
+        return str(payload.get("text") or payload.get("error") or payload.get("message")
+                   or "no image produced")[:300]
     except json.JSONDecodeError:
         stderr = (completed.stderr or b"").decode("utf-8", "replace")
         return (stderr or text or "no image produced").strip()[:300]

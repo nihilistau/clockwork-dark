@@ -16,6 +16,14 @@
  * number" is greyed until the thread row's `asks` (the engine's
  * `messaging.ready_asks`: its gate holds) lists it -- never a client guess.
  *
+ * "Talk later" (v0.23.0 spec §5.2): chips that end the conversation with a
+ * promise -- "Message me in the morning" (they will write) or "I'll message
+ * you tonight" (the player will) -- sent as `sign_off {who, window}` through
+ * the bar's own `onSend`. The engine refuses a window out of reach, in words.
+ * "To meet up" opens the plan sheet (`PlanSheet`: Free now? / Tonight? /
+ * Sometime soon); moving in and marrying are offered only while the thread
+ * row's `asks` lists them.
+ *
  * A send that never went (`lost`, spec §18.2) comes back WHOLE -- its text
  * and its attachment -- with "Not sent — tap to retry".
  *
@@ -26,7 +34,8 @@
 import React, { useEffect, useRef, useState } from "react";
 
 import MicButton from "../../../core/parts/MicButton.jsx";
-import { ASK_MENU } from "./media.js";
+import PlanSheet from "../contact/PlanSheet.jsx";
+import { ASK_MENU, SIGN_OFF_WINDOWS, STAGE_ASKS } from "./media.js";
 
 /** The catalogue's cap on a text (`social.max_text_chars`, spec §7.1). */
 export const TEXT_MAX = 600;
@@ -54,13 +63,16 @@ export default function ComposeBar({
   onSend,
   inputRef = null,
   readyAsks = null,
+  pid = "",
+  venues = [],
+  canSignOff = false,
 }) {
   const caps = (app && Array.isArray(app.capabilities) ? app.capabilities : ["text"]).map(String);
   const dating = app && app.kind === "dating";
   const [text, setText] = useState("");
   const [voice, setVoice] = useState(false);
   const [attachment, setAttachment] = useState(null);
-  const [menu, setMenu] = useState(null); // "photo" | "video" | "ask" | null
+  const [menu, setMenu] = useState(null); // "photo" | "video" | "ask" | "plan" | "later" | null
   const ownInput = useRef(null);
   const box = inputRef || ownInput;
   const askToggle = useRef(null);
@@ -108,9 +120,18 @@ export default function ComposeBar({
     focusBox();
   };
   const ask = (what) => {
+    if (what === "meet") {
+      setMenu("plan");
+      return;
+    }
     setMenu(null);
     act({ action: "ask", target: threadId, args: { what }, text: "" });
     askToggle.current?.focus?.();
+  };
+  const signOff = (who, window) => {
+    setMenu(null);
+    onSend({ action: "sign_off", target: threadId, args: { who, window }, text: "" });
+    focusBox();
   };
 
   const photos = [
@@ -122,7 +143,15 @@ export default function ComposeBar({
   const videos = (player.subjects || [])
     .filter((s) => (s.kinds || []).includes("video"))
     .map((s) => ({ kind: "video", subject: s.id, label: s.label, key: `subject-${s.id}` }));
-  const asks = ASK_MENU.filter(([what]) => (what === "number" ? dating : ["photo", "voice", "video"].includes(what) ? caps.includes(what) : true));
+  const asks = ASK_MENU.filter(([what]) =>
+    what === "number"
+      ? dating
+      : ["photo", "voice", "video"].includes(what)
+        ? caps.includes(what)
+        : STAGE_ASKS.includes(what)
+          ? Array.isArray(readyAsks) && readyAsks.includes(what)   // a stage's ask: the engine's word, never a guess
+          : true
+  );
 
   // A row with no `asks` (an older payload) greys nothing.
   const numberOpen = !Array.isArray(readyAsks) || readyAsks.includes("number");
@@ -143,7 +172,30 @@ export default function ComposeBar({
         </button>
       )}
       {menu && (
-        <div className="rr-compose__menu" role="group" aria-label={menu === "ask" ? "Ask for" : menu === "photo" ? "Choose a photo" : "Choose a video"}>
+        <div
+          className={`rr-compose__menu${menu === "plan" ? " rr-compose__menu--plan" : ""}`}
+          role="group"
+          aria-label={
+            menu === "ask" ? "Ask for" : menu === "later" ? "Talk later" : menu === "plan" ? "Ask to meet up" : menu === "photo" ? "Choose a photo" : "Choose a video"
+          }
+        >
+          {menu === "plan" && (
+            <PlanSheet pid={pid} threadId={threadId} venues={venues} act={act} busy={sending} onDone={() => setMenu(null)} />
+          )}
+          {menu === "later" &&
+            [["you", "Message me"], ["me", "I'll message you"]].flatMap(([who, lead]) =>
+              SIGN_OFF_WINDOWS.map(([window, words]) => (
+                <button
+                  key={`${who}-${window}`}
+                  type="button"
+                  className="rr-pick"
+                  disabled={sending || Boolean(lost)}
+                  onClick={() => signOff(who, window)}
+                >
+                  {lead} {words}
+                </button>
+              ))
+            )}
           {(menu === "photo" ? photos : menu === "video" ? videos : []).map((row) => (
             <button key={row.key} type="button" className="rr-pick" onClick={() => pick(row)}>
               {row.label}
@@ -162,7 +214,9 @@ export default function ComposeBar({
                 {label}
               </button>
             ))}
-          {menu !== "ask" && (menu === "photo" ? photos : videos).length === 0 && <span className="rr-card__sub">Nothing to send yet.</span>}
+          {(menu === "photo" || menu === "video") && (menu === "photo" ? photos : videos).length === 0 && (
+            <span className="rr-card__sub">Nothing to send yet.</span>
+          )}
         </div>
       )}
       {attachment && (
@@ -217,9 +271,14 @@ export default function ComposeBar({
               <span aria-hidden="true">●</span>
             </button>
           )}
-          <button ref={askToggle} type="button" className="rr-tool rr-tool--word" aria-expanded={menu === "ask"} onClick={() => toggle("ask")}>
+          <button ref={askToggle} type="button" className="rr-tool rr-tool--word" aria-expanded={menu === "ask" || menu === "plan"} onClick={() => toggle("ask")}>
             Ask
           </button>
+          {canSignOff && (
+            <button type="button" className="rr-tool rr-tool--word" aria-expanded={menu === "later"} onClick={() => toggle("later")}>
+              Talk later
+            </button>
+          )}
         </span>
         <textarea
           ref={box}

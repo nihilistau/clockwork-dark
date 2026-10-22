@@ -1,35 +1,29 @@
 """
-Messaging and pacing (v0.22.0 spec §9): the threads across the apps (the
-dating apps' chats, Texts, Natter), the player's messages, and when the
-people answer -- each on their own clock, decided by the ENGINE from the seed
-and the player's actions (rule 1). No model runs here: a message that needs
-words lands as a DUE message (`voiced: False`, no bubbles) carrying the
-engine's `Decision`, which the voicing pass (T13/T14) words later.
+Messaging (v0.22.0 spec §9; v0.23.0 spec §4): the threads across the apps
+(the dating apps' chats, Texts, Natter), the player's messages, and the
+person's side of them. No model runs here: a message that needs words lands
+as a DUE message (`voiced: False`, no bubbles) carrying the engine's
+`Decision`, which the voicing pass words later.
 
 **A send** (`send`) appends the player's message through `social_message`,
-whose handler schedules a `read` for the person (`schedule_reply`):
-`read_minutes` from now, or their waking time if they are asleep then. A
-burst of messages in a thread gets ONE read (`pending_read`, keyed by
-thread: a send in another thread gets its own), so one decision. Then the
-send's `cost_minutes` pass through `clock.advance_time` (rule 2).
-
-**The read** (`_on_read`) writes `read_at` on the player's messages on an
-app with `receipts: true`, then decides, in this order: a ghost
-(`ghost_per_exchange` x (1 - interest/100) x the stage's factor; a ghost
-sets the hidden `ghosted` and cancels their queue), the player's pending
-number ask if there is one (`_answer_number`), else a reply (`reply_prob` x
-the interest and burst factors) or left on read. A reply is a due message
-`reply_minutes` x their status's multiplier / (interest/50) after the read.
+whose handler hands it to `engine/social/convo.py` (`on_player_send`): in a
+conversation already going the person reads it at once, so their reply is
+due at the send's own minute (v0.23.0 §4.3); otherwise they read it when
+they are next available (a schedule boundary, never a lognormal delay). The
+read, the per-episode-start draws (a ghost, a reply or left on read), a
+pending ask's answer and the reply's shape are convo's. Then the send's
+minutes (conversation.yaml `costs:`) pass through `clock.advance_time`
+(rule 2).
 
 **Openers** (spec §8.3): every match queues an `initiate` with situation
 `opener` at a delay from their pace; when it falls due, `opener_prob` is
-drawn. The player writing first cancels it. **Initiations** (§9.3): each
-`daily`, every live person's archetype `initiations` are tried (one a day at
-most), at one of their `at_hours` (or any hour) that falls in their free
-time, while the row's `when` holds -- checked when queued and again when due.
-**Double texts**: when a message of theirs lands, `double_text.prob` is
-drawn; a `double_text` falls due `after_hours` later, unless the player has
-written since, capped at `max_in_row` since the player's last message.
+drawn. The player writing first cancels it. **Initiations** are convo's
+daily step (by window, v0.23.0 §4.7); this module lands them when due.
+An opener or an initiation that lands starts a conversation
+(`convo.on_their_message`). **Double texts**: when a message of theirs
+lands, `double_text.prob` is drawn; a `double_text` falls due `after_hours`
+later, unless the player has written since or a conversation is going,
+capped at `max_in_row` since the player's last message.
 
 **Receipts** (§9.4): opening a thread (`open_thread`) writes the player's
 read time on the person's (voiced) messages; on a receipts app with the
@@ -40,14 +34,13 @@ when the player writes. Receipts off hides both directions in the payload.
 
 **Asks** (§9.5, §10.6): `ask {what: number}` at stage `talking` (or `what:
 exclusive` at `dating`) is relationships.ask: a request and a request
-message; the person decides at their next read (`relationships.ask_decision`:
-the stage's gate, then a draw, `_number_accepted` for a number): yes moves
-the stage through `social_stage` and, for a number, opens the Texts and
-Natter threads; either way the answer is a due message (`answer_request`, a
-`decline` when no). Every message between the two counts toward their
-familiarity (`relationships.note_message`: exchanges, contact days).
+message; the person decides at their next read (`answer_ask`: the stage's
+gate, then a draw, `_number_accepted` for a number): yes moves the stage
+through `social_stage` and, for a number, opens the Texts and Natter
+threads; either way the answer is due at the read's own minute
+(`answer_request`, a `decline` when no). Every message between the two
+counts toward their familiarity (`relationships.note_message`).
 
-Every number is behaviours.yaml's (the archetypes and `pacing:`; rule 10).
 Every write is a `social_message` / `social_read` effect or happens inside a
 `social_*` handler (events.py: an event handler IS the effect; rule 3).
 """
@@ -64,9 +57,9 @@ from engine.social.kinds import recorded
 from engine.game.intents import IntentVerb
 from engine.game.rng import SOCIAL_BEHAVIOUR, SOCIAL_PACE, stable_rng
 from engine.game.state import GameState
-from engine.social import apps, behaviour, events, matching, population, relationships
+from engine.social import apps, behaviour, events, matching, places, population, relationships
 from engine.social.intents import ArgSpec, phone_verb
-from engine.social.kinds import MEDIA_KINDS, Decision, stage_rank
+from engine.social.kinds import MEDIA_KINDS, PLAN_KINDS, PLAN_WHENS, Decision, stage_rank
 from engine.social.payload import section
 from engine.social.turn import cost_hours
 
@@ -81,17 +74,17 @@ AUDIO_TRANSCRIPT_MAX = 600
 #: How a refusal names a kind ("Texts can't send voice notes").
 NOUNS: tuple[tuple[str, str], ...] = (("text", "texts"), ("photo", "photos"), ("voice", "voice notes"),
                                       ("video", "videos"))
-#: What `ask` may ask for: their number and to be exclusive (T9), a photo,
+#: What `ask` may ask for: their number and to be exclusive (T9), to move in and to marry (v0.23.0 T18), a photo,
 #: a voice note or a video (T19, decided by engine/social/media.py), and a
 #: meet-up (T24, `MEET_ASK`). A game is started with `game_invite` (engine/social/games/, T22).
-#: A meet-up asked for: the engine picks the venue and the slot (engine/social/meets.py `REQUEST`, T24).
+#: A meet-up asked for: a plan with no set time (engine/social/plans.py `REQUEST`, v0.23.0 T12).
 MEET_ASK = "meet"
 ASKS: tuple[str, ...] = tuple(what for what, _stage in relationships.ASK_STAGE) + MEDIA_KINDS + (MEET_ASK,)
 #: How an ask names one of a kind ("Ask Kai for a voice note").
 ONE_OF: tuple[tuple[str, str], ...] = (("photo", "a photo"), ("voice", "a voice note"), ("video", "a video"))
 #: A dating app's `first_message` (spec §6): either side, or only the player.
 FIRST_MESSAGE: tuple[str, ...] = ("either", "player")
-#: The schedule statuses an initiation may be written in ("inside their free hours", §9.3).
+#: The schedule statuses a person is out of work and awake in.
 FREE: tuple[str, ...] = ("free", "out")
 #: The queue kinds whose handler lands a due message.
 DUE_KINDS: tuple[str, ...] = ("reply", "initiate", "double_text")
@@ -126,36 +119,6 @@ def _noun(kind: str) -> str:
     return dict(NOUNS).get(kind, kind)
 
 
-# -- pacing (behaviours.yaml `pacing:`, rule 10) -----------------------------------
-
-
-def _pacing() -> dict[str, Any]:
-    """behaviours.yaml's `pacing:` block, checked whole when the story's data loads (social._check_loaded)."""
-    block = social.data("behaviours").get("pacing")
-    if not isinstance(block, dict):
-        raise ValueError("social: behaviours.yaml: pacing: required (spec §9.2)")
-    return block
-
-
-def _interest_factor(interest: float) -> float:
-    low, high = (float(v) for v in _pacing()["interest_factor"])
-    return low + (high - low) * max(0.0, min(100.0, float(interest))) / 100.0
-
-
-def _burst_factor(burst: int) -> float:
-    table = list(_pacing()["burst_factor"])
-    return float(table[min(max(int(burst), 1), len(table)) - 1])
-
-
-def _status_mult(person: population.Person, at: float) -> float:
-    return float((_pacing().get("status_mult") or {}).get(behaviour.status_at(person, at), 1.0))
-
-
-def _stage_factor(stage: Optional[str]) -> float:
-    """The ghost chance's stage term (split out so a test can pin it, F16)."""
-    return float((_pacing().get("stage_factor") or {}).get(str(stage or "matched"), 1.0))
-
-
 # -- threads ----------------------------------------------------------------------------
 
 
@@ -172,14 +135,14 @@ def _person(state: GameState, pid: str) -> dict[str, Any]:
     return (state.social.get("people") or {}).get(pid) or {}
 
 
-def _open(t: Optional[dict[str, Any]]) -> bool:
+def is_open(t: Optional[dict[str, Any]]) -> bool:
     """A thread that can be written in: it exists and nothing closed it (not even an expiry)."""
     return t is not None and not t.get("closed")
 
 
 def _new_thread(thread_id: str, app: str, pid: str) -> dict[str, Any]:
-    return {"thread_id": thread_id, "app": app, "pid": pid, "messages": [], "summary": "",
-            "summary_through": "", "focus": 0, "unread": 0, "archived": 0, "opened_at": None}
+    return {"thread_id": thread_id, "app": app, "pid": pid, "messages": [], "focus": 0, "unread": 0,
+            "archived": 0, "opened_at": None}
 
 
 def _stamp(t: dict[str, Any]) -> dict[str, Any]:
@@ -188,7 +151,7 @@ def _stamp(t: dict[str, Any]) -> dict[str, Any]:
     (`stamp`, written by `_archive` when it empties the thread, v0.22.0 T26):
     `last_at` (its last message's time), `last` and `last_spoken` (copies of
     its last shown message and its last shown non-system one), `player_at`
-    (the player's last message's time), `burst` (`_player_burst`'s count over
+    (the player's last message's time), `burst` (`player_burst`'s count over
     them), `in_a_row` (`_in_a_row`'s) and `spoken` (anyone but the system
     wrote). Every reader of a thread's messages falls back to it once the
     messages in state run out, so a thread emptied to the archive reads as it
@@ -236,7 +199,8 @@ def stamp_of(messages: list[dict[str, Any]], before: dict[str, Any]) -> dict[str
     }
 
 
-def _last_at(t: dict[str, Any]) -> float:
+def last_at(t: dict[str, Any]) -> float:
+    """When the thread last moved: its newest message in state, else its stamp's `last_at` (-1 for none)."""
     messages = t.get("messages") or []
     return float(messages[-1]["at"]) if messages else float(_stamp(t).get("last_at", -1.0))
 
@@ -254,12 +218,12 @@ def last_shown(t: dict[str, Any], *, spoken: bool = False) -> Optional[dict[str,
 def thread_for(state: GameState, pid: str) -> Optional[str]:
     """The thread `pid` replies in: the one the player last wrote in, else their latest open one."""
     last = _person(state, pid).get("last_thread")
-    if last and _open(thread(state, last)):
+    if last and is_open(thread(state, last)):
         return str(last)
-    candidates = [t for t in _threads(state).values() if t.get("pid") == pid and _open(t)]
+    candidates = [t for t in _threads(state).values() if t.get("pid") == pid and is_open(t)]
     if not candidates:
         return None
-    return max(candidates, key=lambda t: (_last_at(t), t["thread_id"]))["thread_id"]
+    return max(candidates, key=lambda t: (last_at(t), t["thread_id"]))["thread_id"]
 
 
 def messengers() -> list[str]:
@@ -269,17 +233,19 @@ def messengers() -> list[str]:
             if isinstance(row, dict) and row.get("kind") == "messenger" and row.get("unlock") == "numbers"]
 
 
-def _player_burst(state: GameState, thread_id: str) -> int:
+def player_burst(state: GameState, thread_id: str) -> int:
     """The player's messages since the person last wrote in the thread."""
     return _burst_of(thread(state, thread_id) or {})
 
 
 def _burst_of(t: dict[str, Any]) -> int:
-    """`_player_burst` over one thread row: its messages, then its stamp's count once they run out."""
+    """`player_burst` over one thread row: its messages, then its stamp's count once they run out.
+    A due message of theirs not yet voiced is not "they wrote" (v0.23.0: in a conversation it is
+    decided at the player's first send, before the rest of the burst arrives)."""
     count = 0
     for message in reversed(t.get("messages") or []):
-        if not shown(message):
-            continue                                  # withdrawn: never sent
+        if not shown(message) or message.get("voiced") is False:
+            continue                                  # withdrawn: never sent; due: not written yet
         if message["from"] == "player":
             count += 1
         elif message["from"] != "system":
@@ -316,14 +282,19 @@ def recount(t: dict[str, Any]) -> None:
 
 
 def notify(state: GameState, app: str, thread_id: str, pid: str, kind: str, preview: str,
-           *, at: Optional[float] = None) -> None:
-    """One notification, newest last, bounded at `social.notifications_max` (inside a handler only)."""
+           *, at: Optional[float] = None, promise_id: str = "") -> None:
+    """One notification, newest last, bounded at `social.notifications_max` (inside a handler only).
+    A person's promised message names its promise (`promise_id`, v0.23.0 T11, pre-flight F35), so a
+    sleeper with "wake me for messages" on is woken by it (`world._wakes`); no other row carries it."""
     counters = state.social.setdefault("counters", {})
     counters["notification"] = int(counters.get("notification", 0)) + 1
     rows = state.social.setdefault("notifications", [])
-    rows.append({"id": f"n{counters['notification']}", "app": app, "thread_id": thread_id, "pid": pid,
-                 "kind": kind, "preview": preview[:PREVIEW_CHARS],
-                 "at": float(state.world_clock_hours if at is None else at)})
+    row = {"id": f"n{counters['notification']}", "app": app, "thread_id": thread_id, "pid": pid,
+           "kind": kind, "preview": preview[:PREVIEW_CHARS],
+           "at": float(state.world_clock_hours if at is None else at)}
+    if promise_id:
+        row["promise_id"] = str(promise_id)
+    rows.append(row)
     limit = int(social.setting("notifications_max", 30))
     if len(rows) > limit:
         del rows[:len(rows) - limit]
@@ -352,7 +323,8 @@ def _e_message(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> 
     """
     Engine-only: append one message to a thread (`op: append`, the default), or
     open a thread with none (`op: open`: the messengers a number exchange
-    unlocks). A player's message schedules the person's read; theirs counts
+    unlocks). A player's message goes to their conversation (`convo.on_player_send`:
+    the person's read, now or when they are next available); theirs counts
     unread and notifies.
     """
     if not state.social:
@@ -400,13 +372,33 @@ def _e_message(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> 
         person["last_thread"] = tid
         relationships.note_message(state, pid, sender, at, message["bubbles"])
         _cancel_waiting(state, pid, tid)
-        schedule_reply(state, pid, tid)
+        from engine.social import convo, memory, promises   # lazily: each imports this module
+
+        memory.note_spoken(state, pid, message)   # the person's memory, whatever the app (v0.23.0 §7.1)
+
+        # A promise of theirs kept by this message, or one stated in it (no model, §5.2): before the
+        # read, so the person's next decision accepts it.
+        promises.on_player_message(state, pid, at)
+        promises.note_player_text(state, pid, " ".join(message["bubbles"]) or str(message.get("transcript") or ""), at)
+        convo.on_player_send(state, pid, tid, at)
     elif sender == pid:
         person["last_them_at"] = at
         relationships.note_message(state, pid, sender, at, message["bubbles"])
+        if message["voiced"] is not False:
+            from engine.social import memory   # lazily: memory reads agreement, which reads population
+
+            memory.note_spoken(state, pid, message)   # written now; a due one is noted when voiced
         _recount(t)
-        notify(state, t["app"], tid, pid, kind, _preview(message), at=at)
+        notify(state, t["app"], tid, pid, kind, _preview(message), at=at, promise_id=_promise_of(message))
     return {"type": "social_message", "ok": True, "text": f"{sender} wrote in {tid}", "message": message}
+
+
+def _promise_of(message: dict[str, Any]) -> str:
+    """The promise a person's promised message keeps (its decision's `promise_id`), or ""."""
+    decision = message.get("decision") or {}
+    if not isinstance(decision, dict) or decision.get("situation") != "promised_message":
+        return ""
+    return str(decision.get("promise_id") or "")
 
 
 def _archive(state: GameState, t: dict[str, Any], count: int) -> dict[str, Any]:
@@ -432,8 +424,8 @@ def _archive(state: GameState, t: dict[str, Any], count: int) -> dict[str, Any]:
         t["stamp"] = stamp_of(moved, _stamp(t))
     del messages[:count]
     t["archived"] = int(t.get("archived") or 0) + count
-    # The newest message the archive holds: the thread summary reads the
-    # archive while this is past its `summary_through` (memory.thread_view).
+    # The newest message the archive holds: an episode's recap reads the archive
+    # for messages older than state's (memory.recap_view, with_archive).
     t["archived_through"] = str(moved[-1]["id"])
     if any(_is_opener(m) and m["from"] == t["pid"] and shown(m) for m in moved):
         state.social.setdefault("people", {}).setdefault(t["pid"], {})["opener_landed"] = True
@@ -529,79 +521,20 @@ def _event_kind(situation: str) -> str:
         "reply" if situation == "answer_request" else "initiate")
 
 
-def queue_due(state: GameState, pid: str, thread_id: str, decision: Decision, at: float) -> None:
-    """Queue a due message: a `reply`, `initiate` or `double_text` event carrying `decision`."""
-    _queue_due(state, pid, thread_id, decision, at)
-
-
-def _queue_due(state: GameState, pid: str, thread_id: str, decision: Decision, at: float, **extra: Any) -> None:
+def queue_due(state: GameState, pid: str, thread_id: str, decision: Decision, at: float, **extra: Any) -> None:
+    """Queue a due message: a `reply`, `initiate` or `double_text` event carrying `decision`. A promised
+    message's event names its promise (`promise_id`, pre-flight F35), as its notification will."""
+    if decision.situation == "promised_message" and decision.promise_id:
+        extra.setdefault("promise_id", decision.promise_id)
     events.push(state, at, pid, _event_kind(decision.situation), thread_id=thread_id,
                 decision=dataclasses.asdict(decision), **extra)
 
 
+_queue_due = queue_due
+
+
 def _awake(person: population.Person, at: float) -> float:
     return behaviour.next_awake(person, at) if behaviour.status_at(person, at) == "asleep" else at
-
-
-def schedule_reply(state: GameState, pid: str, thread_id: str) -> None:
-    """On a player send: a read, then (decided at the read) a reply or left-on-read; one decision per burst."""
-    person_state = state.social["people"][pid]
-    pending = person_state.get("pending_read")
-    if not isinstance(pending, dict):              # one read pending per THREAD: a send elsewhere gets its own
-        pending = person_state["pending_read"] = {}
-    if pending.get(thread_id) or person_state.get("ghosted") or apps.gone(state, pid):
-        return                                    # a burst: the read already queued decides for all of it
-    person = population.profile(state, pid)
-    arch = behaviour.archetype(person.archetype)
-    now = float(((thread(state, thread_id) or {}).get("messages") or [{}])[-1].get("at", state.world_clock_hours))
-    rng = behaviour.person_rng(state, SOCIAL_PACE, pid)
-    read_at = now + behaviour.lognormal_minutes(rng, *arch.read_minutes) / 60.0
-    if behaviour.status_at(person, read_at) == "asleep":
-        read_at = behaviour.next_awake(person, read_at)
-    pending[thread_id] = True                     # inside the social_message handler that called this
-    events.push(state, read_at, pid, "read", thread_id=thread_id)
-
-
-def _reply_minutes(state: GameState, pid: str, person: population.Person, at: float, interest: float) -> float:
-    arch = behaviour.archetype(person.archetype)
-    pace = behaviour.person_rng(state, SOCIAL_PACE, pid)
-    return (behaviour.lognormal_minutes(pace, *arch.reply_minutes) * _status_mult(person, at)
-            / max(0.2, interest / 50.0))
-
-
-@events.handles("read")
-def _on_read(state: GameState, event: dict[str, Any]) -> dict[str, Any]:
-    pid, thread_id = str(event["pid"]), str(event["thread_id"])
-    person_state = state.social["people"].setdefault(pid, {})
-    pending = person_state.get("pending_read")
-    if isinstance(pending, dict):
-        pending.pop(thread_id, None)
-    if not _open(thread(state, thread_id)) or apps.gone(state, pid) or person_state.get("ghosted"):
-        return {"ok": False, "why": "closed"}
-    at = float(event["at"])
-    relationships.settle_left_on_read(state, pid, at)
-    apply_effect(state, {"type": "social_read", "thread_id": thread_id, "reader": pid, "at": at})
-    person = population.profile(state, pid)
-    arch = behaviour.archetype(person.archetype)
-    rng = behaviour.person_rng(state, SOCIAL_BEHAVIOUR, pid)
-    interest = float(person_state.get("interest", 50))
-    burst = _player_burst(state, thread_id)
-    ghost_p = arch.ghost_per_exchange * (1 - interest / 100.0) * _stage_factor(person_state.get("stage"))
-    if rng.random() < ghost_p:
-        apply_effect(state, {"type": "social_person", "pid": pid, "set": {"ghosted": True}})
-        events.cancel(state, pid)
-        return {"ok": True, "ghosted": True}
-    asked = relationships.pending_asks(state, pid)
-    if asked:
-        where = str(asked[0].get("thread_id") or thread_id)   # answered in the thread it was asked in
-        return _answer_ask(state, pid, asked[0], where if _open(thread(state, where)) else thread_id, at, burst,
-                           interest)
-    if rng.random() >= arch.reply_prob * _interest_factor(interest) * _burst_factor(burst):
-        return {"ok": True, "left_on_read": True}
-    minutes = _reply_minutes(state, pid, person, at, interest)
-    decision = Decision(situation="reply", kind="text", max_bubbles=min(3, 1 + burst))
-    queue_due(state, pid, thread_id, decision, at + minutes / 60.0)
-    return {"ok": True, "reply_in_minutes": minutes}
 
 
 def _number_accepted(state: GameState, pid: str) -> bool:
@@ -609,29 +542,30 @@ def _number_accepted(state: GameState, pid: str) -> bool:
     return relationships.accept_draw(state, pid, "number")
 
 
-def _answer_ask(state: GameState, pid: str, request: dict[str, Any], thread_id: str, at: float, burst: int,
-                interest: float) -> dict[str, Any]:
-    """At their read: the player's ask decided (relationships.ask_decision), the stage moved on yes. The answer is due.
-    A media ask (T19) is decided by `media.answer_request`: the medium itself, or the decline, is due."""
+def answer_ask(state: GameState, pid: str, request: dict[str, Any], thread_id: str, at: float) -> dict[str, Any]:
+    """
+    At their read (inside the read handler): the player's ask decided (relationships.ask_decision),
+    the stage moved on yes, and the answer due at the read's own minute (v0.23.0 §4.3), shaped by
+    the conversation (`convo.decide`, situation `answer_request`). A media ask (T19) is decided by
+    `media.answer_request`: the medium itself, or the decline, is due.
+    """
+    from engine.social import convo   # lazily: convo imports this module
+
+    shape = convo.decide(state, pid, thread_id, at, situation="answer_request")
     if str(request["what"]) in MEDIA_KINDS:
         from engine.social import media
 
-        person = population.profile(state, pid)
-        minutes = _reply_minutes(state, pid, person, at, interest)
-        return media.answer_request(state, pid, request, thread_id, at, at + minutes / 60.0, burst)
+        return media.answer_request(state, pid, request, thread_id, at, shape)
     if str(request["what"]) == MEET_ASK:
-        from engine.social import meets   # lazily: meets imports this module
+        from engine.social import plans   # lazily: plans imports this module
 
-        accepted = meets.answer_ask(state, pid, request, at)   # the engine picks the venue and the slot
+        accepted = plans.answer_ask(state, pid, request, at)   # a plan with no set time (v0.23.0 §9.2)
     else:
         decided = relationships.ask_decision(state, pid, str(request["what"]))
         accepted = bool(decided["accept"])
         relationships.settle_ask(state, request, accepted, at, why=str(decided.get("why") or ""))
-    person = population.profile(state, pid)
-    minutes = _reply_minutes(state, pid, person, at, interest)
-    decision = Decision(situation="answer_request", kind="text" if accepted else "decline",
-                        max_bubbles=min(3, 1 + burst), request_id=str(request["id"]))
-    queue_due(state, pid, thread_id, decision, at + minutes / 60.0)
+    decision = dataclasses.replace(shape, kind="text" if accepted else "decline", request_id=str(request["id"]))
+    queue_due(state, pid, thread_id, decision, at)
     return {"ok": True, str(request["what"]): accepted}
 
 
@@ -736,85 +670,94 @@ def when_holds(state: GameState, pid: str, when: dict[str, Any], at: float) -> b
     return True
 
 
-def _live(state: GameState) -> list[str]:
+def live_people(state: GameState) -> list[str]:
     """Everyone the player has an open thread with and has not lost (sorted: the draws' order is fixed)."""
-    pids = {t["pid"] for t in _threads(state).values() if _open(t)}
+    pids = {t["pid"] for t in _threads(state).values() if is_open(t)}
     return sorted(pid for pid in pids if not apps.gone(state, pid))
 
 
-def _initiation_thread(state: GameState, pid: str) -> Optional[str]:
+def initiation_thread(state: GameState, pid: str) -> Optional[str]:
     """Where they start a conversation: their preferred messenger once numbers are swapped, else thread_for."""
     open_ = sorted(tid for tid in (matching.thread_id(app, pid) for app in messengers())
-                   if _open(thread(state, tid)))
+                   if is_open(thread(state, tid)))
     if open_:
         return stable_rng(state.rng_seed, f"{SOCIAL_BEHAVIOUR}:{pid}:messenger").choice(open_)
     return thread_for(state, pid)
 
 
-def _initiation_at(person: population.Person, row: dict[str, Any], day_at: float, rng: Any) -> Optional[float]:
-    """One of the row's `at_hours` (or any hour) inside the daily's day that falls in their free time."""
-    midnight = day_at - events.DAILY_HOUR
-
-    def clock_at(hour: int) -> float:
-        at = midnight + hour
-        return at + 24.0 if at < day_at else at
-
-    hours = [h for h in (row.get("at_hours") or range(24)) if behaviour.status_at(person, clock_at(h)) in FREE]
-    if not hours:
-        return None
-    return clock_at(rng.choice(hours)) + rng.random()
+def hold_retry_hours() -> float:
+    """How long a held message waits before it is tried again (conversation.yaml `together.hold_retry_minutes`)."""
+    return max(1.0, float(social.data("conversation").get("together", {}).get("hold_retry_minutes", 15))) / 60.0
 
 
-def _queue_initiations(state: GameState) -> None:
-    """The `daily` step (spec §9.3): each live person's initiations, one a day at most."""
-    day_at = events.daily_at(state)
-    queued = {e["pid"] for e in state.social.get("queue", []) if e["kind"] == "initiate"}
-    for pid in _live(state):
-        if pid in queued:
+def held(state: GameState, pid: str, here_view: Optional[dict[str, Any]] = None) -> bool:
+    """Their texts are held, never dropped, while they are with the player (a scene open, arrived at the
+    player's place, or at the player's venue by chance, approached or not: A4 W5, W9); the engine's own
+    "<name>'s here" notice is not their text and is never held. With no `here_view` (the delivery seam, once per
+    due event) presence answers for this one person (I7)."""
+    from engine.social import presence   # lazily: presence imports plans, which imports this module
+
+    return presence.with_player(state, pid, here_view)
+
+
+def release_held(state: GameState) -> list[dict[str, Any]]:
+    """Land, now, every held text whose person is no longer with the player (the clock stopped: the end of a
+    scene, the end of a walk). Each queued event is taken off and applied at the present hour; the receipts."""
+    now = float(state.world_clock_hours)
+    view = None
+    out: list[dict[str, Any]] = []
+    for event in [e for e in (state.social.get("queue") or []) if e.get("held") and e.get("kind") in DUE_KINDS]:
+        from engine.social import presence
+
+        view = view if view is not None else presence.here_view(state)
+        if held(state, str(event["pid"]), view):
             continue
-        person = population.profile(state, pid)
-        person_state = state.social["people"].setdefault(pid, {})
-        for row in behaviour.archetype(person.archetype).initiations:
-            once = "prob" in row
-            marker = person_state.get("last_player_at")
-            done = person_state.setdefault("initiated", {})
-            if once and row["id"] in done and done[row["id"]] == marker:
-                continue                      # `prob`: one draw per spell of the player's silence
-            at = _initiation_at(person, row, day_at, behaviour.person_rng(state, SOCIAL_PACE, pid))
-            if at is None or not when_holds(state, pid, row.get("when") or {}, at):
-                continue
-            chance = float(row["prob"] if once else row["prob_per_day"])
-            if once:
-                done[row["id"]] = marker
-            if behaviour.person_rng(state, SOCIAL_BEHAVIOUR, pid).random() >= chance:
-                continue
-            tid = _initiation_thread(state, pid)
-            if tid is None:
-                break
-            decision = Decision(situation=str(row.get("instruction") or row["id"]), kind=str(row["kind"]))
-            _queue_due(state, pid, tid, decision, at, initiation=row["id"])
-            break
-
-
-if _queue_initiations not in events.daily_hooks:
-    events.daily_hooks.append(_queue_initiations)
+        out.append(apply_effect(state, {"type": "social_event", "event": {**event, "at": now}}))
+    return out
 
 
 def _on_due(state: GameState, event: dict[str, Any]) -> dict[str, Any]:
-    """A due message falls due: re-checked, then landed unvoiced with its decision (no model runs)."""
+    """A due message falls due (`_land_due`). A person's promised message tells its promise whether it
+    landed (`promises.on_landed`: remembered, or void when it could not, review M2)."""
+    result = _land_due(state, event)
+    if event.get("promise_id") and not result.get("held"):     # a held message is still to land: its promise waits
+        from engine.social import promises   # lazily: promises imports this module
+
+        landed = str(result.get("message_id") or "") if result.get("ok") else ""
+        promises.on_landed(state, str(event["promise_id"]), landed)
+    return result
+
+
+def _land_due(state: GameState, event: dict[str, Any]) -> dict[str, Any]:
+    """A due message falls due: re-checked, then landed unvoiced with its decision (no model runs). While the
+    person is with the player it is HELD instead (A4 W5): the same event is pushed again `hold_retry_minutes`
+    on, so it lands once they are apart. No draw is made on a hold (rule 4)."""
     pid, tid = str(event["pid"]), str(event["thread_id"])
+    if held(state, pid):
+        retry = hold_retry_hours()
+        data = {k: v for k, v in event.items() if k not in ("at", "seq", "pid", "kind")}
+        data["held"] = True
+        events.push(state, max(float(event["at"]), float(state.world_clock_hours)) + retry, pid, str(event["kind"]), **data)
+        return {"ok": True, "quiet": True, "held": True}
     decision = dict(event.get("decision") or {})
     situation = str(decision.get("situation") or "")
+    if event.get("held"):
+        decision["after_together"] = True         # it waited while they were with the player (W5)
     t = thread(state, tid)
     person_state = state.social["people"].setdefault(pid, {})
-    if not _open(t) or apps.gone(state, pid):
+    if not is_open(t) or apps.gone(state, pid):
         return {"ok": False, "why": "closed"}
     at = float(event["at"])
     person = population.profile(state, pid)
+    from engine.social import convo   # lazily: convo imports this module
+
     if event.get("initiation"):
         row = _initiation_row(person, str(event["initiation"]))
         if row is None or not when_holds(state, pid, row.get("when") or {}, at):
             return {"ok": False, "why": "no longer holds"}
+        skip = convo.initiation_skip(state, pid, situation, at)
+        if skip:
+            return {"ok": False, "why": skip}
         if person_state.get("ghosted"):
             person_state["ghosted"] = False          # a `ghosted: true` row: they came back
             relationships.touch(person_state)
@@ -833,6 +776,8 @@ def _on_due(state: GameState, event: dict[str, Any]) -> dict[str, Any]:
     elif situation == "double_text":
         if _player_wrote_since(t, float(event.get("since", at))):
             return {"ok": False, "why": "the player wrote"}
+        if convo.episode(state, pid) is not None:
+            return {"ok": False, "why": "in a conversation"}     # a double text is for a silence (v0.23.0)
         cap = int(behaviour.archetype(person.archetype).double_text.get("max_in_row", 0))
         if _in_a_row(t) >= cap:
             return {"ok": False, "why": "max_in_row"}         # the cap holds when it lands, too
@@ -848,6 +793,8 @@ def _on_due(state: GameState, event: dict[str, Any]) -> dict[str, Any]:
                           bubbles=(), voiced=False, decision=decision)
     if media_kind:
         media.attach(state, pid, tid, message["id"], media_kind, str(decision.get("subject") or ""))
+    if event.get("initiation") or situation == "opener":
+        convo.on_their_message(state, pid, tid, at)          # they started it: a conversation is going
     _maybe_double_text(state, pid, tid, at)
     return {"ok": True, "message_id": message["id"], "situation": situation}
 
@@ -909,6 +856,12 @@ def send(state: GameState, thread_id: str, kind: str, text: str, *, photo_id: st
         return {"ok": True, "thread_id": thread_id, "app": app, "pid": t["pid"], "message_id": message["id"],
                 "seconds": media.voice_note_seconds(said)}
     message = new_message(state, thread_id, "player", kind, bubbles=[words])
+    from engine.social import plans   # lazily: plans imports this module
+
+    plans.on_player_text(state, str(t["pid"]), words)         # "running late" within patience extends a plan (§9.3)
+    from engine.social import life   # lazily: life imports this module
+
+    life.support(state, str(t["pid"]))                        # a reply while a hard event of theirs runs (§6.3)
     clock.advance_time(state, cost_hours(state, app, kind))
     return {"ok": True, "thread_id": thread_id, "app": app, "pid": t["pid"], "message_id": message["id"]}
 
@@ -949,9 +902,10 @@ def open_thread(state: GameState, thread_id: str) -> dict[str, Any]:
     return {"ok": bool(result.get("ok")), "thread_id": thread_id, "marked": result.get("marked", 0)}
 
 
-def ask(state: GameState, thread_id: str, what: str) -> dict[str, Any]:
-    """The player's ask in a thread (relationships.ask: their number, to be exclusive)."""
-    return relationships.ask(state, thread_id, what)
+def ask(state: GameState, thread_id: str, what: str, meet: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+    """The player's ask in a thread (relationships.ask: their number, to be exclusive, a plan to meet: `meet`
+    is its `kind`, `venue` and `when`)."""
+    return relationships.ask(state, thread_id, what, meet)
 
 
 # -- the catalogue (spec §7.1) -------------------------------------------------------------------
@@ -999,14 +953,18 @@ def _ask_label(state: GameState, intent: dict[str, Any]) -> str:
         return f"Ask {name} for {dict(ONE_OF).get(what, what)}"
     if what == MEET_ASK:
         return f"Ask {name} to meet up"
+    if what == "move_in":
+        return f"Ask {name} to move in with you"
+    if what == "propose":
+        return f"Ask {name} to marry you"
     return f"Ask {name} to be exclusive" if what == "exclusive" else f"Ask {name} for their number"
 
 
 def _ask_refusal(state: GameState, intent: dict[str, Any]) -> str:
     """
     Why an ask the catalogue does not offer is refused: their stage's reason
-    first ("You already have Kai's number."), else past today's asks, "Give
-    it a day" (spec §10.6).
+    first ("You already have Kai's number."), else past this episode's asks,
+    "Give it a while" (spec §6.4, §10.6).
     """
     t = thread(state, str(intent.get("target") or ""))
     what = str((intent.get("args") or {}).get("what") or "")
@@ -1018,27 +976,25 @@ def _ask_refusal(state: GameState, intent: dict[str, Any]) -> str:
 
         return media.ask_refusal(state, pid, t["thread_id"], what)
     if what == MEET_ASK:
-        from engine.social import meets
+        from engine.social import plans
 
-        return meets.ask_refusal(state, pid)
+        return plans.ask_refusal(state, pid)
     return relationships.ask_stage_refusal(state, pid, what) or relationships.ask_refusal(state, pid, what)
 
 
 def _offered_asks(state: GameState, t: dict[str, Any]) -> list[str]:
     """The asks the catalogue offers in thread ``t`` now (the `ask` verb's rule; the person still decides)."""
-    if not _open(t) or apps.gone(state, t["pid"]):
+    if not is_open(t) or apps.gone(state, t["pid"]):
         return []
-    offered = []
-    what = relationships.ask_kind_for(_person(state, t["pid"]).get("stage"))
-    if what is not None and not relationships.ask_refusal(state, t["pid"], what):
-        offered.append(what)
+    offered = [what for what in relationships.ask_kinds(state, t["pid"])      # a stage ask; T18: two at once
+               if not relationships.ask_refusal(state, t["pid"], what)]
     from engine.social import media
 
     refusals = {k: media.ask_refusal(state, t["pid"], t["thread_id"], k) for k in MEDIA_KINDS}
     offered += [k for k, why in refusals.items() if not why]
-    from engine.social import meets
+    from engine.social import plans
 
-    if meets.venues() and not meets.ask_refusal(state, t["pid"]):
+    if places.venue_ids() and not plans.ask_refusal(state, t["pid"]):
         offered.append(MEET_ASK)
     return offered
 
@@ -1053,10 +1009,12 @@ def ready_asks(state: GameState, t: dict[str, Any]) -> list[str]:
     pid = str(t["pid"])
     stage_asks = dict(relationships.ASK_STAGE)
     return [k for k in _offered_asks(state, t)
-            if k not in stage_asks or relationships.can_reach(state, pid, stage_asks[k])]
+            if k not in stage_asks or relationships.ask_ready(state, pid, k)]
 
 
-@phone_verb("ask", payload={"what": ArgSpec("enum", ASKS, required=True)}, skill="social_ask",
+@phone_verb("ask", payload={"what": ArgSpec("enum", ASKS, required=True),
+                            "kind": ArgSpec("enum", PLAN_KINDS), "venue": ArgSpec("enum"),
+                            "when": ArgSpec("enum", PLAN_WHENS)}, skill="social_ask",
             label=_ask_label, refuse=_ask_refusal)
 def _ask_verb(state: GameState) -> Optional[IntentVerb]:
     rows: list[dict[str, Any]] = []
@@ -1070,7 +1028,8 @@ def _ask_verb(state: GameState) -> Optional[IntentVerb]:
     if not rows:
         return None
     return IntentVerb("ask", options=tuple((t["thread_id"], _thread_label(state, t)) for t in rows),
-                      extra={"what": tuple(k for k in ASKS if k in kinds)})
+                      extra={"what": tuple(k for k in ASKS if k in kinds),
+                             "venue": tuple(places.venue_ids()) if MEET_ASK in kinds else ()})
 
 
 # -- the payload (spec §17.3) ----------------------------------------------------------------------
@@ -1109,11 +1068,7 @@ def _message_view(state: GameState, t: dict[str, Any], m: dict[str, Any]) -> dic
     if not pending and m["from"] != "player" and decision.get("kind") == "decline" and decision.get("request_id"):
         # Their no, and whether it was "not yet" (the gate) rather than a plain no (owner bug, v0.22.0).
         request = (state.social.get("requests") or {}).get(str(decision["request_id"])) or {}
-        view["declined"] = "not_yet" if request.get("why") == "not yet" else "no"
-    if isinstance(m.get("counter"), dict):
-        from engine.social import meets   # lazily: meets imports this module
-
-        view["counter"] = meets.counter_view(state, str(t["pid"]), m["counter"])
+        view["declined"] = "not_yet" if request.get("why") in relationships.NOT_YET_WHYS else "no"
     return view
 
 
@@ -1168,7 +1123,7 @@ def _threads_section(state: GameState, session: Any) -> list[dict[str, Any]]:
     """Every thread the player can see (unmatched and blocked ones hidden), latest first."""
     typing = _typing(session)
     rows = [t for t in _threads(state).values() if matching.listed(t)]
-    rows.sort(key=lambda t: (-_last_at(t), t["thread_id"]))
+    rows.sort(key=lambda t: (-last_at(t), t["thread_id"]))
     return [_thread_row(state, t, typing) for t in rows]
 
 
@@ -1185,7 +1140,15 @@ def notification_rows(state: GameState) -> list[dict[str, Any]]:
         t = thread(state, str(row.get("thread_id") or ""))
         if t is not None and not matching.listed(t):
             continue
-        out.append({**row, "name": _name(state, str(row.get("pid") or ""))})
+        out.append(_client_row(state, row))
+    return out
+
+
+def _client_row(state: GameState, row: dict[str, Any]) -> dict[str, Any]:
+    """A notification as the client reads it: its name added, and the engine's own `promise_id` (a sleep's
+    wake rule, T11) left out, so the section's rows keep their shape."""
+    out = {k: v for k, v in row.items() if k != "promise_id"}
+    out["name"] = _name(state, str(row.get("pid") or ""))
     return out
 
 
@@ -1197,21 +1160,41 @@ def latest_notification(state: GameState, thread_id: str) -> Optional[dict[str, 
         return None
     for row in reversed(state.social.get("notifications") or []):
         if str(row.get("thread_id") or "") == thread_id:
-            return {**row, "name": _name(state, str(row.get("pid") or ""))}
+            return _client_row(state, row)
     return None
 
 
 @section("open_thread", time_varying=True)
 def _open_thread_section(state: GameState, session: Any) -> Optional[dict[str, Any]]:
-    """The thread the player last opened: its last `social.state_messages` messages, or null."""
+    """The thread the player last opened: its last `social.state_messages` messages (one screen), or null.
+    When state holds fewer than a screen and the archive holds more (a closed conversation's messages
+    leave state at the save, `archive.keep_for`), the screen is filled from the archive's end
+    (`archive.page`, v0.23.0 T9 fix round 2)."""
     t = thread(state, str(state.social.get("open_thread") or ""))
     if t is None or not matching.listed(t):
         return None
-    limit = int(social.setting("state_messages", 60))
+    limit = int(social.setting("state_messages", 8))
     messages = [m for m in t.get("messages") or [] if shown(m)]
+    views = [_message_view(state, t, m) for m in messages[-limit:]]
+    archived = int(t.get("archived") or 0)
+    if len(messages) < limit and archived > 0 and session is not None:
+        from engine.social import archive   # lazily: archive imports this module
+
+        try:
+            directory = archive.save_dir(session)
+        except ValueError:
+            directory = None
+        if directory is not None:
+            page = archive.page(directory, state, t["thread_id"], "", limit)
+            views = list(reversed(page["messages"]))
     return {"thread_id": t["thread_id"], "app": t["app"], "pid": t["pid"], "name": _name(state, t["pid"]),
             "open": not t.get("closed"), "typing": _typing_shown(t, _typing(session)),
-            "messages": [_message_view(state, t, m) for m in messages[-limit:]],
+            "messages": views,
             # Older ones to page through (GET /api/phone/thread): past the limit, or archived.
-            "more": len(messages) > limit or int(t.get("archived") or 0) > 0}
+            "more": len(messages) > limit or archived > 0}
 
+
+# The person's side of a conversation (the `read` and `episode_lapse` handlers, the `social_episode`
+# kind, the daily initiations) lives in engine/social/convo.py, which imports this module: loaded
+# here too, so a queued read always finds its handler.
+from engine.social import convo  # noqa: E402,F401  (v0.23.0 T3)

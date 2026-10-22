@@ -626,6 +626,15 @@ def ensure_scene(state: GameState, *, ledger: Any = None) -> list[dict[str, Any]
     if encounter.active(state):
         return []
 
+    # A phone story's in-person scene owns the turn the same way (v0.23.0 spec §10.1, N4): the deal
+    # WAITS, unspent, and lands on the first turn after the scene ends if its `when:` still holds.
+    # Asked only for a story declaring `paths.social`, through the package's config-only check, so
+    # no other story imports a social submodule here (§19.5 pin 8).
+    from engine import social
+
+    if social.declared() and social.scene_open(state):
+        return []
+
     deck_id, forced_card, source = due(state, ledger=ledger)
     if not deck_id:
         return []

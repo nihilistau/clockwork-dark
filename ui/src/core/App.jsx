@@ -754,6 +754,11 @@ export default function App({ story }) {
             if (!controlsLive(state)) return false;
             return phoneRef.current.send(sessionRef.current || state.sessionId, intent);
           }}
+          // A story-owned screen may offer the narrator's choices too (READ RECEIPTS' world layer): the same
+          // callback core's own Play gets.
+          onChoose={(choice) => send(choice.id, null, choice.text, choice)}
+          // Typed words in the world (READ RECEIPTS' compose box, v0.23.0): the same path core's own box takes.
+          onCustom={(text) => send("custom", text, text)}
           onOpenMenu={() => setShowMenu(true)}
           onOpenSaves={openSaves}
           // True while core's menu, settings, an overlay or a cutscene is up:

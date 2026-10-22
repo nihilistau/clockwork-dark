@@ -196,6 +196,7 @@ LOADERS = [
     ("engine.world.clues", "_SPEC_CACHE", "spec"),
     ("engine.social", "_DATA_CACHE", "load_all"),
     ("engine.social.voicing", "_TEXTER_CACHE", "texter_prompt"),
+    ("engine.social.memory", "_RECAP_PROMPT_CACHE", "recap_prompt"),
     ("engine.social.games.wordgame", "_WORDS", "words"),
     ("engine.social.games.wordgame", "_PREFIXES", "prefixes"),
     ("engine.media.comfyui", "_TEMPLATE_CACHE", "load_comfyui_templates"),

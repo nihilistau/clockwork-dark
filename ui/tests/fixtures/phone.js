@@ -6,9 +6,12 @@
 // is p0004, the id the deck tests name. T28 added what the payload gained then: each app's
 // `capabilities` and the player's `camera_roll` and `subjects` (engine/social/payload.py). T29 added
 // the sections the payload gained then, written by hand in the engine's shapes: `contacts` (Cole's row,
-// engine/social/relationships.py), `gallery` (empty), `meet_options` (two venues, the three slots) and
-// `settings`; and `auto_wait` reads true, as a local run's payload now says (the offer, not the
-// preference: engine/social/payload.py).
+// engine/social/relationships.py), `gallery` (empty), `meet_options` (two venues, the plan kinds and whens; v0.23.0 T22 dropped the v0.22 days and slots) and
+// `settings`; v0.23.0 T21 added the sections the payload gained then, in the shapes engine/social/world.py and
+// scene.py send: `places` ({venues: [{id, label}]}), `scene` ({} when none is open) and `world` ({phone_up,
+// at_work, location, buzz: {count, who}}); v0.23.0 T22 added `hints`, `plans` and `promises` (empty; the shapes engine/social/payload.py,
+// plans.py and promises.py send), `settings.wake_for_messages`, and dropped `calendar` and the v0.22 offer
+// of a timer the payload no longer makes.
 // The v0.22.0 final review's second wave added each thread row's `asks` (engine/social/messaging.py
 // `ready_asks`): every row here is "Just matched", so none is offered an ask yet.
 //
@@ -88,8 +91,6 @@ const RECORDED = {
       "label": "Settings"
     }
   ],
-  "auto_wait": true,
-  "calendar": [],
   "contacts": [
     {
       "about": ["I'm a terrible cook but a great washer-upper"],
@@ -209,13 +210,12 @@ const RECORDED = {
   },
   "gallery": [],
   "games": [],
+  "hints": {},
+  "plans": [],
+  "promises": [],
   "meet_options": {
-    "days": [1, 7],
-    "slots": [
-      {"id": "morning", "start": 10.0},
-      {"id": "afternoon", "start": 14.0},
-      {"id": "evening", "start": 19.0}
-    ],
+    "kinds": ["coffee", "drinks", "dinner", "walk", "visit", "film", "climbing", "games", "gig", "their_place", "your_place"],
+    "whens": ["now", "tonight", "soon"],
     "venues": [
       {"id": "copper_kettle", "label": "The Copper Kettle", "neighbourhood": "Old Town", "place": "Coffee at The Copper Kettle"},
       {"id": "the_anchor", "label": "The Anchor", "neighbourhood": "The Quays", "place": "Drinks at The Anchor"}
@@ -376,7 +376,10 @@ const RECORDED = {
   },
   "refusal": null,
   "requests": [],
-  "settings": {"bio_max": 600, "receipts": true},
+  "places": {"venues": [{"id": "the_corner_cafe", "label": "The Corner Cafe"}, {"id": "river_walk", "label": "River Walk"}]},
+  "scene": {},
+  "world": {"phone_up": true, "at_work": false, "location": "Your flat", "buzz": {"count": 0, "who": []}, "household": {}},
+  "settings": {"bio_max": 600, "receipts": true, "wake_for_messages": false},
   "threads": [
     {
       "app": "matchstick",
@@ -459,7 +462,7 @@ export function plantHidden(block, hidden) {
   }
   const rows = [
     ...(block.threads || []), ...(block.likes_you || []), ...(block.notifications || []),
-    ...(block.requests || []), ...(block.games || []), ...(block.calendar || []),
+    ...(block.requests || []), ...(block.games || []), ...(block.plans || []), ...(block.promises || []),
     ...(block.open_thread?.messages || []), ...(block.contacts || []), ...(block.gallery || []),
     ...(block.contacts || []).flatMap((c) => c.history || []),
   ];

@@ -30,7 +30,7 @@ from tests.social_stub import StubVoice
 def _due(scene, session, thread) -> None:
     with _replies_forced():                    # their reply drawn, never a ghost (T26's tuning: F16)
         _phone(scene, session, "send", target=thread, args={"kind": "text"}, text="hey you")
-        _phone(scene, session, "wait", args={"until": "next"})
+        # v0.23.0: they read it at the send's minute, so the reply is due now (no wait, §4.3).
     from engine.social import messaging
 
     assert messaging.unvoiced(session.engine.state)
@@ -137,8 +137,10 @@ def test_a_local_resume_mid_pass_commits_and_saves_nothing_old(receipts_active) 
 
 
 def test_a_sweep_mid_pass_ends_it_and_frees_the_engine(receipts_active, monkeypatch) -> None:
+    from engine.scenes.default_scene import reset_store
     from engine.social import voicer
 
+    reset_store()            # the process's store: no session an earlier test left idle is swept with this one
     scene, session = _live_session()
     thread = _matched_in(session, "matchstick")
     _due(scene, session, thread)
@@ -255,7 +257,15 @@ def test_a_busy_admission_is_dropped_after_max_attempts(receipts_active, monkeyp
     assert len(asked) == 6 and all(a["label"] == "voice" for a in asked)
     assert reports == ["busy"] * 5 + ["dropped"]
     assert slept == [2.0, 4.0, 8.0, 16.0, 32.0]                 # the backoff
-    assert messaging.unvoiced(session.engine.state) and session.voicing == {}   # still due, never marked
+    # v0.23.0 T8 (spec §20.1): the reply of an OPEN episode is never left silent -- dropped, it is
+    # committed as its templated fallback, with no model call and nothing left marked.
+    from engine.social import convo
+
+    pid = thread.split(":")[1]
+    assert convo.episode(session.engine.state, pid) is not None
+    theirs = [m for m in session.engine.state.social["threads"][thread]["messages"] if m["from"] == pid]
+    assert not messaging.unvoiced(session.engine.state) and theirs[-1]["voiced"] == "fallback"
+    assert session.voicing == {}
     assert scheduler.queued() == [] and scheduler.in_flight() == 0
 
 
@@ -326,7 +336,7 @@ def test_commit_rechecks_proposals_and_state_checks(receipts_active) -> None:
     # 2. A bubble naming a person matched AFTER the snapshot fails `another_person` at the commit.
     with _replies_forced():                    # their reply drawn, never a ghost (T26's tuning: F16)
         _phone(scene, session, "send", target=thread, args={"kind": "text"}, text="what are you up to")
-        _phone(scene, session, "wait", args={"until": "next"})
+        # v0.23.0: their reply is due at the send's minute, in the conversation going (no wait, §4.3).
     # The deck's top read after the waits (T16: the run starts at 19:00, and a wait can move the deck).
     other = _top(state, "matchstick")
     first = population.profile(state, other).name.split()[0]
@@ -376,7 +386,7 @@ def test_a_commit_that_cannot_lock_parks_in_the_inbox_and_the_next_action_drains
     stale = {"kind": "voiced", "payload": results[0][1], "epoch": session.epoch + 1, "account": "", "pass": p.id}
     session.inbox.put(stale)                                   # another build's: dropped at the drain
     caplog.set_level(logging.INFO, logger="engine.social.voicer")
-    _phone(scene, session, "wait", args={"until": "15m"})      # run_mechanics' step 1 drains it
+    _phone(scene, session, "wait", args={"until": "1h"})      # run_mechanics' step 1 drains it
     assert len(session.inbox) == 0 and session.voicing == {}
     assert all(m["voiced"] is True and m["bubbles"] for m in _theirs(session, thread))
     assert any("another build's" in r.getMessage() for r in caplog.records)
@@ -621,7 +631,7 @@ def test_one_inbox_items_fault_costs_that_item_only(receipts_active, monkeypatch
     session.inbox.put({"kind": "voiced", "payload": bad, "epoch": session.epoch, "account": "", "pass": "vBad"})
     session.inbox.put({"kind": "voiced", "payload": good, "epoch": session.epoch, "account": "", "pass": "vX"})
     caplog.set_level(logging.WARNING, logger="engine.social.voicer")
-    body = _phone(scene, session, "wait", args={"until": "15m"})      # the player's tap still stands
+    body = _phone(scene, session, "wait", args={"until": "1h"})      # the player's tap still stands
     assert not body["receipts"][0].get("refused")
     assert session.voicing == {} and len(session.inbox) == 0
     assert all(m["voiced"] == "fallback" for m in _theirs(session, thread))
@@ -749,6 +759,44 @@ def test_withdrawn_messages_count_as_never_sent_after_a_reconnect(receipts_activ
             any(e["pid"] == pid and e["kind"] == "initiate" and messaging._is_opener(e)
                 for e in state.social.get("queue") or []))    # only a QUEUED opener still counts
         messaging.new_message(state, thread, "player", "text", bubbles=["you there?"])
-        assert messaging._player_burst(state, thread) == 1     # "they last wrote" is not a withdrawn row
+        assert messaging.player_burst(state, thread) == 1     # "they last wrote" is not a withdrawn row
     finally:
         session.lock.release()
+
+
+# -- the recap job (v0.23.0 T6) ---------------------------------------------------------------------
+
+
+def test_a_pass_with_only_a_recap_due_runs_it_without_a_narration_ticket(receipts_active, monkeypatch) -> None:
+    """`pending` counts a due recap; an admitted pass with nothing to voice runs it and asks no ticket."""
+    from engine.game import clock
+    from engine.llm import gate as llm_gate
+    from engine.session.store import release_turn
+    from engine.social import memory, messaging, voicer
+    from tests.social_fixtures import _open_episode
+
+    scene, session = _live_session()
+    state = session.engine.state
+    thread = _matched_in(session, "matchstick")
+    pid = thread.split(":")[1]
+    assert session.lock.acquire(blocking=False)
+    try:
+        _open_episode(state, pid, thread)
+    finally:
+        release_turn(session)
+    _due(scene, session, thread)
+    voicer.run_until_quiet(session, StubVoice("zero"))
+    assert session.lock.acquire(blocking=False)
+    try:
+        clock.advance_time(state, 1.0)                        # the conversation lapses: its recap is due
+        assert not messaging.unvoiced(state) and voicer.pending(session)
+    finally:
+        release_turn(session)
+    asked: list[Any] = []
+    monkeypatch.setattr(llm_gate, "admit_turn", lambda **kw: asked.append(kw))
+    calls: list[Any] = []
+    voicer.set_summary_fn(lambda messages: calls.append(messages) or "You talked about the climb.")
+    assert voicer.run_pass(voicer.VoicePass(session, session.epoch), llm_fn=StubVoice("zero"), admit=True) == "ok"
+    assert asked == [] and len(calls) == 1
+    assert memory.person(state, pid)["episodes"][-1]["recap"] == "You talked about the climb."
+    assert not voicer.pending(session)

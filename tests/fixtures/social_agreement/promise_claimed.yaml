@@ -1,0 +1,47 @@
+# Agreement check "promise claimed" (v0.23.0 spec §5.2, §13.4, T7): a reply that promises to message in
+# a window the engine cannot hold -- not the decision's own promise's (`decision.promise_id`, read through
+# `promises`); with none, one that contradicts the reply's own `promise` proposal, or one that does not
+# resolve for them now (`promise_windows`; none at all for someone whose archetype makes no promises,
+# `makes_promises: false`). A stated window that resolves is ADOPTED at commit (T7 fix round 1, I1), so it
+# passes here. Phrases are relationships.yaml `claims.promise`.
+# `bad` must fail the check; `good` must pass EVERY check.
+base: &base
+  stage: talking
+  person: {name: Maya, age: 31, job: nurse, neighbourhood: old_town}
+  player: {name: Sam, age: 29, neighbourhood: harbourside, attributes: {job: accountant}}
+  contacts: [Jordan, Priya]
+  promises: [{id: pr1, window: after_work}, {id: pr2, window: morning}]
+  promise_windows: [lunch, after_work, tonight, morning, at_work]
+  decision: {situation: reply, end: sign_off, reason: "you're about to head out", promise_id: pr1}
+
+bad:
+  # the decision promised after work; the words say another window
+  - {<<: *base, reply: {bubbles: [{text: "gotta go! I'll message you in the morning"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "night x"}, {text: "text you tomorrow morning"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "okay off now, I'll text you at lunch"}]}}
+  # the morning promise named, but this sign-off's is after work
+  - {<<: *base, decision: {situation: reply, end: sign_off, promise_id: pr2}, reply: {bubbles: [{text: "message you after work!"}]}}
+  # no promise of the decision's: the words contradict the reply's own `promise`
+  - {<<: *base, decision: {situation: reply, end: winding}, reply: {bubbles: [{text: "I'll message you tonight"}], promise: [{window: morning, about: ""}]}}
+  # someone who makes no promises
+  - {<<: *base, makes_promises: false, decision: {situation: reply, end: sign_off}, reply: {bubbles: [{text: "text you tonight"}]}}
+  - {<<: *base, makes_promises: false, decision: {situation: reply}, reply: {bubbles: [{text: "I'll text you at work"}]}}
+  # mid-chat, a window that does not resolve for them now (I1)
+  - {<<: *base, promise_windows: [after_work], decision: {situation: reply}, reply: {bubbles: [{text: "I'll text you in the morning"}]}}
+  - {<<: *base, promise_windows: [], decision: {situation: reply, mode: chatting}, reply: {bubbles: [{text: "honestly yes, I'll message you tonight about it"}]}}
+
+good:
+  # the window the engine holds
+  - {<<: *base, reply: {bubbles: [{text: "gotta run, I'll message you after work x"}]}}
+  - {<<: *base, decision: {situation: reply, end: sign_off, promise_id: pr2}, reply: {bubbles: [{text: "night! text you in the morning"}]}}
+  # no window named at all
+  - {<<: *base, reply: {bubbles: [{text: "okay I'm off, speak soon"}]}}
+  # asked, not promised
+  - {<<: *base, reply: {bubbles: [{text: "will you message me in the morning?"}]}}
+  # the reply's own promise, said in its words
+  - {<<: *base, decision: {situation: reply, end: winding}, reply: {bubbles: [{text: "I'll message you tonight"}], promise: [{window: tonight, about: ""}]}}
+  # mid-chat, a window that resolves: adopted at commit (I1)
+  - {<<: *base, decision: {situation: reply}, reply: {bubbles: [{text: "I'll text you in the morning then"}]}}
+  - {<<: *base, decision: {situation: reply, mode: chatting}, reply: {bubbles: [{text: "ha okay, I'll text you tonight once I'm home"}]}}
+  # negated
+  - {<<: *base, makes_promises: false, decision: {situation: reply}, reply: {bubbles: [{text: "I won't text you tonight, I'll be out"}]}}

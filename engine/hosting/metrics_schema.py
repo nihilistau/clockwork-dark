@@ -173,12 +173,17 @@ KINDS: dict[str, dict[str, Field]] = {
     # `voice_pass` is ONE row per pass run: `ok`, `fallback` or `discarded` (read
     # off its commits) when it committed something, `busy` when it was not
     # admitted, `dropped` for the busy attempt that gave it up; a pass that found
-    # nothing due records nothing.
+    # nothing due records nothing. `scene_prose` (v0.23.0 T15) is one in-person scene
+    # turn whose narration failed its fact checks twice: status `fallback` (the
+    # engine's receipt lines shipped), `ms` the turn's time so far. `narration_world` and
+    # `narration_voice` (v0.23.0 T28, spec §20.1) are the NARRATION SHARE: the milliseconds an
+    # account's world turns and voice calls each held its narration turnstile since the last
+    # report (once a minute at most, status `ok`), two rows a minute per busy account.
     "phone": {
         "ts": _TS,
         "story": _STORY,
         "account": _ACCOUNT_OR_NONE,
-        "event": Field(ENUM, ("action", "voice_pass", "media_job")),
+        "event": Field(ENUM, ("action", "voice_pass", "media_job", "scene_prose", "narration_world", "narration_voice")),
         "status": Field(ENUM, ("ok", "busy", "refused", "fallback", "failed", "discarded", "dropped")),
         "ms": _MS,
     },

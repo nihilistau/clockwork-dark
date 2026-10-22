@@ -470,7 +470,8 @@ READ_RECEIPTS_ROW: dict[str, Any] = {
     # ">=0.2.0", Plan decision 23: ">=0.22.0" would make the row unplayable),
     # every key the other rows carry with this story's values, plus the one
     # extra its manifest declares (`endless`). Reviewed against a live
-    # registry.catalog() row once, by hand.
+    # registry.catalog() row once, by hand. Edited in place since: v0.23.0
+    # T10 (`entry_location`), T11 (`version`, the directives, `paths.decks`), T23F (`paths.npc_schedules`), T26 (the three `paths.art_*`).
     "active": False,
     "archetypes": [],
     "blurb": (
@@ -479,10 +480,15 @@ READ_RECEIPTS_ROW: dict[str, Any] = {
     ),
     "endless": True,
     "engine_requires": ">=0.2.0",
-    "entry_location": "home",
+    "entry_location": "apt_lounge",
     "id": "read-receipts",
     "paths": {
+        "art_manifest": "games/read-receipts/data/art/manifest.yaml",
+        "art_root": "games/read-receipts/data/art/plates",
+        "art_subjects": "games/read-receipts/data/art/subjects.yaml",
+        "decks": "games/read-receipts/data/scenes",
         "locations": "games/read-receipts/data/world/locations.yaml",
+        "npc_schedules": "games/read-receipts/data/world/npc_schedules.yaml",
         "prompts": "games/read-receipts/prompts",
         "social": "games/read-receipts/data/social",
     },
@@ -494,6 +500,7 @@ READ_RECEIPTS_ROW: dict[str, Any] = {
         "name": "clockwork",
     },
     "settings": {
+        "governance.directives": ["StorytellerMind", "SocialWorld"],
         "world.evil_base_rate_per_day": 0.0,
         "world.tick_hours": 0.0,
     },
@@ -501,7 +508,7 @@ READ_RECEIPTS_ROW: dict[str, Any] = {
     "title": "Read Receipts",
     "ui": {"panels": [], "plugin": "read-receipts"},
     "ui_plugin": "read-receipts",
-    "version": "0.1.0",
+    "version": "0.2.0",
 }
 
 

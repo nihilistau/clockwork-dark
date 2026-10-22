@@ -1,7 +1,10 @@
 """
 The phone's message archive (v0.22.0 spec §17.2, Plan decision 18).
 
-State keeps `social.state_messages` (60) messages per thread; older ones move
+State keeps a thread's conversation going on, its unread messages and, for
+the thread the player has open, one screen (`social.state_messages`, 8); any
+other thread keeps `social.closed_thread_tail` (0) behind its stamp
+(`keep_for`, v0.23.0 T9 fix round 2). Older ones move
 to an append-only `phone_archive.jsonl` in the run's save directory, one
 message row per line. The move is made by the phone's one save path
 (`saves.save_now`, under the turn lock, immediately before `_autosave`
@@ -13,10 +16,20 @@ dropped by message id on read (`page`). `SaveStore.save` is unchanged, and
 `SaveStore.delete` already removes every file of the save's directory, this
 one included.
 
-The thread summary reads the file too (`archived_after`, from
-`memory.with_archive`, off the turn lock, from the file's end), for
-messages the spill took past the summary: the spill runs under the turn
-lock, where no model may be called, so it never summarises first.
+An episode's recap reads the file too (`archived_before`, from
+`memory.with_archive`, off the turn lock, from the file's end), for the
+episode's messages the spill already took: the spill runs under the turn
+lock, where no model may be called, so it never recaps first.
+
+Three kinds of row (`ROW_KINDS`, v0.23.0 T6): a `message` (the spill's), a
+`scene` (a scene's narration, one row per turn, written by `append` from
+T13 on: §7.1 keeps scene narration out of memory) and a `recap` (a person's
+memory moved out of state whole: a dormant person's shelf or a fold's
+record, `memory.compact_dormant`, `memory.job_record`). A scene row carries
+`"row": "scene"`, its thread's id and a message number, and pages like a
+message. A recap row carries `"row": "recap"`, the person's `pid` and its
+own `id`, and no thread: no page or thread read ever sees it
+(`archived_memory` reads them).
 
 Reading (`page`) is read-only: state's rows first, then the file's, newest
 first, `before` a message id, at most `PAGE_MAX` at a time, each row as the
@@ -47,9 +60,68 @@ ARCHIVE_FILE = "phone_archive.jsonl"
 #: The most rows one page returns (`GET /api/phone/thread/<thread_id>`).
 PAGE_MAX = 50
 
+#: The kinds of archive row (`append`): the spill's messages, and a scene's narration (T13 writes them).
+ROW_KINDS: tuple[str, ...] = ("message", "scene", "recap")
+
 
 def _keep() -> int:
-    return max(1, int(social.setting("state_messages", 60)))
+    return max(1, int(social.setting("state_messages", 8)))
+
+
+def keep_for(state: GameState, t: dict[str, Any]) -> int:
+    """
+    How many of a thread's newest messages state keeps (v0.23.0 T9 fix round 2; spec §7.1, R8): the
+    conversation going on in it (the person's open episode, from its start), every message of theirs the
+    player has not read, the last turn the conversation's own reads count (`_last_turn`), and, for the
+    thread the player has open, one screen (`social.state_messages`); any
+    other thread keeps `social.closed_thread_tail` (0): its last word is its stamp, the person's memory
+    holds what the voice reads, and the client pages the rest from the archive (`page`).
+    """
+    from engine.social import convo, messaging   # lazily: convo imports messaging, which imports this module
+
+    tid = str(t.get("thread_id") or "")
+    tail = _keep() if tid == str(state.social.get("open_thread") or "") else max(
+        0, int(social.setting("closed_thread_tail", 0)))
+    messages = t.get("messages") or []
+    going = 0
+    ep = convo.episode(state, str(t.get("pid") or ""))
+    if ep is not None and str(ep.get("thread_id") or "") == tid:
+        start = float(ep.get("started_at") or 0.0) - 1e-9
+        going = sum(1 for m in messages if float(m.get("at") or 0.0) >= start)
+    pid = str(t.get("pid") or "")
+    # From the player's oldest unread message of theirs on (the badge and the lock screen count them).
+    unread = next((len(messages) - i for i, m in enumerate(messages)
+                   if m.get("from") == pid and m.get("read_at") is None and messaging.shown(m)), 0)
+    return max(tail, unread, going, _last_turn(messages, pid))
+
+
+#: The player's run the conversation reads (`convo.decide`: a burst of this many raises the reply's floor).
+BURST_READ = 3
+
+
+def _last_turn(messages: list[dict[str, Any]], pid: str) -> int:
+    """
+    The last turn's messages, which the conversation's own reads count: their run since the player last
+    wrote with the player's message before it (`messaging._in_a_row`, the double-text cap), or the
+    player's run since they last wrote (`convo._last_player_text`, `messaging.player_burst`) -- up to
+    `BURST_READ` of it, with their message before it when the run is shorter.
+    """
+    from engine.social import messaging
+
+    spoken = [i for i, m in enumerate(messages) if m.get("from") in (pid, "player") and messaging.shown(m)]
+    if not spoken:
+        return 0
+    last = messages[spoken[-1]].get("from")
+    run = [i for i in spoken if messages[i].get("from") == last]
+    other = [i for i in spoken if messages[i].get("from") != last]
+    start = (other[-1] + 1) if other else 0
+    run_start = min(i for i in run if i >= start)
+    if last == "player":
+        count = sum(1 for i in run if i >= run_start)
+        if count >= BURST_READ:
+            return len(messages) - [i for i in run if i >= run_start][-BURST_READ]
+    anchor = other[-1] if other else run_start
+    return len(messages) - anchor
 
 
 def _dead_after_hours() -> float:
@@ -83,7 +155,7 @@ def dead(state: GameState, t: dict[str, Any]) -> bool:
     person = (state.social.get("people") or {}).get(pid) or {}
     if person.get("stage") in DEAD_STAGES or apps.gone(state, pid):
         return True
-    return any(other is not t and other.get("pid") == pid and messaging._last_at(other) > last
+    return any(other is not t and other.get("pid") == pid and messaging.last_at(other) > last
                for other in (state.social.get("threads") or {}).values())
 
 
@@ -111,7 +183,7 @@ def save_dir(session: Any) -> Optional[Path]:
 
 def spill(session: Any) -> int:
     """
-    Move each thread's messages past `social.state_messages` out of state into
+    Move each thread's messages past what it keeps (`keep_for`) out of state into
     the save directory's archive (CALLER HOLDS the turn lock). Returns how
     many moved. Nothing moves when the run has no save directory yet -- it is
     never created here, so a purged folder stays gone -- or when the append
@@ -119,8 +191,7 @@ def spill(session: Any) -> int:
     """
     state = session.engine.state
     threads = (state.social or {}).get("threads") or {}
-    keep = _keep()
-    plan = [(tid, len(t["messages"]) if dead(state, t) else _spillable(t.get("messages") or [], keep))
+    plan = [(tid, len(t["messages"]) if dead(state, t) else _spillable(t.get("messages") or [], keep_for(state, t)))
             for tid, t in sorted(threads.items())]
     plan = [(tid, n) for tid, n in plan if n]
     if not plan:
@@ -132,23 +203,56 @@ def spill(session: Any) -> int:
         return 0
     if directory is None or not directory.is_dir():
         return 0
-    lines = [json.dumps(m, ensure_ascii=False, default=str) for tid, n in plan for m in threads[tid]["messages"][:n]]
-    path = directory / ARCHIVE_FILE
-    try:
-        # A torn last line (a crash mid-append) is closed off first, so this
-        # batch's first row never glues onto it and is lost with it.
-        lead = "\n" if _torn(path) else ""
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(lead + "\n".join(lines) + "\n")
-    except OSError as exc:
-        logger.warning("[social] Archive append failed; the messages stay in state "
-                       "(operation=spill, id=%s): %s", session.session_id, exc)
+    if not append(directory, [m for tid, n in plan for m in threads[tid]["messages"][:n]]):
+        logger.warning("[social] Archive append failed; the messages stay in state (operation=spill, id=%s)",
+                       session.session_id)
         return 0
     moved = 0
     for tid, n in plan:
         result = apply_effect(state, {"type": "social_message", "op": "archive", "thread_id": tid, "count": n})
         moved += len(result.get("messages") or []) if result.get("ok") else 0
     return moved
+
+
+def append(directory: Optional[Path], rows: list[dict[str, Any]], *, kind: str = "message") -> bool:
+    """
+    ``rows`` appended to the save directory's archive, one JSON line each
+    (CALLER HOLDS the turn lock): `message` rows as they are, `scene` rows
+    stamped ``"row": "scene"`` (``kind``, one of `ROW_KINDS`; a scene row
+    with no `from` or `kind` reads as the system's ``scene``), `recap` rows
+    stamped ``"row": "recap"``. A message or scene row must name its thread
+    and carry a message number (``m<n>``), so it pages like a message; a
+    recap row must name its person (`pid`) and its `id`, and names no
+    thread. A torn last line is closed off first. True when written; False
+    with no directory or when the write fails (nothing is written).
+    """
+    if kind not in ROW_KINDS:
+        raise ValueError(f"archive.append: {kind!r} is not one of {', '.join(ROW_KINDS)}")
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        if kind == "recap":
+            if not row.get("pid") or not row.get("id") or row.get("thread_id"):
+                raise ValueError("archive.append: a recap row needs its pid and id, and no thread")
+            out.append({**row, "row": kind})
+            continue
+        if not row.get("thread_id") or _number(row.get("id")) < 0:
+            raise ValueError(f"archive.append: a row needs its thread and a message number, not {row.get('id')!r}")
+        out.append(row if kind == "message" else {"from": "system", "kind": "scene", **row, "row": kind})
+    if directory is None:
+        return False
+    if not out:
+        return True
+    path = directory / ARCHIVE_FILE
+    try:
+        # A torn last line (a crash mid-append) is closed off first, so this
+        # batch's first row never glues onto it and is lost with it.
+        lead = "\n" if _torn(path) else ""
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(lead + "\n".join(json.dumps(r, ensure_ascii=False, default=str) for r in out) + "\n")
+    except OSError as exc:
+        logger.warning("[social] Archive append failed (operation=append, path=%s): %s", path, exc)
+        return False
+    return True
 
 
 def _torn(path: Path) -> bool:
@@ -239,6 +343,89 @@ def archived_after(directory: Path, thread_id: str, after: int) -> Optional[list
         logger.warning("[social] Archive unreadable (operation=archived_after, path=%s): %s", path, exc)
         return None
     return list(reversed(found))
+
+
+def archived_between(directory: Optional[Path], thread_id: str, below: int, low: float,
+                     high: float) -> tuple[list[dict[str, Any]], bool]:
+    """
+    One thread's archived rows numbered below ``below`` (any, when it is
+    negative) whose `at` lies in ``[low, high]``, oldest first, read from
+    the file's END and stopping at the first row of the thread older than
+    ``low`` (a thread's rows are written in id and time order; a crash
+    duplicate is dropped by id): an episode's window, however far back it
+    lies (`memory.with_archive`, review M2). With it, whether the read got
+    back past ``low`` -- False means the file ended (or could not be read)
+    before the window's start, so rows may be missing.
+    """
+    if directory is None:
+        return [], False
+    path = directory / ARCHIVE_FILE
+    found: dict[str, dict[str, Any]] = {}
+    needle = json.dumps(thread_id, ensure_ascii=False).encode("utf-8")
+    try:
+        with path.open("rb") as handle:
+            handle.seek(0, 2)
+            pos = handle.tell()
+            carry = b""
+            while pos > 0:
+                size = min(TAIL_BLOCK, pos)
+                pos -= size
+                handle.seek(pos)
+                lines = (handle.read(size) + carry).split(b"\n")
+                carry = lines.pop(0) if pos > 0 else b""   # may be the tail of an earlier line
+                for raw in reversed(lines):
+                    if needle not in raw:
+                        continue
+                    try:
+                        row = json.loads(raw.decode("utf-8"))
+                    except ValueError:
+                        continue
+                    if not isinstance(row, dict) or row.get("thread_id") != thread_id:
+                        continue
+                    number = _number(row.get("id"))
+                    if number < 0 or (below >= 0 and number >= below):
+                        continue
+                    at = float(row.get("at") or 0.0)
+                    if at < low:
+                        return sorted(found.values(), key=lambda r: _number(r.get("id"))), True
+                    if at <= high:
+                        found.setdefault(str(row["id"]), row)
+    except FileNotFoundError:
+        return [], False
+    except OSError as exc:
+        logger.warning("[social] Archive unreadable (operation=archived_between, path=%s): %s", path, exc)
+        return [], False
+    return sorted(found.values(), key=lambda r: _number(r.get("id"))), False
+
+
+def archived_memory(directory: Optional[Path], pid: str) -> Optional[list[dict[str, Any]]]:
+    """
+    Every `recap` row of ``pid`` (a dormant shelf, a fold's record), in the
+    order written (NO lock: the file is append-only); a crash duplicate is
+    dropped by id. None when the file is missing or cannot be read.
+    """
+    if directory is None:
+        return None
+    path = directory / ARCHIVE_FILE
+    needle = json.dumps(str(pid), ensure_ascii=False)
+    rows: dict[str, dict[str, Any]] = {}
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if '"recap"' not in line or needle not in line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(row, dict) and row.get("row") == "recap" and row.get("pid") == pid:
+                    rows.setdefault(str(row.get("id")), row)
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        logger.warning("[social] Archive unreadable (operation=archived_memory, path=%s): %s", path, exc)
+        return None
+    return list(rows.values())
 
 
 def archived_before(directory: Optional[Path], thread_id: str, below: int, want: int,
@@ -335,5 +522,5 @@ def page(save_dir: Optional[Path], state: GameState, thread_id: str, before: str
             "more": len(ordered) > size}
 
 
-__all__ = ["ARCHIVE_FILE", "PAGE_MAX", "archived", "archived_after", "archived_before", "archived_message", "dead",
-           "page", "save_dir", "spill"]
+__all__ = ["ARCHIVE_FILE", "PAGE_MAX", "ROW_KINDS", "append", "archived", "archived_after", "archived_before",
+           "archived_between", "archived_memory", "archived_message", "dead", "page", "save_dir", "spill"]

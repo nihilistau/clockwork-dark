@@ -1,0 +1,162 @@
+# READ RECEIPTS -- conversation.yaml (paths.social, v0.23.0 spec §3.3, §4).
+#
+# Episodes, availability, length, modes, initiations. Read by
+# engine/social/convo.py (and `turn.cost_hours` / `turn.wait` for `costs` and
+# `clock`); `convo.check_data` checks the whole file at load and
+# validate_content.py runs the same check.
+#
+# The design is docs/superpowers/specs/2026-10-14-v0.23.0-read-receipts-rework-design.md.
+#
+# A conversation is an EPISODE (§4.1): while it is going, a reply lands at the
+# minute the player's message was sent (no wait); it ends at a natural point,
+# nudged by the person's day and character (§4.4), never by a fixed gap.
+#
+# Keys:
+#   costs                in-game minutes a message costs the player (§3.3): text,
+#                        voice, photo, video; `reply` is 0: a reply in a live
+#                        episode costs no time
+#   clock                `wait`'s targets (§3.6): evening and morning, whole hours;
+#                        min_sleep_hours, sleep's floor (read from T11);
+#                        work_lead_hours, how long before the player's work band "Go to work" is offered
+#   episode_gap_minutes  no message either way for this long and a chat episode
+#                        lapses (§4.1)
+#   habits               the phone habits (§4.2): `weights`, per archetype (a
+#                        missing archetype takes `default`), weigh each habit's
+#                        options -- at_work never|glances|chatty, late_night
+#                        no|sometimes|night_owl, in_company rude_not_to|glances;
+#                        drawn once per person (a counterless key, I14).
+#                        night_owl_shift_hours: a night owl is still up this far
+#                        into their sleep band
+#   talk                 the episode's length and its natural end (§4.4):
+#                          exchanges [low, high] per archetype (`default` for the
+#                          rest), the target drawn when it opens, scaled by
+#                          per_depth[depth], late_mult (21:00-04:00; night_owl
+#                          for a night owl) and work_mult (they are at work);
+#                          energy starts at 100, energy_per_exchange each, a
+#                          player message under short_player_chars costs
+#                          short_extra_energy more, one naming their topic or
+#                          hobby gives topic_energy_back; boundary_minutes: under
+#                          this many minutes to their next schedule change the
+#                          pressure climbs steeply; winding_at and sign_off_at
+#                          are the pressure's two steps; after_sign_off [low,
+#                          high]: the one-more-thing replies they still answer;
+#                          away_after_sign_off: minutes they are gone after a
+#                          sign-off, by what ended it (T3 review M6) --
+#                          boundary (at least until the boundary itself), glance
+#                          (a glance at work), energy, length, player (the
+#                          player said "talk later"); then their next available
+#                          moment;
+#                          player_chars_kept: how many of the player's last
+#                          message lengths the mode reads
+#   modes                quick | chatting | deep (§4.5): chatting from
+#                        chatting_after exchanges (deep_as_chatting: deep is
+#                        voiced with chatting's caps, §20.2); deep above deep_energy, at
+#                        depth 2+, with the player's messages averaging over
+#                        deep_player_chars and a topic of their rung touched;
+#                        caps per mode: bubbles [min, max], bubble_chars,
+#                        max_tokens (the reply's cap, read by the voice from T7)
+#   reply                the per-episode-start draws (§4.6): the reply chance x
+#                        interest_factor [at 0, at 100] x depth_factor[depth];
+#                        the ghost chance x (1 - interest/100) x
+#                        stage_factor[stage] (`default` for any stage not listed)
+#   left_on_read_quiet_minutes
+#                        after they leave the player on read, their next read
+#                        waits this long, or for their next schedule boundary
+#                        if that is sooner: another message does not re-roll
+#                        the draw (review M1, the controller's ruling; first
+#                        value, for the balance task to measure)
+#   initiation           skip_if_talked_minutes: a window's nudge is skipped if
+#                        the player wrote to them this recently (§4.7)
+#   reasons              the engine's words for why a conversation winds down,
+#                        voiced by the model in the person's own words (§4.4)
+#   reasons_recap        the same keys, each the line an episode's recap uses
+#                        when no model writes it (§7.2's deterministic
+#                        fallback, engine/social/memory.py `recap_fallback`):
+#                        about the person, in the third person ("they ...")
+#
+# Every number is a balance constant (rule 10): first values. Measured
+# 2026-10-19 by v0.23.0 T9's phone-only harness (10 seeds x 6 sessions,
+# attentive, neutral model; at 6 / 15 / 30 model seconds a reply):
+#   python scripts/simulate_social.py --game read-receipts --sessions 6 --first-seed N --seeds 2
+#     --policy attentive --model-seconds S --raw r-N.json   (N = 0, 2, 4, 6, 8), then --fold
+#   exchanges_per_episode.d0 6.0 / 6.0 / 5.0 (band 6-14); end reasons
+#   schedule 20.9 / 18.6 / 19.2% (30-55), energy 11.0 / 9.0 / 8.9% (25-50),
+#   player 26.5 / 32.3 / 35.4% (10-30), at their length 34-40%;
+#   cold_unanswered_1h.d0 65.1 / 63.7 / 61.3% (15-35); ghosted per
+#   conversation start at depth 0 5.6 / 5.7 / 6.4% (5-15, banded), left on
+#   read 28-29%; chatting or deep replies in conversations of 6+ exchanges
+#   53.9 / 52.9 / 53.1% (60+; 70.3% at 30 s with chatting_after 3, below its
+#   band since that latency lever). The rest DEFERRED to T29's full sessions
+#   (CLAUDE.md), no number here retuned: a phone-only session spends its 40
+#   real minutes in about an in-game hour of chat. (After T9's fix round:
+#   `wait next` stops at the read a reply follows, a promise made inside its
+#   window is for its next occurrence.)
+
+costs: {text: 1, voice: 2, photo: 1, video: 2, reply: 0}
+clock: {evening: 18, morning: 7, min_sleep_hours: 4, work_lead_hours: 2}     # min_sleep_hours: Plan decision 12 (used from T11)
+episode_gap_minutes: 45
+together: {hold_retry_minutes: 15}   # W5: a person with the player sends nothing; a due text is tried again this many minutes on
+habits:
+  weights:                       # per archetype; a missing archetype takes `default`
+    default:     {at_work: {never: 2, glances: 5, chatty: 3}, late_night: {"no": 5, sometimes: 3, night_owl: 2}, in_company: {rude_not_to: 6, glances: 4}}
+    night_owl:   {at_work: {never: 2, glances: 5, chatty: 3}, late_night: {"no": 0, sometimes: 2, night_owl: 8}, in_company: {rude_not_to: 5, glances: 5}}
+    busy:        {at_work: {never: 6, glances: 4, chatty: 0}, late_night: {"no": 7, sometimes: 3, night_owl: 0}, in_company: {rude_not_to: 7, glances: 3}}
+  night_owl_shift_hours: 3
+talk:
+  exchanges: {default: [6, 14], romantic: [10, 24], banterer: [12, 26], dry_texter: [4, 9], busy: [4, 10], needy: [12, 28]}
+  per_depth: [1.0, 1.25, 1.6, 1.9, 2.1]
+  late_mult: {default: 0.8, night_owl: 1.4}
+  work_mult: 0.6
+  energy_per_exchange: 6
+  short_player_chars: 25
+  short_extra_energy: 4
+  topic_energy_back: 3
+  boundary_minutes: 20
+  winding_at: 0.8
+  sign_off_at: 1.0
+  after_sign_off: [0, 2]
+  away_after_sign_off: {boundary: 15, glance: 120, energy: 120, length: 60, player: 0}   # first values (T9: the end-reason rows above)
+  player_chars_kept: 3
+modes:
+  # Spec §20.2's latency levers, applied by v0.23.0 T9's probe (scripts/simulate_social.py
+  # `latency_table`; docs/MODEL_SERVERS.md § The texter's latency). Measured p95 at the ASSUMED
+  # 20 tokens/s (no live probe): quick 15.0 s, chatting 28.0 s, deep 38.0 s (one call at the cap;
+  # 30.0 / 56.0 / 76.0 with the starvation retry), so all three trip:
+  #   chatting over 15 s -> chatting_after 5 (was 3): `quick`'s caps until the fifth exchange;
+  #   over 30 s          -> deep_as_chatting: deep is voiced with chatting's caps (voicing.mode_caps);
+  #   over 20 s          -> config/default.yaml social.voice.window_tokens 6144 (was 8192).
+  chatting_after: 5
+  deep_as_chatting: true
+  deep_energy: 40
+  deep_player_chars: 90
+  caps:
+    quick:    {bubbles: [1, 2], bubble_chars: 280, max_tokens: 300}
+    chatting: {bubbles: [1, 4], bubble_chars: 500, max_tokens: 560}
+    deep:     {bubbles: [1, 3], bubble_chars: 700, max_tokens: 760}
+reply:
+  depth_factor: [0.85, 0.95, 1.0, 1.0, 1.0]
+  interest_factor: [0.3, 1.5]
+  stage_factor: {matched: 3.0, talking: 1.2, numbers: 0.6, default: 0.3}
+left_on_read_quiet_minutes: 60     # first value (T9: left on read at 28-29% of conversation starts; the hold unbanded)
+initiation:
+  skip_if_talked_minutes: 120
+reasons:                          # the engine's words, voiced by the model (§4.4)
+  work: "your shift starts at {hour}"
+  lunch_over: "lunch is over"
+  asleep: "you're winding down for the night"
+  out: "you're about to head out"
+  early: "you're up early tomorrow"
+  energy: "you're flagging and want to leave it on a good note"
+  length: "it's a natural place to leave it"
+  glance: "you're at work and need to get back to it"
+  player: "they've said they need to go"
+reasons_recap:                    # the recap fallback's words for the same reasons (§7.2, T6)
+  work: "they had to get to work"
+  lunch_over: "their lunch break was over"
+  asleep: "they had to go to sleep"
+  out: "they were heading out"
+  early: "they had an early start"
+  energy: "they were flagging and left it on a good note"
+  length: "it came to a natural end"
+  glance: "they had to get back to work"
+  player: "you had to go"

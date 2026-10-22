@@ -153,6 +153,17 @@ for any story declaring two or more agents.
 The ordering is the point: an agent that has already written cannot be argued
 with, so nothing is written until the argument is over.
 
+**Typed text on a turn.** A line the player types carries no intent at the
+route (`default_state.resolve_player_intent` returns `{}` for it, every
+story), and no agent is asked to read one into a mechanic. A phone story
+(`paths.social`) reads it on the server, in `default_scene._run_world_turn`,
+under the turnstile and the turn lock and after the inbox is drained, against
+the engine's offer at that moment (`engine/social/typed.py`, v0.23.0
+addendum 4 §3): one offered activity or room move, or in a scene a topic move
+or `talk`, else nothing. The narrator is handed the receipt's
+"The player said this; the engine read it as: <label> (<band>)" line
+(`prompts.summarise_receipt` leads with a receipt's `typed_line`).
+
 `engine/agents/turn_loop.py` is **retired** — renamed `.bak`, out of the import
 path. It was kept as the designated basis for this pipeline; the pipeline was
 written fresh instead, so it stopped being pending and became redundant. Two
@@ -223,6 +234,23 @@ check is against RFC1918 and loopback both. LM Studio returns HTTP 400 for a
 *closed* port without attempting a connection, which places the refusal at
 address validation. The `mcp.json` plugin route (`mcp/<entry>`) is therefore
 required, not preferred. See the table in `engine/mcp/skills_server.py`.
+
+## The storyteller voices companions (READ RECEIPTS, v0.23.0)
+
+In a phone story's in-person scene the storyteller is the companion's voice. It
+is handed the companion block (`engine/social/scene.py::companion_block`, inside
+`world.narration_block`): who they are now, where you are, their memory, this
+moment, budgeted to `social.world.companion_tokens`. Its prose is held to the
+texter's fact checks (`engine/social/agreement.py::check_scene_prose`): the
+profile, other people, the stage, and the promises, plans and steps only a
+closer makes. `StorytellerAgent.run_turn(prose_check=...)` is the seam, passed
+only on a turn that began in a scene: a first failure retries once through the
+evaluator's retry path (the same call, turn and turnstile hold), a second ships
+the engine's receipt lines with the engine's own choices and is counted (a
+hosted `phone` row, event `scene_prose`, status `fallback`). A scene turn's
+stream is held until its prose passes. On the turn a closer ends the scene, the
+scene lines read before the intent still reach the prompt. Nothing the
+narration says becomes a promise: the checks only judge it.
 
 ## NOT WIRED
 

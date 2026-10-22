@@ -36,6 +36,7 @@ def _quieted() -> Iterator[None]:
         voicer.reset()                                  # cancel_all, stop, drop the singleton, fns to None
         saves.reset_dirty_saver()
         _reset_media()
+        _VOICE_SESSIONS.clear()                         # no hand-built voicing session outlives its test (M7)
 
 
 def _reset_media() -> None:
@@ -162,13 +163,16 @@ def matched_numbers(receipts_state, matched):
 def numbers_pid(receipts_state, matched_numbers) -> str:
     """
     A Matchstick match taken to stage ``numbers`` (``matched_numbers``: its messengers open) with its
-    warmth and trust exactly at relationships.yaml's ``meeting`` gate (T24, Plan decision 19): the pid.
+    warmth and trust at 70 (v0.22's ``meeting`` gate, which v0.23.0 T18 removed as unread: a relationship
+    well along, as the tests that use it were written against): the pid.
     """
-    from engine.social import relationships
-
     pid = matched_numbers("texts").split(":", 1)[1]
-    _set_person(receipts_state, pid, **_at(relationships.gate_spec("meeting")))
+    _set_person(receipts_state, pid, **WELL_ALONG)
     return pid
+
+
+#: Warmth and trust of a relationship well along (v0.22's `meeting` gate's values, kept as the fixtures' own).
+WELL_ALONG: dict[str, int] = {"warmth": 70, "trust": 70}
 
 
 def _set_clock(state, hour: float) -> None:
@@ -228,6 +232,22 @@ def _gate_fields(gate: dict[str, Any], offset: float) -> dict[str, Any]:
     from engine.social import relationships
 
     out: dict[str, Any] = {}
+    gate = dict(gate)
+    commitment = gate.pop("willing", None)
+    if commitment is not None:                       # a `{willing: <commitment>}` gate (v0.23.0 T5): its row's measures
+        from engine import social
+
+        row = social.data("growth")["willing"][commitment]
+        for key in ("warmth", "trust"):
+            if key in row:
+                gate[key] = max(float(gate.get(key, 0)), float(row[key]))
+        for key, field in (("episodes", "episodes_done"), ("scenes", "scenes_done")):
+            if key in row:
+                out[field] = max(0, int(row[key]) + int(offset))
+        if "depth" in row:
+            depth = max(0, int(row["depth"]) + int(offset))
+            out["growth"] = {"depth": depth, "openness": 0.0, "pace": 1.0, "guarded": 0, "guarded_left": 0,
+                             "revealed": [], "peak_depth": depth, "reveal_due": ""}
     for name, minimum in gate.items():
         path = dict(relationships.GATE_PATHS)[name]
         value = minimum + offset
@@ -262,11 +282,14 @@ def _act(state, action: str, target: str = "", args: dict | None = None, text: s
                                 _engine(state))
 
 
-def _live_session():
-    """``(scene, session)``: a local app with the story active (``receipts_active``) and one run, started over HTTP."""
+def _live_session(llm_fn=None):
+    """``(scene, session)``: a local app with the story active (``receipts_active``) and one run, started over HTTP.
+    ``llm_fn`` (v0.23.0 T11, pre-flight F2): the app's model function, passed to ``create_app`` BEFORE the run
+    is started, so a session that runs a storyteller turn is built with its stub from the start
+    (``tests/social_world_stub.py::StubNarrator``)."""
     from engine.scenes.default_scene import create_app
 
-    scene, app = create_app(testing=True)
+    scene, app = create_app(testing=True, llm_fn=llm_fn)
     opened = app.test_client().post("/api/game/new", json={"seed": 3})
     assert opened.status_code == 200, opened.get_data(as_text=True)
     return scene, scene.store.require(opened.get_json()["session_id"])
@@ -310,21 +333,190 @@ def _matched_in(session, app: str) -> str:
 @contextlib.contextmanager
 def _replies_forced() -> Iterator[None]:
     """
-    For the block, every read answers (v0.22.0 T26): no ghost (the stage term
-    of `messaging`'s ghost chance 0) and every reply drawn (the interest term
-    of its reply chance far past 1). A test that needs a due message forces
-    the draw rather than hunting a seed whose draws happen to give one
-    (F16): T26's tuning made a new match ghost and go quiet often.
+    For the block, every conversation start answers (v0.23.0 T3): the per-episode-start
+    draws forced -- no ghost (`convo._ghost_factor` 0), every reply drawn (`convo._reply_factor`
+    far past 1) -- and the person always available (`convo.available`), so their read lands at
+    the send's minute and no schedule boundary of theirs moves a read. A test that needs a due
+    message forces the draw rather than hunting a seed whose draws happen to give one (F16).
     """
-    from engine.social import messaging
+    from engine.social import convo
 
-    stage, interest = messaging._stage_factor, messaging._interest_factor
-    messaging._stage_factor = lambda stage_: 0.0              # type: ignore[assignment]
-    messaging._interest_factor = lambda interest_: 100.0      # type: ignore[assignment]
+    ghost, reply, available = convo._ghost_factor, convo._reply_factor, convo.available
+    convo._ghost_factor = lambda state, pid: 0.0                           # type: ignore[assignment]
+    convo._reply_factor = lambda state, pid: 100.0                         # type: ignore[assignment]
+    convo.available = lambda state, pid, at: convo.Availability(True)      # type: ignore[assignment]
     try:
         yield
     finally:
-        messaging._stage_factor, messaging._interest_factor = stage, interest   # type: ignore[assignment]
+        convo._ghost_factor, convo._reply_factor, convo.available = ghost, reply, available  # type: ignore[assignment]
+
+
+def _open_episode(state, pid: str, thread: str, *, target: int = 20) -> dict[str, Any]:
+    """An episode opened with ``pid`` in ``thread`` at the current hour, through ``social_episode``
+    ``op: open``, its target length forced to ``target`` (20) for the call: the episode row."""
+    from engine.game.effects import apply_effect
+    from engine.social import convo
+
+    real = convo._target_draw
+    convo._target_draw = lambda state_, pid_, rng: target                  # type: ignore[assignment]
+    try:
+        done = apply_effect(state, {"type": "social_episode", "op": "open", "pid": pid, "thread_id": thread,
+                                    "at": state.world_clock_hours, "kind": "chat"})
+    finally:
+        convo._target_draw = real                                          # type: ignore[assignment]
+    assert done["ok"], done
+    return state.social["people"][pid]["episode"]
+
+
+class _KeepsNothing:
+    """A save store that writes nothing (the simulator's, Plan decision 28): no file, no timer, no thread."""
+
+    keeps_nothing = True
+
+    def save(self, state: Any, **_: Any) -> str:
+        return ""
+
+
+#: id(state) -> (state, session): ``_voice_all``'s hand-built sessions, one per state.
+_VOICE_SESSIONS: dict[int, tuple[Any, Any]] = {}
+
+
+def _voice_all(state, stub) -> int:
+    """
+    Voice every due message in ``state`` with ``stub`` (a ``StubVoice``), synchronously: a hand-built
+    session over ``state`` in a ``SessionStore`` that keeps nothing (as the simulator's ``Phone``),
+    then ``voicer.run_until_quiet``. The passes run.
+    """
+    from engine.scenes.default_state import SessionStore
+    from engine.social import voicer
+
+    held = _VOICE_SESSIONS.get(id(state))
+    if held is None or held[0] is not state:
+        keeps = _KeepsNothing()
+        # Built over THIS state (the store's own builder, which `create` and `resume` use), so the
+        # pass's generation check finds it live in its own store (Plan decision 28).
+        session = SessionStore(save_store=lambda: keeps)._build(state, llm_fn=lambda m, **k: "{}", saves=keeps)
+        _VOICE_SESSIONS.clear()
+        _VOICE_SESSIONS[id(state)] = (state, session)
+        held = _VOICE_SESSIONS[id(state)]
+    return voicer.run_until_quiet(held[1], stub)
+
+
+def _scripted_episode(state) -> list[tuple[Any, ...]]:
+    """
+    A match on Matchstick (the like-back forced), an open episode and eight sends, each reply voiced
+    by ``StubVoice("zero")`` before the next: ``(message id, at, decision mode, decision end)`` for
+    every message of the thread, in order. Every draw forced (``_replies_forced``); the replay test
+    runs it twice from one seed.
+    """
+    from engine.game import clock
+    from engine.social import matching
+    from tests.social_stub import StubVoice
+
+    real = matching.likes_back
+    matching.likes_back = lambda *a, **k: True
+    try:
+        pid = _top(state, "matchstick")
+        assert matching.like(state, "matchstick", pid)["ok"]
+        due = [e for e in state.social["queue"] if e["kind"] == "see_like" and e["pid"] == pid]
+        clock.advance_time(state, max(0.0, due[0]["at"] - state.world_clock_hours))
+    finally:
+        matching.likes_back = real
+    thread = matching.thread_id("matchstick", pid)
+    from engine.social import convo
+
+    boundary = convo.boundary_minutes
+    convo.boundary_minutes = lambda state_, pid_, at: None             # type: ignore[assignment]  (M3)
+    try:
+        with _replies_forced():
+            _open_episode(state, pid, thread)
+            for i in range(8):
+                assert _act(state, "send", target=thread, args={"kind": "text"},
+                            text=f"line {i} about the climb")["success"]
+                _voice_all(state, StubVoice("zero"))
+    finally:
+        convo.boundary_minutes = boundary                                # type: ignore[assignment]
+    return [(m["id"], m["at"], (m.get("decision") or {}).get("mode"), (m.get("decision") or {}).get("end"))
+            for m in state.social["threads"][thread]["messages"]]
+
+
+@contextlib.contextmanager
+def _scene_forced() -> Iterator[None]:
+    """
+    For the block, every draw on the way into a scene is forced (v0.23.0 T13, pre-flight F16): willing to
+    meet, available now with no boundary in sight, no flake, the prior's draw 0, and the person already at the
+    plan's place when it is made (`plans._arrival`, v0.23.0 T23C: no travel, no lateness) -- so a scene opens on
+    arrival and closes only by its moves or its closers, whatever the seed's schedule. The moments' own
+    draws are left to the test.
+    """
+    from engine.social import convo, growth, plans, scene
+
+    saved = (growth.willing, convo.available, convo.boundary_minutes, plans._flake_drawn, scene._prior_draw,
+             plans._arrival)
+    real = growth.willing
+    growth.willing = lambda s, p, c: (True, "") if c == "meet" else real(s, p, c)   # type: ignore[assignment]
+    convo.available = lambda s, p, at: convo.Availability(True)                       # type: ignore[assignment]
+    convo.boundary_minutes = lambda s, p, at: None                                     # type: ignore[assignment]
+    plans._flake_drawn = lambda s, p: False                                            # type: ignore[assignment]
+    scene._prior_draw = lambda s, p: 0.0                                               # type: ignore[assignment]
+    plans._arrival = there_already                                                     # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        (growth.willing, convo.available, convo.boundary_minutes, plans._flake_drawn,   # type: ignore[assignment]
+         scene._prior_draw, plans._arrival) = saved
+
+
+def there_already(state, row, effect, at):
+    """`plans._arrival` forced (v0.23.0 T23C): the person is at the plan's place the moment it is made, so a test
+    that goes there opens the scene on arrival, as before arrival times existed."""
+    return at, at
+
+
+#: The fixed order of `_scripted_scene`'s five moves (`<their topic>` is their first small-talk topic).
+SCRIPTED_MOVES: tuple[str, ...] = ("ask_about:<their topic>", "tell_about:work", "playful", "quiet",
+                                   "ask_about:<their topic>")
+
+
+def _scripted_scene(seed: int) -> list[tuple[Any, ...]]:
+    """
+    A fresh state from ``seed``: a Matchstick match (the like-back forced), stage `numbers`, a `now` plan for
+    drinks at The Anchor, the walk there from Merrow Street (the scene opens), then the five moves of
+    ``SCRIPTED_MOVES`` in order, each drawn for real: ``(move, band, round(score, 6))`` for every moment
+    played, in order (the scene may close before the fifth). Every draw on the way in is forced
+    (``_scene_forced``); the replay test runs it twice from one seed.
+    """
+    from engine.game import clock, procgen
+    from engine.social import growth, matching, plans, scene, world
+    from engine.social.kinds import collecting
+
+    state = procgen.new_game_state(player_name="Sam", seed=seed)
+    real = matching.likes_back
+    matching.likes_back = lambda *a, **k: True
+    try:
+        pid = _top(state, "matchstick")
+        assert matching.like(state, "matchstick", pid)["ok"]
+        due = [e for e in state.social["queue"] if e["kind"] == "see_like" and e["pid"] == pid]
+        clock.advance_time(state, max(0.0, due[0]["at"] - state.world_clock_hours))
+    finally:
+        matching.likes_back = real
+    out: list[tuple[Any, ...]] = []
+    with _scene_forced():
+        _force_stage(state, pid, "numbers")
+        state.social["phone_up"] = False
+        assert plans.make(state, pid, kind="drinks", when="now", venue="the_anchor")
+        state.location_id = "merrow_street"
+        world.go(state, "the_anchor")
+        assert scene.current(state).get("pid") == pid
+        topic = str(growth.topics_of(state, pid, up_to=0)[0]["id"])
+        for target in SCRIPTED_MOVES:
+            if not scene.current(state).get("pid"):
+                break
+            with collecting() as applied:
+                result = scene.move(state, target.replace("<their topic>", topic))
+            moment = next(r for r in applied if r.get("type") == "social_scene" and "score" in r)
+            out.append((result["move"], moment["band"], round(float(moment["score"]), 6)))
+    return out
 
 
 def _wait_until(predicate, timeout: float = 2.0) -> None:
@@ -337,6 +529,80 @@ def _wait_until(predicate, timeout: float = 2.0) -> None:
     while not predicate():
         assert time.monotonic() < deadline, f"not true within {timeout} s"
         tick.wait(0.02)
+
+
+def hold_world(session, *, timeout: float, acquired=None, until=None) -> bool:
+    """
+    The WORLD side's test double (v0.23.0 T8), kept only where a test needs a world turn HELD open for
+    as long as it likes (two sessions' turnstiles held while a third's pass runs); T11 retired it from
+    `test_a_world_turn_waits_at_most_one_call`, which runs a real `run_guarded` world turn:
+    ``turnstile.of(session).acquire_world(timeout)``; on success ``acquired`` is set (if
+    given), ``until`` waited on (a bounded ``wait(5)``, if given), then ``WORLD`` released. Whether
+    it got the turnstile.
+    """
+    from engine.social import turnstile
+
+    gate = turnstile.of(session)
+    if not gate.acquire_world(timeout):
+        return False
+    try:
+        if acquired is not None:
+            acquired.set()
+        if until is not None:
+            assert until.wait(5), "hold_world: never told to let go"
+    finally:
+        gate.release(turnstile.WORLD)
+    return True
+
+
+def _due_in(session, count: int) -> list[str]:
+    """
+    ``count`` mutual matches on Matchstick in a live session, each with an open chat episode and ONE
+    due reply (a send answered at its own minute: every draw forced, no schedule edge). The episodes
+    and sends are made holding the session's turn lock, released through ``release_turn``. Their
+    threads, in match order.
+    """
+    from engine.session.store import release_turn
+    from engine.social import convo, messaging
+
+    threads = [_matched_in(session, "matchstick") for _ in range(count)]
+    assert len({t.split(":")[1] for t in threads}) == count, threads
+    state = session.engine.state
+    boundary = convo.boundary_minutes
+    convo.boundary_minutes = lambda state_, pid_, at: None             # type: ignore[assignment]  (M3)
+    assert session.lock.acquire(blocking=False)
+    try:
+        with _replies_forced():
+            for i, thread in enumerate(threads):
+                _open_episode(state, thread.split(":")[1], thread)
+                assert _act(state, "send", target=thread, args={"kind": "text"}, text=f"hey {i}, how was today?")[
+                    "success"]
+    finally:
+        convo.boundary_minutes = boundary                                # type: ignore[assignment]
+        release_turn(session)
+    due = {m["thread_id"] for m in messaging.unvoiced(state)}
+    assert due == set(threads), (due, threads)
+    return threads
+
+
+def _three_due(session) -> list[str]:
+    """Three people, each with an open episode and one due reply (``_due_in(session, 3)``)."""
+    return _due_in(session, 3)
+
+
+def _three_due_hosted(hosted: Any, started: Any) -> list[str]:
+    """``_three_due`` on the hosted session of ``started`` (it holds the turn lock and releases it through ``release_turn``)."""
+    return _three_due(hosted.session(started))
+
+
+def _offered(hosted: Any, started: Any, text: str) -> str:
+    """The ``id`` of the option whose ``text`` is ``text`` in the hosted session's last turn's choices (pre-flight F3:
+    the route never reads a client's intent, so a world action goes by an OFFERED option's choice id), asserted to carry an ``intent``."""
+    choices = (hosted.session(started).last_turn or {}).get("choices") or []
+    found = [c for c in choices if c.get("text") == text]
+    assert found, (text, [c.get("text") for c in choices])
+    assert found[0].get("intent"), found[0]
+    return str(found[0]["id"])
 
 
 class Started(NamedTuple):
@@ -360,6 +626,11 @@ class HostedReceipts:
     def state(self) -> Any:
         """The app's ``HostingState``."""
         return self.hosted.state
+
+    def session(self, started: "Started") -> Any:
+        """The live session of ``started``'s run, from the app's store by its ``sid`` (pre-flight F21: ``Started`` has
+        no ``session_id`` field), beside ``state``."""
+        return self.scene.store.get(started.sid, owner=started.account_id)
 
     def login_and_start(self, name: str = "alice") -> Started:
         from tests.hosted_app import login
@@ -466,3 +737,60 @@ def _lines(log: Path, prefix: str) -> list[dict[str, Any]]:
         except ValueError:  # a line the stub is still writing
             continue
     return [row for row in rows if str(row.get("path", "")).startswith(prefix)]
+
+
+# -- v0.23.0 T20: a recorded v0.22.0 save resumed by each route ---------------
+
+
+def _resume_by(route: str, store: Any, save_id: str, tmp_path: Path) -> dict[str, Any]:
+    """
+    The save ``save_id`` of ``store`` (a ``SaveStore``) resumed through ``route`` (spec §16.3 step 1);
+    what that route hands back first:
+
+    - ``local_resume``: a local ``SessionStore`` over ``store``, ``resume`` (its first payload);
+    - ``hosted_resume``: a hosted app (tests/hosted_app.py, as ``hosted_receipts`` builds it, under
+      ``tmp_path / "hosted"``), one account logged in, the save copied into that account's save folder
+      and ``POST /api/saves/<id>/load`` (its JSON);
+    - ``save_store_direct``: ``store.load``, then ``GameState.to_client_dict()``.
+
+    Every session built is ended, and the hosted app torn down, before it returns.
+    """
+    import shutil
+
+    if route == "save_store_direct":
+        state, _ = store.load(save_id)
+        return state.to_client_dict()
+    if route == "local_resume":
+        from engine.scenes.default_state import SessionStore
+
+        sessions = SessionStore(save_store=lambda: store)
+        session = sessions.resume(save_id, llm_fn=lambda messages, **kw: "{}")
+        try:
+            return dict(session.last_turn or {})
+        finally:
+            sessions.end(session.session_id)
+    if route == "hosted_resume":
+        from engine.persistence.saves import save_store_for
+        from tests.hosted_app import build, login, teardown
+
+        with pytest.MonkeyPatch.context() as mp:
+            try:
+                hosted = build(mp, tmp_path / "hosted",
+                               hosting={"rate_limits": {"actions_per_minute": 12, "phone_actions_per_minute": 90}},
+                               env={"CLOCKWORK_GAME": "read-receipts"})
+                account, password = hosted.add("alice")
+                client = hosted.client()
+                assert login(client, "alice", password).status_code == 303
+                target = Path(save_store_for(account.id, "read-receipts").path_for(save_id))
+                target.mkdir(parents=True, exist_ok=True)
+                for child in Path(store.path_for(save_id)).iterdir():
+                    shutil.copy(child, target / child.name)
+                resp = client.post(f"/api/saves/{save_id}/load")
+                assert resp.status_code == 200, resp.get_data(as_text=True)
+                body = resp.get_json()
+                hosted.scene.store.end(str(body.get("session_id") or ""))
+                return body
+            finally:
+                _stop_dirty_saver()
+                teardown()
+    raise ValueError(f"_resume_by: no route {route!r}")

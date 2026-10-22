@@ -165,7 +165,7 @@ describe("media tiles (spec §13.5-13.8)", () => {
   });
 });
 
-describe("requests, games and meet-ups in the thread", () => {
+describe("requests and games in the thread", () => {
   const theirs = { id: "r3", pid: PID, name: "Cole", from: "them", what: "number", status: "pending", at: 40, thread_id: `matchstick:${PID}` };
 
   it("answers a request card through answer", () => {
@@ -196,20 +196,6 @@ describe("requests, games and meet-ups in the thread", () => {
     expect(card.textContent).not.toContain("Waiting for");
   });
 
-  it("takes a counter-offer in one tap, through propose_meet at the countered slot (T30 follow-up)", () => {
-    const act = vi.fn(() => true);
-    const counter = { venue: "copper_kettle", slot: "evening", days_ahead: 1, when: "Fri 19:00", open: true };
-    const line = { id: "m40", from: "system", kind: "system", at: 40, bubbles: ["Cole can't make that. Fri 19:00 works."], pending: false, counter };
-    view.render(<Thread {...threadProps({ act, messages: [line] })} />);
-    const row = byTestId(view.host, "msg-m40");
-    expect(row.textContent).toContain("Fri 19:00 works.");
-    click(button(row, "Accept Fri 19:00"));
-    expect(act).toHaveBeenCalledWith({ action: "propose_meet", target: PID, args: { venue: "copper_kettle", day: 1, slot: "evening" }, text: "" });
-    // A counter no longer open (taken, gone by, or the slot filled) is words only.
-    view.render(<Thread {...threadProps({ act, messages: [{ ...line, counter: { ...counter, open: false } }] })} />);
-    expect(byTestId(view.host, "msg-m40").querySelector("button")).toBeNull();
-  });
-
   it("shows a game with them -- whose turn and the scores, never their rack", () => {
     const game = { id: "g1", game: "wordgame", label: "Tile Talk", pid: PID, name: "Cole", status: "active", turn: "player",
       scores: { player: 12, them: 9 }, rack: "zqxjkvw", board: [], moves: [] };
@@ -223,21 +209,6 @@ describe("requests, games and meet-ups in the thread", () => {
     expect(onOpenGame).toHaveBeenCalledWith("g1");
   });
 
-  it("goes to a meet-up that is due, and asks before calling one off", () => {
-    const act = vi.fn(() => true);
-    const meet = { id: "t1", pid: PID, name: "Cole", venue: "the_anchor", venue_label: "The Anchor", when: "Tue 19:00", status: "due", start: 43, end: 45.5 };
-    view.render(<Thread {...threadProps({ act, phone: { calendar: [meet] } })} />);
-    const card = byTestId(view.host, "meet-t1");
-    expect(card.textContent).toContain("The Anchor · Tue 19:00");
-    click(button(card, "Cancel"));
-    expect(act).not.toHaveBeenCalled();
-    click(button(card, "Keep it"));
-    click(button(card, "Go"));
-    expect(act).toHaveBeenCalledWith({ action: "meet", target: "t1", args: { do: "go" }, text: "" });
-    click(button(card, "Cancel"));
-    click(button(card, "Call it off"));
-    expect(act).toHaveBeenLastCalledWith({ action: "meet", target: "t1", args: { do: "cancel" }, text: "" });
-  });
 });
 
 describe("the compose bar", () => {
@@ -436,7 +407,7 @@ describe("hidden values (spec §17.3)", () => {
   const HIDDEN = { warmth: 7311, interest: 6911, trust: 5821, ghosted: "zz-ghosted-sentinel", mood: "zz-mood-sentinel",
     flake: "zz-flake-sentinel", quality: 0.4271, picks: "zz-picks-sentinel", racks: "zz-racks-sentinel", bag: "zz-bag-sentinel" };
 
-  it("draws no hidden value or key from the thread's media, requests, games and meet-ups", () => {
+  it("draws no hidden value or key from the thread's media, requests and games", () => {
     const media = { id: "m40", from: PID, kind: "photo", at: 40, bubbles: [], pending: false, media_id: "x40",
       media: { mid: "x40", kind: "photo", status: "fallback", url: "", poster_url: "", caption: "cap" } };
     const voice = { id: "m41", from: PID, kind: "voice", at: 40.2, bubbles: [], pending: false, media_id: "x41",
@@ -448,13 +419,11 @@ describe("hidden values (spec §17.3)", () => {
       phone: {
         requests: [{ id: "r3", pid: PID, name: "Cole", from: "them", what: "meet", status: "pending", at: 40, thread_id: `matchstick:${PID}`, venue: "the_anchor", venue_label: "The Anchor", when: "Wed 19:00" }],
         games: [{ id: "g1", game: "this_or_that", label: "This or That", pid: PID, name: "Cole", status: "finished", ended_at: 41, agreements: 3, pairs: [{}, {}, {}, {}, {}], mine: ["a"], theirs: ["b"] }],
-        calendar: [{ id: "t1", pid: PID, name: "Cole", venue: "the_anchor", venue_label: "The Anchor", when: "Wed 19:00", status: "agreed", start: 67, end: 69.5 }],
       },
     });
     view.render(<Thread {...props} />);
     expect(byTestId(view.host, "request-r3")).not.toBeNull();
     expect(byTestId(view.host, "game-g1").textContent).toContain("You agree on 3 of 5");
-    expect(byTestId(view.host, "meet-t1")).not.toBeNull();
     const html = view.host.innerHTML;
     for (const value of Object.values(HIDDEN)) expect(html).not.toContain(String(value));
     for (const name of Object.keys(HIDDEN)) expect(view.host.querySelector("[data-" + name + "], [" + name + "]")).toBeNull();
@@ -505,24 +474,6 @@ describe("focus never falls to the page (review I1)", () => {
     expect(document.activeElement).toBe(compose());
   });
 
-  it("moves focus into the meet card's confirm and back", () => {
-    const act = vi.fn(() => true);
-    const meet = { id: "t1", pid: PID, name: "Cole", venue: "the_anchor", venue_label: "The Anchor", when: "Tue 19:00", status: "agreed", start: 43, end: 45.5 };
-    view.render(<Thread {...threadProps({ act, phone: { calendar: [meet] } })} />);
-    const card = () => byTestId(view.host, "meet-t1");
-    click(button(card(), "Cancel"));
-    expect(document.activeElement).toBe(button(card(), "Keep it"));
-    click(button(card(), "Keep it"));
-    expect(document.activeElement).toBe(button(card(), "Cancel"));
-    click(button(card(), "Cancel"));
-    click(button(card(), "Call it off"));
-    expect(act).toHaveBeenLastCalledWith({ action: "meet", target: "t1", args: { do: "cancel" }, text: "" });
-    // Awaiting the answer, Cancel is aria-disabled (not disabled), so it still holds focus.
-    view.render(<Thread {...threadProps({ act, pending: { action: "meet", target: "t1" }, phone: { calendar: [meet] } })} />);
-    expect(document.activeElement).toBe(button(card(), "Cancel"));
-    click(button(card(), "Cancel"));
-    expect(button(card(), "Call it off")).toBeNull();
-  });
 });
 
 describe("what is spoken (review M5)", () => {
@@ -538,24 +489,21 @@ describe("what is spoken (review M5)", () => {
   });
 });
 
-describe("a dropped ask, answer or meet says so (review M1)", () => {
+describe("a dropped ask or answer says so (review M1)", () => {
   const actionOf = (verb) => ({
     ask: { action: "ask", target: `matchstick:${PID}`, args: { what: "number" }, text: "" },
     answer: { action: "answer", target: "r3", args: { reply: "yes" }, text: "" },
-    meet: { action: "meet", target: "t1", args: { do: "go" }, text: "" },
   })[verb];
 
-  for (const verb of ["ask", "answer", "meet"]) {
+  for (const verb of ["ask", "answer"]) {
     it(`shows Not sent for a dropped ${verb} in the thread, and its retry sends it again`, () => {
       const onAct = vi.fn(() => true);
       const phone = phoneFixture();
       phone.requests = [{ id: "r3", pid: PID, name: "Cole", from: "them", what: "number", status: "pending", at: 40, thread_id: `matchstick:${PID}` }];
       phone.threads = phone.threads.map((t) => (t.pid === PID ? { ...t, asks: ["number"] } : t));
-      phone.calendar = [{ id: "t1", pid: PID, name: "Cole", venue: "the_anchor", venue_label: "The Anchor", when: "Tue 19:00", status: "due", start: 43, end: 45.5 }];
       view.render(<Harness onAct={onAct} phone={phone} />);
       if (verb === "ask") { click(button(view.host, "Ask")); click(button(view.host, "Their number")); }
       if (verb === "answer") click(button(byTestId(view.host, "request-r3"), "Yes"));
-      if (verb === "meet") click(button(byTestId(view.host, "meet-t1"), "Go"));
       expect(onAct).toHaveBeenLastCalledWith(actionOf(verb));
       view.render(<Harness onAct={onAct} phone={phone} busySeq={1} />);
       const notice = byText(view.host, "Not sent — tap to retry");

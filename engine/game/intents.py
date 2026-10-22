@@ -188,9 +188,14 @@ def _travel(state: GameState) -> Optional[IntentVerb]:
         shortcut = _shortcut_hours(state, target)
         if shortcut is not None:
             hours = shortcut if hours is None else min(int(hours), shortcut)
-        options.append(
-            (target, f"{name}, {hours}h" if hours is not None else name)
-        )
+        minutes = int(edge.get("minutes", 0) or 0)
+        if minutes and shortcut is None and not int(hours or 0):
+            label = f"{name}, {minutes} min"
+        elif minutes and shortcut is None:
+            label = f"{name}, {hours}h {minutes} min"
+        else:
+            label = f"{name}, {hours}h" if hours is not None else name
+        options.append((target, label))
     return IntentVerb("travel", tuple(options)) if options else None
 
 
@@ -830,15 +835,28 @@ def _encounter(state: GameState) -> Optional[IntentVerb]:
     return IntentVerb("encounter", tuple(options)) if options else None
 
 
+def _social_scene_open(state: GameState) -> bool:
+    """A phone story's in-person scene (spec §10.1): asked only of a state that carries a social slice,
+    through the package's config-only check, so no other story imports a social submodule."""
+    if not getattr(state, "social", None):
+        return False
+    from engine import social
+
+    return social.scene_open(state)
+
+
 def scene_owns_turn(state: GameState) -> bool:
     """
-    Whether a running set-piece, a dealt card, an open encounter or an open
-    job owns the turn -- the four gates ``legal_intents`` checks before
-    offering any ordinary verb, in one place so nothing that must respect them
-    (the Law's patrol) keeps a copy that can drift from them.
+    Whether a running set-piece, a dealt card, an open encounter, an open
+    job or (READ RECEIPTS, v0.23.0) an in-person scene owns the turn -- the
+    gates ``legal_intents`` checks before offering any ordinary verb, in one
+    place so nothing that must respect them (the Law's patrol) keeps a copy
+    that can drift from them. The social check reads one attribute for every
+    other story (``state.social`` is ``{}``) and imports nothing.
     """
     return bool(
         _challenge_open(state) or _card_open(state) or _scene_open(state) or _job_open(state)
+        or _social_scene_open(state)
     )
 
 
@@ -899,6 +917,18 @@ def legal_intents(state: GameState) -> tuple[IntentVerb, ...]:
         scene = _encounter(state)
         return (scene,) if scene is not None else ()
 
+    if _social_world(state):
+        from engine.social import world as social_world
+
+        if _social_scene_open(state):
+            # READ RECEIPTS in person (v0.23.0 spec §10.1): `scene`, `close`, and `do` for scenes.yaml's
+            # shared activities; `go` only through a closer. Ahead of the shift: a scene is never at work.
+            return social_world.scene_verbs(state)
+        if state.social.get("at_work"):
+            # READ RECEIPTS at work (v0.23.0 spec §8.4, m11): carry on or leave early, nothing else; the
+            # phone stays usable.
+            return social_world.work_verbs(state)
+
     verbs = [
         builder(state)
         for builder in (
@@ -935,7 +965,23 @@ def legal_intents(state: GameState) -> tuple[IntentVerb, ...]:
             _flag,
         )
     ]
+    if _social_world(state):
+        # READ RECEIPTS' world verbs (v0.23.0 spec §8.4-§8.5): `do {activity}` and `go {to}`. Gated on
+        # `paths.social`, so no other story imports the module or sees a verb (seam pin 3).
+        from engine.social import world as social_world
+
+        verbs.extend(social_world.world_verbs(state))
     return tuple(verb for verb in verbs if verb is not None)
+
+
+def _social_world(state: GameState) -> bool:
+    """Whether the world verbs of a phone story apply (v0.23.0 T11): a social slice and `paths.social`.
+    `state.social` is {} for every other story, so this is one attribute read there."""
+    if not getattr(state, "social", None):
+        return False
+    from engine import social
+
+    return social.declared()
 
 
 def describe_intent(state: GameState, intent: Any) -> str:
@@ -1089,7 +1135,17 @@ SKILL_FOR_ACTION: dict[str, str] = {
     "job": "job_stage",
     "flashback": "call_flashback",
     "abort": "abort_job",
+    # READ RECEIPTS' world (v0.23.0 T11): system-only skills, reached through SOCIAL_WORLD_ACTIONS.
+    "do": "social_do",
+    "go": "social_go",
+    # READ RECEIPTS in person (v0.23.0 T13): a scene's moves and its closers.
+    "scene": "social_scene",
+    "close": "social_close",
 }
+
+#: The world verbs of a phone story (v0.23.0 Plan decision 4): their skills are system-only, so
+#: ``execute_intent`` resolves them as the system. Legal only where ``paths.social`` is declared.
+SOCIAL_WORLD_ACTIONS: frozenset[str] = frozenset({"do", "go", "scene", "close"})
 
 #: Which key in a skill's result means IT DID NOT HAPPEN, per verb. ``None``
 #: means the verb has no refusal at all.
@@ -1183,6 +1239,15 @@ REFUSAL_KEY_FOR_ACTION: dict[str, Optional[str]] = {
     "flashback": "ok",
     # `ok: False` only when no job is open to walk away from.
     "abort": "ok",
+    # `ok: False` is the engine declining: an activity not here, a place not reachable from here.
+    # An activity a buzz cut short HAPPENED (`stopped`), and is narrated as one.
+    "do": "ok",
+    "go": "ok",
+    # A move always HAPPENS: a misstep or a question they steer away from is an outcome (its `band`), never
+    # a refusal (spec §19.6). `ok: False` is only the engine declining: no scene open, no such move.
+    "scene": "ok",
+    # `ok: False` is the engine declining: no scene open, or a closer not on offer now.
+    "close": "ok",
 }
 
 
@@ -1337,6 +1402,14 @@ def to_tool_call(
         return name, {"kind": target}
     if action == "abort":
         return name, {}
+    if action == "do":
+        return name, {"activity": target}
+    if action == "go":
+        return name, {"to": target}
+    if action in ("scene", "close"):
+        # A composite target (`ask_about:<topic>`, `call_it_a_night:promise:morning`): the skill splits it
+        # at the first `:` (Plan decision 5).
+        return name, {"target": target}
     if action in ("pay_fine", "serve"):
         # No target: the custody record already says what is owed.
         return name, {}
@@ -1349,6 +1422,7 @@ __all__ = [
     "IntentVerb",
     "REFUSAL_KEY_FOR_ACTION",
     "SKILL_FOR_ACTION",
+    "SOCIAL_WORLD_ACTIONS",
     "declined_reason",
     "find_verb",
     "legal_intents",

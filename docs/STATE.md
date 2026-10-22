@@ -116,6 +116,38 @@ exercised a subclass, so all three were invisible. See
 | `threads` | `engine/game/threads.py` — offer → terms → renegotiate → seal, with `transform` for an already-sealed contract. Expired on the day rollover from `clock.advance_time`. |
 | `tracks` | Enum and list-valued story state, written through the `track` effect kind. |
 | ending state | `engine/game/endings.py` — eligibility, continuous scores, soft `intent` then hard `lock`. |
+| `social` (a phone story only) | `engine/social/` — the phone's slice, written only by the `social_*` effect kinds. Each person's memory is one dict per PERSON, `social.people[pid].memory` (v0.23.0, `engine/social/memory.py`): `current` (the open conversation, both sides, every app, `memory.verbatim` bubbles), `bridge` (the last `bridge_bubbles` of the one before), `episodes` (closed conversations' recaps `{id, kind, where, from_at, to_at, recap, topics, end_reason}`, at most `episodes_kept`), `story` (the oldest folded in, at most `story_words`), `open` (follow-ups `{id, kind, about, due_at, by}`, at most `open_max`), and `canon`, `knows`, `told` and `history`, and `shelved` (the archive shelves a dormant spell moved out whole, until they talk again); written by `social_memory` (and `social_history`), an empty part left out. A thread keeps its messages, never a summary. The slice carries its own `schema` (2 since v0.23.0; a v0.22.0 slice has none, read as 1, and `CURRENT_SAVE_VERSION` does not move); see "The phone slice's migration" below. Life events (v0.23.0 T17, `engine/social/life.py`, written only by `social_life`): `social.people[pid].life` and `social.player_life` (the player's, made by `setdefault` on the first event) hold `[{id, at, until?, supported?, request?}]`, the running events and a few past ones (`life_events.yaml` `kept.past`, pruned at every save with the ones still on cooldown kept); `people[pid].news` (`{id, text}`, told once) and `people[pid].job_now` (a job id) are left out when empty. |
+
+### The phone slice's migration (v0.23.0)
+
+`engine/persistence/saves.py::SaveStore.load`, after `GameState.from_dict` (which unpacks the slice,
+`engine/social/packing.py`), calls `engine/social/migrate.py::upgrade` for a `paths.social` story whose
+slice is not at schema 2: every route that resumes a run (local, hosted, `_flush_before_load`) goes
+through it, before `SessionStore._build`, whose guard refuses a slice at any other schema. `_plan`
+decides everything first, reading only; the `social_migrate` effect (`op: apply`, then `op: seal`, which
+alone sets `schema: 2`, last) and the effects it builds on write it. A fault anywhere is a
+`MigrationError`: the save is refused and logged, and its file is untouched. A slice already at schema 2
+is left alone (idempotent); any other schema is refused. No file is touched: the run's
+`phone_archive.jsonl` keeps every row.
+
+| v0.22 | v0.23 |
+|---|---|
+| `location_id: home` | `apt_lounge` (`social_go` `op: place`, no clock) |
+| `threads[*].summary`, `summary_through` | Joined, oldest thread first, into the person's `memory.story` (capped); dropped |
+| A thread's tail | `memory.bridge`: the last `bridge_bubbles` voiced bubbles of the person's newest thread |
+| Top-level `canon`, `knows`, `told`, `history` | Moved under `memory` |
+| No `growth` | Depth from stage (matched, talking 0; numbers, meeting 1; dating, friends, fling 2; exclusive 3), openness 0, `pace` from the fixed attributes, which are materialised (`social_person`) |
+| No `episode` | `episode: None`, `episodes_done` 0, `scenes_done` the person's done meets |
+| `pending_read`, `initiated`, `asks_today`, the `social.meet` stream counter | Dropped |
+| A player's message left unanswered (the newest thread's last spoken message) | A `read` queued at `convo.next_available`, unless they left or a reply is already due |
+| Queue `read`, `meet_start`; an `initiate` of a retired situation | Dropped |
+| Other queue events (`daily`, `expire`, `see_like`, `likes_you`, `game_move`, `arc_beat`, due replies) | Kept; a due decision gets `mode: quick` and loses `meet_id` |
+| `meets` agreed or due | A `soon` plan (`plans.make(..., migrated=True)`), the venue and its kind kept |
+| `meets` done / other; `counters.meet` | Counted in `scenes_done` / dropped (the history rows stay) |
+| A recap card never voiced (`kind: recap`) | Dropped (nothing voices one since v0.23.0 T19) |
+| A pending `meet` request | `when: soon`, its venue's `kind` and `venue`; `day` and `slot` dropped |
+| `settings.auto_wait` | Dropped; `wake_for_messages` false |
+| No `promises`, `plans`, `scene`, `household`, `phone_up`, `at_work` | Their empty values; `phone_up: true` |
 
 Effects reach all of it through `effects.apply_effect(..., by=, turn=)`, which is
 still the single writer, and which threads the writer id down to the store's

@@ -1,0 +1,17 @@
+# Test-only deck for tests/test_social_director_gate.py (v0.23.0 T14). Never shipped: no story's
+# `paths.decks` points here; the test patches the deck module's directory lookup for one test.
+id: test_boiler_probe
+draw: 1
+when: { all: [ { flag: life_boiler }, { at_location: apt_kitchen } ] }
+
+cards:
+  - id: TB_01_the_boiler
+    required: true
+    tags: [sequence, gm]
+    title: "The Boiler"
+    text: >-
+      INTENT: a probe card, dealt only when the director is free to deal it.
+    beats:
+      - id: TB_01_clank
+        text: >-
+          Somewhere behind the wall the boiler clanks twice and goes quiet.

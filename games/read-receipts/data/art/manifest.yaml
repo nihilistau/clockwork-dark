@@ -1,0 +1,145 @@
+# READ RECEIPTS -- the art manifest (v0.23.0 spec §18.1).
+#
+# The 48 plates T27 rendered through the xAI image API (scripts/generate_art.py --game read-receipts
+# --provider xai, then --promote), each reviewed by eye before promotion. `base` is the subjects.yaml base
+# daypart's plate: a daypart a place declares no plate for falls back to it. Every row names a file that
+# exists under `paths.art_root` (data/art/plates, served at /story-art/); validate_content reports a row
+# naming a missing file as an error. No row declares `alts:`.
+#
+# Version: v0.2.0
+
+version: 1
+root: /story-art
+locations:
+  apt_bedroom:
+    base: scenes/apt-bedroom-night.jpg
+    times:
+      night: scenes/apt-bedroom-night.jpg
+      dawn: scenes/apt-bedroom-dawn.jpg
+      day: scenes/apt-bedroom-day.jpg
+  apt_lounge:
+    base: scenes/apt-lounge-dusk.jpg
+    times:
+      dusk: scenes/apt-lounge-dusk.jpg
+      day: scenes/apt-lounge-day.jpg
+      night: scenes/apt-lounge-night.jpg
+  apt_kitchen:
+    base: scenes/apt-kitchen-dawn.jpg
+    times:
+      dawn: scenes/apt-kitchen-dawn.jpg
+      dusk: scenes/apt-kitchen-dusk.jpg
+      night: scenes/apt-kitchen-night.jpg
+  apt_dining:
+    base: scenes/apt-dining-dusk.jpg
+    times:
+      dusk: scenes/apt-dining-dusk.jpg
+      day: scenes/apt-dining-day.jpg
+  apt_hall:
+    base: scenes/apt-hall-day.jpg
+    times:
+      day: scenes/apt-hall-day.jpg
+      night: scenes/apt-hall-night.jpg
+  bldg_lift:
+    base: scenes/bldg-lift-day.jpg
+    times:
+      day: scenes/bldg-lift-day.jpg
+  bldg_reception:
+    base: scenes/bldg-reception-day.jpg
+    times:
+      day: scenes/bldg-reception-day.jpg
+      night: scenes/bldg-reception-night.jpg
+  merrow_street:
+    base: scenes/merrow-street-day.jpg
+    times:
+      day: scenes/merrow-street-day.jpg
+      dusk: scenes/merrow-street-dusk.jpg
+      night: scenes/merrow-street-night.jpg
+  copper_kettle:
+    base: scenes/copper-kettle-day.jpg
+    times:
+      day: scenes/copper-kettle-day.jpg
+  driftwood_roasters:
+    base: scenes/driftwood-roasters-day.jpg
+    times:
+      day: scenes/driftwood-roasters-day.jpg
+  the_anchor:
+    base: scenes/the-anchor-night.jpg
+    times:
+      night: scenes/the-anchor-night.jpg
+      dusk: scenes/the-anchor-dusk.jpg
+  lantern_wine_bar:
+    base: scenes/lantern-wine-bar-night.jpg
+    times:
+      night: scenes/lantern-wine-bar-night.jpg
+      dusk: scenes/lantern-wine-bar-dusk.jpg
+  salt_and_ember:
+    base: scenes/salt-and-ember-dusk.jpg
+    times:
+      dusk: scenes/salt-and-ember-dusk.jpg
+  merrow_noodle_house:
+    base: scenes/merrow-noodle-house-dusk.jpg
+    times:
+      dusk: scenes/merrow-noodle-house-dusk.jpg
+  westcliff_path:
+    base: scenes/westcliff-path-day.jpg
+    times:
+      day: scenes/westcliff-path-day.jpg
+      dusk: scenes/westcliff-path-dusk.jpg
+  river_walk:
+    base: scenes/river-walk-day.jpg
+    times:
+      day: scenes/river-walk-day.jpg
+      dusk: scenes/river-walk-dusk.jpg
+  saltmarsh_boardwalk:
+    base: scenes/saltmarsh-boardwalk-day.jpg
+    times:
+      day: scenes/saltmarsh-boardwalk-day.jpg
+      dusk: scenes/saltmarsh-boardwalk-dusk.jpg
+  harbour_gallery:
+    base: scenes/harbour-gallery-day.jpg
+    times:
+      day: scenes/harbour-gallery-day.jpg
+  castle_hill_museum:
+    base: scenes/castle-hill-museum-day.jpg
+    times:
+      day: scenes/castle-hill-museum-day.jpg
+  the_rialto:
+    base: scenes/the-rialto-night.jpg
+    times:
+      night: scenes/the-rialto-night.jpg
+  the_crate:
+    base: scenes/the-crate-night.jpg
+    times:
+      night: scenes/the-crate-night.jpg
+  the_dice_box:
+    base: scenes/the-dice-box-night.jpg
+    times:
+      night: scenes/the-dice-box-night.jpg
+  the_vinyl_cellar:
+    base: scenes/the-vinyl-cellar-night.jpg
+    times:
+      night: scenes/the-vinyl-cellar-night.jpg
+  home_harbour_studio:
+    base: scenes/home-harbour-studio-night.jpg
+    times:
+      night: scenes/home-harbour-studio-night.jpg
+      day: scenes/home-harbour-studio-day.jpg
+  home_terrace_share:
+    base: scenes/home-terrace-share-night.jpg
+    times:
+      night: scenes/home-terrace-share-night.jpg
+      day: scenes/home-terrace-share-day.jpg
+  home_westcliff_house:
+    base: scenes/home-westcliff-house-night.jpg
+    times:
+      night: scenes/home-westcliff-house-night.jpg
+      day: scenes/home-westcliff-house-day.jpg
+  home_quays_loft:
+    base: scenes/home-quays-loft-night.jpg
+    times:
+      night: scenes/home-quays-loft-night.jpg
+      day: scenes/home-quays-loft-day.jpg
+  registry_office:
+    base: scenes/registry-office-day.jpg
+    times:
+      day: scenes/registry-office-day.jpg

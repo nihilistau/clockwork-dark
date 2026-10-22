@@ -608,3 +608,36 @@ describe("probePhone (v0.22.0 T27)", () => {
     expect(probePhone({ controls: [".rr-board"] }).failures).toEqual([]);
   });
 });
+
+describe("probeWorld (T21 fix round)", () => {
+  it("fails with no world layer, and passes boxes that do not overlap", async () => {
+    const { probeWorld } = await import("../tools/layout-probe.js");
+    document.body.innerHTML = "";
+    expect(probeWorld().failures[0]).toMatch(/no world layer/);
+    document.body.innerHTML = `<div data-testid="rr-world-layer"><div class="rr-world__plate"></div><div class="rr-world__log"></div><div class="rr-world__choices"></div><form data-testid="rr-compose"><input aria-disabled="false"><button type="submit">Send</button></form></div>`;
+    const set = (sel, top, bottom) => {
+      document.querySelector(sel).getBoundingClientRect = () => ({ top, bottom, left: 0, right: 100, width: 100, height: bottom - top });
+    };
+    Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
+    set('[data-testid="rr-world-layer"]', 0, 700);
+    set(".rr-world__plate", 0, 200);
+    set(".rr-world__log", 200, 500);
+    set(".rr-world__choices", 500, 700);
+    set('[data-testid="rr-compose"]', 700, 760);
+    set("input", 705, 755);
+    set("button", 705, 755);
+    let hit = null;
+    document.elementFromPoint = () => hit;
+    expect(probeWorld().failures.filter((f) => !/compose/.test(f))).toEqual([]);
+    expect(probeWorld().failures.filter((f) => /compose/.test(f))).toEqual([]);
+    // A4 W6: a world layer without its compose box fails.
+    document.querySelector('[data-testid="rr-compose"]').remove();
+    expect(probeWorld().failures.join()).toMatch(/no compose box/);
+    document.body.querySelector('[data-testid="rr-world-layer"]').insertAdjacentHTML("beforeend", '<form data-testid="rr-compose"><input><button type="submit">Send</button></form>');
+    set('[data-testid="rr-compose"]', 700, 760);
+    set("input", 705, 755);
+    set("button", 705, 755);
+    set(".rr-world__log", 150, 500);
+    expect(probeWorld().failures.join()).toMatch(/plate overlaps the log/);
+  });
+});

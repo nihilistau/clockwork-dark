@@ -357,17 +357,20 @@ llm:
     # reply per call, not streamed (typing dots show meanwhile), on the
     # narration lane. A custom profile starts from big's defaults and these
     # keys override them (engine/llm/profiles.py::_config_for). Reasoning OFF
-    # with no budget: a reply is one to three short bubbles plus a small JSON
-    # envelope, and thinking would cost the player seconds of typing dots per
-    # message. `reasoning_budget: 0` is a starting point: on a server whose
-    # reasoning-off patch is untrusted (CLAUDE.md's deferred row) a thinking
-    # model may starve, which falls back to the story's own lines; T14
-    # measures it (docs/MODEL_SERVERS.md § The texter profile).
+    # with no budget: a reply is a few bubbles plus a small JSON envelope, and
+    # thinking would cost the player seconds of typing dots per message.
+    # `max_tokens` is a CEILING (v0.23.0 spec §4.5, §20.2): each call passes
+    # its mode's own cap (conversation.yaml `modes.caps`: quick 300, chatting
+    # 560, deep 760). `reasoning_budget: 0` is a starting point: on a server
+    # whose reasoning-off patch is untrusted (CLAUDE.md's deferred row) a
+    # thinking model may starve, which falls back to the story's own lines
+    # (docs/MODEL_SERVERS.md § The texter profile). `min_context` stays 4096:
+    # the voice degrades below `social.voice.window_tokens` (spec §7.4, I7).
     texter:
       lane: narration
       require_tools: false
       min_context: 4096
-      max_tokens: 360
+      max_tokens: 800
       reasoning: "off"
       reasoning_budget: 0
       temperature: 0.9
@@ -392,7 +395,7 @@ media:
   live_generation: false
 
   # Which backend live generation and the pre-generation script use.
-  # grokbuild | comfyui | procedural
+  # grokbuild | xai | comfyui | procedural
   image_provider: grokbuild
   # Generated stills carry a small provider watermark bottom-right. Cropping
   # trims ~4.5% off the bottom; needs Pillow.
@@ -400,6 +403,11 @@ media:
   grok_timeout_seconds: 600
   cutscene_skip_after_seconds: 5
   cutscene_budget: phase_shift_only
+  # The xAI image API (media.image_provider: xai; engine/media/providers/xai.py),
+  # which needs no Grok CLI sign-in. api_key is a fallback chain, first non-empty
+  # wins: xai_api_key.txt (gitignored, first line, at the repo root), then the
+  # XAI_API_KEY environment variable. aspect_ratio is per art kind.
+  xai: {api_key: "${file:xai_api_key.txt|env:XAI_API_KEY}", model: grok-imagine-image-2.0, resolution: "1k", aspect_ratio: {location: "16:9", portrait: "3:4", item: "1:1"}, timeout_seconds: 180}
 
 comfyui:
   # One ComfyUI server, local or hosted (v0.22.0 spec §13.4;
@@ -1074,11 +1082,24 @@ governance:
 social:
   # The social engine's BOUNDS (v0.22.0). Balance numbers live in the story's
   # data (rule 10); these cap work and size.
-  away: {mode: real, rate: 1.0, max_hours: 72}   # mode: real | none (§15.2)
+  # The away advance on resume (v0.22.0 §15.2): `none` (the default since v0.23.0, spec §3.6) picks up
+  # at the same in-game minute -- time moves only by what the player does; `real` passes the real time
+  # away (x rate, at most max_hours) as one advance.
+  away: {mode: none, rate: 1.0, max_hours: 72}   # mode: none | real
+  # The closed conversation episodes waiting for their recap, per person, at most (v0.23.0 §4.1): each
+  # recap job consumes its row (engine/social/memory.py), so this bounds only a backlog play has not
+  # yet voiced through.
+  recap_due_max: 20
   voice:
-    # The voice prompt's token window (§12.4): the texter's max_tokens is
-    # reserved out of it, and memory.budgeted trims the rest to fit.
-    window_tokens: 4096
+    # The voice prompt's token window, a ceiling (v0.23.0 spec §7.4): per call
+    # it is min(this, the texter binding's usable context) less the reply's
+    # mode cap, and memory.budgeted trims the rest to fit. On a binding under
+    # it the voice degrades (deep uses chatting's caps, three recaps kept,
+    # the story cut to 120 words first; engine/social/voicing.py window_for).
+    # 6144 (was 8192): spec §20.2's "over 20 s" lever, applied by v0.23.0 T9's
+    # latency probe -- p95 at the ASSUMED 20 tokens/s: quick 15.0 s, chatting
+    # 28.0 s, deep 38.0 s (docs/MODEL_SERVERS.md § The texter's latency).
+    window_tokens: 6144
     # People voiced per pass (§16.2). Measured (v0.22.0 T26, scripts/simulate_social.py,
     # 20 seeds, T26 fix round 1): after a 72-hour away at day 60 the first pass
     # finds 47 due messages at the p95 (54 with a warm model), a few each from the
@@ -1092,19 +1113,31 @@ social:
     pass_deadline_seconds: 300
     commit_retry_ms: [50, 100, 200, 400, 800]
   max_text_chars: 600
-  # A conversation's memory (§12.3-12.4): the bubbles the voice prompt sees
-  # word for word, the floor the budget may trim them to, the history rows it
-  # keeps at least, the summary's word cap (prompts/thread_summary.md says the
-  # same number) and the most older messages one summary call folds.
-  memory: {verbatim: 24, verbatim_min: 12, history_min: 4, summary_words: 180, summary_batch: 40}
-  # Messages a thread keeps in state; older ones go to phone_archive.jsonl at
-  # each save (§17.2). At least memory.verbatim (24): the voice prompt's
-  # verbatim window reads them. 24 since v0.22.0 T26 (60 before), for the
-  # day-180 save's size bound (tests/test_social_save_size.py).
-  state_messages: 24
+  # A person's memory (v0.23.0 §7.1-§7.3, engine/social/memory.py): `verbatim` bubbles of the open
+  # conversation kept word for word across apps (`current`), the floor the voice's budget may trim
+  # them to, the `bridge_bubbles` of the last conversation kept ("how you left it"), the episode
+  # recaps kept before the oldest folds into the story, the story's word cap, the open follow-ups
+  # kept, the history rows the budget keeps at least, a recap's word cap (prompts/episode_recap.md
+  # says the same number), and the days without a conversation after which a person is dormant.
+  memory: {verbatim: 40, verbatim_min: 16, bridge_bubbles: 6, episodes_kept: 12, story_words: 300, open_max: 8,
+           history_min: 4, recap_words: 70, dormant_days: 30}
+  # What a thread keeps in state at each save; the rest go to phone_archive.jsonl
+  # (§17.2, engine/social/archive.py keep_for). Every thread keeps the
+  # conversation going on in it (the open episode), what the player has not
+  # read, and its last turn as far as a reply reads it (their run with the
+  # player's message before it, or the player's run, up to 3); the thread the
+  # player has open keeps one screen, `state_messages`
+  # (also the open thread's screen in the payload, filled from the archive when
+  # state holds less), and any other `closed_thread_tail`: its last word is its
+  # stamp, the person's memory holds what the voice reads (memory.verbatim), and
+  # the client pages the rest. 8 and 0 since v0.23.0 T9 fix round 2 (24 for every
+  # thread before; 60 before v0.22.0 T26), for the day-180 save's size bound
+  # (tests/test_social_save_size.py).
+  state_messages: 8
+  closed_thread_tail: 0
   # A dead thread (its person faded, ended, unmatched or blocked; nothing due
   # or unread) quiet this many in-game days goes to the archive whole at the
-  # next save, keeping only its summary and a stamp of its last message
+  # next save, keeping only a stamp of its last message (the person's memory keeps the rest)
   # (spec §17.2's size bound, v0.22.0 T26; engine/social/archive.py `dead`).
   archive_dead_after_days: 7
   # Answered requests a save keeps (the newest); older ones leave state
@@ -1118,9 +1151,13 @@ social:
   # oldest leave), and the moves each game keeps in its log.
   games_kept: 20
   game_moves_kept: 16
-  # Meet-ups (§14, T24): meets over (done, cancelled, flaked, missed) kept in
-  # state, the oldest leaving; planned ones are always kept.
-  meets_kept: 20
+  # Scenes (v0.23.0 §10, T13): the moments an open scene keeps in state, the
+  # oldest leaving (its band reads a running sum, never the whole list).
+  scene_moments_kept: 12
+  # The narrator's view of the world (v0.23.0 §8.3): the companion block's token budget while a scene is
+  # open (§10.6, engine/social/scene.py companion_block): who they are now, where, this moment, and their
+  # memory trimmed to fit (memory.budgeted: older recaps, then the story).
+  world: {companion_tokens: 1200}
   wait_next_cap_hours: 8
   max_events_per_advance: 2000
   autosave_seconds: 10

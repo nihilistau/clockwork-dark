@@ -44,7 +44,7 @@ from engine.social.kinds import recorded
 from engine.game.intents import IntentVerb
 from engine.game.rng import SOCIAL_MATCH, stable_rng
 from engine.game.state import GameState
-from engine.social import apps, events, population, relationships
+from engine.social import apps, attrs, events, population, relationships
 from engine.social.behaviour import lognormal_minutes
 from engine.social.intents import ArgSpec, phone_verb
 from engine.social.payload import section
@@ -323,7 +323,7 @@ def compact_swiped(state: GameState) -> int:
     people = slice_.get("people") or {}
     busy: set[str] = {str(t.get("pid")) for t in (slice_.get("threads") or {}).values()}
     busy |= {str(e.get("pid")) for e in slice_.get("queue") or []}
-    for key in ("requests", "media", "games", "meets"):
+    for key in ("requests", "media", "games", "plans"):
         busy |= {str(r.get("pid")) for r in (slice_.get(key) or {}).values() if isinstance(r, dict)}
     for app_state in (slice_.get("apps") or {}).values():
         busy |= {str(r.get("pid")) for r in (app_state or {}).get("likes_you") or [] if isinstance(r, dict)}
@@ -370,8 +370,8 @@ def _e_match(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> di
         return {"type": "social_match", "ok": True, "text": f"{tid} expired", "thread_id": tid}
     if tid in threads:
         return {"type": "social_match", "ok": False, "text": f"{tid} already exists"}
-    threads[tid] = {"thread_id": tid, "app": name, "pid": pid, "messages": [], "summary": "",
-                    "summary_through": "", "focus": 0, "unread": 0, "archived": 0, "opened_at": None}
+    threads[tid] = {"thread_id": tid, "app": name, "pid": pid, "messages": [], "focus": 0, "unread": 0,
+                    "archived": 0, "opened_at": None}
     person.setdefault("apps", {}).setdefault(name, {})["matched_at"] = at
     person.setdefault("matched_at", at)
     relationships.touch(person)
@@ -385,6 +385,7 @@ def _e_match(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> di
 
     # The match is news of its own, opener or not (T30 follow-up; §15.3 counts "1 new match").
     messaging.notify(state, name, tid, pid, "match", messaging.NEW_MATCH, at=at)
+    attrs.materialise(state, pid)   # v0.23.0: their fixed attributes, written once at first match (I14)
     messaging.on_match(state, name, pid, at)   # their possible opener (spec §8.3)
     return {"type": "social_match", "ok": True, "text": f"matched {tid}", "thread_id": tid,
             "save_reason": "match"}   # saved at once (spec §17.2)
@@ -397,7 +398,9 @@ def _e_unmatch(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> 
     Engine-only: an unmatch by either side (`by`: player | them) closes the
     person's open dating-app threads; a block (the player's, `block: true`)
     closes every thread of theirs. Their queued events are cancelled and the
-    card's history keeps the line.
+    card's history keeps the line. A partner who lived with the player moves
+    out (`social_household`, v0.23.0 T18); their stage is left as it was, and
+    `apps.gone` keeps them out of every reader from here on.
     """
     if not state.social:
         return {"type": "social_unmatch", "ok": False, "text": "no social slice"}
@@ -426,9 +429,11 @@ def _e_unmatch(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> 
         person["unmatched_by"] = by
         relationships.add_history(state, pid, "unmatched", GONE_LINE, at=at)
     events.cancel(state, pid)
-    from engine.social import meets   # lazily: meets imports this module
+    from engine.social import plans   # lazily: plans imports this module
 
-    meets.call_off(state, pid, at)                  # their plans called off at no cost (T24 review M7)
+    plans.call_off(state, pid, at)                  # their plans called off at no cost (T24 review M7)
+    if relationships.household(state) == pid:       # they lived with the player: they move out (T18 fix I1)
+        apply_effect(state, {"type": "social_household", "op": "move_out", "pid": pid, "at": at})
     return {"type": "social_unmatch", "ok": True, "text": f"{pid} {'blocked' if block else 'unmatched'}",
             "closed": closed}
 

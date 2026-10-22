@@ -46,9 +46,10 @@ CAPABILITIES: tuple[str, ...] = ("text", "photo", "voice", "video")
 #: A dating app's `deck:`.
 DECKS: tuple[str, ...] = ("swipe", "browse")
 #: Every `cost_minutes` key, each read by the verb that spends it: swipe,
-#: like (matching.py, T7), edit (turn.edit_profile, T7), text, photo, voice,
-#: video (sending, T8 and T20), move (a game move, T22).
-COST_VERBS: tuple[str, ...] = ("swipe", "like", "edit", "text", "photo", "voice", "video", "move")
+#: like (matching.py, T7), edit (turn.edit_profile, T7), move (a game move,
+#: T22). A message's cost is conversation.yaml's `costs:` (v0.23.0 spec §3.3):
+#: a `text`, `photo`, `voice` or `video` row here would be read by nothing.
+COST_VERBS: tuple[str, ...] = ("swipe", "like", "edit", "move")
 #: The `social_app` `set` op's keys (a test or a harness setting a counter).
 COUNTERS: tuple[str, ...] = ("likes_left", "supers_left", "day", "deck_pos")
 

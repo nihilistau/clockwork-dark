@@ -15,9 +15,21 @@ from pathlib import Path
 import pytest
 
 from tests.social_fixtures import (  # noqa: F401
-    _act, _at, _force_archetype, _force_stage, _just_below, _set_person, _with, matched, receipts_active,
-    receipts_state,
+    _act, _at, _force_archetype, _force_stage, _just_below, _open_episode, _set_person, _with, matched,
+    receipts_active, receipts_state,
 )
+
+
+def _next_episode(state, pid: str, thread: str) -> None:
+    """The open conversation with `pid` closed, if any, and a new one opened (v0.23.0 T5: caps are per
+    episode, `convo.cap_key`), at the same in-game minute."""
+    from engine.game.effects import apply_effect
+    from engine.social import convo
+
+    if convo.episode(state, pid) is not None:
+        apply_effect(state, {"type": "social_episode", "op": "close", "pid": pid,
+                             "at": state.world_clock_hours, "end": "lapsed"})
+    _open_episode(state, pid, thread)
 
 
 def _rules() -> dict:
@@ -42,20 +54,21 @@ def _pace(monkeypatch, **fields) -> None:
 
 
 def _sure_replies(monkeypatch) -> None:
-    """Every read is answered, nobody ghosts, nobody double texts (F16)."""
-    from engine.social import messaging
+    """Every read is answered, nobody ghosts, nobody double texts (F16; v0.23.0: the per-episode-start
+    draws forced, the person read a few minutes after the send, as v0.22's forced latency did)."""
+    from engine.social import convo
 
-    monkeypatch.setattr(messaging, "_stage_factor", lambda stage: 0.0)
-    _pace(monkeypatch, reply_prob=1.0, read_minutes=(5.0, 0.0), reply_minutes=(5.0, 0.0),
-          double_text={"after_hours": 1, "prob": 0.0, "max_in_row": 0}, initiations=())
-    monkeypatch.setattr(messaging, "_interest_factor", lambda interest: 1.0)
-    monkeypatch.setattr(messaging, "_burst_factor", lambda burst: 1.0)
+    monkeypatch.setattr(convo, "_ghost_factor", lambda state, pid: 0.0)
+    monkeypatch.setattr(convo, "_reply_factor", lambda state, pid: 100.0)
+    monkeypatch.setattr(convo, "next_available", lambda state, pid, at: at + 5 / 60)
+    _pace(monkeypatch, reply_minutes=(5.0, 0.0), double_text={"after_hours": 1, "prob": 0.0, "max_in_row": 0},
+          initiations=())
 
 
 # -- the brief's tests ------------------------------------------------------------------------
 
 
-def test_regard_is_capped_per_reply_per_day_and_by_archetype(receipts_state, matched) -> None:
+def test_regard_is_capped_per_reply_per_episode_and_by_archetype(receipts_state, matched) -> None:
     from engine.game.effects import apply_effect
 
     rules = _rules()
@@ -67,8 +80,8 @@ def test_regard_is_capped_per_reply_per_day_and_by_archetype(receipts_state, mat
     for _ in range(10):
         apply_effect(receipts_state, {"type": "social_regard", "pid": pid, "warmth": 99, "trust": 99})
     person = receipts_state.social["people"][pid]
-    assert person["warmth"] - start_w <= int(rules["per_day_gain"]["warmth"])
-    assert person["trust"] - start_t <= int(rules["per_day_gain"]["trust"])
+    assert person["warmth"] - start_w <= int(rules["per_episode_gain"]["warmth"])
+    assert person["trust"] - start_t <= int(rules["per_episode_gain"]["trust"])
 
 
 def test_losses_are_not_capped(receipts_state, matched) -> None:
@@ -79,18 +92,20 @@ def test_losses_are_not_capped(receipts_state, matched) -> None:
     _set_person(receipts_state, pid, warmth=60)
     for _ in range(5):
         apply_effect(receipts_state, {"type": "social_regard", "pid": pid, "warmth": worst})
-    assert receipts_state.social["people"][pid]["warmth"] == max(0, 60 + 5 * worst)   # no daily cap on a loss
+    assert receipts_state.social["people"][pid]["warmth"] == max(0, 60 + 5 * worst)   # no cap on a loss
 
 
 def test_a_dry_texter_never_passes_warming(receipts_state, matched, monkeypatch) -> None:
     from engine.game.effects import apply_effect
     from engine.social import relationships
 
-    pid = matched("matchstick").split(":")[1]
+    thread = matched("matchstick")
+    pid = thread.split(":")[1]
     _force_archetype(monkeypatch, receipts_state, pid, "dry_texter")
     top = relationships._bands()[-1]
     _set_person(receipts_state, pid, familiarity={"exchanges": 0, "contact_days": int(top["contact_days"])})
     for day in range(60):                                 # contact days enough for any band: warmth alone decides
+        _next_episode(receipts_state, pid, thread)        # a fresh per-episode allowance each time (T5)
         apply_effect(receipts_state, {"type": "social_regard", "pid": pid, "warmth": 4, "day": day + 2})
     person = receipts_state.social["people"][pid]
     assert person["warmth"] <= relationships._band_cap("warming")
@@ -98,11 +113,20 @@ def test_a_dry_texter_never_passes_warming(receipts_state, matched, monkeypatch)
     assert relationships.band(person) == "warming"
 
 
-@pytest.mark.parametrize("stage", ["talking", "numbers", "meeting", "exclusive"])
-def test_each_gate_both_sides(receipts_state, matched, stage) -> None:
-    from engine.social import relationships
+@pytest.mark.parametrize("stage", ["talking", "numbers", "exclusive", "engaged"])
+def test_each_gate_both_sides(receipts_state, matched, stage, monkeypatch) -> None:
+    """Every stage reached through a gate (v0.23.0 T18: `meeting`'s, read by nothing, is gone; `engaged`'s is
+    `willing.propose`, from `exclusive`)."""
+    from engine.social import population, relationships
 
     pid = matched("matchstick").split(":")[1]
+    if stage == "engaged":
+        _force_stage(receipts_state, pid, "exclusive")
+    if stage == "exclusive":                 # willing.exclusive: from dating, both after something long-term (T5)
+        _force_stage(receipts_state, pid, "dating")
+        real = population.profile
+        monkeypatch.setattr(population, "profile", lambda s, p: dataclasses.replace(real(s, p), intent="long_term"))
+        receipts_state.social["player"]["looking_for"] = "long_term"
     gate = relationships.gate_spec(stage)
     _set_person(receipts_state, pid, **_just_below(gate))
     assert relationships.gate_holds(receipts_state, pid, stage) is False
@@ -141,13 +165,17 @@ def test_mood_decays_to_neutral(receipts_state, matched) -> None:
     assert receipts_state.social["people"][pid]["mood"] == "neutral"
 
 
-def test_a_third_ask_in_a_day_is_refused(receipts_state, matched) -> None:
+def test_a_third_ask_in_an_episode_is_refused_and_the_next_episode_resets_it(receipts_state, matched) -> None:
     thread = matched("matchstick")
-    _force_stage(receipts_state, thread.split(":")[1], "talking")
+    pid = thread.split(":")[1]
+    _force_stage(receipts_state, pid, "talking")
+    _next_episode(receipts_state, pid, thread)
     _act(receipts_state, "ask", target=thread, args={"what": "number"})
     _act(receipts_state, "ask", target=thread, args={"what": "number"})
     third = _act(receipts_state, "ask", target=thread, args={"what": "number"})
-    assert third["refused"] and third["result"]["error"] == "Give it a day"
+    assert third["refused"] and third["result"]["error"] == "Give it a while"
+    _next_episode(receipts_state, pid, thread)                     # the same in-game day, a new episode
+    assert _act(receipts_state, "ask", target=thread, args={"what": "number"})["success"]
 
 
 def test_history_is_bounded_with_an_earlier_line(receipts_state, matched, monkeypatch) -> None:
@@ -158,7 +186,7 @@ def test_history_is_bounded_with_an_earlier_line(receipts_state, matched, monkey
     pid = matched("matchstick").split(":")[1]
     for i in range(12):
         relationships.add_history(receipts_state, pid, "note", f"row {i}")
-    rows = receipts_state.social["people"][pid]["history"]
+    rows = receipts_state.social["people"][pid]["memory"]["history"]
     assert len(rows) == 5 and rows[0]["kind"] == "earlier"
 
 
@@ -172,15 +200,18 @@ def test_a_turner_turns_at_its_point(receipts_state, matched, monkeypatch) -> No
     for i in range(4):
         messaging.send(receipts_state, f"matchstick:{pid}", "text", f"message {i}")
         clock.advance_time(receipts_state, 12)
+        for m in receipts_state.social["threads"][f"matchstick:{pid}"]["messages"]:
+            if m["voiced"] is False:
+                m["voiced"] = True       # a test shortcut: a pass voiced it (v0.23.0: an unvoiced reply is a burst's)
     person = receipts_state.social["people"][pid]
     from engine.social import behaviour
 
     # The reveal's canon row's PROSE, through social_memory (T12; spec §12.1: canon is prose for the voice).
-    assert behaviour.canon_text("wants_something_else") in person["canon"] and person["stage"] == "winding_down"
+    assert behaviour.canon_text("wants_something_else") in person["memory"]["canon"] and person["stage"] == "winding_down"
     reveals = [m for m in receipts_state.social["threads"][f"matchstick:{pid}"]["messages"]
-               if (m.get("decision") or {}).get("situation") == "reveal_turn"]
+               if (m.get("decision") or {}).get("situation") == "opens_up"]
     assert reveals and reveals[0]["decision"]["reveal"] == "wants_something_else" and reveals[0]["from"] == pid
-    kinds = [row["kind"] for row in person["history"]]
+    kinds = [row["kind"] for row in person["memory"]["history"]]
     assert kinds.count("turn") == 1 and "fight" not in kinds              # one event, not a falling-out too
 
 
@@ -237,22 +268,25 @@ def test_regard_starts_where_the_data_says_at_a_match(receipts_state, matched) -
     assert person["stage"] == "matched"
 
 
-def test_a_gain_is_multiplied_by_the_archetype_and_the_day_cap_resets_next_day(receipts_state, matched,
-                                                                                monkeypatch) -> None:
+def test_a_gain_is_multiplied_by_the_archetype_and_the_episode_cap_resets_next_episode(receipts_state, matched,
+                                                                                        monkeypatch) -> None:
     from engine.game.effects import apply_effect
 
     rules = _rules()
-    pid = matched("matchstick").split(":")[1]
+    thread = matched("matchstick")
+    pid = thread.split(":")[1]
     _pace(monkeypatch, warmth_mult=2.0, warmth_cap_band=None)
     _set_person(receipts_state, pid, warmth=0)
+    _next_episode(receipts_state, pid, thread)
     step = int(rules["per_reply"]["warmth"][1])
     receipt = apply_effect(receipts_state, {"type": "social_regard", "pid": pid, "warmth": step, "day": 5})
-    assert receipt["applied"]["warmth"] == min(2 * step, int(rules["per_day_gain"]["warmth"]))
+    assert receipt["applied"]["warmth"] == min(2 * step, int(rules["per_episode_gain"]["warmth"]))
     for _ in range(10):
-        apply_effect(receipts_state, {"type": "social_regard", "pid": pid, "warmth": step, "day": 5})
-    assert receipts_state.social["people"][pid]["warmth"] == int(rules["per_day_gain"]["warmth"])
+        apply_effect(receipts_state, {"type": "social_regard", "pid": pid, "warmth": step, "day": 6})
+    assert receipts_state.social["people"][pid]["warmth"] == int(rules["per_episode_gain"]["warmth"])  # a day is no reset
+    _next_episode(receipts_state, pid, thread)
     apply_effect(receipts_state, {"type": "social_regard", "pid": pid, "warmth": step, "day": 6})
-    assert receipts_state.social["people"][pid]["warmth"] > int(rules["per_day_gain"]["warmth"])
+    assert receipts_state.social["people"][pid]["warmth"] > int(rules["per_episode_gain"]["warmth"])
 
 
 def test_a_band_cap_never_pulls_warmth_down(receipts_state, matched, monkeypatch) -> None:
@@ -282,13 +316,13 @@ def test_a_fight_and_making_up_are_history(receipts_state, matched) -> None:
     pid = matched("matchstick").split(":")[1]
     _set_person(receipts_state, pid, warmth=60)
     worst = int(rules["per_reply"]["warmth"][0])
-    while sum(row["kind"] == "fight" for row in receipts_state.social["people"][pid]["history"]) == 0:
+    while sum(row["kind"] == "fight" for row in receipts_state.social["people"][pid]["memory"]["history"]) == 0:
         apply_effect(receipts_state, {"type": "social_regard", "pid": pid, "warmth": worst, "day": 3})
     assert receipts_state.social["people"][pid]["regard_today"]["loss"] <= int(rules["fight_warmth"])
     best = int(rules["per_reply"]["warmth"][1])
     for _ in range(10):
         apply_effect(receipts_state, {"type": "social_regard", "pid": pid, "warmth": best, "day": 4})
-    kinds = [row["kind"] for row in receipts_state.social["people"][pid]["history"]]
+    kinds = [row["kind"] for row in receipts_state.social["people"][pid]["memory"]["history"]]
     assert kinds.count("fight") == 1 and kinds.count("reconciled") == 1
 
 
@@ -298,10 +332,10 @@ def test_the_earlier_line_counts_what_it_folded(receipts_state, matched, monkeyp
 
     monkeypatch.setattr(social, "setting", _with(social.setting, history_max=5))
     pid = matched("matchstick").split(":")[1]
-    before = len(receipts_state.social["people"][pid]["history"])
+    before = len(receipts_state.social["people"][pid]["memory"]["history"])
     for i in range(12):
         relationships.add_history(receipts_state, pid, "note", f"row {i}")
-    rows = receipts_state.social["people"][pid]["history"]
+    rows = receipts_state.social["people"][pid]["memory"]["history"]
     assert rows[0]["count"] == before + 12 - 4 and rows[0]["text"] == f"{before + 8} earlier moments"
     assert [row["text"] for row in rows[1:]] == ["row 8", "row 9", "row 10", "row 11"]
 
@@ -320,7 +354,7 @@ def test_a_stage_move_writes_its_words_to_history(receipts_state, matched) -> No
     pid = matched("matchstick").split(":")[1]
     _force_stage(receipts_state, pid, "numbers")
     person = receipts_state.social["people"][pid]
-    assert person["history"][-1]["text"] == relationships.stage_words("numbers") == "Swapped numbers"
+    assert person["memory"]["history"][-1]["text"] == relationships.stage_words("numbers") == "Swapped numbers"
     assert person["stage_since"] == receipts_state.world_clock_hours
 
 
@@ -341,7 +375,7 @@ def test_talking_comes_at_the_gate_s_exchanges(receipts_state, matched, monkeypa
         messaging.new_message(receipts_state, thread, sender, "text", bubbles=[f"line {i}"])
     person = receipts_state.social["people"][pid]
     assert person["familiarity"]["exchanges"] == needed and person["stage"] == "talking"
-    assert [row["kind"] for row in person["history"]].count("first_message") == 1
+    assert [row["kind"] for row in person["memory"]["history"]].count("first_message") == 1
 
 
 def test_an_exchange_and_a_named_hobby_raise_interest(receipts_state, matched) -> None:
@@ -399,7 +433,7 @@ def test_five_cold_days_wind_it_down(receipts_state, matched, monkeypatch) -> No
     assert receipts_state.social["people"][pid]["stage"] == "talking"
     clock.advance_time(receipts_state, 24)
     person = receipts_state.social["people"][pid]
-    assert person["stage"] == "winding_down" and person["history"][-1]["kind"] == "cooled"
+    assert person["stage"] == "winding_down" and person["memory"]["history"][-1]["kind"] == "cooled"
 
 
 def test_a_cold_spell_that_warms_again_recovers(receipts_state, matched, monkeypatch) -> None:
@@ -424,7 +458,7 @@ def test_a_cold_spell_that_warms_again_recovers(receipts_state, matched, monkeyp
     messaging.new_message(receipts_state, thread, pid, "text", bubbles=["."])
     clock.advance_time(receipts_state, 24)
     person = receipts_state.social["people"][pid]
-    assert person["stage"] == "talking" and person["history"][-1]["kind"] == "recovered"
+    assert person["stage"] == "talking" and person["memory"]["history"][-1]["kind"] == "recovered"
 
 
 def test_a_turn_does_not_recover_by_warming(receipts_state, matched, monkeypatch) -> None:
@@ -535,7 +569,7 @@ def test_no_contact_for_fade_days_fades_and_their_message_reconnects(receipts_st
     assert person["stage"] == "faded" and person["stage_before"] == "talking"
     messaging.new_message(receipts_state, thread, pid, "text", bubbles=["hey stranger"])
     person = receipts_state.social["people"][pid]
-    assert person["stage"] == "talking" and person["history"][-1]["kind"] == "reconnected"
+    assert person["stage"] == "talking" and person["memory"]["history"][-1]["kind"] == "reconnected"
 
 
 def test_a_drifter_loses_interest_each_day_past_its_point(receipts_state, matched, monkeypatch) -> None:
@@ -588,7 +622,7 @@ def test_an_ask_answered_below_its_gate_is_not_yet(receipts_state, matched, monk
     pid = matched("matchstick").split(":")[1]
     _force_stage(receipts_state, pid, "talking")
     _set_person(receipts_state, pid, **_just_below(relationships.gate_spec("numbers")))
-    assert relationships.ask_decision(receipts_state, pid, "number") == {"accept": False, "why": "not yet"}
+    assert relationships.ask_decision(receipts_state, pid, "number") == {"accept": False, "why": "not_yet"}
     _set_person(receipts_state, pid, **{**_at(relationships.gate_spec("numbers")), "trust": 100})
     _pace(monkeypatch, media={"offer_mult": 1.0, "accept_mult": 1.0})
     assert relationships.ask_decision(receipts_state, pid, "number")["accept"] is True
@@ -730,13 +764,13 @@ def test_a_broken_relationships_file_is_an_error_naming_its_key(path, value, key
         relationships.check_data(broken)
 
 
-def test_fallback_regard_has_its_own_smaller_daily_cap(receipts_state, matched) -> None:
-    """Spec §10.2's ruling, T26 fix round 2: a fallback reply's regard grows a relationship, capped a day by
-    `regard.fallback.per_day`, below what a working model's replies may add (`per_day_gain`)."""
+def test_fallback_regard_has_its_own_smaller_episode_cap(receipts_state, matched) -> None:
+    """Spec §10.2's ruling, T26 fix round 2: a fallback reply's regard grows a relationship, capped an episode
+    by `regard.fallback.per_episode`, below what a working model's replies may add (`per_episode_gain`)."""
     from engine.social import relationships
 
     rules = relationships._block("regard")
-    cap = rules["fallback"]["per_day"]
+    cap = rules["fallback"]["per_episode"]
     pid = matched("matchstick").split(":")[1]
     person = receipts_state.social["people"][pid]
     start = (person["warmth"], person["trust"])
@@ -745,10 +779,10 @@ def test_fallback_regard_has_its_own_smaller_daily_cap(receipts_state, matched) 
                                    fallback=True)
     assert person["trust"] - start[1] == int(cap["trust"]) > 0
     assert 0 < person["warmth"] - start[0] <= int(cap["warmth"])
-    # A model's reply the same day still has the room per_day_gain leaves.
+    # A model's reply in the same episode still has the room per_episode_gain leaves.
     before = person["trust"]
     relationships.apply_regard(receipts_state, pid, {"warmth": 1, "trust": 1}, day=receipts_state.world_day)
-    assert person["trust"] == before + 1 and int(rules["per_day_gain"]["trust"]) > int(cap["trust"])
+    assert person["trust"] == before + 1 and int(rules["per_episode_gain"]["trust"]) > int(cap["trust"])
 
 
 # -- the contact card's section (T29, spec §18.2) ------------------------------------------------------
@@ -772,7 +806,7 @@ def test_the_contacts_section_is_the_players_view_of_each_person(receipts_state,
     assert row["name"] == card["name"] and row["photos"] == card["photos"] and row["app"] == "matchstick"
     assert row["profile"] == {k: card[k] for k in relationships.CONTACT_PROFILE if k in card}
     assert row["stage_words"] == relationships.stage_words(person["stage"]) and row["band"] == relationships.band(person)
-    assert [h["text"] for h in row["history"]] == [h["text"] for h in person["history"]] and row["history"]
+    assert [h["text"] for h in row["history"]] == [h["text"] for h in person["memory"]["history"]] and row["history"]
     assert all(set(h) == {"day", "at", "text"} for h in row["history"])
     assert row["about"] == ["I grew up by the sea"]
     assert "zz-knows-sentinel" not in repr(row)

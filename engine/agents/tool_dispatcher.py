@@ -180,6 +180,11 @@ def execute_intent(
         )
         return [intents_module.refusal(parsed, "the engine has no way to do that.")]
 
+    if parsed["action"] in intents_module.SOCIAL_WORLD_ACTIONS:
+        # A phone story's world verbs (v0.23.0 Plan decision 4) are system-only skills: the player
+        # chose an option the engine offered, so the system resolves it. Never legal in a story
+        # without `paths.social`, so this branch is unreachable there (the refusals above answer).
+        agent = AGENT_SYSTEM
     skill_def = SKILL_REGISTRY.get(name)
     if skill_def is None or not skill_def.callable_by(agent):
         return [

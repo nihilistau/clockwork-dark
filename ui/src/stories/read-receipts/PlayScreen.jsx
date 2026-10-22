@@ -9,13 +9,22 @@
  * screen it was opened from (`back`); at 1200px wide and over the contact
  * card is a side sheet beside the phone instead (spec §18.3, `sheet`).
  *
+ * TWO LAYERS (v0.23.0 spec §14.1). The phone is one; the other is the world (`world/World.jsx`: the scene
+ * plate, the narration, the world's choices and the buzz). `phone.world.phone_up` says which the player has
+ * in hand: while it is up the world's choices are greyed ("Put the phone down to act") and the status bar
+ * offers "Put the phone down" (`put_down`); any phone action picks it up again, and so does the buzz
+ * banner's button (the phone layer shows locally, `raised`, until an action reaches the server). A world
+ * choice the server refuses because the phone is up (409 `phone_up`, `story.upSeq`) raises the phone too and
+ * shows the refusal. At 1200px wide and over the layers sit side by side; under it the phone covers the
+ * world, which is dimmed behind.
+ *
  * Every action goes through `usePhoneAct`: one at a time from the deck's
  * point of view, and an action that never went comes back with what the
  * player wrote. The `busy` prop is ignored on purpose (spec §18.2): a rejoin's
  * `turn_running` reflects a snapshot or a commit holding the turn lock for
  * milliseconds, and would only grey out a phone that is not waiting on it.
  */
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import FrontPorch from "./apps/FrontPorch.jsx";
 import Matchstick from "./apps/Matchstick.jsx";
@@ -29,15 +38,16 @@ import ThisOrThat from "./games/ThisOrThat.jsx";
 import TileTalk from "./games/TileTalk.jsx";
 import Photos from "./photos/Photos.jsx";
 import Settings from "./settings/Settings.jsx";
-import { useIdleWait, useLetTimePassPref, watching } from "./settings/letTimePass.js";
+import Places from "./apps/Places.jsx";
 import { appOf, threadOf } from "./phone/apps.js";
 import Frame from "./phone/Frame.jsx";
 import Home from "./phone/Home.jsx";
 import LockScreen from "./phone/LockScreen.jsx";
 import StatusBar from "./phone/StatusBar.jsx";
 import { usePhoneAct } from "./phone/usePhoneAct.js";
-import { currentPhone, initialState } from "./state.js";
+import { currentPhone, initialState, phoneUpOf } from "./state.js";
 import Thread from "./thread/Thread.jsx";
+import World from "./world/World.jsx";
 
 const TITLE = "Read Receipts";
 
@@ -87,16 +97,29 @@ function Refusal({ refusal, onDismiss }) {
   );
 }
 
-export default function PlayScreen({ state, sessionId = "", onAct, onOpenMenu, onOpenSaves, blocked = false }) {
+export default function PlayScreen({ state, sessionId = "", onAct, onChoose = null, onCustom = null, onOpenMenu, onOpenSaves, blocked = false }) {
   const story = state.story || initialState;
   const phone = currentPhone(state);
-  const { act, pending, notSent, clearNotSent, retry } = usePhoneAct(onAct, story);
+  const { act: rawAct, pending, notSent, clearNotSent, retry } = usePhoneAct(onAct, story);
+  const [raised, setRaised] = useState(false); // the phone picked up without an action yet (the buzz banner)
+  const hasWorld = Boolean(phone && phone.world);
+  const phoneUp = phoneUpOf(phone) || raised;
+  // Any act but putting it down picks the phone up (the server does the same); putting it down lowers it.
+  const act = useCallback(
+    (intent) => {
+      setRaised(intent.action !== "put_down");
+      return rawAct(intent);
+    },
+    [rawAct]
+  );
+  // The server's word on the phone wins whenever it changes: a local pick-up is only until it speaks.
+  const serverUp = phoneUpOf(phone);
+  useEffect(() => setRaised(false), [serverUp]);
   const [nav, setNav] = useState(LOCKED);
   const [toast, setToast] = useState(null);
   const [sheet, setSheet] = useState(""); // the pid whose contact card is the side sheet (wide screens)
   const split = useMedia(SPLIT_QUERY);
   const wide = useMedia(SHEET_QUERY);
-  const [letPass, setLetPass] = useLetTimePassPref();
 
   // A run just opened (new, or resumed after time away): the lock screen.
   const lockSeen = useRef(story.lockSeq);
@@ -153,21 +176,20 @@ export default function PlayScreen({ state, sessionId = "", onAct, onOpenMenu, o
     back.focus?.();
   }, [sheet]);
 
-  // "Let time pass" (spec 15.1, local only): 30 s untouched on a live thread sends a 15-minute wait.
-  const watchedRow = phone && nav.at === "thread" ? threadOf(phone, nav.thread) : null;
-  useIdleWait({
-    enabled: Boolean(phone && phone.auto_wait === true && letPass && !blocked && watching(watchedRow, phone && phone.open_thread)),
-    pending,
-    act,
-    root: view,
-    again: story.turnSeq,
-  });
-
   // The engine's refusal of the last action, shown once per answer (rule 1).
   const refusal = phone && phone.refusal;
   useEffect(() => {
     setToast(refusal && refusal.reason ? refusal : null);
   }, [story.turnSeq, refusal && refusal.reason]);
+
+  // A world choice refused because the phone is up: the phone comes forward and the refusal is told.
+  const upSeen = useRef(story.upSeq);
+  useEffect(() => {
+    if (story.upSeq === upSeen.current) return;
+    upSeen.current = story.upSeq;
+    setRaised(true);
+    setToast({ reason: story.upWords || "Put the phone down first." });
+  }, [story.upSeq]);
 
   if (!phone) {
     return (
@@ -246,10 +268,11 @@ export default function PlayScreen({ state, sessionId = "", onAct, onOpenMenu, o
     if (kind === "messenger") body = <Messenger phone={phone} app={nav.app} label={label} onOpenThread={openThread} />;
     else if (kind === "games") body = <GamesHome phone={phone} act={act} pending={pending} onOpenGame={openGame} />;
     else if (kind === "gallery") body = <Photos phone={phone} onOpenThread={openThread} />;
-    else if (kind === "calendar") body = <Calendar phone={phone} act={act} pending={pending} onOpenContact={openContact} />;
+    else if (kind === "calendar") body = <Calendar phone={phone} onOpenContact={openContact} />;
     else if (kind === "contacts") body = <Contacts phone={phone} onOpenContact={openContact} />;
     else if (kind === "settings")
-      body = <Settings phone={phone} act={act} pending={pending} letTimePass={letPass} onLetTimePass={setLetPass} />;
+      body = <Settings phone={phone} act={act} pending={pending} />;
+    else if (kind === "places") body = <Places venues={(phone.places && phone.places.venues) || []} act={act} pending={pending} />;
     else body = <NotYet label={label} />;
   }
 
@@ -273,11 +296,24 @@ export default function PlayScreen({ state, sessionId = "", onAct, onOpenMenu, o
       />
     ) : null;
 
+  const world = hasWorld ? (
+    <World
+      state={state}
+      phone={phone}
+      phoneUp={phoneUp}
+      onChoose={onChoose || (() => {})}
+      onCustom={onCustom}
+      onPickUp={() => setRaised(true)}
+      blocked={blocked}
+    />
+  ) : null;
+
   return (
-    <Frame title={TITLE} onOpenMenu={onOpenMenu} onOpenSaves={onOpenSaves} side={side}>
+    <Frame title={TITLE} onOpenMenu={onOpenMenu} onOpenSaves={onOpenSaves} side={side} world={world} phoneUp={phoneUp} wide={wide}>
       <StatusBar
         now={phone.now}
         onOpenMenu={onOpenMenu}
+        onPutDown={hasWorld && phoneUp ? () => act({ action: "put_down", target: "", args: {}, text: "" }) : null}
         onLock={
           nav.at === "lock"
             ? null

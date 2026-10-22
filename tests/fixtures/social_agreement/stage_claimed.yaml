@@ -33,7 +33,7 @@ good:
   # off a live stage, the stage they left was reached
   - {<<: *base, stage: ended, stage_before: exclusive, reply: {bubbles: [{text: "since we started dating I've been happier"}]}}
   # near misses before the stage: the in-app phrasing, a date planned, a past girlfriend ("see you
-  # tonight", a plan for tonight, is meeting_claimed's: judged against the meet-ups agreed, T24)
+  # tonight", a plan for tonight, is plan_claimed's: judged against the plans open, T24, v0.23.0 T12)
   - {<<: *base, stage: matched, reply: {bubbles: [{text: "text me on here whenever"}]}}
   - {<<: *base, reply: {bubbles: [{text: "our first date should be somewhere quiet"}]}}
   - {<<: *base, reply: {bubbles: [{text: "me and my girlfriend from uni went to Lisbon"}]}}

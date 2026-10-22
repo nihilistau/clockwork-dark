@@ -30,8 +30,7 @@ def _talked(scene, session, thread: str, rounds: int = 3) -> None:
     with _replies_forced():
         for i in range(rounds):
             _phone(scene, session, "send", target=thread, args={"kind": "text"}, text=f"hey {i}")
-            _phone(scene, session, "wait", args={"until": "next"})
-            voicer.run_until_quiet(session, StubVoice("zero"))
+            voicer.run_until_quiet(session, StubVoice("zero"))     # v0.23.0: the reply is due at the send
             _phone(scene, session, "open_thread", target=thread)
 
 
@@ -41,8 +40,8 @@ def _readers(state, thread: str) -> dict[str, Any]:
 
     t = messaging.thread(state, thread)
     row = messaging._thread_row(state, t, set())
-    return {"row": row, "burst": messaging._player_burst(state, thread), "in_a_row": messaging._in_a_row(t),
-            "last_at": messaging._last_at(t), "since": [messaging._player_wrote_since(t, h) for h in (0.0, 30.0)],
+    return {"row": row, "burst": messaging.player_burst(state, thread), "in_a_row": messaging._in_a_row(t),
+            "last_at": messaging.last_at(t), "since": [messaging._player_wrote_since(t, h) for h in (0.0, 30.0)],
             "spoken": messaging.last_shown(t, spoken=True) is not None, "read_state": messaging._read_state(state, t),
             "open_thread": messaging._open_thread_section(state, None)}
 
@@ -59,7 +58,11 @@ def test_a_dead_quiet_thread_goes_to_the_archive_whole_and_reads_as_it_did(recei
     thread = _matched_in(session, "matchstick")
     pid = thread.split(":")[1]
     _talked(scene, session, thread)
-    _phone(scene, session, "send", target=thread, args={"kind": "text"}, text="still there?")   # the burst
+    from engine.social import convo
+
+    with monkeypatch.context() as quiet:
+        quiet.setattr(convo, "on_player_send", lambda *a, **k: None)          # they never read it
+        _phone(scene, session, "send", target=thread, args={"kind": "text"}, text="still there?")   # the burst
     assert session.lock.acquire(blocking=False)
     try:
         state.social["queue"] = [e for e in state.social["queue"] if e.get("pid") != pid]   # nothing more of theirs
@@ -79,7 +82,7 @@ def test_a_dead_quiet_thread_goes_to_the_archive_whole_and_reads_as_it_did(recei
         assert len(page["messages"]) == count and page["messages"][0]["bubbles"] == ["still there?"]
         # They come back: their message lands in the emptied thread, and it reads on from there.
         messaging.new_message(state, thread, pid, "text", bubbles=["hey stranger"])
-        assert messaging._player_burst(state, thread) == 0
+        assert messaging.player_burst(state, thread) == 0
         assert messaging.last_shown(t)["bubbles"] == ["hey stranger"]
     finally:
         release_turn(session)
@@ -176,7 +179,7 @@ def test_answered_requests_past_the_kept_count_are_forgotten(receipts_active, mo
             ids.append(made["request"]["id"])
         for rid in ids[:4]:
             apply_effect(state, {"type": "social_request", "op": "answer", "request_id": rid, "status": "no"})
-        state.social["queue"].append({"at": 1e9, "seq": 999, "pid": pid, "kind": "meet_start", "request_id": ids[0]})
+        state.social["queue"].append({"at": 1e9, "seq": 999, "pid": pid, "kind": "plan_lapse", "request_id": ids[0]})
         saves.compact(session)
         kept = set(state.social["requests"])
         # The oldest answered one is named by a queued event; the newest two answered stay; the open one stays.
@@ -293,15 +296,18 @@ def test_the_open_thread_is_never_emptied(receipts_active, monkeypatch) -> None:
         release_turn(session)
 
 
-def test_a_dead_thread_costs_no_summary_call(receipts_active, monkeypatch) -> None:
-    """Review I2: a dead thread, emptied or about to be, is never summarised (no model call for it)."""
+def test_a_dead_thread_is_remembered_by_its_recap_not_its_summary(receipts_active, monkeypatch) -> None:
+    """
+    v0.23.0 T6 (it replaces v0.22's "a dead thread costs no summary call"): a dead thread, emptied
+    whole by the save, writes no thread summary; its last conversation is remembered by the person's
+    recap, one call per closed episode, after which nothing more is due.
+    """
     from engine import social
     from engine.game import clock
     from engine.session.store import release_turn
-    from engine.social import saves, voicer
-    from tests.social_stub import StubVoice
+    from engine.social import memory, saves, voicer
 
-    monkeypatch.setattr(social, "setting", _with(social.setting, archive_dead_after_days=1, state_messages=2,
+    monkeypatch.setattr(social, "setting", _with(social.setting, archive_dead_after_days=1, state_messages=2, closed_thread_tail=2,
                                                  **{"memory.verbatim": 2}))
     scene, session = _live_session()
     state = session.engine.state
@@ -314,16 +320,25 @@ def test_a_dead_thread_costs_no_summary_call(receipts_active, monkeypatch) -> No
     try:
         state.social["queue"] = [e for e in state.social["queue"] if e.get("pid") != pid]
         state.social["open_thread"] = ""
-        state.social["threads"][thread].update(summary="", summary_through="")   # nothing summarised yet
         _force_stage(state, pid, "faded")
         clock.advance_time(state, 24.0 * 3)
+        if memory.recap_due_pids(state) == [] and state.social["people"][pid].get("episode"):
+            from engine.game.effects import apply_effect
+
+            apply_effect(state, {"type": "social_episode", "op": "close", "pid": pid})
         saves.compact(session)
         assert state.social["threads"][thread]["messages"] == [] and state.social["threads"][thread]["stamp"]
+        due = len(state.social["people"][pid].get("recap_due") or [])
     finally:
         release_turn(session)
+    assert due >= 1
     p = voicer.VoicePass(session, session.epoch)
-    assert voicer._summarise_one(session, p) is False
-    assert calls == []
+    while voicer._recap_one(session, p):
+        pass
+    assert len(calls) == due and not state.social["people"][pid].get("recap_due")
+    assert memory.person(state, pid)["episodes"]
+    assert "summary" not in state.social["threads"][thread]
+    assert voicer._recap_one(session, p) is False and len(calls) == due
 
 
 def test_a_media_rows_spilled_message_is_read_from_the_archive(receipts_active, monkeypatch) -> None:
@@ -332,13 +347,21 @@ def test_a_media_rows_spilled_message_is_read_from_the_archive(receipts_active, 
     from engine.session.store import release_turn
     from engine.social import archive, media, saves
 
-    monkeypatch.setattr(social, "setting", _with(social.setting, state_messages=2))
+    monkeypatch.setattr(social, "setting", _with(social.setting, state_messages=2, closed_thread_tail=2))
     scene, session = _live_session()
     state = session.engine.state
     thread = _matched_in(session, "matchstick")
     _talked(scene, session, thread)
     assert session.lock.acquire(blocking=False)
     try:
+        for m in state.social["threads"][thread]["messages"]:   # read: unread messages stay in state (keep_for)
+            if m["from"] != "player" and m.get("read_at") is None:
+                m["read_at"] = state.world_clock_hours
+        from engine.game.effects import apply_effect
+
+        pid = state.social["threads"][thread]["pid"]
+        if state.social["people"][pid].get("episode"):        # the conversation over: its messages may leave
+            apply_effect(state, {"type": "social_episode", "op": "close", "pid": pid})
         saves.compact(session)
         first = archive.archived(archive.save_dir(session), thread)[0]                # spilled by a save
         assert first["id"] not in {m["id"] for m in state.social["threads"][thread]["messages"]}

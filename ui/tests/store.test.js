@@ -136,6 +136,22 @@ describe("a turn", () => {
     expect(narrations.filter((t) => t === PROSE)).toHaveLength(1);
   });
 
+  it("shows a turn once, then a plan's arrival line from the second update (v0.23.0 T23C)", () => {
+    // The server's world turn opens a scene after its narration was sent: the second turn_update carries the
+    // arrival line alone (engine/scenes/default_scene.py::_meet_if_here), so the log reads the turn, then it.
+    const PROSE = "You wander into the kitchen.";
+    let state = reducer(started(), { type: "SUBMIT", text: "kitchen" });
+    state = reducer(state, socket("turn_update", { narration: PROSE, choices: [{ id: "a", text: "Look around" }] }));
+    state = reducer(state, socket("turn_update", { narration: "Kai arrives.", streamed: false,
+      choices: [{ id: "b", text: "Be playful" }] }));
+    expect(state.log.filter((e) => e.kind === "narration").map((e) => e.text)).toEqual([
+      "Rain on wet asphalt.",
+      PROSE,
+      "Kai arrives.",
+    ]);
+    expect(state.choices.map((c) => c.text)).toEqual(["Be playful"]);
+  });
+
   it("still appends the next turn when it happens to follow the same beat", () => {
     // The dedupe is exact-text and looks only at the last narration, so an
     // ordinary run of turns is untouched.

@@ -132,6 +132,19 @@ def _clean_edge(
         return None
 
     edge: dict[str, Any] = dict(raw)
+    if "minutes" in edge:
+        # A minutes edge (v0.23.0 I3): `hours` defaults to 0, not _EDGE_DEFAULTS' 1; checked here only,
+        # so an edge with no `minutes` (every other story's) is untouched (§19.5 pin 1).
+        try:
+            minutes = int(edge["minutes"])
+        except (TypeError, ValueError):
+            raise ValueError(f"locations: {src}>{dst}: minutes must be a whole number")
+        edge.setdefault("hours", 0)
+        if not 0 <= minutes <= 59:
+            raise ValueError(f"locations: {src}>{dst}: minutes {minutes} is outside 0-59")
+        if int(edge["hours"]) == 0 and minutes == 0:
+            raise ValueError(f"locations: {src}>{dst}: hours and minutes are both 0")
+        edge["minutes"] = minutes
     for key, fallback in _EDGE_DEFAULTS.items():
         try:
             edge[key] = int(edge.get(key, fallback))
@@ -292,13 +305,18 @@ def _mirror_missing_returns(graph: dict[str, dict[str, Any]]) -> None:
                 src,
                 dst,
             )
-            graph[dst]["connections"][src] = {
+            mirror = {
                 "hours": edge["hours"],
                 "danger_dc": edge["danger_dc"],
                 "awareness_delta": 0,
                 "one_way": False,
                 "mirrored": True,
             }
+            if "minutes" in edge:
+                # A minutes edge's return costs the same minutes (v0.23.0 I1); only then, so every
+                # other story's mirror is byte-identical.
+                mirror["minutes"] = edge["minutes"]
+            graph[dst]["connections"][src] = mirror
 
 
 def load_locations(path: Optional[Path] = None) -> dict[str, dict[str, Any]]:
@@ -362,7 +380,16 @@ def load_locations(path: Optional[Path] = None) -> dict[str, dict[str, Any]]:
             )
             continue
         for dst, edge_raw in connections.items():
-            edge = _clean_edge(str(loc_id), str(dst), edge_raw, known_ids)
+            try:
+                edge = _clean_edge(str(loc_id), str(dst), edge_raw, known_ids)
+            except ValueError as exc:
+                # A malformed `minutes` edge is refused (v0.23.0 §8.1): logged as an error, dropped,
+                # and never a raise (this loader never takes a session down).
+                logger.error(
+                    "[locations] Malformed minutes edge, dropping edge "
+                    "(operation=load_locations, edge=%s>%s): %s", loc_id, dst, exc,
+                )
+                continue
             if edge is not None:
                 graph[str(loc_id)]["connections"][str(dst)] = edge
 

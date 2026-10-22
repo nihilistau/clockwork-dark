@@ -121,6 +121,8 @@ NULLED_ATTRIBUTES: tuple[tuple[str, str], ...] = (
     ("engine.social", "_DATA_CACHE"),
     # The active story's parsed prompts/texter.md (v0.22.0 T13): persona, situations, fallbacks.
     ("engine.social.voicing", "_TEXTER_CACHE"),
+    # The active story's prompts/episode_recap.md (v0.23.0 T6): the recap's and the story fold's prompts.
+    ("engine.social.memory", "_RECAP_PROMPT_CACHE"),
     # The active story's Tile Talk word list (v0.22.0 T22): its words and every prefix of them.
     ("engine.social.games.wordgame", "_WORDS"),
     ("engine.social.games.wordgame", "_PREFIXES"),
@@ -302,6 +304,8 @@ WARMERS: tuple[tuple[str, str], ...] = (
     # texter.md, cross-checked against the social data loaded just above
     # (only for a story declaring paths.social: no other imports engine.social's submodules).
     ("engine.games.caches", "_warm_texter"),
+    # episode_recap.md (v0.23.0 T6), for a story declaring paths.social only.
+    ("engine.games.caches", "_warm_recap_prompt"),
     # Tile Talk's word list (v0.22.0 T22), for a story declaring paths.social only.
     ("engine.games.caches", "_warm_words"),
     ("engine.media.comfyui", "load_comfyui_templates"),
@@ -360,6 +364,15 @@ def _warm_texter() -> None:
 
     if social.declared():
         importlib.import_module("engine.social.voicing").texter_prompt()
+
+
+def _warm_recap_prompt() -> None:
+    """READ RECEIPTS' ``prompts/episode_recap.md`` (v0.23.0 T6), for a story declaring ``paths.social``
+    only: a story without it never imports ``engine.social``'s submodules (spec §2.1)."""
+    from engine import social
+
+    if social.declared():
+        importlib.import_module("engine.social.memory").recap_prompt()
 
 
 def _warm_words() -> None:

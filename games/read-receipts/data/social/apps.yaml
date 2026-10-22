@@ -43,8 +43,9 @@
 #                     only on an app whose `typing` is true (true when
 #                     unset; Texts is false, as SMS shows none; T31)
 #   cost_minutes      in-game minutes a verb costs: swipe and like (T7),
-#                     edit (the profile, T7), text, photo, voice and video
-#                     (sending, T8 and T20), move (a game move, T22)
+#                     edit (the profile, T7), move (a game move, T22); a
+#                     message's cost is conversation.yaml's `costs:`, the same
+#                     on every app (v0.23.0 spec §3.3)
 #   culture           dating: the archetype and intent weights a person on
 #                     the app is drawn by (every id one of behaviours.yaml's
 #                     archetypes, or long_term | short_term | friendship |
@@ -85,7 +86,7 @@ apps:
     capabilities: [text]
     receipts: false
     typing: true
-    cost_minutes: {swipe: 0.2, text: 2}
+    cost_minutes: {swipe: 0.2}
     culture:
       archetype_weights:
         romantic: 2
@@ -116,7 +117,7 @@ apps:
     capabilities: [text, voice]
     receipts: false
     typing: true
-    cost_minutes: {like: 1, text: 2, voice: 3}
+    cost_minutes: {like: 1}
     culture:
       archetype_weights:
         romantic: 3
@@ -140,7 +141,6 @@ apps:
     capabilities: [text, photo]
     receipts: false
     typing: false
-    cost_minutes: {text: 2, photo: 1}
   natter:
     kind: messenger
     label: Natter
@@ -148,7 +148,6 @@ apps:
     capabilities: [text, photo, voice, video]
     receipts: true
     typing: true
-    cost_minutes: {text: 2, photo: 1, voice: 3, video: 2}
   games:    {kind: games, label: Games, unlock: talking, offers: [wordgame, this_or_that], cost_minutes: {move: 3}}
   photos:   {kind: gallery, label: Photos}
   calendar: {kind: calendar, label: Calendar}

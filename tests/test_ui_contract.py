@@ -14,6 +14,7 @@ test here that knows the difference.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -58,37 +59,6 @@ def _without(tree: Any, paths: tuple[tuple[str, ...], ...]) -> Any:
             node.pop(path[-1], None)
     return tree
 
-
-def _bundle_neutral_only(path: str, since: str) -> bool:
-    """
-    Whether `package.json`'s only changes since `since` are BUNDLE_NEUTRAL keys.
-
-    THE FALSE POSITIVE THIS REMOVES. `package.json` earns its place in
-    BUILD_INPUTS because a DEPENDENCY bump changes the bundle without touching
-    a line of src. Its `version` field does not: nothing bundles it. Once
-    releases started bumping it in step with `pyproject.toml`, every release
-    commit put this guard into a state no rebuild could clear -- `npm run build`
-    produces byte-identical output, so dist is never dirty, never committed, and
-    the file stays permanently "ahead". A guard that cannot be satisfied is one
-    somebody deletes.
-
-    The screenshot tool (v0.21.0 T5) is the same case: `playwright-core` is a
-    devDependency only `ui/tools/screenshots.mjs` imports, run by the
-    `screenshots` script, and neither reaches the bundle -- a rebuild after
-    adding them is byte-identical, so dist could never be committed "after"
-    them. Exactly those two keys are ignored, not a whole section.
-
-    Everything else in the file is still judged, so adding or upgrading a
-    dependency fails exactly as it did before.
-    """
-    if path != "ui/package.json":
-        return False
-    try:
-        before = json.loads(_git("show", f"{since}:{path}"))
-        after = json.loads((ROOT / path).read_text(encoding="utf-8"))
-    except (ValueError, OSError):
-        return False
-    return _without(before, BUNDLE_NEUTRAL) == _without(after, BUNDLE_NEUTRAL)
 
 pytestmark = pytest.mark.skipif(
     not DIST.exists(), reason="UI not built — run `cd ui && npm run build`"
@@ -180,49 +150,86 @@ def _git(*args: str) -> str:
     return done.stdout.strip()
 
 
+MARKER = "build-source.txt"
+
+
+def _canonical(value: Any) -> str:
+    """Canonical JSON, the way `ui/tools/build-source-hash.mjs` writes it."""
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def hash_build_inputs(entries: dict[str, bytes]) -> str:
+    """
+    The build's source hash, from {repo-relative path: bytes}.
+
+    The same convention as `ui/tools/build-source-hash.mjs` (its header has it):
+    CRLF normalised to LF, `ui/package.json` reduced to its bundle-relevant
+    keys, files in path order, so a Windows and a Linux checkout agree.
+    """
+    lines = []
+    for path in sorted(entries):
+        data = entries[path]
+        if path == "ui/package.json":
+            data = _canonical(_without(json.loads(data.decode("utf-8")), BUNDLE_NEUTRAL)).encode("utf-8")
+        else:
+            data = data.replace(b"\r\n", b"\n")
+        lines.append(f"{path}\n{hashlib.sha256(data).hexdigest()}\n")
+    return hashlib.sha256("".join(lines).encode("utf-8")).hexdigest()
+
+
+def _committed_bytes(path: str) -> bytes | None:
+    """A file's bytes at HEAD (git decodes nothing here), or None if absent."""
+    done = subprocess.run(["git", "show", f"HEAD:{path}"], cwd=ROOT, capture_output=True, timeout=30)
+    return done.stdout if done.returncode == 0 else None
+
+
+def test_the_source_hash_is_stable_and_sensitive():
+    """Order and line endings do not move it; a comment, a rename or a dependency does."""
+    pkg = json.dumps({"version": "1", "dependencies": {"react": "^18"}}).encode()
+    base = {"ui/src/a.js": b"one\ntwo\n", "ui/src/b.js": b"x\n", "ui/package.json": pkg}
+    assert hash_build_inputs(dict(reversed(list(base.items())))) == hash_build_inputs(base)
+    assert hash_build_inputs({**base, "ui/src/a.js": b"one\r\ntwo\r\n"}) == hash_build_inputs(base)
+    assert hash_build_inputs({**base, "ui/src/a.js": b"one\n// note\ntwo\n"}) != hash_build_inputs(base)
+    renamed = {("ui/src/z.js" if k == "ui/src/a.js" else k): v for k, v in base.items()}
+    assert hash_build_inputs(renamed) != hash_build_inputs(base)
+    bumped = json.dumps({"dependencies": {"react": "^18"}, "version": "2"}).encode()
+    assert hash_build_inputs({**base, "ui/package.json": bumped}) == hash_build_inputs(base)
+    dep = json.dumps({"version": "1", "dependencies": {"react": "^19"}}).encode()
+    assert hash_build_inputs({**base, "ui/package.json": dep}) != hash_build_inputs(base)
+
+
 def test_the_committed_build_is_not_behind_its_source():
     """
-    The dist a player runs must not be older than the source it was built from.
+    The dist a player runs must have been built from the source that is committed.
 
     Every test above this one proves the committed build is COMPLETE and
     offline-clean. None of them proves it is CURRENT. That gap let dist fall
     roughly seventeen source files behind: the whole multi-agent shell, the
-    store, the story loader, the Play and Saves screens, ChoiceRow, Chrome,
-    NarrativeLog, ReasoningPanel, MicButton,
-    styles/index.css and several wicked-garden parts. Every one of them was
-    written, reviewed, tested and committed, and not one reached a player,
-    because what reaches a player is the dist and not the source.
+    store, the story loader, the Play and Saves screens and more. Every one of
+    them was written, reviewed, tested and committed, and not one reached a
+    player, because what reaches a player is the dist and not the source.
 
-    Mtime cannot answer this. A fresh clone writes every file at checkout time,
-    so on the machine that matters most -- someone else's -- the source and the
-    build are always exactly the same age. Git history can: `dist_commit` is the
-    last commit that touched the build, and anything the build's inputs changed
-    between there and HEAD is a change the shipped bundle does not contain.
+    The build writes `dist/build-source.txt`: a hash of its inputs
+    (`ui/tools/build-source-hash.mjs`, run by `npm run build`; the inputs are
+    BUILD_INPUTS, CRLF normalised, package.json reduced to its bundle-relevant
+    keys). This test hashes the same inputs as COMMITTED at HEAD
+    (`hash_build_inputs`) and compares. Neither mtimes nor commit order are
+    asked: a fresh clone writes every file at checkout time, and a merge or a
+    rebase reorders commit dates freely.
 
-    A tree diff rather than a timestamp comparison, deliberately. Comparing
-    `git log -1 --format=%ct` across the two paths reads committer dates, and a
-    merge or a rebase reorders those freely -- a branch cut last week and merged
-    today carries last week's dates into a position after today's build commit,
-    and the guard reads a stale dist as fresh. Diffing the build commit's tree
-    against HEAD's asks the same question in the repository's own order instead
-    of a clock's, and answers it in one call rather than one per source file.
+    This replaces a comparison of git history (any commit under ui/src after
+    the last commit under dist failed). That one could never be satisfied by a
+    change a rebuild leaves byte-identical, a comment in src: nothing to
+    commit. And it could not see a dist committed alongside source it was not
+    built from. The marker is rewritten by every build, so a rebuild always
+    clears this, and a stale one is named by the hashes.
 
-    What this cannot see: a dist committed alongside a source change but built
-    from the source as it stood before it. Only hashing the source tree into the
-    build catches that, which costs a build artefact and a hashing convention.
-    This catches the failure that actually happened.
+    Only committed state is judged, at both ends, so a dirty working tree does
+    not matter. An uncommitted dist is a rebuild in flight, and this skips
+    rather than reporting a staleness the developer has already fixed.
 
-    Only committed history is judged, at both ends. An uncommitted edit under
-    `ui/src` is work in progress, not something a player can be served; and an
-    uncommitted dist is a rebuild in flight, so the last BUILD commit is no
-    longer the state being asked about and this skips rather than reporting a
-    staleness the developer has already fixed. That leaves one hole -- a stray
-    edit under dist silences the guard locally -- and it is the right trade,
-    because the tree this guard exists to protect is the committed one, which on
-    CI and on a fresh clone is always clean.
-
-    The sequence it is built to walk you through: edit src, run pytest, FAIL;
-    `npm run build`, run pytest, SKIP; commit src and dist together, PASS.
+    The sequence it is built to walk you through: edit src, commit, run pytest,
+    FAIL; `npm run build`, run pytest, SKIP; commit src and dist together, PASS.
     """
     dirty = _git("status", "--porcelain", "--", DIST_PATH)
     if dirty:
@@ -231,22 +238,27 @@ def test_the_committed_build_is_not_behind_its_source():
             "commit src and dist together and this judges the result"
         )
 
-    dist_commit = _git("log", "-1", "--format=%H", "--", DIST_PATH)
-    if not dist_commit:
+    if not _git("log", "-1", "--format=%H", "--", DIST_PATH):
         # A shallow clone whose depth does not reach the build commit, or a dist
         # present on disk but never committed. Neither is evidence of staleness.
         pytest.skip(f"no commit in this history touches {DIST_PATH}")
 
-    changed = _git("diff", "--name-only", dist_commit, "HEAD", "--", *BUILD_INPUTS)
-    behind = sorted(line for line in changed.splitlines() if line.strip())
-    behind = [p for p in behind if not _bundle_neutral_only(p, dist_commit)]
+    names = _git("ls-tree", "-r", "--name-only", "HEAD", "--", *BUILD_INPUTS).splitlines()
+    entries = {}
+    for name in (n for n in names if n.strip()):
+        data = _committed_bytes(name)
+        assert data is not None, f"{name} is listed at HEAD but cannot be read"
+        entries[name] = data
+    want = hash_build_inputs(entries)
 
-    assert not behind, (
-        f"the committed UI build is {len(behind)} source file(s) behind -- none of "
-        f"these changes reach a player until dist is rebuilt:\n  "
-        + "\n  ".join(behind)
-        + f"\n\nlast commit touching {DIST_PATH}: {dist_commit[:12]}"
-        + "\nfix: `cd ui && npm run build`, then commit dist in the same change."
+    marker = _committed_bytes(f"{DIST_PATH}/{MARKER}")
+    have = marker.decode("utf-8").strip() if marker is not None else None
+    assert have == want, (
+        f"the committed UI build was not built from the committed source "
+        f"({'no ' + MARKER + ' at HEAD' if have is None else MARKER + ' says ' + have[:12]}, "
+        f"the committed inputs hash to {want[:12]}). None of the source changes "
+        "reach a player until dist is rebuilt."
+        "\nfix: `npm run build --prefix ui`, then commit dist in the same change."
     )
 
 
@@ -758,9 +770,15 @@ def _ui_files(*roots: Path) -> list[Path]:
     return sorted(p for root in roots for p in root.rglob("*") if p.suffix in (".js", ".jsx"))
 
 
-#: `onCustom` uses a plugin or a core panel may make, as {"path:line": why}.
-#: Empty: none needs typed text. A real free-text feature adds exactly its line.
-ON_CUSTOM_ALLOWED: dict[str, str] = {}
+#: Typed text carries no intent (rule 1), so no story wires a game action through `onCustom`. The one
+#: exception is READ RECEIPTS' world compose box (v0.23.0 T23B, addendum 4 W6): the server narrates typed
+#: world text. Keyed by file, with the most `onCustom` code lines each may hold (a count, not line numbers,
+#: so an edit does not break it). A file over its count, an unlisted file, or an entry whose file no longer
+#: uses it (stale) fails.
+ON_CUSTOM_ALLOWED: dict[str, int] = {
+    "ui/src/stories/read-receipts/world/World.jsx": 6,  # the compose form's sends
+    "ui/src/stories/read-receipts/PlayScreen.jsx": 2,  # forwarding
+}
 
 #: The only files that may speak the socket's choice protocol. `link.js` is
 #: the connection's state machine (v0.21.0 T11): it emits `join_session` and
@@ -775,15 +793,20 @@ def test_no_plugin_or_core_panel_uses_typed_text() -> None:
     sent through `onCustom` resolves nothing. Structural, not a phrase match:
     after comments are stripped, no `onCustom` identifier appears anywhere
     under `ui/src/stories/` or `ui/src/core/panels/` -- a call, a prop, an
-    alias or a split line alike -- unless `ON_CUSTOM_ALLOWED` names its line.
+    alias or a split line alike -- unless `ON_CUSTOM_ALLOWED` allows that file (up to its count).
     """
     offenders = []
+    counts: dict[str, int] = {}
     for path in _ui_files(UI_SRC / "stories", UI_SRC / "core" / "panels"):
         rel = path.relative_to(ROOT).as_posix()
         for number, line in _code_lines(path):
-            if re.search(r"\bonCustom\b", line) and f"{rel}:{number}" not in ON_CUSTOM_ALLOWED:
-                offenders.append(f"{rel}:{number}: {line.strip()}")
+            if re.search(r"\bonCustom\b", line):
+                counts[rel] = counts.get(rel, 0) + 1
+                if counts[rel] > ON_CUSTOM_ALLOWED.get(rel, 0):
+                    offenders.append(f"{rel}:{number}: {line.strip()}")
+    stale = [f for f in ON_CUSTOM_ALLOWED if counts.get(f, 0) == 0]
     assert not offenders, "typed text reachable from a plugin or core panel:\n" + "\n".join(offenders)
+    assert not stale, f"ON_CUSTOM_ALLOWED names files that no longer use onCustom: {stale}"
 
 
 def test_only_the_app_and_socket_speak_the_choice_protocol() -> None:
@@ -826,7 +849,7 @@ def test_the_encounter_panel_reads_only_keys_the_encounter_sends() -> None:
 
 # -- the phone block (v0.22.0 T10, spec §17.3) --------------------------------------------
 
-from tests.social_fixtures import matched, receipts_active, receipts_state  # noqa: E402,F401 -- the fixtures
+from tests.social_fixtures import matched, matched_numbers, numbers_pid, receipts_active, receipts_state  # noqa: E402,F401 -- the fixtures
 
 #: Values the engine keeps per person that never leave the server (spec §17.3).
 HIDDEN_PHONE_KEYS = {"warmth", "interest", "trust", "mood", "mood_until", "ghosted", "arc_point", "rev",
@@ -960,34 +983,33 @@ def test_this_or_that_never_shows_their_picks_before_the_reveal(receipts_state, 
     assert game["theirs"] == theirs and not (_keys(game) & HIDDEN_PHONE_KEYS)
 
 
-def test_the_calendar_never_shows_a_flake_before_the_day(receipts_state, matched, monkeypatch) -> None:
-    """T24 (spec §14.2): a meet-up agreed with its flake drawn true: the calendar shows it as `agreed`,
-    with no hidden key at any depth of `phone`; at its start it shows `flaked`."""
-    import dataclasses
-
-    from engine.game import clock
-    from engine.social import behaviour, messaging, payload, relationships
-    from tests.social_fixtures import _act, _at, _force_stage, _set_person
+def test_the_plans_section_carries_words_never_times(receipts_state, matched, monkeypatch) -> None:
+    """v0.23.0 T12 (spec §9): an open plan reaches the phone as a place and a time of day in words. When it was
+    made, how long it waits and who is flaking are the engine's: a sentinel `made_at` and the hidden keys appear
+    nowhere in `phone`."""
+    from engine.social import convo, growth, payload, plans
+    from engine.social.convo import Availability
+    from tests.social_fixtures import _force_stage
 
     state = receipts_state
     pid = matched("matchstick").split(":", 1)[1]
     _force_stage(state, pid, "numbers")
-    messaging.open_numbers(state, pid)
-    _set_person(state, pid, **_at(relationships.gate_spec("meeting")))
-    real = behaviour.archetype
-    monkeypatch.setattr(behaviour, "archetype", lambda name: dataclasses.replace(real(name), flake_prob=1.0))
-    monkeypatch.setattr(behaviour, "status_at", lambda person, at: "free")
-    made = _act(state, "propose_meet", target=pid, args={"venue": "copper_kettle", "day": 1, "slot": "afternoon"})
-    assert made["success"] and made["result"]["answer"] == "accept", made
-    mid = made["result"]["meet_id"]
-    assert state.social["meets"][mid]["flake"] is True                 # the state holds it: the scan is not empty-handed
+    real = growth.willing
+    monkeypatch.setattr(growth, "willing", lambda s, p, c: (True, "") if c == "meet" else real(s, p, c))
+    monkeypatch.setattr(convo, "available", lambda s, p, at: Availability(True))
+    monkeypatch.setattr(convo, "boundary_minutes", lambda s, p, at: None)
+    monkeypatch.setattr(plans, "_flake_drawn", lambda s, p: True)       # the state holds a flake: the scan has teeth
+    monkeypatch.setattr(plans, "_tonight_span", lambda s, p, at: (at, at + 3.0))    # their evening is free
+    row = plans.make(state, pid, kind="drinks", when="tonight", venue="the_anchor")
+    assert row and state.social["queue"] and any(e["kind"] == "plan_flake" for e in state.social["queue"])
+    state.social["plans"][row["id"]]["made_at"] = 4321.987654
     block = payload.phone_block(state)
-    (row,) = block["calendar"]
-    assert row["id"] == mid and row["status"] == "agreed"
-    leaked = _keys(block) & HIDDEN_PHONE_KEYS
+    (shown,) = block["plans"]
+    assert shown["id"] == row["id"] and shown["when"] == "tonight" and shown["venue"] == "the_anchor"
+    assert shown["words"] == plans.words("drinks", "the_anchor", "tonight") and shown["words"].endswith(", tonight")
+    assert "4321" not in repr(block)
+    leaked = _keys(block) & (HIDDEN_PHONE_KEYS | {"made_at", "patience_hours", "episodes_at"})
     assert not leaked, f"hidden keys in the phone block: {sorted(leaked)}"
-    clock.advance_time(state, state.social["meets"][mid]["start"] - state.world_clock_hours + 1 / 60)
-    assert payload.phone_block(state)["calendar"][0]["status"] == "flaked"
 
 
 def test_the_contact_card_and_photos_sections_carry_no_hidden_key(receipts_state, matched) -> None:
@@ -1008,7 +1030,7 @@ def test_the_contact_card_and_photos_sections_carry_no_hidden_key(receipts_state
     photo = messaging.new_message(state, natter, pid, "photo", bubbles=["look"], voiced=True)
     media.mark_procedural(state, media.attach(state, pid, natter, photo["id"], "photo", "selfie_now"))
     person = state.social["people"][pid]
-    assert person.get("warmth") is not None and person.get("knows")   # the slice holds them: the scan is not empty-handed
+    assert person.get("warmth") is not None and memory.part(person, "knows")   # the slice holds them (under `memory` since v0.23.0 T6): the scan is not empty-handed
     block = payload.phone_block(state)
     assert block["contacts"] and block["gallery"] and block["meet_options"]["venues"]
     for name in ("contacts", "gallery", "meet_options", "settings"):
@@ -1017,11 +1039,9 @@ def test_the_contact_card_and_photos_sections_carry_no_hidden_key(receipts_state
     assert "zz-knows-sentinel" not in repr(block)
 
 
-def test_let_time_pass_is_offered_in_local_mode_only(receipts_state, monkeypatch) -> None:
-    """T29 (spec §15.1): the payload's `auto_wait` says whether the client may offer "Let time pass" -- the
-    preference itself is the client's -- true locally and false hosted; `settings` carries Natter's
+def test_the_phone_settings_block_carries_the_receipts_switch(receipts_state) -> None:
+    """T29 (spec §15.1; v0.23.0 T19 removed `auto_wait`): `settings` carries Natter's
     receipts switch as the Settings app shows it, and the bio's cap (`social.max_text_chars`, review M10)."""
-    import engine.config
     from engine.social import payload
     from tests.social_fixtures import _act
 
@@ -1030,11 +1050,9 @@ def test_let_time_pass_is_offered_in_local_mode_only(receipts_state, monkeypatch
 
     cap = int(social.setting("max_text_chars", 0))
     assert cap > 0
-    assert block["auto_wait"] is True and block["settings"] == {"receipts": True, "bio_max": cap}
+    assert "auto_wait" not in block and block["settings"] == {"receipts": True, "wake_for_messages": False, "bio_max": cap}
     assert _act(receipts_state, "set_receipts", target="natter", args={"to": "off"})["success"]
-    assert payload.phone_block(receipts_state)["settings"] == {"receipts": False, "bio_max": cap}
-    monkeypatch.setattr(engine.config, "hosting_enabled", lambda: True)
-    assert payload.phone_block(receipts_state)["auto_wait"] is False
+    assert payload.phone_block(receipts_state)["settings"] == {"receipts": False, "wake_for_messages": False, "bio_max": cap}
 
 
 def test_the_phone_message_push_carries_no_hidden_key(receipts_active) -> None:
@@ -1097,3 +1115,65 @@ def test_the_media_ready_push_carries_no_hidden_key(receipts_active) -> None:
     assert not leaked, f"hidden keys in media_ready: {sorted(leaked)}"
     view = messaging.message_view(state, state.social["threads"][natter], message)
     assert view["media"]["status"] == "ready" and not (_keys(view) & (HIDDEN_PHONE_KEYS | {"seed", "request", "account"}))
+
+
+def test_the_world_section_carries_exactly_six_keys(receipts_state) -> None:
+    """v0.23.0 T21: `phone.world` is the client's layer switch and says only where the phone and the player are:
+    exactly `phone_up`, `at_work`, `location`, `buzz` (a count and names), `household` (T23: {} or
+    `pid`, `name`, `where`, `portrait`) and `here` (T23G, A4 W9: who else is here, `{name, kind}` rows), and
+    nothing else."""
+    from engine.social import payload
+
+    world = payload.phone_block(receipts_state)["world"]
+    assert set(world) == {"phone_up", "at_work", "location", "buzz", "household", "here"}
+    assert set(world["buzz"]) == {"count", "who"}
+    assert world["household"] == {}
+    assert all(set(row) == {"name", "kind"} for row in world["here"])
+
+
+def test_who_is_here_is_names_only(receipts_state, matched, monkeypatch) -> None:
+    """v0.23.0 T23G (A4 W9): `world.here` carries a name and a kind (`contact` or `around`) for each person here,
+    never a pid, a stage or a number; a planted value on the person never reaches it."""
+    from engine import social
+    from engine.social import behaviour, payload, places
+
+    real = social.data
+    monkeypatch.setattr(social, "data", lambda name: {**real(name), "chance": {**real(name)["chance"], "prob": {"out": 1.0}}}
+                        if name == "scenes" else real(name))
+    monkeypatch.setattr(behaviour, "status_at", lambda person, at: "out")
+    monkeypatch.setattr(places, "fitting_venues", lambda state, pid, kind="": ["the_anchor"])
+    pid = matched("matchstick").split(":")[1]
+    receipts_state.location_id = "the_anchor"
+    receipts_state.social["people"][pid]["warmth"] = 61.987654
+    receipts_state.social["people"][pid]["secret_note"] = "SENT-4417"
+    here = payload.phone_block(receipts_state)["world"]["here"]
+    assert [r["kind"] for r in here].count("contact") == 1
+    assert all(set(r) == {"name", "kind"} and isinstance(r["name"], str) for r in here)
+    text = json.dumps(here)
+    assert pid not in text and "61.987654" not in text and "SENT-4417" not in text
+
+
+def test_the_household_card_is_words_only(receipts_state, numbers_pid) -> None:
+    """v0.23.0 T23: with someone living in the flat, `world.household` is `pid`, `name`, `where` (a phrase) and
+    `portrait`, and no number."""
+    from engine.game.effects import apply_effect
+    from engine.social import payload
+
+    assert apply_effect(receipts_state, {"type": "social_household", "op": "move_in", "pid": numbers_pid})["ok"]
+    card = payload.phone_block(receipts_state)["world"]["household"]
+    assert set(card) == {"pid", "name", "where", "portrait"}
+    assert card["pid"] == numbers_pid and isinstance(card["where"], str) and card["where"]
+    assert not any(isinstance(v, (int, float)) for v in card.values())
+    # A planted value on the person never reaches the card (words only).
+    receipts_state.social["people"][numbers_pid]["warmth"] = 61.987654
+    receipts_state.social["people"][numbers_pid]["secret_note"] = "SENT-4417"
+    assert "61.987654" not in json.dumps(payload.phone_block(receipts_state)["world"]["household"])
+    assert "SENT-4417" not in json.dumps(payload.phone_block(receipts_state)["world"])
+
+
+def test_the_app_hands_a_story_screen_the_typed_text_path() -> None:
+    """v0.23.0 T23B (addendum 4 W6): a story-owned `PlayScreen` is given `onCustom`, sent as core's own box sends it."""
+    app = (UI_SRC / "core" / "App.jsx").read_text(encoding="utf-8")
+    head = app[app.index("<PlayScreen"):]
+    head = head[: head.index("/>")]
+    assert re.search(r'onCustom=\{\(text\) => send\("custom", text, text\)\}', head), "App.jsx gives a story's PlayScreen no onCustom"

@@ -323,7 +323,7 @@ describe("App with a PlayScreen (spec §18.1)", () => {
     startRun();
     expect(dom.host.querySelector('[data-testid="phone"]')).not.toBeNull();
     expect(dom.host.querySelector(".compose__input")).toBeNull();
-    expect(Object.keys(seen.props).sort()).toEqual(["blocked", "busy", "onAct", "onOpenMenu", "onOpenSaves", "sessionId", "state"]);
+    expect(Object.keys(seen.props).sort()).toEqual(["blocked", "busy", "onAct", "onChoose", "onCustom", "onOpenMenu", "onOpenSaves", "sessionId", "state"]);
     expect(seen.props.blocked).toBe(false);
     click(button(dom.host, "Menu"));
     expect(seen.props.blocked).toBe(true);

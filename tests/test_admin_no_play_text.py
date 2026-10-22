@@ -55,6 +55,18 @@ C = "read-receipts"
 
 #: The play text: one word, so it fits a name (40 characters), a stat and a label.
 SENTINEL = "Zq9Sentinel"
+#: A typed world line's own sentinel (v0.23.0 T23E, addendum 4 §3): the scripted narration never carries it, so a
+#: log line or metric holding it could only have come from the line the player typed.
+TYPED = "Zq9Typed"
+#: v0.23.0 T28: play text the engine's own paths write and no admin surface may show (planted by
+#: ``tests/probes/scripted_worker.py::plant_play_text`` into the live phone run): a scene's narration, a
+#: recap, the story so far, a chance scene's narration and a held text.
+SCENE = "SCN-NARR-7f3a91"
+RECAP = "RECAP-5c2e08"
+STORY = "STORY-d41b6e"
+CHANCE = "CHANCE-b83f27"
+HELD = "HELD-a19c60"
+PLANTED = (SCENE, RECAP, STORY, CHANCE, HELD)
 
 #: The scripted model's reply: the sentinel in the narration, a choice and the
 #: NAME of a stat it claims (``stat_changes``), which the engine never applies
@@ -74,6 +86,8 @@ REPLY = (
 
 def _no_sentinel(where: str, text: str) -> None:
     assert SENTINEL.lower() not in text.lower(), f"the sentinel reached {where}"
+    for planted in PLANTED:
+        assert planted.lower() not in text.lower(), f"the planted play text {planted} reached {where}"
 
 
 @pytest.fixture(scope="module")
@@ -171,6 +185,7 @@ def played(instance: HostingInstance) -> Iterator[dict[str, Any]]:
         _play_the_phone(player)
         _the_match_answers(instance)
         _until_the_phone_save_holds_voiced_words(instance)
+        _plant_play_text(instance, player)
 
         admin = instance.admin_http("root", root)
         token = csrf_of(admin.get("/admin/sessions").text)
@@ -212,8 +227,8 @@ def _play_the_phone(player: httpx.Client) -> None:
     timer and on each later save). Since T14 the worker's voicing pass (its
     model scripted: ``scripted.voice``, the sentinel's line) voices the
     replies in the background and, past the voice's verbatim window
-    (`social.memory.verbatim`, 24), writes the thread's summary -- both
-    saved. Since T21 the player also sends a voice note -- the sentinel in its
+    (`social.memory.verbatim`), keeps the conversation's words in the
+    person's memory (v0.23.0 T6; a thread summary before) -- both saved. Since T21 the player also sends a voice note -- the sentinel in its
     transcript -- on a Front Porch match (Matchstick carries no voice), made
     from its "Likes you" row or a like on its deck, and asks for one back,
     which the person sends (``scripted.media_yes``): its transcript, the
@@ -235,7 +250,7 @@ def _play_the_phone(player: httpx.Client) -> None:
             break
     assert phone["threads"], "no match in forty likes"
     thread = phone["threads"][0]["thread_id"]
-    for i in range(30):  # past the voice's verbatim window (24), so a summary is due
+    for i in range(30):  # a conversation's worth of play text: the person's memory keeps it
         _phone(player, sid, "send", target=thread, args={"kind": "text"}, text=f"{SENTINEL} says {i}")
     _phone(player, sid, "wait", args={"until": "next"})          # their reply falls due: a pass is requested
     _phone(player, sid, "wait", args={"until": "1h"})
@@ -243,14 +258,66 @@ def _play_the_phone(player: httpx.Client) -> None:
     porch = _front_porch_match(player, sid, phone)
     _phone(player, sid, "send", target=porch, args={"kind": "voice", "audio_transcript": f"{SENTINEL} hums"})
     _phone(player, sid, "ask", target=porch, args={"what": "voice"})   # their voice note: the scripted line
-    for _ in range(12):
+    # Their voice note is a background media job (the speech worker's thread, its result delivered at a LATER
+    # action's drain), so the wait is in real time as well as game time: a batch run on a loaded machine fell
+    # through twelve instant polls (v0.23.0 T28). The draws themselves are forced (scripted.always_replies,
+    # scripted.media_yes).
+    pause = threading.Event()
+    for _ in range(60):
         opened = _phone(player, sid, "open_thread", target=porch)["state"]["phone"].get("open_thread") or {}
         if any(m.get("kind") == "voice" and m.get("from") not in ("player", "system")
                for m in opened.get("messages") or []):
             break
         _phone(player, sid, "wait", args={"until": "next"})
+        pause.wait(0.5)
     else:
         raise AssertionError("their voice note never fell due")
+    _typed_world_turns(player, sid)
+
+
+def _plant_play_text(instance: HostingInstance, player: httpx.Client) -> None:
+    """
+    Scene narration, a recap, a story, a chance scene's narration and a held text (v0.23.0 T28): planted into the
+    READ RECEIPTS worker's live run through the engine's own writers (``tests/probes/scripted_worker.py``,
+    ``<worker>.plant``), the next request through the front door taking it. Then each is shown to be in the
+    saved run (its archive, for a scene's), so the scans below are not empty-handed.
+    """
+    (instance.control / f"worker-{C}.plant").write_text(json.dumps({
+        "scene": SCENE, "recap": RECAP, "story": STORY, "chance": CHANCE, "held": HELD}), encoding="utf-8")
+    assert player.get("/api/social/creation").status_code == 200
+
+    def saved() -> bool:
+        text = ""
+        for path in instance.data_dir.rglob("save.json"):
+            if C in path.parts:
+                text += path.read_text(encoding="utf-8")
+                archive_file = path.parent / "phone_archive.jsonl"
+                if archive_file.is_file():
+                    text += archive_file.read_text(encoding="utf-8")
+        return all(word in text for word in PLANTED)
+
+    instance.until(saved, 30, "the saved phone run holding the planted scene, recap, story, chance and held text")
+
+
+def _typed_world_turns(player: httpx.Client, sid: str) -> None:
+    """
+    Typed world lines (v0.23.0 T23E, addendum 4 §3): the phone put down, two lines typed into the world -- one
+    the engine reads as an offered choice where one is on offer ("tidy up"), one it reads as nothing -- each
+    carrying ``TYPED``. The line is play text: read under the lock, its action and target logged, never its words.
+    """
+    _phone(player, sid, "put_down")
+    pause = threading.Event()
+    for text in (f"tidy up, {TYPED}", f"{TYPED} looks around"):
+        for _attempt in range(40):
+            resp = player.post("/api/game/choice", json={"session_id": sid, "choice_id": "custom", "custom_text": text})
+            if resp.status_code != 409:
+                break
+            body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+            if body.get("phone_up"):
+                _phone(player, sid, "put_down")
+            pause.wait(0.15)
+        assert resp.status_code == 200, resp.text[:300]
+        assert not any(r.get("refused") for r in resp.json().get("tool_receipts") or [])
 
 
 def _front_porch_match(player: httpx.Client, sid: str, phone: dict[str, Any]) -> str:
@@ -298,7 +365,8 @@ def _the_match_answers(instance: HostingInstance) -> None:
 def _until_the_phone_save_holds_voiced_words(instance: HostingInstance) -> None:
     """
     The READ RECEIPTS save holds a reply voiced in the background with the
-    sentinel's line, a thread summary carrying the sentinel (T14), the
+    sentinel's line (in the save or its archive), the person's memory carrying
+    the sentinel (v0.23.0 T6; a thread summary before), the
     player's voice note with the sentinel in its transcript and a person's
     voice-note row whose transcript is the sentinel's line (T21), before any
     page is scanned: the scans then cover all four.
@@ -310,12 +378,25 @@ def _until_the_phone_save_holds_voiced_words(instance: HostingInstance) -> None:
                 continue
             state = (json.loads(path.read_text(encoding="utf-8")).get("state") or {})
             threads = ((state.get("social") or {}).get("threads") or {}).values()
-            voiced = any(SENTINEL in " ".join(m.get("bubbles") or []) for t in threads
-                         for m in t.get("messages") or [] if m.get("from") not in ("player", "system")
-                         and m.get("voiced") is True)
-            summarised = any(SENTINEL in str(t.get("summary") or "") for t in threads)
-            spoken = any(SENTINEL in str(m.get("transcript") or "") for t in threads for m in t.get("messages") or []
-                         if m.get("from") == "player")
+            # The save's messages and the archive's beside it: a closed conversation's messages leave state
+            # for phone_archive.jsonl at the save (v0.23.0 T9 fix round 2, archive.keep_for).
+            messages = [m for t in threads for m in t.get("messages") or []]
+            archive_file = path.parent / "phone_archive.jsonl"
+            if archive_file.is_file():
+                for line in archive_file.read_text(encoding="utf-8").splitlines():
+                    try:
+                        row = json.loads(line)
+                    except ValueError:
+                        continue
+                    if isinstance(row, dict) and row.get("thread_id"):
+                        messages.append(row)
+            voiced = any(SENTINEL in " ".join(m.get("bubbles") or []) for m in messages
+                         if m.get("from") not in ("player", "system") and m.get("voiced") is True)
+            # Since v0.23.0 T6 a person's memory holds the conversation's words (`memory.current`, the
+            # bridge), not a thread summary: the play text the save keeps about them.
+            people = ((state.get("social") or {}).get("people") or {}).values()
+            summarised = any(SENTINEL in json.dumps(p.get("memory") or {}, ensure_ascii=False) for p in people)
+            spoken = any(SENTINEL in str(m.get("transcript") or "") for m in messages if m.get("from") == "player")
             rows = ((state.get("social") or {}).get("media") or {}).values()
             heard = any(r.get("kind") == "voice" and SENTINEL in str(r.get("transcript") or "") for r in rows)
             if voiced and summarised and spoken and heard:
@@ -323,7 +404,7 @@ def _until_the_phone_save_holds_voiced_words(instance: HostingInstance) -> None:
         return False
 
     instance.until(voiced_and_summarised, 90,
-                   "the phone save holding a voiced reply, a summary and both voice notes' transcripts")
+                   "the phone save holding a voiced reply, the person's memory of it and both voice notes' transcripts")
 
 
 def _get_pages() -> list[str]:
@@ -462,3 +543,20 @@ def test_the_phone_save_holds_the_play_text_the_pages_do_not(instance: HostingIn
         response = admin.get(path)
         assert response.status_code == 200, (path, response.status_code)
         _no_sentinel(path, response.text)
+
+
+def test_no_log_line_or_metric_holds_a_typed_line(instance: HostingInstance, played: dict[str, Any]) -> None:
+    """A typed world line (v0.23.0 T23E) is in no process log, no metric, no audit line and no admin page."""
+    logs = [path for path in instance.data_dir.rglob("*.log*") if path.is_file() and not path.name.endswith(".lock")]
+    assert logs, "no process log was written"
+    for path in logs:
+        text = path.read_text(encoding="utf-8", errors="replace").lower()
+        assert TYPED.lower() not in text, f"{TYPED} in {path}"
+        for planted in PLANTED:
+            assert planted.lower() not in text, f"{planted} in {path}"
+    assert TYPED.lower() not in _dump(_db(instance)).lower()
+    admin: httpx.Client = played["admin"]
+    for path in _get_pages():
+        response = admin.get(path)
+        if response.status_code == 200:
+            assert TYPED.lower() not in response.text.lower(), path

@@ -5,16 +5,31 @@
  * what, its status and, for a meet-up, the engine's pick of place and time --
  * never the odds of a yes.
  *
- * Also the thread's game and meet-up cards (spec §18.2): a game with them
- * (`games`: whose turn, the scores, how it ended -- never their rack) and a
- * planned meet-up (`calendar`: where, when, its status; Go on the day,
- * Cancel while it is planned, `meet {do}`).
+ * Their requests with a meaning of their own are worded for it (v0.23.0
+ * T22): a job offered elsewhere (`stay_or_go`) is "Ask them to stay" / "Let
+ * them go" / "Later", so the player sees what each answer does (the engine's
+ * `life.answer_stay_or_go`: yes asks them to stay, no tells them to go,
+ * later leaves it open), and moving in and marrying say so.
+ *
+ * Also the thread's game card (spec §18.2): a game with them (`games`:
+ * whose turn, the scores, how it ended -- never their rack). A plan to meet
+ * has no card since v0.23.0: it is a row of Calendar's "Coming up".
  */
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 
 import { humanize, stampOf } from "../phone/format.js";
-import Confirm from "../phone/Confirm.jsx";
 import { askLine, GAME_WORDS } from "./media.js";
+
+/** The answers' own words for a request that means more than yes or no, by `request.what`. */
+export const ANSWER_LABELS = {
+  stay_or_go: { yes: "Ask them to stay", later: "Later", no: "Let them go" },
+  move_in: { yes: "Yes, move in", later: "Maybe later", no: "Not now" },
+  propose: { yes: "Say yes", later: "Maybe later", no: "Say no" },
+};
+const DEFAULT_LABELS = { yes: "Yes", later: "Maybe later", no: "No" };
+
+/** What an answer to a job offer does, said plainly under its buttons. */
+const JOB_NOTE = "Asking them to stay may keep them here. Letting them go means they take the job and you part ways.";
 
 /** A meet request's place and time, as the payload words them ("The Anchor · Fri 19:00"). */
 function meetWords(request) {
@@ -27,24 +42,26 @@ export default function RequestCard({ request, name, now, act, pending = null })
   const busy = Boolean(pending && pending.action === "answer" && pending.target === request.id);
   const answer = (reply) => act({ action: "answer", target: request.id, args: { reply }, text: "" });
   const where = meetWords(request);
+  const label = { ...DEFAULT_LABELS, ...(ANSWER_LABELS[request.what] || {}) };
   return (
     <li className={`rr-card rr-card--request${theirs ? "" : " rr-card--mine"}`} data-testid={`request-${request.id}`}>
       <p className="rr-card__line">{askLine(request.what, name, !theirs, request.game || "")}</p>
       {where && <p className="rr-card__sub">{where}</p>}
+      {theirs && request.what === "stay_or_go" && <p className="rr-card__sub">{JOB_NOTE}</p>}
       {theirs ? (
         <>
           {request.status === "later" && <p className="rr-card__sub">You said maybe later.</p>}
           <div className="rr-card__actions">
             <button type="button" className="rr-btn rr-btn--small" disabled={busy} onClick={() => answer("yes")}>
-              Yes
+              {label.yes}
             </button>
             {request.status !== "later" && (
               <button type="button" className="rr-btn rr-btn--small rr-btn--quiet" disabled={busy} onClick={() => answer("later")}>
-                Maybe later
+                {label.later}
               </button>
             )}
             <button type="button" className="rr-btn rr-btn--small rr-btn--quiet" disabled={busy} onClick={() => answer("no")}>
-              No
+              {label.no}
             </button>
           </div>
         </>
@@ -85,75 +102,6 @@ export function GameCard({ game, onOpenGame = null }) {
             {game.turn === "player" ? "Play" : "Open"}
           </button>
         </div>
-      )}
-    </li>
-  );
-}
-
-const MEET_STATUS = {
-  agreed: "Planned",
-  due: "It’s time",
-  going: "On your way",
-  cancelled: "Called off",
-  flaked: "Called off",
-  no_show: "Nobody came",
-};
-
-export function MeetCard({ meet, act, pending = null }) {
-  const [asking, setAsking] = useState(false);
-  // Focus follows the confirm (T28 review I1): onto "Keep it" when it opens (the Confirm's own), back to
-  // Cancel when it closes (Cancel is aria-disabled, not disabled, while the answer is awaited, so it can
-  // still hold focus).
-  const cancelRef = useRef(null);
-  const drawn = useRef(false);
-  useEffect(() => {
-    if (!drawn.current) {
-      drawn.current = true;
-      return;
-    }
-    if (!asking) cancelRef.current?.focus?.();
-  }, [asking]);
-  const busy = Boolean(pending && pending.action === "meet" && pending.target === meet.id);
-  const meetDo = (what) => {
-    setAsking(false);
-    act({ action: "meet", target: meet.id, args: { do: what }, text: "" });
-  };
-  const planned = meet.status === "agreed" || meet.status === "due";
-  const status = meet.status === "done" ? meet.recap_line || "Done" : MEET_STATUS[meet.status] || humanize(meet.status);
-  return (
-    <li className="rr-card rr-card--meet" data-testid={`meet-${meet.id}`}>
-      <p className="rr-card__line">
-        <span className="rr-card__kind">{meet.venue_label || humanize(meet.venue)}</span> · {meet.when}
-      </p>
-      <p className="rr-card__sub">{status}</p>
-      {planned && !asking && (
-        <div className="rr-card__actions">
-          {meet.status === "due" && (
-            <button type="button" className="rr-btn rr-btn--small" disabled={busy} onClick={() => meetDo("go")}>
-              Go
-            </button>
-          )}
-          <button
-            ref={cancelRef}
-            type="button"
-            className="rr-btn rr-btn--small rr-btn--quiet"
-            aria-disabled={busy || undefined}
-            onClick={() => !busy && setAsking(true)}
-          >
-            Cancel
-          </button>
-        </div>
-      )}
-      {planned && asking && (
-        <Confirm
-          label="Cancel the meet-up?"
-          ask="Call it off?"
-          yes="Call it off"
-          no="Keep it"
-          busy={busy}
-          onYes={() => meetDo("cancel")}
-          onNo={() => setAsking(false)}
-        />
       )}
     </li>
   );

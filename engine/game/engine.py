@@ -51,9 +51,11 @@ class MoveResult:
     # -- see engine/game/inventory.py::travel_stamina_multiplier. Carried so
     # the receipt can say WHY the leg cost half again what the road charges.
     overloaded: bool = False
+    # Whole minutes on top of ``hours`` for a minutes edge (v0.23.0 I3); 0 everywhere else.
+    minutes: int = 0
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        out = {
             "success": self.success,
             "from_id": self.from_id,
             "to_id": self.to_id,
@@ -64,6 +66,9 @@ class MoveResult:
             "encounter": dict(self.encounter),
             "overloaded": self.overloaded,
         }
+        if self.minutes:
+            out["minutes"] = self.minutes
+        return out
 
 
 class GameEngine:
@@ -138,6 +143,7 @@ class GameEngine:
             edge = {"hours": shortcut, "danger_dc": 0, "awareness_delta": 0}
 
         hours = int(edge.get("hours", 1))
+        minutes = int(edge.get("minutes", 0))
         if shortcut is not None:
             hours = min(hours, shortcut)
         # Carry weight bites here and only here. An over-limit pack scales what
@@ -200,7 +206,7 @@ class GameEngine:
         # Travel time goes through the clock so evil, survival and expiries all
         # advance with it. The old inline arithmetic moved the calendar without
         # ticking anything, and mis-rolled the day for hours == 0 and hours >= 24.
-        advance_time(self.state, float(hours))
+        advance_time(self.state, float(hours) + minutes / 60.0)
 
         awareness_delta = float(edge.get("awareness_delta", 0))
         effects_module.apply_effect(
@@ -213,6 +219,7 @@ class GameEngine:
             from_id=current,
             to_id=location_id,
             hours=hours,
+            minutes=minutes,
             stamina_cost=stamina_cost,
             message=f"Arrived at {location_id}.",
             awareness_delta=awareness_delta,

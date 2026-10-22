@@ -1,0 +1,92 @@
+# READ RECEIPTS -- the boiler (v0.23.0 spec §11.2): a life event's world moment.
+# ==========================================================================
+#
+# Dealt in the kitchen while the boiler has gone (`life_boiler`, set by the life event `boiler`
+# in data/social/life_events.yaml and cleared when it has run its two days, or by either answer
+# here). Read by engine/content/deck.py through `paths.decks`; THE FILENAME IS THE DECK ID.
+#
+# An ordinary domestic nuisance and nothing more: a cold tap, a clank behind the wall. Both answers are
+# roll-free and either mends it. REPEATABLE: the event comes round again (cooldown 60 days), the flag
+# clears, the director re-arms the deck when its `when:` is seen false, and it deals the next time.
+# The director deals nothing over an open scene (v0.23.0 T14), so this waits for the kitchen to be
+# the player's own again.
+#
+# Version: v0.1.0
+
+id: boiler
+
+repeatable: true
+
+draw: 1
+
+when:
+  all:
+    - { flag: life_boiler }
+    - { at_location: apt_kitchen }
+
+cards:
+
+  - id: BO1_the_cold_tap
+    tags: [menu, gm]
+    title: "The Cold Tap"
+    text: >-
+      INTENT: the kitchen tap runs cold, and somewhere behind the wall the boiler clanks twice and
+      goes quiet. The flat is getting cooler. CONSTRAINTS: it is a nuisance, not a catastrophe; the
+      player decides how to deal with it. MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: reset_it
+        label: "Press the reset button and wait"
+        text: >-
+          Press the reset button on the boiler cupboard's panel and wait. It ticks, thinks about it,
+          and a pilot light catches.
+        gate:
+          on_pass:
+            text: >-
+              The boiler gives a long sigh and the pipes begin to knock their way warm. It will do,
+              for now.
+            effects:
+              - { type: flag, flag: life_boiler, value: false }
+
+      - id: ring_the_landlord
+        label: "Ring the landlord"
+        text: >-
+          Ring the landlord and leave a message about the boiler.
+        gate:
+          on_pass:
+            text: >-
+              The landlord's phone goes to voicemail, so you leave a clear message and make a cup of
+              tea on the hob. Somebody will come, in time.
+            effects:
+              - { type: flag, flag: life_boiler, value: false }
+
+  - id: BO2_the_cupboard
+    tags: [menu, gm]
+    title: "The Cupboard"
+    text: >-
+      INTENT: the boiler cupboard door hangs open on a small red light and a gauge that has dropped to
+      nothing. CONSTRAINTS: a small domestic fix, nothing dangerous; the player decides what to do.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: top_up_the_pressure
+        label: "Top up the pressure"
+        text: >-
+          Open the little valve on the filling loop until the gauge climbs back into the green.
+        gate:
+          on_pass:
+            text: >-
+              The needle creeps up to the green and the boiler fires with a soft whump. The radiators
+              start to tick.
+            effects:
+              - { type: flag, flag: life_boiler, value: false }
+
+      - id: wrap_up_and_wait
+        label: "Put a jumper on and sort it later"
+        text: >-
+          Put a jumper on and leave the boiler for later.
+        gate:
+          on_pass:
+            text: >-
+              You find the thick jumper, close the cupboard door on the red light and decide the boiler
+              can be somebody's problem in the morning.
+            effects:
+              - { type: flag, flag: life_boiler, value: false }

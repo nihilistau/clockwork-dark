@@ -1,11 +1,12 @@
 """
-Messaging and pacing (v0.22.0 spec §9, T8): sends, reads, replies on the
-person's own clock, bursts, ghosts, openers, initiations, double texts, read
-receipts, numbers, and the threads / notifications / open_thread payload.
+Messaging (v0.22.0 spec §9, T8; v0.23.0 T3): sends, reads, bursts, ghosts,
+openers, initiations, double texts, read receipts, numbers, and the threads /
+notifications / open_thread payload. The conversation itself -- instant
+replies, episodes, the nudge, availability -- is tests/test_social_convo.py.
 
 Every draw a test depends on is forced (pre-flight F16): an archetype field
-replaced, the stage factor or the number draw pinned, interest set through
-`social_person`. No test passes or fails by its seed.
+replaced, the per-episode-start draws or the number draw pinned, interest set
+through `social_person`. No test passes or fails by its seed.
 """
 
 from __future__ import annotations
@@ -27,6 +28,17 @@ def _pace(monkeypatch, **fields) -> None:
     monkeypatch.setattr(behaviour, "archetype", lambda name: dataclasses.replace(real(name), **fields))
 
 
+def _forced(monkeypatch, *, reply: float = 100.0, ghost: float = 0.0, read_after: float = 0.0) -> None:
+    """The per-episode-start draws forced (v0.23.0 T3, F16): the reply and ghost factors pinned, and the
+    person's read at the send's minute plus ``read_after`` hours (`convo.next_available`)."""
+    from engine.social import convo
+
+    monkeypatch.setattr(convo, "_reply_factor", lambda state, pid: reply)
+    monkeypatch.setattr(convo, "_ghost_factor", lambda state, pid: ghost)
+    monkeypatch.setattr(convo, "available", lambda state, pid, at: convo.Availability(not read_after))
+    monkeypatch.setattr(convo, "next_available", lambda state, pid, at: at + read_after)
+
+
 def _theirs(state, thread: str) -> list[dict]:
     pid = thread.split(":", 1)[1]
     return [m for m in state.social["threads"][thread]["messages"] if m["from"] == pid]
@@ -35,53 +47,16 @@ def _theirs(state, thread: str) -> list[dict]:
 # -- the brief's tests ------------------------------------------------------------------------
 
 
-def test_a_read_comes_before_its_reply(receipts_state, matched, monkeypatch) -> None:
-    from engine.game import clock
-    from engine.social import messaging
-
-    thread = matched("matchstick")
-    # Every draw forced (F16): the read falls after the send's 2 minutes, a reply is sure, no ghost.
-    _pace(monkeypatch, read_minutes=(30.0, 0.0), reply_minutes=(10.0, 0.0), reply_prob=1.0,
-          ghost_per_exchange=0.0)
-    monkeypatch.setattr(messaging, "_interest_factor", lambda interest: 1.0)
-    monkeypatch.setattr(messaging, "_burst_factor", lambda burst: 1.0)
-    messaging.send(receipts_state, thread, "text", "hey! how was the climb?")
-    queued = [e for e in receipts_state.social["queue"] if e["pid"] == thread.split(":")[1]]
-    assert queued[0]["kind"] == "read"
-    read_at = queued[0]["at"]           # Matchstick keeps no receipts, so the read's own time
-    clock.advance_time(receipts_state, 48)
-    msgs = receipts_state.social["threads"][thread]["messages"]
-    theirs = [m for m in msgs if m["from"] != "player"]
-    replies = [m for m in theirs if m["decision"]["situation"] == "reply"]
-    assert replies and replies[0]["at"] > read_at > msgs[0]["at"]
-    assert all(m["at"] > msgs[0]["at"] for m in theirs)
-    assert all(m["voiced"] is False and m["bubbles"] == [] for m in theirs)   # due, not voiced: no model ran
-
-
 def test_a_burst_gets_one_reply_decision(receipts_state, matched, monkeypatch) -> None:
     from engine.social import messaging
 
     thread = matched("matchstick")
     pid = thread.split(":")[1]
-    _pace(monkeypatch, read_minutes=(30.0, 0.0))
+    _forced(monkeypatch, read_after=0.5)                   # not reading yet: no conversation going
     for text in ("hey", "how's your week", "also: dogs or cats"):
         messaging.send(receipts_state, thread, "text", text)
     reads = [e for e in receipts_state.social["queue"] if e["pid"] == pid and e["kind"] == "read"]
     assert len(reads) == 1
-
-
-def test_an_asleep_person_reads_on_waking(receipts_state, matched, monkeypatch) -> None:
-    from engine.social import behaviour, messaging
-
-    thread = matched("matchstick")
-    pid = thread.split(":")[1]
-    monkeypatch.setattr(behaviour, "status_at", lambda person, hour: "asleep" if hour % 24 < 7 else "free")
-    monkeypatch.setattr(behaviour, "next_awake", lambda person, hour: (hour // 24) * 24 + 7)
-    _pace(monkeypatch, read_minutes=(30.0, 0.0))
-    _set_clock(receipts_state, hour=2)
-    messaging.send(receipts_state, thread, "text", "you up?")
-    read = next(e for e in receipts_state.social["queue"] if e["pid"] == pid and e["kind"] == "read")
-    assert read["at"] % 24 == pytest.approx(7)
 
 
 def test_equal_times_replay_in_seq_order(receipts_active) -> None:
@@ -105,15 +80,20 @@ def test_a_ghost_cancels_their_queue(receipts_state, matched, monkeypatch) -> No
     from engine.game import clock
     from engine.social import messaging
 
+    from engine import social
+    from engine.social import convo, events
+
     thread = matched("matchstick")
     pid = thread.split(":")[1]
-    _pace(monkeypatch, ghost_per_exchange=1.0)
-    monkeypatch.setattr(messaging, "_stage_factor", lambda stage: 1.0)
-    _set_person(receipts_state, pid, interest=0)           # (1 - interest/100) == 1: ghost_p == 1.0
+    _pace(monkeypatch, ghost_per_episode=1.0)
+    _set_person(receipts_state, pid, interest=0)           # (1 - interest/100) == 1
+    real = social.data("conversation")
+    monkeypatch.setattr(convo, "_data", lambda: {**real, "reply": {**real["reply"], "stage_factor": {"default": 1.0}}})
+    monkeypatch.setattr(convo, "next_available", lambda state, pid_, at: at)        # ghost_p == 1.0, read now
     messaging.send(receipts_state, thread, "text", "hi")
     clock.advance_time(receipts_state, 72)
     assert receipts_state.social["people"][pid]["ghosted"] is True
-    assert not [e for e in receipts_state.social["queue"] if e["pid"] == pid]
+    assert not [e for e in receipts_state.social["queue"] if e["pid"] == pid and e["kind"] in events.REPLY_FAMILY]
     # A ghost is hidden: the payload never says so.
     assert "ghosted" not in repr(receipts_state.to_client_dict()["phone"])
 
@@ -122,7 +102,7 @@ def test_receipts_on_writes_read_at_and_off_hides_both_ways(receipts_state, matc
     from engine.game import clock
     from engine.social import messaging, payload
 
-    _pace(monkeypatch, read_minutes=(30.0, 0.0), reply_minutes=(10.0, 0.0))     # the read within the 48 h (F16)
+    _forced(monkeypatch, read_after=0.5)                                     # the read within the 48 h (F16)
     thread = matched_numbers("natter")
     pid = thread.split(":")[1]
     messaging.send(receipts_state, thread, "text", "morning!")
@@ -164,8 +144,7 @@ def test_numbers_open_texts_and_natter(receipts_state, matched, monkeypatch) -> 
     thread = matched("matchstick")
     pid = thread.split(":")[1]
     monkeypatch.setattr(messaging, "_number_accepted", lambda state, pid: True)
-    monkeypatch.setattr(messaging, "_stage_factor", lambda stage: 0.0)       # no ghost (F16)
-    _pace(monkeypatch, read_minutes=(30.0, 0.0), reply_minutes=(10.0, 0.0))  # read and answered inside the 24 h
+    _forced(monkeypatch, read_after=0.5)                                    # no ghost, read inside the 24 h (F16)
     _force_stage(receipts_state, pid, "talking")
     _set_person(receipts_state, pid, **_at(relationships.gate_spec("numbers")))   # the numbers gate holds (T9)
     assert _act(receipts_state, "ask", target=thread, args={"what": "number"})["success"]
@@ -193,9 +172,7 @@ def test_a_declined_number_is_a_decline_and_opens_nothing(receipts_state, matche
     thread = matched("matchstick")
     pid = thread.split(":")[1]
     monkeypatch.setattr(messaging, "_number_accepted", lambda state, pid: False)
-    monkeypatch.setattr(messaging, "_stage_factor", lambda stage: 0.0)
-    _pace(monkeypatch, read_minutes=(30.0, 0.0),          # still unread when the second ask comes (F16)
-          reply_minutes=(10.0, 0.0))                       # and answered inside the 24 h
+    _forced(monkeypatch, read_after=0.5)                   # still unread when the second ask comes (F16)
     _force_stage(receipts_state, pid, "talking")
     assert _act(receipts_state, "ask", target=thread, args={"what": "number"})["success"]
     again = _act(receipts_state, "ask", target=thread, args={"what": "number"})        # asked again: one burst (T9)
@@ -215,8 +192,7 @@ def _asked_for_the_number(state, matched, monkeypatch, *, gate_holds: bool, acce
     thread = matched("matchstick")
     pid = thread.split(":")[1]
     monkeypatch.setattr(messaging, "_number_accepted", lambda state_, pid_: accepted)
-    monkeypatch.setattr(messaging, "_stage_factor", lambda stage: 0.0)        # no ghost (F16)
-    _pace(monkeypatch, read_minutes=(30.0, 0.0), reply_minutes=(10.0, 0.0))
+    _forced(monkeypatch, read_after=0.5)                                     # no ghost (F16)
     _force_stage(state, pid, "talking")
     if gate_holds:
         _set_person(state, pid, **_at(relationships.gate_spec("numbers")))
@@ -226,12 +202,12 @@ def _asked_for_the_number(state, matched, monkeypatch, *, gate_holds: bool, acce
 
 
 @pytest.mark.parametrize("gate_holds, why, line", [
-    (False, "not yet", "Your answer: not yet, it's too early."),
+    (False, "not_yet", "Your answer: not yet, it's too early."),
     (True, "draw", "Your answer: no."),
 ])
 def test_a_declined_numbers_why_is_carried_to_the_voice_and_the_phone(receipts_state, matched, monkeypatch,
                                                                         gate_holds: bool, why: str, line: str) -> None:
-    """Owner bug (final review wave 2): "not yet" (the gate) is said as such; a draw's no stays a plain no."""
+    """Owner bug (final review wave 2): `not_yet` (the gate, v0.23.0 T5's spelling) is said as such; a draw's no stays a plain no."""
     from engine.social import messaging, voicing
 
     thread, pid = _asked_for_the_number(receipts_state, matched, monkeypatch, gate_holds=gate_holds, accepted=False)
@@ -243,7 +219,23 @@ def test_a_declined_numbers_why_is_carried_to_the_voice_and_the_phone(receipts_s
     (decline,) = [m for m in t["messages"] if (m.get("decision") or {}).get("kind") == "decline"]
     assert "declined" not in messaging.message_view(receipts_state, t, decline)      # due: nothing told yet
     view = messaging.message_view(receipts_state, t, {**decline, "voiced": True, "bubbles": ["not yet x"]})
-    assert view.get("declined") == ("not_yet" if why == "not yet" else "no")
+    assert view.get("declined") == ("not_yet" if why == "not_yet" else "no")
+
+
+def test_a_v022_not_yet_spelling_is_still_said_and_shown(receipts_state, matched, monkeypatch) -> None:
+    """Review minor: a v0.22.0 save's request carries `why: "not yet"`; the voice and the phone still read
+    it as the gate's no (`relationships.NOT_YET_WHYS`)."""
+    from engine.social import messaging, voicing
+
+    thread, pid = _asked_for_the_number(receipts_state, matched, monkeypatch, gate_holds=False, accepted=False)
+    (request,) = [r for r in receipts_state.social["requests"].values() if r["what"] == "number"]
+    request["why"] = "not yet"                                    # as v0.22.0 wrote it
+    snap = voicing.snapshot_of(receipts_state, thread)
+    assert "Your answer: not yet, it's too early." in voicing.messages(snap)[-1]["content"]
+    t = receipts_state.social["threads"][thread]
+    (decline,) = [m for m in t["messages"] if (m.get("decision") or {}).get("kind") == "decline"]
+    view = messaging.message_view(receipts_state, t, {**decline, "voiced": True, "bubbles": ["x"]})
+    assert view.get("declined") == "not_yet"
 
 
 def test_a_thread_row_lists_their_number_only_once_the_gate_holds(receipts_state, matched) -> None:
@@ -275,8 +267,8 @@ def test_a_reply_is_left_on_read_when_the_draw_says_so(receipts_state, matched, 
 
     thread = matched("matchstick")
     pid = thread.split(":")[1]
-    _pace(monkeypatch, reply_prob=0.0, ghost_per_exchange=0.0, read_minutes=(30.0, 0.0),
-          double_text={"after_hours": 1, "prob": 0, "max_in_row": 0})
+    _pace(monkeypatch, double_text={"after_hours": 1, "prob": 0, "max_in_row": 0})
+    _forced(monkeypatch, reply=0.0, read_after=0.5)
     messaging.send(receipts_state, thread, "text", "hello?")
     assert [e for e in receipts_state.social["queue"] if e["pid"] == pid and e["kind"] == "read"]
     clock.advance_time(receipts_state, 48)
@@ -284,22 +276,21 @@ def test_a_reply_is_left_on_read_when_the_draw_says_so(receipts_state, matched, 
     assert not [m for m in _theirs(receipts_state, thread) if m["decision"]["situation"] == "reply"]
 
 
-def test_a_sure_reply_lands_due_with_a_bubble_cap_by_burst(receipts_state, matched, monkeypatch) -> None:
+def test_a_sure_reply_lands_due_shaped_by_the_conversation(receipts_state, matched, monkeypatch) -> None:
+    """v0.23.0 §4.5: a reply's bubbles come from its MODE (a first exchange is `quick`, 1-2), never the burst;
+    a burst only raises the minimum. Replaces v0.22's bubble cap by burst (`1 + burst`)."""
     from engine.game import clock
     from engine.social import messaging
 
     thread = matched("matchstick")
-    pid = thread.split(":")[1]
-    _pace(monkeypatch, reply_prob=1.0, ghost_per_exchange=0.0, read_minutes=(30.0, 0.0), reply_minutes=(10.0, 0.0))
-    monkeypatch.setattr(messaging, "_interest_factor", lambda interest: 1.0)
-    monkeypatch.setattr(messaging, "_burst_factor", lambda burst: 1.0)
+    _forced(monkeypatch, read_after=0.5)
     messaging.send(receipts_state, thread, "text", "one")
     messaging.send(receipts_state, thread, "text", "two")
     clock.advance_time(receipts_state, 48)
     reply = next(m for m in _theirs(receipts_state, thread) if m["decision"]["situation"] == "reply")
-    assert reply["voiced"] is False and reply["decision"]["max_bubbles"] == 3      # 1 + a burst of two
+    assert reply["voiced"] is False and reply["decision"]["mode"] == "quick"
+    assert reply["decision"]["max_bubbles"] == 2 and reply["decision"]["min_bubbles"] == 1
     assert messaging.unvoiced(receipts_state)[0]["id"] in {m["id"] for m in _theirs(receipts_state, thread)}
-    assert not receipts_state.social["people"][pid]["pending_read"].get(thread)
 
 
 def test_a_burst_across_threads_reads_each_thread(receipts_state, matched_numbers, monkeypatch) -> None:
@@ -307,7 +298,7 @@ def test_a_burst_across_threads_reads_each_thread(receipts_state, matched_number
     from engine.game import clock
     from engine.social import messaging
 
-    _pace(monkeypatch, read_minutes=(30.0, 0.0), reply_minutes=(10.0, 0.0), ghost_per_exchange=0.0)
+    _forced(monkeypatch, read_after=0.5)
     natter = matched_numbers("natter")
     pid = natter.split(":")[1]
     messaging.send(receipts_state, f"texts:{pid}", "text", "on texts")
@@ -325,7 +316,8 @@ def test_the_double_text_cap_holds_when_another_message_lands_first(receipts_sta
     from engine.social import messaging
     from engine.social.kinds import Decision
 
-    row = {"id": "hello", "kind": "text", "prob": 1.0, "instruction": "check_in"}
+    row = {"id": "hello", "kind": "text", "window": "evening", "prob": [1, 1, 1, 1, 1],
+           "instruction": "window_message"}
     _pace(monkeypatch, reply_minutes=(5.0, 0.0), opener_prob=1.0, initiations=(row,),
           double_text={"after_hours": 3.0, "prob": 1.0, "max_in_row": 1})
     monkeypatch.setattr(messaging.behaviour, "status_at", lambda person, hour: "free")
@@ -340,7 +332,7 @@ def test_the_double_text_cap_holds_when_another_message_lands_first(receipts_sta
 
     apply_effect(receipts_state, {"type": "social_event", "event": {
         "at": receipts_state.world_clock_hours + 1, "seq": 0, "pid": pid, "kind": "initiate", "thread_id": thread,
-        "initiation": "hello", "decision": {**Decision(situation="check_in").__dict__}}})
+        "initiation": "hello", "decision": {**Decision(situation="window_message").__dict__}}})
     clock.advance_time(receipts_state, 24)
     doubles = [m for m in _theirs(receipts_state, thread) if m["decision"]["situation"] == "double_text"]
     assert len(doubles) == 1                                   # max_in_row: 1, however many messages landed
@@ -363,7 +355,8 @@ def test_writing_first_cancels_their_opener(receipts_state, matched, monkeypatch
 
     thread = matched("matchstick")
     pid = thread.split(":")[1]
-    _pace(monkeypatch, opener_prob=1.0, reply_prob=0.0, ghost_per_exchange=0.0)
+    _pace(monkeypatch, opener_prob=1.0)
+    _forced(monkeypatch, reply=0.0)
     assert [e for e in receipts_state.social["queue"] if e["pid"] == pid and e["kind"] == "initiate"]
     messaging.send(receipts_state, thread, "text", "me first")
     assert not [e for e in receipts_state.social["queue"] if e["pid"] == pid and e["kind"] == "initiate"]
@@ -386,35 +379,40 @@ def test_a_player_reply_stops_their_double_texts(receipts_state, matched, monkey
 
     thread = matched("matchstick")
     pid = thread.split(":")[1]
-    _pace(monkeypatch, opener_prob=1.0, reply_prob=0.0, ghost_per_exchange=0.0,
-          double_text={"after_hours": 5.0, "prob": 1.0, "max_in_row": 3})
+    _pace(monkeypatch, opener_prob=1.0, double_text={"after_hours": 5.0, "prob": 1.0, "max_in_row": 3})
+    _forced(monkeypatch, reply=0.0)
     due = next(e for e in receipts_state.social["queue"] if e["pid"] == pid and e["kind"] == "initiate")
     clock.advance_time(receipts_state, due["at"] - receipts_state.world_clock_hours)
-    assert [e for e in receipts_state.social["queue"] if e["pid"] == pid and e["kind"] == "double_text"]
+    waiting = {e["seq"] for e in receipts_state.social["queue"] if e["pid"] == pid and e["kind"] == "double_text"}
+    assert waiting
     messaging.send(receipts_state, thread, "text", "sorry, was out")
-    assert not [e for e in receipts_state.social["queue"] if e["pid"] == pid and e["kind"] == "double_text"]
+    # The chain waiting on the player's silence is gone (their answer, landed since, may start its own).
+    assert not [e for e in receipts_state.social["queue"] if e["pid"] == pid and e["seq"] in waiting]
 
 
 def test_an_initiation_is_queued_while_its_when_holds(receipts_state, matched_numbers, monkeypatch) -> None:
+    """An initiation row by window (v0.23.0 §4.7), its chance forced to 1 at every depth: it lands while its
+    `when` holds, and never below its stage_min."""
     from engine.game import clock
-    from engine.social import messaging
+    from engine.social import convo, messaging
 
-    row = {"id": "good_morning", "kind": "text", "prob_per_day": 1.0, "when": {"stage_min": "numbers"},
-           "at_hours": [10], "instruction": "good_morning"}
+    row = {"id": "good_morning", "kind": "text", "window": "waking", "prob": [1, 1, 1, 1, 1],
+           "when": {"stage_min": "numbers"}, "instruction": "window_message"}
     _pace(monkeypatch, initiations=(row,), opener_prob=0.0, double_text={"after_hours": 1, "prob": 0, "max_in_row": 0})
-    monkeypatch.setattr(messaging.behaviour, "status_at", lambda person, hour: "free")
+    monkeypatch.setattr(messaging.behaviour, "status_at", lambda person, hour: "free" if hour % 24 >= 7 else "asleep")
+    monkeypatch.setattr(convo, "_reply_factor", lambda state, pid: 0.0)
     thread = matched_numbers("natter")
     pid = thread.split(":")[1]
     clock.advance_time(receipts_state, 72)
     situations = [m["decision"]["situation"] for t in receipts_state.social["threads"].values()
                   if t["pid"] == pid for m in t["messages"] if m["from"] == pid]
-    assert "good_morning" in situations
+    assert "window_message" in situations
     # Below its stage_min, it never comes.
     _force_stage(receipts_state, pid, "talking")
-    before = situations.count("good_morning")
+    before = situations.count("window_message")
     clock.advance_time(receipts_state, 48)
     after = [m for t in receipts_state.social["threads"].values() if t["pid"] == pid
-             for m in t["messages"] if m["from"] == pid and m["decision"]["situation"] == "good_morning"]
+             for m in t["messages"] if m["from"] == pid and m["decision"]["situation"] == "window_message"]
     assert len(after) == before
 
 
@@ -449,12 +447,12 @@ def test_a_send_after_an_unmatch_is_refused_in_words(receipts_state, matched) ->
 
 
 def test_a_send_spends_its_minutes_and_needs_words(receipts_state, matched) -> None:
-    from engine.social import apps
+    from engine import social
 
     thread = matched("matchstick")
     before = receipts_state.world_clock_hours
     assert _act(receipts_state, "send", target=thread, args={"kind": "text"}, text="hey you")["success"]
-    assert receipts_state.world_clock_hours - before == pytest.approx(apps.app("matchstick")["cost_minutes"]["text"] / 60)
+    assert receipts_state.world_clock_hours - before == pytest.approx(social.data("conversation")["costs"]["text"] / 60)
     assert _act(receipts_state, "send", target=thread, args={"kind": "text"}, text="")["refused"]
     photo = _act(receipts_state, "send", target=thread, args={"kind": "photo"}, text="look")
     assert photo["refused"] and photo["result"]["error"] == "Matchstick can't send photos"
@@ -519,11 +517,12 @@ def test_thread_for_is_the_last_written_to(receipts_state, matched_numbers) -> N
     assert messaging.thread_for(receipts_state, pid) == natter
 
 
-def test_the_threads_section_hides_closed_threads_and_hidden_values(receipts_state, matched) -> None:
+def test_the_threads_section_hides_closed_threads_and_hidden_values(receipts_state, matched, monkeypatch) -> None:
     from engine.social import messaging
 
     thread = matched("matchstick")
     pid = thread.split(":")[1]
+    _forced(monkeypatch, read_after=0.5)                   # not read yet: "delivered"
     messaging.send(receipts_state, thread, "text", "hello")
     rows = receipts_state.to_client_dict()["phone"]["threads"]
     row = next(r for r in rows if r["thread_id"] == thread)
@@ -548,7 +547,7 @@ def test_decision_is_one_class_in_kinds() -> None:
     assert dataclasses.asdict(kinds.Decision(situation="reply"))["max_bubbles"] == 3
 
 
-def test_the_shipped_pacing_validates_clean() -> None:
+def test_the_shipped_behaviours_validate_clean() -> None:
     from engine.games.validation import errors_only, validate_story
 
     errors = [i for i in errors_only(validate_story("read-receipts")) if "behaviours" in i.source or "apps" in i.source]
@@ -556,10 +555,8 @@ def test_the_shipped_pacing_validates_clean() -> None:
 
 
 _BROKEN = {
-    "pacing_missing": ("social/behaviours.yaml", "pacing"),
-    "burst_empty": ("social/behaviours.yaml", "pacing.burst_factor"),
-    "status_unknown": ("social/behaviours.yaml", "pacing.status_mult"),
-    "stage_unknown": ("social/behaviours.yaml", "pacing.stage_factor"),
+    "pacing_back": ("social/behaviours.yaml", "pacing"),
+    "window_unknown": ("social/behaviours.yaml", "archetypes.romantic.initiations[0](good_morning).window"),
     "when_unknown_key": ("social/behaviours.yaml", "archetypes.romantic.initiations[0](good_morning).when"),
     "when_bad_stage": ("social/behaviours.yaml", "archetypes.romantic.initiations[0](good_morning).when"),
     "first_message": ("social/apps.yaml", "apps.matchstick.first_message"),
@@ -568,7 +565,7 @@ _BROKEN = {
 
 
 @pytest.mark.parametrize("how", sorted(_BROKEN))
-def test_a_broken_pacing_or_when_is_an_error_naming_its_key(tmp_path, how) -> None:
+def test_a_broken_initiation_or_app_is_an_error_naming_its_key(tmp_path, how) -> None:
     import shutil
 
     import yaml
@@ -583,18 +580,14 @@ def test_a_broken_pacing_or_when_is_an_error_naming_its_key(tmp_path, how) -> No
     behaviours = yamlio.safe_load((social_dir / "behaviours.yaml").read_text(encoding="utf-8"))
     apps_ = yamlio.safe_load((social_dir / "apps.yaml").read_text(encoding="utf-8"))
     romantic = behaviours["archetypes"]["romantic"]["initiations"][0]
-    if how == "pacing_missing":
-        del behaviours["pacing"]
-    elif how == "burst_empty":
-        behaviours["pacing"]["burst_factor"] = []
-    elif how == "status_unknown":
-        behaviours["pacing"]["status_mult"]["dancing"] = 1.0
-    elif how == "stage_unknown":
-        behaviours["pacing"]["stage_factor"]["engaged"] = 1.0
+    if how == "pacing_back":                  # v0.22's block: its terms are conversation.yaml's `reply:` now
+        behaviours["pacing"] = {"interest_factor": [0.3, 1.5]}
+    elif how == "window_unknown":
+        romantic["window"] = "brunch"
     elif how == "when_unknown_key":
         romantic["when"]["moon"] = "full"
     elif how == "when_bad_stage":
-        romantic["when"]["stage_min"] = "engaged"
+        romantic["when"]["stage_min"] = "eloped"  # no stage (v0.23 made "engaged" one)
     elif how == "first_message":
         apps_["apps"]["matchstick"]["first_message"] = "whoever"
     else:
@@ -608,33 +601,32 @@ def test_a_broken_pacing_or_when_is_an_error_naming_its_key(tmp_path, how) -> No
     assert _BROKEN[how] in named, validator.issues
 
 
-def test_a_ghost_clears_reads_pending_in_other_threads(receipts_state, matched_numbers, monkeypatch) -> None:
-    """Re-review 1: a ghost cancels their whole queue, so every pending read mark goes with it."""
+def test_a_ghost_drops_the_reads_waiting_in_other_threads(receipts_state, matched_numbers, monkeypatch) -> None:
+    """Re-review 1, v0.23.0: a ghost cancels their reply family, so the read waiting in their other thread
+    goes with it; after a reconnect a send in that thread is read again (the queue is the burst rule's record)."""
     from engine.game import clock
-    from engine.social import messaging
+    from engine.social import convo, messaging
 
-    _pace(monkeypatch, read_minutes=(30.0, 0.0), ghost_per_exchange=1.0)
-    monkeypatch.setattr(messaging, "_stage_factor", lambda stage: 1.0)
+    _forced(monkeypatch, ghost=1.0, read_after=0.5)
     natter = matched_numbers("natter")
     pid = natter.split(":")[1]
-    _set_person(receipts_state, pid, interest=0)                       # ghost_p == 1.0 (F16)
     messaging.send(receipts_state, f"texts:{pid}", "text", "on texts")
     messaging.send(receipts_state, natter, "text", "and natter")
     reads = [e for e in receipts_state.social["queue"] if e["pid"] == pid and e["kind"] == "read"]
     assert len(reads) == 2
     clock.advance_time(receipts_state, reads[0]["at"] - receipts_state.world_clock_hours)   # the first read ghosts
     assert receipts_state.social["people"][pid]["ghosted"] is True
-    assert not receipts_state.social["people"][pid]["pending_read"]
+    assert not [e for e in receipts_state.social["queue"] if e["pid"] == pid and e["kind"] == "read"]
     # They come back (a reconnect), and the player writes in Natter again: it is read.
     _set_person(receipts_state, pid, ghosted=False)
-    _pace(monkeypatch, ghost_per_exchange=0.0)
+    monkeypatch.setattr(convo, "_ghost_factor", lambda state, pid_: 0.0)
     messaging.send(receipts_state, natter, "text", "hey, welcome back")
     assert [e for e in receipts_state.social["queue"] if e["pid"] == pid and e["kind"] == "read"
             and e["thread_id"] == natter]
 
 
-def test_load_all_refuses_a_malformed_pacing_block(tmp_path, monkeypatch) -> None:
-    """Re-review 2: pacing: is checked once, when the story's data loads (the load rule)."""
+def test_load_all_refuses_a_malformed_conversation_file(tmp_path, monkeypatch) -> None:
+    """Re-review 2, v0.23.0: conversation.yaml is checked once, when the story's data loads (the load rule)."""
     import shutil
 
     import yaml
@@ -642,14 +634,14 @@ def test_load_all_refuses_a_malformed_pacing_block(tmp_path, monkeypatch) -> Non
     from engine import social, yamlio
 
     source = social._ROOT / "games" / "read-receipts" / "data" / "social"
-    for path in source.glob("*.yaml"):
+    for path in source.glob("*.*"):                                    # words.txt too: games.yaml needs it
         shutil.copy(path, tmp_path / path.name)
-    data = yamlio.safe_load((source / "behaviours.yaml").read_text(encoding="utf-8"))
-    data["pacing"]["burst_factor"] = "lots"
-    (tmp_path / "behaviours.yaml").write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+    data = yamlio.safe_load((source / "conversation.yaml").read_text(encoding="utf-8"))
+    data["talk"]["per_depth"] = "lots"
+    (tmp_path / "conversation.yaml").write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
     monkeypatch.setattr(social, "_DATA_CACHE", None)
     monkeypatch.setattr(social, "social_dir", lambda: tmp_path)
-    with pytest.raises(ValueError, match=r"behaviours\.yaml: pacing\.burst_factor"):
+    with pytest.raises(ValueError, match=r"conversation\.yaml: talk\.per_depth"):
         social.load_all()
     assert social._DATA_CACHE is None                                   # nothing half-loaded is cached
 

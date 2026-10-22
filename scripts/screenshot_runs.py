@@ -74,6 +74,8 @@ PLAYERS: dict[str, str] = {
     "held": "Wren Kell",
     "phone": "Wren Calloway",
     "media": "Wren Fairley",
+    "world": "Wren Vesper",
+    "scene": "Wren Larkin",
 }
 #: Each story's archetype, named rather than left to the manifest's default.
 ARCHETYPES: dict[str, str] = {
@@ -205,6 +207,22 @@ RUNS: dict[str, dict[str, tuple[Step, ...]]] = {
             ("phone", "game_invite", "wordgame", "1"),
             ("phone", "wait", "next", "3"),
             ("phone", "open_thread", "natter", "1"),
+        ),
+        # v0.23.0 T23 (spec §14.1): the world layer. A match, then the evening (`wait until evening`), then the
+        # phone put down: the flat at dusk, the phone out of the player's hand.
+        "world": (
+            ("phone", "swipe", "like", "12"),
+            ("phone", "wait", "next", "3"),
+            ("phone", "wait", "evening", "1"),
+            ("phone", "put_down", "", "1"),
+        ),
+        # A scene at a venue: the match taken to numbers (`setup`), the player at the first venue the Places app
+        # lists, a scene with them open (`scene.open_scene`, the plan's arrival without the plan), the phone down.
+        "scene": (
+            ("phone", "swipe", "like", "12"),
+            ("phone", "wait", "next", "3"),
+            ("setup", "numbers", "", ""),
+            ("setup", "scene", "", ""),
         ),
     },
 }
@@ -487,10 +505,15 @@ def _play(story: str, tag: str, steps: tuple[Step, ...]) -> dict[str, str]:
 PHONE_TEXT = "So what are you up to tonight?"
 
 
+#: Where `_setup_numbers` leaves warmth and trust: a relationship well along (v0.22's `meeting` gate's values;
+#: v0.23.0 T18 removed that gate as read by nothing, and the runs keep the set-up they were recorded with).
+SETUP_REGARD: dict[str, int] = {"warmth": 70, "trust": 70}
+
+
 def _setup_numbers(state: Any, pid: str) -> None:
     """
     ("setup", "numbers"): the run's first match taken to stage ``numbers``
-    with its messengers open, its warmth and trust at the ``meeting`` gate
+    with its messengers open, its warmth and trust at 70 (v0.22's ``meeting`` gate, removed in v0.23.0 T18)
     and its media budget at each kind's cap -- through the engine's own
     effects (``social_stage``, ``social_message``, ``social_person``: the one
     writer, rule 3), as ``tests/social_fixtures.py``'s ``numbers_pid`` does.
@@ -504,7 +527,7 @@ def _setup_numbers(state: Any, pid: str) -> None:
     """
     from engine.game.effects import apply_effect
     from engine import social
-    from engine.social import messaging, relationships
+    from engine.social import messaging
     from engine.social.kinds import MEDIA_KINDS
 
     def ok(effect: dict[str, Any]) -> None:
@@ -512,19 +535,37 @@ def _setup_numbers(state: Any, pid: str) -> None:
         if not done.get("ok"):
             raise ScriptStop(f"setup numbers: {effect['type']} refused: {done}")
 
-    paths = dict(relationships.GATE_PATHS)
-    fields: dict[str, Any] = {}
-    for name, value in relationships.gate_spec("meeting").items():
-        if len(paths.get(name, ())) != 1:
-            # A nested measure (familiarity's) is not set here: fail loudly rather than fall short of
-            # the gate the run is meant to stand at (T30 review M4).
-            raise ScriptStop(f"setup numbers: the meeting gate's {name!r} is not a field this set-up can write")
-        fields[paths[name][0]] = value
+    fields: dict[str, Any] = dict(SETUP_REGARD)
     ok({"type": "social_stage", "pid": pid, "stage": "numbers"})
     messaging.open_numbers(state, pid)
     budget = social.data("media").get("budget") or {}
     fields["media_budget"] = {kind: float((budget.get(kind) or {}).get("cap", 1)) for kind in MEDIA_KINDS}
     ok({"type": "social_person", "pid": pid, "set": fields})
+
+
+def _setup_scene(state: Any, pid: str) -> None:
+    """
+    ("setup", "scene"): the player at the first venue the Places app lists and a scene with `pid` open there,
+    the phone down -- `scene.open_scene` (what a kept plan's arrival calls), the travel written by `social_go`
+    (the one writer, rule 3) after the clock is advanced through `clock.advance_time` (rule 2). No plan is
+    made: a scene with no plan is the one the at-home verb opens, so its prior is the same draw.
+    """
+    from engine.game import clock
+    from engine.game.effects import apply_effect
+    from engine.social import places, scene, world
+
+    targets = [vid for vid, _label in world.places_targets(state) if not places.is_flat(vid)]
+    if not targets:
+        raise ScriptStop("setup scene: no venue to go to")
+    venue = targets[0]
+    clock.advance_time(state, places.travel_minutes(venue) / 60.0)
+    done = apply_effect(state, {"type": "social_go", "op": "place", "to": venue})
+    if not done.get("ok"):
+        raise ScriptStop(f"setup scene: social_go refused: {done}")
+    opened = scene.open_scene(state, pid, venue)
+    if not opened.get("ok"):
+        raise ScriptStop(f"setup scene: the scene did not open: {opened}")
+    world.put_down(state)
 
 
 def _play_phone(story: str, tag: str, steps: tuple[Step, ...]) -> dict[str, str]:
@@ -555,6 +596,10 @@ def _play_phone(story: str, tag: str, steps: tuple[Step, ...]) -> dict[str, str]
     # under another config earlier in the same process (T30 follow-up). Restored after the build.
     prior_llm_fn = voicer._llm_fn
     voicer.set_llm_fn(_no_model)
+    # Nor does its recap step (v0.23.0 T6, `voicer._recap_one`): its summary function raises too, so the
+    # recap takes its deterministic fallback, never `memory.production_summary_fn` (T8 fix round 1).
+    prior_summary_fn = voicer._summary_fn
+    voicer.set_summary_fn(_no_summary)
     # And the scheduler is paused for the build: `run_until_quiet` voices every action's due messages
     # on this thread, so a background pass would only race the next action for the turn lock (a 409).
     scheduler = voicer.get_scheduler()
@@ -594,11 +639,11 @@ def _play_phone(story: str, tag: str, steps: tuple[Step, ...]) -> dict[str, str]
             return f"{app}:{first_pid()}"
 
         for step in steps:
-            if step[:2] == ("setup", "numbers"):
+            if step[:2] in (("setup", "numbers"), ("setup", "scene")):
                 if not session.lock.acquire(blocking=False):
                     raise ScriptStop(f"{story}/{tag}: the turn lock is held")
                 try:
-                    _setup_numbers(session.engine.state, first_pid())
+                    (_setup_numbers if step[1] == "numbers" else _setup_scene)(session.engine.state, first_pid())
                 finally:
                     release_turn(session)
                 continue
@@ -613,6 +658,8 @@ def _play_phone(story: str, tag: str, steps: tuple[Step, ...]) -> dict[str, str]
                     phone = act("swipe", card["pid"], {"dir": arg})
                 elif action == "wait":
                     phone = act("wait", "", {"until": arg})
+                elif action == "put_down":
+                    phone = act("put_down")
                 elif action == "open_thread":
                     threads = phone.get("threads") or []
                     if not threads:
@@ -640,6 +687,7 @@ def _play_phone(story: str, tag: str, steps: tuple[Step, ...]) -> dict[str, str]
             reset_store()
         finally:
             voicer.set_llm_fn(prior_llm_fn)
+            voicer.set_summary_fn(prior_summary_fn)
             if not was_paused:
                 scheduler.resume()
 
@@ -647,6 +695,11 @@ def _play_phone(story: str, tag: str, steps: tuple[Step, ...]) -> dict[str, str]
 def _no_model(_messages: Any, _fmt: Any) -> str:
     """A build's voicing model: there is none (the voicer falls back at once)."""
     raise RuntimeError("screenshot_runs: no model in a build")
+
+
+def _no_summary(_messages: Any) -> str:
+    """A build's (and a served build's) recap model: there is none (the recap takes its fallback)."""
+    raise RuntimeError("screenshot_runs: no summary model in a build")
 
 
 def build_runs(root: Path, stories: Iterable[str] = STORIES) -> dict[str, dict[str, dict[str, str]]]:
@@ -782,6 +835,12 @@ def serve(root: Path, slug: str, port: Optional[int], exit_with_parent: bool = F
     manifest = registry.activate(slug)
     fallback = manifest.fallback_narration or "The world waits."
     scene, _app = create_app(llm_fn=lambda *_a, **_k: json.dumps({"narration": fallback, "choices": []}))
+    if slug in PHONE_STORIES:
+        from engine.social import voicer
+
+        # A served phone build's recap step meets no model either (v0.23.0 T8 fix round 1): it takes its
+        # deterministic fallback, never `memory.production_summary_fn`.
+        voicer.set_summary_fn(_no_summary)
     if voice_delay > 0:
         # The phone's voicing scheduler reads its own model function (engine/social/voicer.py).
         from engine.social import voicer

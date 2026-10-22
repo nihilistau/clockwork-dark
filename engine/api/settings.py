@@ -194,7 +194,7 @@ SETTING_SPECS: tuple[dict[str, Any], ...] = (
         "label": "Picture provider",
         "group": "Pictures",
         "type": "enum",
-        "options": ["grokbuild", "comfyui", "procedural"],
+        "options": ["grokbuild", "xai", "comfyui", "procedural"],
         "restart": False,
         "hint": "Only consulted when live generation is on.",
     },

@@ -232,10 +232,10 @@ def test_the_queue_replays_from_the_seed(receipts_active, monkeypatch) -> None:
     monkeypatch.setattr(matching, "likes_back", lambda *a, **k: True)
     real = behaviour.archetype
     monkeypatch.setattr(behaviour, "archetype", lambda name: dataclasses.replace(
-        real(name), opener_prob=1.0, reply_prob=1.0, ghost_per_exchange=0.0,
+        real(name), opener_prob=1.0, reply_prob=1.0, ghost_per_episode=0.0,
         double_text={"after_hours": 2.0, "prob": 1.0, "max_in_row": 1},
-        initiations=({"id": "hello", "kind": "text", "prob_per_day": 1.0, "when": {"stage_min": "talking"},
-                      "instruction": "check_in"},)))
+        initiations=({"id": "hello", "kind": "text", "window": "evening", "prob": [1, 1, 1, 1, 1],
+                      "when": {"stage_min": "talking"}, "instruction": "window_message"},)))
 
     def run() -> tuple:
         state = procgen.new_game_state(player_name="Sam", seed=77)
@@ -260,7 +260,7 @@ def test_the_queue_replays_from_the_seed(receipts_active, monkeypatch) -> None:
     theirs = [m["decision"]["situation"] for t in first[1].values() for m in t["messages"]
               if m["from"] not in ("player", "system")]
     assert {"opener", "reply", "double_text"} <= set(theirs)           # the T8 draws were exercised
-    assert "check_in" in theirs or any(e.get("initiation") == "hello" for e in first[0])   # and a day's initiation
+    assert "window_message" in theirs or any(e.get("initiation") == "hello" for e in first[0])   # a day's initiation
 
 
 def test_next_awake_is_the_next_waking_band(receipts_state) -> None:
@@ -309,7 +309,7 @@ def _broken(data: dict, how: str) -> tuple[str, str]:
         return "social/behaviours.yaml", "archetypes.turner.arc"
     if how == "initiation":
         rows["needy"]["initiations"][1].pop("prob")
-        return "social/behaviours.yaml", "archetypes.needy.initiations[1](did_i_do_something)"
+        return "social/behaviours.yaml", "archetypes.needy.initiations[1](did_i_do_something).prob"
     if how == "cool_off":
         rows["needy"]["cool_off_step"] = 9
         return "social/behaviours.yaml", "archetypes.needy.cool_off_step"

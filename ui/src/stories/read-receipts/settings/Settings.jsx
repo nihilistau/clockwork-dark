@@ -8,8 +8,12 @@
  *   (v0.22.0: no phone action changes it -- docs/GOVERNANCE.md NOT WIRED,
  *   engine/social/intents.py);
  * - Natter's read receipts (`set_receipts {to: on|off}`);
- * - "Let time pass" (local mode only, a preference of this browser:
- *   settings/letTimePass.js), hidden when the payload's `auto_wait` is false.
+ * - "Wake me for messages" (`set_wake {to: on|off}`, v0.23.0 spec §8.4): whether a
+ *   message may wake the player from a sleep. The payload's
+ *   `settings.wake_for_messages` is the engine's word on it; off by default.
+ *
+ * (v0.23.0 removed "Let time pass": time passes by what the player does, and
+ * the world's own turns, never by a timer on the page.)
  */
 import React, { useEffect, useState } from "react";
 
@@ -54,12 +58,13 @@ function Switch({ label, on, onChange, disabled = false, testId }) {
   );
 }
 
-export default function Settings({ phone, act, pending = null, letTimePass = false, onLetTimePass = () => {} }) {
+export default function Settings({ phone, act, pending = null }) {
   const player = phone.player || {};
   const bios = player.bios || {};
   const dating = (phone.apps || []).filter((a) => a.kind === "dating");
   const discovery = player.discovery || {};
   const receipts = !(phone.settings && phone.settings.receipts === false);
+  const wake = Boolean(phone.settings && phone.settings.wake_for_messages);
   // The engine's cap on an edit_profile text (`social.max_text_chars`), as the payload states it.
   const bioMax = Number(phone.settings && phone.settings.bio_max) > 0 ? Number(phone.settings.bio_max) : TEXT_MAX;
   const busy = (action) => Boolean(pending && pending.action === action);
@@ -98,16 +103,17 @@ export default function Settings({ phone, act, pending = null, letTimePass = fal
           </>
         )}
 
-        {phone.auto_wait === true && (
-          <>
-            <h3 className="rr-contact__head">Time</h3>
-            <Switch label="Let time pass" on={letTimePass} testId="let-time-pass" onChange={onLetTimePass} />
-            <p className="rr-card__sub">
-              When someone is typing and you leave the chat alone for 30 seconds, the phone lets 15 minutes pass. Kept in this browser
-              only.
-            </p>
-          </>
-        )}
+        <h3 className="rr-contact__head">Sleep</h3>
+        <Switch
+          label="Wake me for messages"
+          on={wake}
+          disabled={busy("set_wake")}
+          testId="wake-for-messages"
+          onChange={(on) => act({ action: "set_wake", target: "", args: { to: on ? "on" : "off" }, text: "" })}
+        />
+        <p className="rr-card__sub">
+          Off, you sleep through to the morning and what arrives is waiting when you wake. On, a message someone promised, or one from a person who's up late, can wake you.
+        </p>
       </div>
     </section>
   );

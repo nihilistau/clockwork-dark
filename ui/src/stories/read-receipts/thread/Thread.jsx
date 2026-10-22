@@ -4,7 +4,7 @@
  * with receipts, "Delivered" elsewhere), typing dots only while the thread
  * row says `typing`, "…" for a message not yet voiced, photo / voice / video
  * tiles, the engine's own lines, open requests with their answers, the games
- * and meet-ups with this person, "Load earlier" paging the archive, and the
+ * with this person, "Load earlier" paging the archive, and the
  * compose bar with the app's own attachments.
  *
  * The messages are the payload's `open_thread` (the thread the player last
@@ -25,11 +25,18 @@ import { appOf, threadOf } from "../phone/apps.js";
 import { stampOf } from "../phone/format.js";
 import Bubble from "./Bubble.jsx";
 import ComposeBar from "./ComposeBar.jsx";
-import RequestCard, { GameCard, MeetCard } from "./RequestCard.jsx";
+import RequestCard, { GameCard } from "./RequestCard.jsx";
 import SystemLine from "./SystemLine.jsx";
 import TypingDots from "./TypingDots.jsx";
 
 export { TEXT_MAX } from "./ComposeBar.jsx";
+
+/** The places a plan may name: the `meet_options` venues (with their words), else the Places app's list. */
+export function venuesOf(phone) {
+  const options = phone.meet_options && Array.isArray(phone.meet_options.venues) ? phone.meet_options.venues : null;
+  const list = options && options.length ? options : (phone.places && phone.places.venues) || [];
+  return list.map((v) => ({ id: v.id, label: v.place || v.label || v.id }));
+}
 
 /** One page of an older thread (`limit` 50, the route's own cap). */
 export const PAGE_SIZE = 50;
@@ -43,14 +50,14 @@ export async function fetchThreadPage(sessionId, threadId, before, limit = PAGE_
   return data;
 }
 
-/** A game or meet-up this recent (in-game hours) still shows in the thread once it is over. */
+/** A game this recent (in-game hours) still shows in the thread once it is over. */
 const RECENT_HOURS = 24;
 
 const hoursOf = (now) => (now ? (Number(now.day) - 1) * 24 + Number(now.hour) + Number(now.minute || 0) / 60 : 0);
 
-function Message({ m, now, name, pid, act, pending }) {
+function Message({ m, now, name }) {
   if (m.kind === "system" || m.kind === "recap" || m.kind === "request") {
-    return <SystemLine m={m} name={name} pid={pid} act={act} pending={pending} />;
+    return <SystemLine m={m} name={name} />;
   }
   return <Bubble m={m} now={now} />;
 }
@@ -120,6 +127,9 @@ export default function Thread({
           : "";
 
   const pid = row?.pid || open?.pid || "";
+  // What they have told the player of their days (the `hints` section: the engine's words, never a number).
+  const hint = (phone.hints && phone.hints[pid]) || null;
+  const available = hint && typeof hint.available_words === "string" ? hint.available_words : "";
   const now = phone.now;
   const nowHours = hoursOf(now);
   const requests = (phone.requests || []).filter(
@@ -127,11 +137,6 @@ export default function Thread({
   );
   const games = (phone.games || []).filter(
     (g) => g.pid === pid && (g.status === "active" || (g.ended_at != null && nowHours - Number(g.ended_at) <= RECENT_HOURS))
-  );
-  const meets = (phone.calendar || []).filter(
-    (m) =>
-      m.pid === pid &&
-      (["agreed", "due", "going"].includes(m.status) || (m.end != null && nowHours - Number(m.end) <= RECENT_HOURS))
   );
 
   const loadEarlier = async () => {
@@ -182,6 +187,11 @@ export default function Thread({
             {name}
           </span>
           {row?.stage_words && <span className="rr-thread__stage">{row.stage_words}</span>}
+          {available && (
+            <span className="rr-thread__avail" data-testid="thread-available">
+              {available}
+            </span>
+          )}
         </span>
         {onOpenContact && pid && (
           <button type="button" className="rr-thread__info" aria-label={`About ${name}`} onClick={() => onOpenContact(pid)}>
@@ -206,16 +216,13 @@ export default function Thread({
         {!open && <li className="rr-msg rr-msg--system">Opening…</li>}
         {open && timeline.length === 0 && <li className="rr-msg rr-msg--system">You matched with {name}. Say hello.</li>}
         {timeline.map((m) => (
-          <Message key={m.id} m={m} now={now} name={name} pid={row?.pid || ""} act={act} pending={pending} />
+          <Message key={m.id} m={m} now={now} name={name} />
         ))}
         {last && row?.read_state && (
           <li className="rr-msg__read" data-testid="read-state">
             {row.read_state === "read" ? `Read ${last.read_at != null ? stampOf(last.read_at, now) : ""}`.trim() : "Delivered"}
           </li>
         )}
-        {meets.map((m) => (
-          <MeetCard key={m.id} meet={m} act={act} pending={pending} />
-        ))}
         {games.map((g) => (
           <GameCard key={g.id} game={g} onOpenGame={onOpenGame} />
         ))}
@@ -238,6 +245,9 @@ export default function Thread({
           onSend={onSend}
           inputRef={input}
           readyAsks={row?.asks}
+          pid={pid}
+          venues={venuesOf(phone)}
+          canSignOff={Boolean(row) && row.open !== false}
         />
       )}
     </section>

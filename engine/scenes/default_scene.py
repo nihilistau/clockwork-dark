@@ -187,6 +187,14 @@ def _report_turn(session: Any, admit_ms: float, run_ms: float, outcome: str) -> 
 #: local mode, so local mode records nothing.
 phone_metric: Optional[Callable[[str, str, str, float], None]] = None
 
+
+def report_scene_prose_fallback(session: Any, ms: float) -> None:
+    """One in-person scene turn whose narration failed its fact checks twice, so the receipt lines shipped
+    (v0.23.0 T15, spec §10.6): a ``phone`` row, event ``scene_prose``, status ``fallback``, through
+    ``phone_metric`` (the existing schema). Never raises."""
+    _report_phone(session, "scene_prose", "fallback", ms)
+
+
 #: ``run_guarded``'s outcome -> the ``phone`` metric's status.
 _PHONE_STATUS = {"ok": "ok", "busy": "busy", "error": "failed", "refused": "refused"}
 
@@ -263,6 +271,7 @@ def run_guarded(
     runner: Optional[Callable[..., dict[str, Any]]] = None,
     admit: bool = True,
     metric: str = "turn",
+    typed_text: Optional[str] = None,
 ) -> tuple[Optional[dict[str, Any]], str, bool]:
     """
     Run one turn under the session lock.
@@ -321,11 +330,57 @@ def run_guarded(
     action passes ``turn.run_mechanics``, ``admit=False`` (never
     ``admit_turn``: a swipe never enters the narration queue) and
     ``metric="phone"``; every other caller passes none and is unchanged.
+
+    A PHONE STORY'S WORLD TURN (v0.23.0 T11, spec §20.1): a session that
+    carries a narration turnstile (built only for a story declaring
+    ``paths.social``) runs a turn with no ``runner`` through
+    ``_run_world_turn``, which takes the turnstile FIRST, holding no lock,
+    then the turn lock as below. Every other caller's path -- every other
+    story's turn, and every phone action (it passes a ``runner``) -- is
+    unchanged.
+
+    ``typed_text`` (v0.23.0 addendum 4 §3, C2): the line the player typed, as
+    the route received it (``custom_text``; None when they picked a choice).
+    It is read ONLY on the world turn's branch, under the lock, by
+    ``engine/social/typed.py``; every other path ignores it, so another
+    story's typed turn carries no intent, as before (seam pin 10).
     """
     run = runner or run_turn
+    gate = getattr(session, "narration_turnstile", None) if runner is None else None
+    if gate is not None:
+        return _run_world_turn(session, gate, action, intent, authored=authored, emit_callback=emit_callback,
+                               present=present, cancel=cancel, admit=admit, metric=metric, typed_text=typed_text)
     if not session.lock.acquire(blocking=False):
         _report(session, metric, 0.0, 0.0, "busy")
         return None, "A turn is already in progress.", True
+    try:
+        return _run_locked(session, run, action, intent, authored=authored, emit_callback=emit_callback,
+                           present=present, cancel=cancel, admit=admit, metric=metric)
+    finally:
+        # Hosted (v0.20.0 T15 fix round 1): an admin ended this session's
+        # account during the turn; it is released now the turn is over --
+        # release_turn does both (v0.22.0 Plan decision 31).
+        release_turn(session)
+
+
+def _run_locked(
+    session: Any,
+    run: Callable[..., dict[str, Any]],
+    action: str,
+    intent: Any,
+    *,
+    authored: Optional[dict[str, Any]],
+    emit_callback: Optional[Any],
+    present: Optional[Any],
+    cancel: Optional[Any],
+    admit: bool,
+    metric: str,
+) -> tuple[Optional[dict[str, Any]], str, bool]:
+    """
+    The body ``run_guarded`` always ran under the lock (v0.23.0 T11, lifted
+    verbatim: admission, the run, the metric, the last-line-of-defence
+    except). The caller holds the turn lock and releases it.
+    """
     # Hosted (v0.20.0 T17): the admission wait and the run, for turn_metric.
     began = time.monotonic()
     admit_ms = 0.0
@@ -389,31 +444,168 @@ def run_guarded(
             _report(session, metric, 0.0, (time.monotonic() - began) * 1000.0, _outcome(payload, metric))
         return payload, "", False
     except Exception as exc:  # noqa: BLE001 — last line of defence
-        # Without this the socket handler raised into Socket.IO, no event was
-        # emitted, and the client's busy flag never cleared: every button
-        # disabled forever with no message on screen. The HTTP path had the
-        # matching failure -- a Flask HTML 500 body returned to a JSON client.
-        if hosting_enabled():
-            # Hosted (spec §6.6): the exception names internals (the model
-            # server's URL, a path) shown to every player, so the client gets
-            # a reference and the log gets the exception under it.
-            from engine.hosting.errors import TURN_FAILED, public_error
+        return _turn_failed(session, exc, metric, began, admit_ms)
 
-            text, _ref = public_error(
-                exc, TURN_FAILED, where="run_guarded", id=getattr(session, "session_id", "")
-            )
-            _report(session, metric, admit_ms, max(0.0, (time.monotonic() - began) * 1000.0 - admit_ms), "error")
-            return None, text, False
-        logger.exception(
-            "[default_scene] Turn failed (operation=run_guarded, id=%s)",
-            getattr(session, "session_id", "") or "",
+
+def _turn_failed(
+    session: Any, exc: Exception, metric: str, began: float, admit_ms: float
+) -> tuple[Optional[dict[str, Any]], str, bool]:
+    """The last line of defence's answer (lifted from ``_run_locked`` in v0.23.0 T11 fix round 1, so the
+    world turn's pre-turn steps share it): a generic error with a logged reference, and a metric, hosted."""
+    # Without this the socket handler raised into Socket.IO, no event was
+    # emitted, and the client's busy flag never cleared: every button
+    # disabled forever with no message on screen. The HTTP path had the
+    # matching failure -- a Flask HTML 500 body returned to a JSON client.
+    if hosting_enabled():
+        # Hosted (spec §6.6): the exception names internals (the model
+        # server's URL, a path) shown to every player, so the client gets
+        # a reference and the log gets the exception under it.
+        from engine.hosting.errors import TURN_FAILED, public_error
+
+        text, _ref = public_error(
+            exc, TURN_FAILED, where="run_guarded", id=getattr(session, "session_id", "")
         )
-        return None, f"The turn could not be completed: {exc}", False
+        _report(session, metric, admit_ms, max(0.0, (time.monotonic() - began) * 1000.0 - admit_ms), "error")
+        return None, text, False
+    logger.exception(
+        "[default_scene] Turn failed (operation=run_guarded, id=%s)",
+        getattr(session, "session_id", "") or "",
+    )
+    return None, f"The turn could not be completed: {exc}", False
+
+
+def _run_world_turn(
+    session: Any,
+    gate: Any,
+    action: str,
+    intent: Any,
+    *,
+    authored: Optional[dict[str, Any]],
+    emit_callback: Optional[Any],
+    present: Optional[Any],
+    cancel: Optional[Any],
+    admit: bool,
+    metric: str,
+    typed_text: Optional[str] = None,
+) -> tuple[Optional[dict[str, Any]], str, bool]:
+    """
+    A phone story's world turn (v0.23.0 spec §20.1, T11): the turnstile FIRST, holding no lock (the
+    only blocking wait); then the turn lock, tried; the phone_up re-check; the inbox drained before the
+    turn's buzz and narration block are built; the turn; the inbox drained again; the lock, then the
+    turnstile, released; then a voicing pass requested AT ONCE (a pass this turn deferred is brought
+    forward, not left to its backoff) for whatever fell due or was deferred.
+
+    A TYPED LINE (addendum 4 §3, C2) is read here, after the first drain and under the lock, against what
+    the engine offers now (`typed.intent_for`): ONE offered activity or room, or in a scene a topic or
+    `talk`, re-checked against `legal_intents`, so it never comes back as a refusal; else nothing (narrated
+    only). The route's intent for typed text is `{}` and stays so. Only the action and target are logged.
+    """
+    from engine.social import turnstile as social_turnstile   # only reached for a paths.social session
+    from engine.social import presence as social_presence
+    from engine.social import voicer
+    from engine.social import world as social_world
+
+    if not gate.acquire_world(social_turnstile.world_wait_seconds()):
+        _report(session, metric, 0.0, 0.0, "busy")
+        logger.info("[default_scene] World turn not run: the turnstile stayed busy "
+                    "(operation=run_guarded, id=%s)", getattr(session, "session_id", "") or "")
+        return None, STORYTELLER_BUSY, True
+    try:
+        if not session.lock.acquire(blocking=False):
+            _report(session, metric, 0.0, 0.0, "busy")
+            return None, "A turn is already in progress.", True
+        try:
+            # One presence pass for the whole turn (A4 W9, I7): the chance tier is computed once and read by the
+            # narration block, every `legal_intents` and the payload; any social effect drops it.
+            with social_presence.one_pass():
+                began = time.monotonic()
+                try:
+                    refusal = social_world.world_turn_refusal(session.engine.state)
+                    if refusal:
+                        return None, refusal, False
+                    voicer.drain_inbox(session)
+                    if typed_text and str(typed_text).strip():
+                        from engine.social import typed as social_typed
+
+                        try:
+                            intent = social_typed.intent_for(session.engine.state, str(typed_text)) or {}
+                        except Exception:  # noqa: BLE001 -- a reading that fails leaves the line narrated only
+                            intent = {}
+                            logger.exception("[default_scene] Reading a typed line failed; it is narrated only "
+                                             "(operation=typed_reading, id=%s)", getattr(session, "session_id", "") or "")
+                        if intent:
+                            logger.info("[default_scene] A typed line was read as an offered choice "
+                                        "(operation=typed_reading, action=%s, target=%s)",
+                                        intent.get("action", ""), intent.get("target", ""))
+                except Exception as exc:  # noqa: BLE001 -- the pre-turn steps share the turn's last line of defence
+                    return _turn_failed(session, exc, metric, began, 0.0)
+                result = _run_locked(session, run_turn, action, intent, authored=authored,
+                                     emit_callback=emit_callback, present=present, cancel=cancel, admit=admit,
+                                     metric=metric)
+                try:
+                    voicer.drain_inbox(session)
+                except Exception as exc:  # noqa: BLE001 -- the turn is committed: log it, keep its payload
+                    if hosting_enabled():
+                        from engine.hosting.errors import TURN_FAILED, public_error
+
+                        public_error(exc, TURN_FAILED, where="run_guarded.post_drain",
+                                     id=getattr(session, "session_id", ""))
+                        _report(session, metric, 0.0, max(0.0, (time.monotonic() - began) * 1000.0), "error")
+                    else:
+                        logger.exception("[default_scene] Post-turn inbox drain failed "
+                                         "(operation=run_guarded, id=%s)", getattr(session, "session_id", "") or "")
+                return _meet_if_here(session, result, emit_callback)
+        finally:
+            release_turn(session)
     finally:
-        # Hosted (v0.20.0 T15 fix round 1): an admin ended this session's
-        # account during the turn; it is released now the turn is over --
-        # release_turn does both (v0.22.0 Plan decision 31).
-        release_turn(session)
+        gate.release(social_turnstile.WORLD)
+        social_turnstile.report_share(session)
+        voicer.request(session, now=True)
+
+
+def _meet_if_here(session: Any, result: Any, emit_callback: Optional[Any] = None) -> Any:
+    """
+    A phone story's world turn, after its drain, the turn lock still held (v0.23.0 addendum 4 W2, I4): someone who
+    arrived for a plan where the player is while the turn ran (a room move's minute, say) is met now
+    (`plans.meet_if_here`). When that opens a scene, the RETURNED frame becomes the scene's (fix round 1, I1): its
+    choices rebuilt from what is legal now (`away.world_choices`, T23A's row), the engine's line "<name> arrives."
+    added to its narration with no model call, and `session.last_turn` written to match, so the scene shows
+    without a refresh; a socket client is sent the rewritten frame as a second turn_update. Returns `result`, rewritten or not. A fault is logged: the turn is committed and keeps its
+    payload.
+    """
+    try:
+        from engine.social import away, matching, plans, saves   # only reached for a paths.social session
+
+        from engine.social import messaging
+
+        state = session.engine.state
+        if messaging.release_held(state):     # presence re-read: a chance person's block moved them on (A4 W5, W9)
+            saves.mark_dirty(session, "action")
+        met = plans.meet_if_here(state)
+        if not (met.get("scene") or met.get("stood_up")):
+            return result
+        saves.mark_dirty(session, "action")
+        payload = result[0] if isinstance(result, tuple) and result else None
+        if not met.get("scene") or not isinstance(payload, dict):
+            return result
+        line = f"{matching._name(state, str(met['scene']))} arrives."
+        choices = away.world_choices(state, prefix="world")
+        narration = "\n\n".join(p for p in (str(payload.get("narration") or "").rstrip(), line) if p)
+        from engine.scenes.default_state import scene_image_url
+
+        plate = scene_image_url(state)          # the world layer's plate, where the scene opened
+        payload = {**payload, "narration": narration, "choices": choices, "scene_image": plate}
+        last = getattr(session, "last_turn", None) or {}
+        session.last_turn = {**last, "narration": narration, "choices": choices, "scene_image": plate}
+        if emit_callback is not None:
+            # The client appends a non-streamed update's narration to the log, so this one carries the arrival line
+            # alone (the turn's own text is already shown); the HTTP result and `last_turn` keep the whole of it.
+            emit_callback("turn_update", {**payload, "narration": line, "streamed": False})
+        return (payload, *result[1:])
+    except Exception:  # noqa: BLE001 -- the turn is committed: log it, keep its payload
+        logger.exception("[default_scene] Meeting a plan's arrival failed (operation=run_guarded, id=%s)",
+                         getattr(session, "session_id", "") or "")
+        return result
 
 
 class DefaultScene(FlaskScene):
@@ -575,14 +767,18 @@ class DefaultScene(FlaskScene):
                 session = self.store.require(session_id)
             except KeyError:
                 return jsonify({"error": "session not found"}), 404
-            # READ RECEIPTS (v0.22.0, spec §7.2): a phone story is played
-            # through phone_action; a choice is answered, never run.
+            # READ RECEIPTS (v0.23.0 spec §8.3): a phone story's world turn
+            # runs like any other, refused only while the phone is up. This
+            # early check is unlocked (a fast answer); the authoritative one
+            # is run_guarded's re-check under the turn lock.
             from engine import social
 
             if social.declared():
-                from engine.social.turn import played_on_the_phone
+                from engine.social import world as social_world
 
-                return jsonify({"error": played_on_the_phone()}), 409
+                refusal = social_world.world_turn_refusal(session.engine.state)
+                if refusal:
+                    return jsonify({"error": refusal, "phone_up": True}), 409
 
             choice_id = str(body.get("choice_id", ""))
             # An id the frame no longer offers (a "Try again" into a resumed
@@ -605,9 +801,13 @@ class DefaultScene(FlaskScene):
             authored = resolve_authored_choice(
                 session, choice_id, body.get("custom_text")
             )
-            turn, error, busy = run_guarded(session, action, intent, authored=authored)
+            turn, error, busy = run_guarded(session, action, intent, authored=authored,
+                                            typed_text=body.get("custom_text"))
             if busy:
                 return jsonify({"error": error}), 409
+            if turn is None and _phone_was_up(error):
+                # The phone was picked up while the world turn waited (spec §20.1 step 3).
+                return jsonify({"error": error, "phone_up": True}), 409
             if turn is None:
                 return jsonify({"error": error}), 500
             return jsonify(turn)
@@ -656,14 +856,17 @@ class DefaultScene(FlaskScene):
             except KeyError:
                 emit("turn_error", {"message": "session not found", "fatal": True})
                 return
-            # READ RECEIPTS (v0.22.0, spec §7.2): answered on the phone, never run.
+            # READ RECEIPTS (v0.23.0 spec §8.3): refused only while the phone
+            # is up (unlocked here; re-checked under the turn lock).
             from engine import social
 
             if social.declared():
-                from engine.social.turn import played_on_the_phone
+                from engine.social import world as social_world
 
-                emit("turn_error", {"message": played_on_the_phone(), "busy": False})
-                return
+                refusal = social_world.world_turn_refusal(session.engine.state)
+                if refusal:
+                    emit("turn_error", {"message": refusal, "busy": False, "phone_up": True})
+                    return
 
             def _emit(event: str, payload: dict[str, Any]) -> None:
                 # Hosted: every socket in the room is re-checked first, so one
@@ -713,6 +916,7 @@ class DefaultScene(FlaskScene):
                     emit_callback=_emit,
                     present=present,
                     cancel=cancel,
+                    typed_text=data.get("custom_text"),
                 )
             finally:
                 if waiting is not None:
@@ -723,7 +927,10 @@ class DefaultScene(FlaskScene):
                 # stream on a turn_error, so a stray second press used to
                 # delete the prose the FIRST turn had already put on screen.
                 # Flagged, the reducer keeps the stream and shows the message.
-                emit("turn_error", {"message": error, "busy": busy})
+                answer: dict[str, Any] = {"message": error, "busy": busy}
+                if _phone_was_up(error):
+                    answer["phone_up"] = True
+                emit("turn_error", answer)
 
         @self.on("resume")
         def on_resume(data: dict[str, Any]) -> None:
@@ -795,6 +1002,18 @@ class DefaultScene(FlaskScene):
             from engine.social import saves as social_saves
 
             social_saves.install_shutdown_flush()
+
+
+def _phone_was_up(error: str) -> bool:
+    """Whether a turn's error is a phone story's "put the phone down" refusal (v0.23.0 T11); False for
+    every other story, which never imports the module that words it."""
+    from engine import social
+
+    if not error or not social.declared():
+        return False
+    from engine.social import world as social_world
+
+    return error == social_world.PHONE_UP_REFUSAL
 
 
 #: How long `_client_state` tries a phone story's turn lock (ms between tries): ~0.4 s at most.

@@ -206,6 +206,34 @@ route with other voice names needs its own `tts.voices` list -- and since
 a person's voice is drawn from that list, changing it can change who
 sounds like whom (a docs/GOVERNANCE.md NOT WIRED row).
 
+## The xAI image API
+
+`media.image_provider: xai` (or `scripts/generate_art.py --provider xai`)
+generates art by calling xAI's REST API directly,
+`POST https://api.x.ai/v1/images/generations`, instead of driving the Grok
+CLI (`grokbuild`), which fails whenever the CLI is not signed in. The
+provider is `engine/media/providers/xai.py`; the request follows the owner's
+other project's `harness/skills/xai.py`.
+
+- **The key.** `media.xai.api_key` is a fallback chain, first non-empty wins:
+  a gitignored `xai_api_key.txt` (first line) at the REPOSITORY ROOT (a
+  relative `${file:...}` resolves against it, `engine/config.py::_expand_one`),
+  then the `XAI_API_KEY` environment variable. It is sent only as the
+  `Authorization: Bearer` header and is never logged or put in a result. With
+  no key the provider is unavailable and says "no xAI API key
+  (media.xai.api_key)".
+- **The model.** `media.xai.model`, `grok-imagine-image-2.0`; `resolution`
+  `"1k"`; `aspect_ratio` per art kind (location 16:9, portrait 3:4, item
+  1:1); `timeout_seconds` 180. The response is read as `data[0].b64_json`,
+  else `data[0].url` (fetched), and written as PNG or JPEG by its bytes.
+- **What it does not do.** There is no seed (the disk cache keeps a
+  picture), and no `image_edit`: a request's `base_image` is ignored and the
+  picture comes from the prompt alone.
+- **Not verified live.** No call to api.x.ai has been made from this
+  repository; every step and failure (HTTP 401 and 429 carrying the API's
+  message, a missing key, a URL response) is verified against a stubbed
+  `urllib.request.urlopen` (`tests/test_media_xai.py`).
+
 ## Verified
 
 - **Not verified live.** No ComfyUI server was running on the development

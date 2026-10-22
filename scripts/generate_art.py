@@ -741,7 +741,7 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument("--list", action="store_true", help="Report gaps and exit")
-    parser.add_argument("--provider", default=None, help="grokbuild | comfyui | procedural")
+    parser.add_argument("--provider", default=None, help="grokbuild | xai | comfyui | procedural")
     parser.add_argument("--limit", type=int, default=0, help="Stop after N images")
     args = parser.parse_args(argv)
 

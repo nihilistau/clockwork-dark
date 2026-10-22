@@ -52,7 +52,7 @@ class VerbRow:
     #: today"), or "" for the generic refusal. Read only when `legal` says no.
     why_not: Optional[WhyNotFn] = None
     #: The engine's words for refusing THIS intent (a target the verb does not
-    #: offer now, "Give it a day"), or "": checked before the generic refusals
+    #: offer now, "Give it a while"), or "": checked before the generic refusals
     #: of an illegal verb or target, and of an argument whose value the row
     #: declares but does not offer now (`not_offered`). Never consulted for a
     #: malformed payload (a value the row never takes, a wrong type, a cap):

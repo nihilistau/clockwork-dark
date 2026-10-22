@@ -306,11 +306,27 @@ def test_every_phone_skill_has_a_phone_verb() -> None:
         social.boot()
         from engine.social.intents import PHONE_SKILL_FOR_ACTION
 
-        phone = {s.name for s in SKILL_REGISTRY.all_tools() if s.pack == "social"}
+        phone = {s.name for s in SKILL_REGISTRY.all_tools() if s.pack == "social" and s.category == "PHONE"}
         assert phone == set(PHONE_SKILL_FOR_ACTION.values())
         assert all(SKILL_REGISTRY.get(name).agents == ["system"] for name in phone)
+        # Every social skill is the phone's or the world's (v0.23.0 T11): nothing else rides the pack.
+        assert {s.category for s in SKILL_REGISTRY.all_tools() if s.pack == "social"} == {"PHONE", "WORLD"}
     finally:
         registry.deactivate()
+
+
+def test_every_world_skill_has_a_world_verb() -> None:
+    """v0.23.0 T11 (Plan decision 4): a world skill is system-only and reached by a world verb alone -- every
+    registered skill of category WORLD is the skill of an action in SOCIAL_WORLD_ACTIONS, and every such
+    action's skill is registered."""
+    import engine.agents.tool_dispatcher  # noqa: F401 -- registers the builtins
+    from engine.game.intents import SKILL_FOR_ACTION, SOCIAL_WORLD_ACTIONS
+    from engine.skills.registry import SKILL_REGISTRY
+
+    world = {s.name for s in SKILL_REGISTRY.all_tools() if s.category == "WORLD"}
+    assert world == {SKILL_FOR_ACTION[a] for a in SOCIAL_WORLD_ACTIONS}
+    assert all(SKILL_REGISTRY.get(SKILL_FOR_ACTION[a]) is not None for a in SOCIAL_WORLD_ACTIONS)
+    assert all(SKILL_REGISTRY.get(name).agents == ["system"] for name in world)
 
 
 def test_the_allowlist_does_not_rot() -> None:

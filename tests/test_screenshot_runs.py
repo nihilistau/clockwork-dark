@@ -231,7 +231,21 @@ def test_every_scripted_move_is_in_its_turns_enum(tmp_path: Path, monkeypatch: p
     pid = media.social["open_thread"].split(":", 1)[1]
     assert media.social["open_thread"] == f"natter:{pid}"
     assert media.social["people"][pid]["stage"] == "numbers"
-    natter = media.social["threads"][f"natter:{pid}"]["messages"]
+    natter = list(media.social["threads"][f"natter:{pid}"]["messages"])
+    # Older lines live in the run's phone_archive.jsonl (the open thread keeps one screen in state since
+    # v0.23.0 T9 fix round 2, engine/social/archive.py keep_for): the thread is the archive's, then state's.
+    from engine.social import archive
+
+    save_id = built["read-receipts"]["media"]["save_id"]
+    from engine.persistence import get_save_store
+
+    registry.activate("read-receipts")
+    try:
+        dirs = [Path(get_save_store().path_for(save_id))]
+    finally:
+        registry.deactivate()
+    held = {m["id"] for m in natter}
+    natter = [m for d in dirs for m in archive.archived(d, f"natter:{pid}") if m["id"] not in held] + natter
     received = {m["kind"] for m in natter if m["from"] == pid}
     assert {"photo", "voice", "video"} <= received, received
     assert any(m["from"] == "player" and runs.PHONE_TEXT in m["bubbles"] for m in natter)
@@ -239,6 +253,20 @@ def test_every_scripted_move_is_in_its_turns_enum(tmp_path: Path, monkeypatch: p
     games = [g for g in (media.social.get("games") or {}).values() if g["game"] == "wordgame"]
     assert games and games[0]["status"] == "active" and games[0]["pid"] == pid
     assert media.player_name == runs.PLAYERS["media"]
+
+    # The world run (v0.23.0 T23): the flat in the evening, the phone down, nobody's scene open.
+    world = end("read-receipts", "world")
+    assert world.social["phone_up"] is False and not world.social.get("scene")
+    assert world.world_hour >= 18 or world.world_hour < 5, world.world_hour
+    assert world.player_name == runs.PLAYERS["world"]
+    # The scene run: at a venue, a scene with the first match open, the phone down.
+    scened = end("read-receipts", "scene")
+    from engine.social import places
+
+    assert scened.social["scene"].get("pid") and not places.is_flat(scened.location_id)
+    assert scened.social["scene"]["location"] == scened.location_id
+    assert scened.social["phone_up"] is False
+    assert scened.player_name == runs.PLAYERS["scene"]
 
     deck = end("wicked-garden", "deck")
     assert director.active(deck), "the deck run shows no card"
@@ -361,13 +389,16 @@ def test_an_offer_step_stops_when_a_target_is_lost_on_the_way(tmp_path: Path, mo
     config._instance = None
 
 
-def test_the_numbers_setup_refuses_a_gate_field_it_cannot_write(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A nested gate measure stops the set-up by name, before any write (T30 review M4)."""
+def test_the_numbers_setup_writes_only_flat_fields_and_reads_no_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The set-up's warmth and trust are its own (v0.23.0 T18 removed the `meeting` gate it once read): each a
+    field `social_person` writes whole (T30 review M4's concern), and no stage gate is consulted."""
     runs = _script()
     from engine.social import relationships
 
-    monkeypatch.setattr(relationships, "gate_spec", lambda stage: {"warmth": 70, "exchanges": 20})
-    with pytest.raises(runs.ScriptStop, match="exchanges"):
+    paths = dict(relationships.GATE_PATHS)
+    assert runs.SETUP_REGARD and all(len(paths[name]) == 1 for name in runs.SETUP_REGARD)
+    monkeypatch.setattr(relationships, "gate_spec", lambda stage: (_ for _ in ()).throw(AssertionError(stage)))
+    with pytest.raises(AttributeError):                              # past the gate, at the first write: no state
         runs._setup_numbers(None, "p0001")
 
 
@@ -417,9 +448,13 @@ def test_a_phone_build_never_hands_a_scheduled_pass_the_model(tmp_path: Path, mo
     from engine.social import voicer
 
     seen: list[Any] = []
+    summaries: list[Any] = []
     real = voicer.request_if_due
-    monkeypatch.setattr(voicer, "request_if_due", lambda session: (seen.append(voicer._llm_fn), real(session))[1])
+    monkeypatch.setattr(voicer, "request_if_due", lambda session: (seen.append(voicer._llm_fn),
+                                                                    summaries.append(voicer._summary_fn),
+                                                                    real(session))[2])
     before = voicer._llm_fn
+    before_summary = voicer._summary_fn
     root = tmp_path / "shots"
     _isolate(monkeypatch, tmp_path, root)
     runs.build_runs(root, ["read-receipts"])
@@ -427,7 +462,13 @@ def test_a_phone_build_never_hands_a_scheduled_pass_the_model(tmp_path: Path, mo
     assert all(fn is not None for fn in seen), "a scheduled pass would have reached the production model"
     with pytest.raises(RuntimeError):
         seen[0]([], {})
+    # Nor the recap's summary function (v0.23.0 T6 left it unset, so a build's recap step reached
+    # `memory.production_summary_fn` and localhost:1234; T8 fix round 1): its own, which raises.
+    assert all(fn is not None for fn in summaries), "a pass's recap would have reached the production model"
+    with pytest.raises(RuntimeError):
+        summaries[0]([])
     assert voicer._llm_fn is before
+    assert voicer._summary_fn is before_summary
     # Nothing the build requested is left waiting to run under the restored function (review M1).
     scheduler = voicer._existing()
     assert scheduler is None or not scheduler.queued(), scheduler.queued()

@@ -360,7 +360,8 @@ sites:
   engine.social._DATA_LOCK: {verdict: locked}
   engine.social._IMPORT_FAULTS_LOGGED: {verdict: log_once, note: "import_fault's names already reported (Plan decision 27): one ERROR per process"}
   engine.social.events._HANDLERS: {verdict: registration}
-  engine.social.memory._PROMPT_MISSING_LOGGED: {verdict: log_once, note: "summary_prompt's missing prompt paths already reported: one WARNING per path, per process"}
+  engine.social.memory._PROMPT_MISSING_LOGGED: {verdict: log_once, note: "recap_prompt's missing prompt paths already reported: one WARNING per path, per process"}
+  engine.social.memory._RECAP_PROMPT_CACHE: {verdict: warmed, loader: engine.games.caches._warm_recap_prompt, note: "the active story's prompts/episode_recap.md (v0.23 T6); warmed only for a story declaring paths.social"}
   engine.social.events.daily_hooks: {verdict: registration}
   engine.social.population._PROFILES: {verdict: locked, note: "the per-process profile LRU (spec §4.1): looked up and inserted only under _PROFILES_LOCK, a leaf; a profile is generated outside it; reset_profiles is a RELOADERS row (F7)"}
   engine.social.population._PROFILES_LOCK: {verdict: locked}
@@ -370,16 +371,24 @@ sites:
   engine.social.payload._SECTIONS: {verdict: registration, note: "filled by @payload.section as the engine.social submodules import, read after"}
   engine.social.payload.TIME_VARYING_SECTIONS: {verdict: registration}
   engine.social.kinds._APPLIED: {verdict: per_context, note: "a ContextVar set by kinds.collecting around one phone skill's run (T10) and reset in its finally"}
+  engine.social.kinds.PRESENCE_PASS: {verdict: per_context, note: "v0.23.0 T23G: a ContextVar set by presence.one_pass around one world turn or phone action (the chance tier computed once, I7), reset in its finally; cleared by every recorded social effect"}
   engine.social.saves.DirtySaver.schedule#Thread: {verdict: shared_by_design, note: "the phone's one dirty-save timer thread per process (spec §17.2), started by the first schedule with DirtySaver._lock (a leaf) released; it takes each due session's turn lock non-blocking"}
   engine.social.saves._saver: {verdict: locked, note: "the process's one DirtySaver, double-checked under _saver_lock; reset_dirty_saver stops and drops it"}
   engine.social.saves._saver_lock: {verdict: locked}
+  engine.social.agreement.PRONOUNS: {verdict: constant, note: "v0.23.0 T15: a companion's pronouns by sex, for scene prose; never mutated"}
   engine.social.agreement.CHECKS: {verdict: registration, note: "filled by @check_fn as engine.social.agreement imports (T24 adds one), read after"}
   engine.social.payload._BUILDING: {verdict: per_context, note: "a ContextVar set by run_mechanics around one to_client_dict (Plan decision 32) and reset in its finally"}
   engine.social.voicing.CORRECTIONS: {verdict: constant}
+  engine.social.voicing.COMMITMENT_WORDS: {verdict: constant}
+  engine.social.voicing.DEFAULT_CAPS: {verdict: constant}
   engine.social.voicing.INTENT_WORDS: {verdict: constant}
+  engine.social.voicing.MODE_WORDS: {verdict: constant}
   engine.social.voicing.PROPOSAL_WORDS: {verdict: constant}
+  engine.social.voicing.RUNG_WORDS: {verdict: constant}
   engine.social.voicing.STATUS_WORDS: {verdict: constant}
+  engine.social.turnstile._NullTurnstile.held_seconds: {verdict: constant, note: "a class-level dict never written: _NullTurnstile.release is a no-op"}
   engine.social.voicer.VoicingScheduler._start_workers#Thread: {verdict: shared_by_design, note: "the voicing pass's social.voice.workers daemon threads per process (spec §16.2), started lazily by the first request with VoicingScheduler._lock (a leaf) released; each pass tries its session's turn lock non-blocking and calls the model holding no lock"}
+  engine.social.voicer._FALLBACK_IDS: {verdict: shared_by_design, note: "itertools.count of open-episode fallback batch ids (v0.23.0 T8), process-wide: next() on a count is one C call, so two batches drawing at once get distinct ids"}
   engine.social.voicer._PASS_IDS: {verdict: shared_by_design, note: "itertools.count of pass ids, process-wide: next() on a count is one C call, so two passes drawing at once get distinct ids"}
   engine.social.voicer._emitter: {verdict: shared_by_design, note: "the room-checked push (FlaskScene.emit_to_session), set by social.routes.register when the app is built and only read after; voicer.reset clears it (tests)"}
   engine.social.voicer._llm_fn: {verdict: shared_by_design, note: "the voicer's model function when not production's: set by tests and screenshot_runs before passes run, read once per pass; None in production"}
@@ -392,6 +401,22 @@ sites:
   engine.social.games.wordgame._PREFIXES: {verdict: warmed, loader: engine.games.caches._warm_words, note: "every prefix of every word of _WORDS (the move search's pruning), built with it"}
   engine.social.games.wordgame._WORDS_LOCK: {verdict: locked}
   engine.social.games.wordgame.PREMIUMS: {verdict: constant}
+  # -- engine.social (v0.23.0) --------------------------------------------
+  engine.social.attrs.FIXED: {verdict: registration, note: "drawers registered by owning modules at import (Plan decision 7), read after"}
+  engine.social.growth._STUBBED: {verdict: constant, note: "names removed by T4 (done), T13 (done), T17 at source; never mutated at run time"}
+  engine.social.growth._STEP_LINES: {verdict: constant}
+  engine.social.growth.WHY_WORDS: {verdict: constant, note: "v0.23.0 T5: the hints' words for a willing why; never mutated"}
+  engine.social.migrate.DEPTH_FROM_STAGE: {verdict: constant, note: "v0.22 stage -> the depth a migrated relationship starts at (spec §16.2); read only by migrate._plan"}
+  engine.social.promises._DAY_NAMES: {verdict: constant, note: "weekday ids to the words a promise's day reads in (v0.23.0 T4)"}
+  engine.social.scene.MOVE_WORDS: {verdict: constant, note: "v0.23.0 T13: the engine's words for a scene move; never mutated"}
+  engine.social.scene.BAND_WORDS: {verdict: constant, note: "v0.23.0 T13: the engine's words for a moment's band; never mutated"}
+  engine.social.scene.SCENE_CORRECTIONS: {verdict: constant, note: "v0.23.0 T15 fix round 1: the scene's correction lines in the narrator's frame; never mutated"}
+  engine.social.scene.CLOSER_WORDS: {verdict: constant, note: "v0.23.0 T15: the engine's words for a closer in the receipt lines; never mutated"}
+  engine.social.scene.CLOSER_COMMITMENTS: {verdict: constant, note: "v0.23.0 T13: the commitment each travelling closer records; never mutated"}
+  engine.social.scene.CLOSED_WORDS: {verdict: constant, note: "v0.23.0 T18: the engine's words for a scene that ended by itself (the wedding); never mutated"}
+  engine.social.relationships.ASK_WORDS: {verdict: constant, note: "v0.23.0 T18: how a stage ask is named in the engine's refusals; never mutated"}
+  engine.social.relationships.ALREADY_WORDS: {verdict: constant, note: "v0.23.0 T18: the refusal of a step already taken; never mutated"}
+  engine.social.convo.MARKED: {verdict: per_context, note: "a ContextVar set by run_mechanics around execute_phone_intent to the session's voicing marks (Plan decision 9) and reset in marking's finally; empty outside an action"}
 
   # -- engine.state -------------------------------------------------------
   engine.state._EXPORTS: {verdict: registration}

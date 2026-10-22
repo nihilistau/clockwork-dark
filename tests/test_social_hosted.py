@@ -23,7 +23,7 @@ def test_the_phone_bucket_not_the_actions_bucket_limits_phone_action(hosted_rece
     # actions_per_minute 12 and phone_actions_per_minute 90 in its local.yaml layer.
     run = hosted_receipts.login_and_start()
     for _ in range(30):
-        run.sock.emit("phone_action", {"session_id": run.sid, "action": "wait", "args": {"until": "15m"}})
+        run.sock.emit("phone_action", {"session_id": run.sid, "action": "wait", "args": {"until": "1h"}})
     errors = [e for e in run.sock.get_received() if e["name"] == "turn_error"
               and "faster than this server allows" in e["args"][0]["message"]]
     assert errors == []                                   # 30 < 90, and the actions bucket was not spent
@@ -46,7 +46,7 @@ def test_a_hosted_mechanics_action_reports_a_phone_metric_never_a_turn(hosted_re
     monkeypatch.setattr(default_scene, "phone_metric", lambda *a: seen.append(("phone",) + a))
     monkeypatch.setattr(default_scene, "turn_metric", lambda *a: seen.append(("turn",) + a))
     run = hosted_receipts.login_and_start()
-    run.sock.emit("phone_action", {"session_id": run.sid, "action": "wait", "args": {"until": "15m"}})
+    run.sock.emit("phone_action", {"session_id": run.sid, "action": "wait", "args": {"until": "1h"}})
     assert [row[0] for row in seen] == ["phone"] and seen[0][2] == "action" and seen[0][3] == "ok"
 
 
@@ -64,7 +64,7 @@ def _one_phone_token(hosted_receipts: Any) -> ActionLimiter:
 def test_the_phone_bucket_refuses_on_the_socket_once_spent(hosted_receipts) -> None:
     run = hosted_receipts.login_and_start()
     _one_phone_token(hosted_receipts)
-    body = {"session_id": run.sid, "action": "wait", "args": {"until": "15m"}}
+    body = {"session_id": run.sid, "action": "wait", "args": {"until": "1h"}}
     run.sock.emit("phone_action", body)
     first = run.sock.get_received()
     assert [e["name"] for e in first] == ["turn_update"]
@@ -77,7 +77,7 @@ def test_the_http_twin_has_the_phone_bucket_and_cap_not_the_actions_bucket(hoste
     run = hosted_receipts.login_and_start()
     actions = hosted_receipts.state.actions
     before = actions.buckets.level(run.account_id, actions.clock())
-    body = {"session_id": run.sid, "action": "wait", "args": {"until": "15m"}}
+    body = {"session_id": run.sid, "action": "wait", "args": {"until": "1h"}}
     ok = run.client.post("/api/phone/action", json=body)
     assert ok.status_code == 200 and ok.get_json()["narration"] == ""
     assert actions.buckets.level(run.account_id, actions.clock()) >= before     # nothing spent there
@@ -158,7 +158,7 @@ def test_a_refused_phone_action_reports_phone_refused_never_a_turn(hosted_receip
     run.sock.emit("phone_action", {"session_id": run.sid, "action": "wait", "args": {"until": "1h"},
                                    "text": "x" * 1001})
     _one_phone_token(hosted_receipts)
-    body = {"session_id": run.sid, "action": "wait", "args": {"until": "15m"}}
+    body = {"session_id": run.sid, "action": "wait", "args": {"until": "1h"}}
     run.client.post("/api/phone/action", json=body)
     run.client.post("/api/phone/action", json=body)              # past the bucket
     refusals = [row for row in seen if row[0] != "hook"]
@@ -319,8 +319,10 @@ def test_a_hosted_voice_call_runs_inside_its_admission(hosted_receipts, own_lane
 def test_one_ticket_per_account(hosted_receipts, own_lanes, monkeypatch) -> None:
     """
     An account's mechanics action while its pass holds the narration ticket
-    is not busy (mechanics take no ticket); a second pass for the account
-    waits its short admission, answers busy and is re-queued with backoff.
+    is not busy (mechanics take no ticket); a second pass for the same run
+    never asks for a second ticket at all (v0.23.0 T8, spec §20.1): it finds
+    the run's narration turnstile held by the first pass's call, answers
+    `deferred` -- not an attempt -- and is re-queued on the retry schedule.
     """
     from engine import social
     from engine.llm import gate
@@ -353,7 +355,7 @@ def test_one_ticket_per_account(hosted_receipts, own_lanes, monkeypatch) -> None
     scheduler = None
     try:
         _wait_until(lambda: stub.calls == 1)
-        acted = _post(run, "wait", args={"until": "15m"})            # mechanics: no ticket, not busy
+        acted = _post(run, "wait", args={"until": "1h"})            # mechanics: no ticket, not busy
         assert not acted.get("busy") and not acted["receipts"][0].get("refused")
         # Something due that the first pass has not taken, so the second asks for a ticket at all.
         from tests.social_fixtures import _matched_in
@@ -369,16 +371,17 @@ def test_one_ticket_per_account(hosted_receipts, own_lanes, monkeypatch) -> None
             session.lock.release()
         scheduler = voicer.VoicingScheduler(workers=1, admit=lambda: True)
         scheduler.request(session)
-        _wait_until(lambda: len(asked) >= 2 and bool(scheduler.queued()), timeout=5)
+        _wait_until(lambda: any(p.deferrals for p in scheduler.queued()), timeout=5)
         (second,) = scheduler.queued()
-        assert second is not first and second.attempts == 1        # re-queued, its backoff timed
+        assert second is not first and second.attempts == 0        # deferred: not an attempt
+        assert asked == [(session.owner, "admitted")]              # one ticket for the account, ever
     finally:
         if scheduler is not None:
             scheduler.stop()
         held.set()
         worker.join(5)
     assert asked[0] == (run.account_id, "admitted")
-    assert asked[1] == (run.account_id, gate.BUSY)
+    assert gate.BUSY not in {reason for _account, reason in asked}   # the turnstile kept the two passes apart
     assert out["r"] == "ok"
 
 
@@ -390,7 +393,7 @@ def test_a_pass_with_nothing_due_asks_no_ticket(hosted_receipts, monkeypatch) ->
 
     run = hosted_receipts.login_and_start()
     session = _session(hosted_receipts, run)
-    _post(run, "wait", args={"until": "15m"})
+    _post(run, "wait", args={"until": "1h"})
 
     def _no(*_a: Any, **_k: Any) -> Any:
         raise AssertionError("a pass with nothing due asked admit_turn for a ticket")
@@ -409,7 +412,7 @@ def test_a_pass_with_only_a_parked_media_result_drains_it_with_no_ticket(hosted_
 
     run = hosted_receipts.login_and_start()
     session = _session(hosted_receipts, run)
-    _post(run, "wait", args={"until": "15m"})
+    _post(run, "wait", args={"until": "1h"})
     assert not voicer.pending(session)
     applied: list[Any] = []
     monkeypatch.setattr("engine.social.media.apply_and_push",
@@ -445,3 +448,258 @@ def test_a_disconnect_calls_off_only_the_passes_of_its_own_rooms(hosted_receipts
     again.emit("join_session", {"session_id": alice.sid})
     again.disconnect()                                        # her room's last socket goes: called off
     assert queued.cancel.cancelled and scheduler.queued() == []
+
+
+# -- the narration turnstile, hosted (v0.23.0 T28, spec §20.1) -----------------------------------------
+
+
+def _put_down(started: Any) -> None:
+    resp = started.client.post("/api/phone/action", json={"session_id": started.sid, "action": "put_down",
+                                                           "target": "", "args": {}, "text": ""})
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+
+
+@pytest.mark.loopback
+def test_no_other_window_for_one_session_world_then_voice(hosted_receipts) -> None:
+    """§20.1: a world turn and a voice pass from ONE account never refuse each other `other_window`."""
+    from engine.social import voicer
+    from tests.social_fixtures import _offered, _three_due_hosted
+
+    started = hosted_receipts.login_and_start("alice")
+    _three_due_hosted(hosted_receipts, started)
+    voicer.get_scheduler().resume()
+    _put_down(started)
+    turn = started.client.post("/api/game/choice", json={
+        "session_id": started.sid, "choice_id": _offered(hosted_receipts, started, "Tidy up a bit")})
+    assert turn.status_code == 200, turn.get_data(as_text=True)
+    assert "other window" not in turn.get_data(as_text=True)
+    _wait_until(lambda: not voicer.pending(hosted_receipts.session(started)), timeout=10.0)
+
+
+@pytest.mark.loopback
+def test_no_other_window_for_one_session_voice_then_world(hosted_receipts) -> None:
+    """The other direction: a pass holding the turnstile; the world turn waits one call, then runs."""
+    from engine.social import voicer
+    from tests.social_fixtures import _offered, _three_due_hosted
+    from tests.social_stub import StubVoice
+
+    started = hosted_receipts.login_and_start("alice")
+    _three_due_hosted(hosted_receipts, started)
+    release = threading.Event()
+    stub = StubVoice("zero", block=release)
+    voicer.set_llm_fn(stub)
+    _put_down(started)
+    choice_id = _offered(hosted_receipts, started, "Tidy up a bit")
+    voicer.get_scheduler().resume()
+    voicer.request(hosted_receipts.session(started))              # the scheduler was paused: ask for the pass
+    _wait_until(lambda: stub.calls == 1, timeout=10.0)            # a voice call holds the turnstile
+    answers: list[Any] = []
+    t = threading.Thread(target=lambda: answers.append(started.client.post("/api/game/choice", json={
+        "session_id": started.sid, "choice_id": choice_id})))
+    t.start()
+    session = hosted_receipts.session(started)
+    try:
+        _wait_until(lambda: session.narration_turnstile.world_waiting == 1, timeout=10.0)
+    finally:
+        release.set()
+        t.join(30.0)
+    assert answers and answers[0].status_code == 200, answers and answers[0].get_data(as_text=True)
+    assert "other window" not in answers[0].get_data(as_text=True)
+    _wait_until(lambda: not voicer.pending(session), timeout=10.0)
+
+
+@pytest.mark.loopback
+def test_a_world_turn_whose_arrival_opens_a_scene_beside_a_voice_pass_is_never_refused(
+        hosted_receipts, monkeypatch) -> None:
+    """
+    T23C's arrival after the drain and its second `turn_update`: a plan's person arrives inside a room move's minute, so
+    the scene opens inside the world turn, while a voice pass from the same account has replies due. Neither is refused
+    `other_window` (the arrival calls no model, under the turn's own turnstile and lock), the turn answers with the
+    scene's frame, and the pass still commits.
+    """
+    from engine import social
+    from engine.session.store import release_turn
+    from engine.social import matching, plans, voicer
+    from tests.social_fixtures import _force_stage, _three_due_hosted
+    from tests.test_social_plans import _willing_meet
+
+    started = hosted_receipts.login_and_start("alice")
+    threads = _three_due_hosted(hosted_receipts, started)
+    session = hosted_receipts.session(started)
+    state = session.engine.state
+    pid = threads[0].split(":")[1]
+    _force_stage(state, pid, "numbers")
+    wait = started.client.post("/api/phone/action", json={"session_id": started.sid, "action": "wait",
+                                                           "target": "", "args": {"until": "1h"}, "text": ""})
+    assert wait.status_code == 200, wait.get_data(as_text=True)
+    _put_down(started)
+    _willing_meet(monkeypatch)
+    monkeypatch.setattr(plans, "_arrival", lambda s, r, e, at: (at, at + 0.5 / 60.0))   # inside the move's minute
+    assert session.lock.acquire(blocking=False)
+    try:
+        assert plans.make(state, pid, kind="your_place", when="now", venue="")
+    finally:
+        release_turn(session)
+    move = next(c for c in session.last_turn["choices"] if (c.get("intent") or {}).get("action") == "travel")
+    voicer.get_scheduler().resume()
+    turn = started.client.post("/api/game/choice", json={"session_id": started.sid, "choice_id": move["id"]})
+    assert turn.status_code == 200, turn.get_data(as_text=True)
+    assert "other window" not in turn.get_data(as_text=True)
+    assert social.scene_open(state)
+    assert f"{matching._name(state, pid)} arrives." in turn.get_json()["narration"]
+    _wait_until(lambda: not voicer.pending(session), timeout=15.0)
+
+
+@pytest.mark.loopback
+def test_voice_pass_never_blocks_a_scheduler_thread_hosted(hosted_receipts) -> None:
+    """Two accounts each in a world turn (their turnstiles held), while a third account's pass completes on the 2-worker scheduler."""
+    from engine.social import voicer
+    from tests.social_fixtures import _three_due_hosted, hold_world
+
+    a, b, c = (hosted_receipts.login_and_start(n) for n in ("alice", "bob", "carol"))
+    _three_due_hosted(hosted_receipts, c)
+    held = [threading.Event(), threading.Event()]
+    let_go = threading.Event()
+    threads = [threading.Thread(target=hold_world, args=(hosted_receipts.session(s),),
+                                kwargs={"timeout": 5.0, "acquired": ev, "until": let_go}) for s, ev in zip((a, b), held)]
+    for t in threads:
+        t.start()
+    try:
+        for ev in held:
+            assert ev.wait(10.0)
+        voicer.get_scheduler().resume()
+        voicer.request(hosted_receipts.session(c))
+        _wait_until(lambda: not voicer.pending(hosted_receipts.session(c)), timeout=15.0)
+    finally:
+        let_go.set()
+        for t in threads:
+            t.join(10.0)
+
+
+@pytest.mark.loopback
+def test_the_narration_share_metric_is_emitted(hosted_receipts, monkeypatch) -> None:
+    """A world turn and a pass each add seconds; the share goes out as `phone` rows (`narration_world`, `narration_voice`) whose fields are exactly the schema's."""
+    from engine.hosting import metrics_schema
+    from engine.scenes import default_scene
+    from engine.social import turnstile, voicer
+    from tests.social_fixtures import _offered, _three_due_hosted
+
+    rows: list[tuple[Any, ...]] = []
+    monkeypatch.setattr(default_scene, "phone_metric", lambda *row: rows.append(row))
+    monkeypatch.setattr(turnstile, "SHARE_INTERVAL_SECONDS", 0.0)
+    started = hosted_receipts.login_and_start("alice")
+    session = hosted_receipts.session(started)
+    _three_due_hosted(hosted_receipts, started)
+    voicer.get_scheduler().resume()
+    _put_down(started)
+    turn = started.client.post("/api/game/choice", json={
+        "session_id": started.sid, "choice_id": _offered(hosted_receipts, started, "Tidy up a bit")})
+    assert turn.status_code == 200, turn.get_data(as_text=True)
+    _wait_until(lambda: not voicer.pending(session), timeout=15.0)
+    gate = session.narration_turnstile
+    assert gate.held_seconds[turnstile.WORLD] > 0.0 and gate.held_seconds[turnstile.VOICE] > 0.0
+    shares = [r for r in rows if r[1] in ("narration_world", "narration_voice")]
+    assert {r[1] for r in shares} == {"narration_world", "narration_voice"}, rows
+    for account, event, status, ms in shares:
+        assert account == started.account_id and status == "ok" and ms > 0.0
+        clean = metrics_schema.validate({"kind": "phone", "ts": 1_790_000_000, "story": "read-receipts",
+                                         "account": account, "event": event, "status": status, "ms": ms},
+                                        stories=["read-receipts"])
+        assert clean is not None, (event, status, ms)
+    assert set(metrics_schema.KINDS["phone"]) == {"ts", "story", "account", "event", "status", "ms"}
+
+
+def test_a_share_is_told_once_a_minute_and_only_what_was_held_since() -> None:
+    """`take_share`: deltas since the last report, None inside the interval or when nothing was held."""
+    from engine.social.turnstile import VOICE, WORLD, Turnstile
+
+    gate = Turnstile()
+    gate.held_seconds[WORLD] = 2.0
+    gate.held_seconds[VOICE] = 1.0
+    start = gate._told_at
+    assert gate.take_share(60.0, now=start + 10.0) is None            # inside the minute
+    assert gate.take_share(60.0, now=start + 61.0) == (2.0, 1.0)
+    gate.held_seconds[VOICE] = 4.0
+    assert gate.take_share(60.0, now=start + 100.0) is None            # a minute has not passed again
+    assert gate.take_share(60.0, now=start + 125.0) == (0.0, 3.0)      # only what was held since
+    assert gate.take_share(60.0, now=start + 200.0) is None            # nothing held since
+
+
+# -- the hosted drain and a world turn / scene (v0.23.0 T28, spec §16.5, §20.1) --------------------------
+
+
+@pytest.mark.loopback
+def test_a_drain_waits_for_a_world_turn_still_waiting_at_the_turnstile(hosted_receipts) -> None:
+    """
+    A world turn waits for the turnstile BEFORE the turn lock, so it holds no lock the drain counts. The drain counts
+    it all the same: it does not report drained while a turn (a scene's, a chance scene's, an arrival's) waits for
+    its turn, and returns once the turn has finished.
+    """
+    from engine import hosting
+    from engine.social import turnstile
+    from tests.social_fixtures import _offered
+
+    started = hosted_receipts.login_and_start("alice")
+    session = hosted_receipts.session(started)
+    store = hosted_receipts.scene.store
+    _put_down(started)
+    choice_id = _offered(hosted_receipts, started, "Tidy up a bit")
+    gate = session.narration_turnstile
+    assert gate.try_acquire_voice()                              # a voice call holds the turnstile
+    answers: list[Any] = []
+    t = threading.Thread(target=lambda: answers.append(started.client.post("/api/game/choice", json={
+        "session_id": started.sid, "choice_id": choice_id})))
+    t.start()
+    try:
+        _wait_until(lambda: gate.world_waiting == 1, timeout=10.0)
+        assert not session.lock.locked()                         # waiting holds no turn lock: `turns_running` is 0
+        assert store.turns_running() == 0
+        assert hosting.drain(store, 0.3) is False                # but the drain does not call it drained
+    finally:
+        gate.release(turnstile.VOICE)
+        t.join(30.0)
+    assert answers and answers[0].status_code == 200, answers and answers[0].get_data(as_text=True)
+    assert hosting.drain(store, 5.0) is True
+
+
+@pytest.mark.loopback
+def test_a_drain_parks_an_open_scene_and_what_was_due_for_the_resume(hosted_receipts, monkeypatch) -> None:
+    """
+    A scene opened by an arrival, replies due and recaps waiting: the drain finishes the turn (it waits for the lock),
+    cancels the pass (nothing half-written), and flushes the run, so the saved state holds the open scene, the
+    queued and held texts and every `recap_due` row the live state holds, and a resume reads the same.
+    """
+    from engine import hosting, social
+    from engine.session.store import release_turn
+    from engine.social import plans, voicer
+    from tests.social_fixtures import _force_stage, _three_due_hosted
+    from tests.test_social_plans import _willing_meet
+
+    started = hosted_receipts.login_and_start("alice")
+    threads = _three_due_hosted(hosted_receipts, started)
+    session = hosted_receipts.session(started)
+    state = session.engine.state
+    pid = threads[0].split(":")[1]
+    _force_stage(state, pid, "numbers")
+    started.client.post("/api/phone/action", json={"session_id": started.sid, "action": "wait",
+                                                    "target": "", "args": {"until": "1h"}, "text": ""})
+    _put_down(started)
+    _willing_meet(monkeypatch)
+    monkeypatch.setattr(plans, "_arrival", lambda s, r, e, at: (at, at + 0.5 / 60.0))
+    assert session.lock.acquire(blocking=False)
+    try:
+        assert plans.make(state, pid, kind="your_place", when="now", venue="")
+    finally:
+        release_turn(session)
+    move = next(c for c in session.last_turn["choices"] if (c.get("intent") or {}).get("action") == "travel")
+    turn = started.client.post("/api/game/choice", json={"session_id": started.sid, "choice_id": move["id"]})
+    assert turn.status_code == 200, turn.get_data(as_text=True)
+    assert social.scene_open(state) and session.dirty is True
+    voicer.get_scheduler().resume()
+    assert hosting.drain(hosted_receipts.scene.store, 5.0) is True
+    assert session.dirty is False
+    saved = session.saves.load(session.save_id)[0]
+    assert (saved.social.get("scene") or {}).get("pid") == pid and social.scene_open(saved)
+    assert saved.social["queue"] == state.social["queue"]
+    assert {p: r.get("recap_due") for p, r in saved.social["people"].items() if r.get("recap_due")} == {
+        p: r.get("recap_due") for p, r in state.social["people"].items() if r.get("recap_due")}

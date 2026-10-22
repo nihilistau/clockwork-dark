@@ -297,6 +297,8 @@ def drain(store: Any, seconds: float) -> bool:
     waiter = threading.Event()
     while True:
         running = store.turns_running() if store is not None else 0
+        if phone:
+            running += _world_turns_at_the_turnstile(store)
         passes = voicer.in_flight() if phone else 0
         if running == 0 and passes == 0:
             logger.info("[hosting] Drained: no turn running (operation=drain)")
@@ -312,6 +314,30 @@ def drain(store: Any, seconds: float) -> bool:
             _flush_phone(store)
             return False
         waiter.wait(DRAIN_POLL_SECONDS)
+
+
+def _world_turns_at_the_turnstile(store: Any) -> int:
+    """
+    A phone story's world turns the drain has not yet seen as running (v0.23.0 T28, spec §20.1): one still
+    WAITING for its session's narration turnstile holds no turn lock (the turnstile comes first), so
+    `turns_running` misses it, and one holding the turnstile between its acquire and its lock is missed too.
+    A scene's turn, a chance scene's or an arrival's is a world turn like any other: the drain waits for it to
+    finish (its state, a recap due or a held text, is saved by `_flush_phone` after) rather than cut it.
+    A pass cancelled by the drain leaves its recap in `recap_due` and its held texts in the queue, parked for
+    the resume. Never raises.
+    """
+    from engine.social import turnstile
+
+    try:
+        count = 0
+        for session in store.live_sessions():
+            gate = getattr(session, "narration_turnstile", None)
+            if gate is not None and (gate.world_waiting or gate.holder == turnstile.WORLD):
+                count += 1
+        return count
+    except Exception as exc:  # noqa: BLE001 -- a drain answers whatever it counts
+        logger.warning("[hosting] World turns at the turnstile not counted (operation=drain): %s", exc)
+        return 0
 
 
 def _stop_media_worker(seconds: float) -> None:

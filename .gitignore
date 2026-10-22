@@ -3,6 +3,7 @@
 # ---------------------------------------------------------------------------
 llm_api_key.txt
 comfyui_api_key.txt
+xai_api_key.txt
 lmstudio.txt
 *.token
 *.key

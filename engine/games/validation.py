@@ -107,6 +107,21 @@ CANON_DICTIONARY_CANDIDATES = (
 )
 
 
+def _minutes_problem(edge: dict[str, Any]) -> str:
+    """What is wrong with an edge's `minutes` (v0.23.0 I3), as the loader judges it; "" for none."""
+    try:
+        minutes = int(edge["minutes"])
+    except (TypeError, ValueError):
+        return "minutes must be a whole number"
+    if not 0 <= minutes <= 59:
+        return f"minutes {minutes} is outside 0-59"
+    try:
+        hours = int(edge.get("hours", 0))
+    except (TypeError, ValueError):
+        return ""
+    return "hours and minutes are both 0" if hours == 0 and minutes == 0 else ""
+
+
 @dataclass(frozen=True)
 class Issue:
     """One integrity finding, phrased for whoever has to fix the file."""
@@ -776,6 +791,10 @@ class StoryValidator:
                 if dst not in self.locations:
                     self._add(source, f"{loc_id}>{dst}", "edge target does not exist")
                     continue
+                if "minutes" in edge:
+                    problem = _minutes_problem(edge)
+                    if problem:
+                        self._add(source, f"{loc_id}>{dst}", f"{problem}; the loader will drop the edge")
                 if edge.get("one_way"):
                     continue
                 back = self.locations.get(dst) or {}
@@ -1950,12 +1969,150 @@ class StoryValidator:
         self._check_texter(directory)
         self._check_games(directory)
         self._check_meets(directory)
+        self._check_growth(directory)
+        self._check_conversation(directory)
+        self._check_promises(directory)
+        self._check_plans(directory)
+        self._check_life_events(directory)
+        self._check_scenes(directory)
+
+    def _check_scenes(self, directory: Path) -> None:
+        """scenes.yaml (v0.23.0 spec §10, §19.6): `scene.check_data` -- the check `load_all` runs, passed the
+        population.yaml trait ids (a move's `fit.traits`, pre-flight F23)."""
+        from engine import social
+        from engine.social import scene
+
+        try:
+            data = social.load_file(directory, "scenes")
+            population_data = social.load_file(directory, "population")
+        except ValueError:
+            return  # reported by check_social
+        if not data:
+            return
+        traits = frozenset(str(t["id"]) for t in population_data.get("traits") or []
+                           if isinstance(t, dict) and t.get("id"))
+        try:
+            scene.check_data(data, traits=traits)
+        except ValueError as exc:
+            # scene's faults read "social: scenes.yaml: <key>: <message>".
+            parts = str(exc).split(": ", 3)
+            self._add("social/scenes.yaml", parts[2] if len(parts) == 4 else "scenes",
+                      parts[3] if len(parts) == 4 else str(exc))
+
+    def _check_plans(self, directory: Path) -> None:
+        """plans.yaml (v0.23.0 spec §9): `plans.check_data` -- the check `load_all` runs."""
+        from engine import social
+        from engine.social import plans
+
+        try:
+            data = social.load_file(directory, "plans")
+        except ValueError:
+            return  # reported by check_social
+        if not data:
+            return
+        try:
+            plans.check_data(data)
+        except ValueError as exc:
+            # plans' faults read "social: plans.yaml: <key>: <message>".
+            parts = str(exc).split(": ", 3)
+            self._add("social/plans.yaml", parts[2] if len(parts) == 4 else "plans",
+                      parts[3] if len(parts) == 4 else str(exc))
+
+    def _check_life_events(self, directory: Path) -> None:
+        """life_events.yaml (v0.23.0 spec §11): `life.check_data` -- the check `load_all` runs."""
+        from engine import social
+        from engine.social import life
+
+        try:
+            data = social.load_file(directory, "life_events")
+            relationships_data = social.load_file(directory, "relationships")
+        except ValueError:
+            return  # reported by check_social
+        if not data:
+            return
+        moods = (relationships_data.get("mood") or {}).get("values") if isinstance(relationships_data, dict) else None
+        try:
+            life.check_data(data, moods=tuple(moods) if isinstance(moods, list) else None)
+        except ValueError as exc:
+            # life's faults read "social: life_events.yaml: <key>: <message>".
+            parts = str(exc).split(": ", 3)
+            self._add("social/life_events.yaml", parts[2] if len(parts) == 4 else "life_events",
+                      parts[3] if len(parts) == 4 else str(exc))
+
+    def _check_promises(self, directory: Path) -> None:
+        """promises.yaml (v0.23.0 spec §5): `promises.check_data` -- the check `load_all` runs."""
+        from engine import social
+        from engine.social import promises
+
+        try:
+            data = social.load_file(directory, "promises")
+        except ValueError:
+            return  # reported by check_social
+        if not data:
+            return
+        try:
+            promises.check_data(data)
+        except ValueError as exc:
+            # promises' faults read "social: promises.yaml: <key>: <message>".
+            parts = str(exc).split(": ", 3)
+            self._add("social/promises.yaml", parts[2] if len(parts) == 4 else "promises",
+                      parts[3] if len(parts) == 4 else str(exc))
+
+    def _check_conversation(self, directory: Path) -> None:
+        """conversation.yaml (v0.23.0 spec §3.3, §4): `convo.check_data`, every per-archetype key a
+        behaviours.yaml archetype -- the check `load_all` runs."""
+        from engine import social
+        from engine.social import convo
+
+        try:
+            data = social.load_file(directory, "conversation")
+            behaviours = social.load_file(directory, "behaviours")
+        except ValueError:
+            return  # reported by check_social
+        if not data:
+            return
+        archetypes = behaviours.get("archetypes") if isinstance(behaviours.get("archetypes"), dict) else {}
+        try:
+            convo.check_data(data, archetypes=archetypes)
+        except ValueError as exc:
+            # convo's faults read "social: conversation.yaml: <key>: <message>".
+            parts = str(exc).split(": ", 3)
+            self._add("social/conversation.yaml", parts[2] if len(parts) == 4 else "conversation",
+                      parts[3] if len(parts) == 4 else str(exc))
+
+    def _check_growth(self, directory: Path) -> None:
+        """Growth (v0.23.0 spec §6.7, §19.6): `growth.check_data` over growth.yaml, topics.yaml and
+        layers.yaml, every `trait_mult` key a population.yaml trait -- the check `load_all` runs."""
+        from engine import social
+        from engine.social import growth
+
+        try:
+            data = social.load_file(directory, "growth")
+            topics = social.load_file(directory, "topics")
+            layers = social.load_file(directory, "layers")
+            population = social.load_file(directory, "population")
+        except ValueError:
+            return  # reported by check_social
+        if not data:
+            return
+        traits = frozenset(str(t["id"]) for t in population.get("traits") or []
+                           if isinstance(t, dict) and t.get("id"))
+        try:
+            growth.check_data(data, topics, layers, traits=traits)
+        except ValueError as exc:
+            # growth's faults read "social: <file>.yaml: <key>: <message>".
+            parts = str(exc).split(": ", 3)
+            if len(parts) == 4:
+                self._add(f"social/{parts[1]}", parts[2], parts[3])
+            else:
+                self._add("social/growth.yaml", "growth", str(exc))
 
     def _check_meets(self, directory: Path) -> None:
-        """Meet-ups (spec §14, v0.22.0 T24): relationships.yaml's `meets:` block whole, and venues.yaml's
-        kinds and twelve or more venues, each neighbourhood and hobby a population.yaml id."""
+        """Meet-ups (v0.22.0 T24; v0.23.0 T13): relationships.yaml's `meets:` block (`post_meet` and the band
+        words, `scene.meets_faults`), and venues.yaml's kinds and twelve or more venues, each neighbourhood and
+        hobby a population.yaml id (`places.venue_faults`)."""
         from engine import social
-        from engine.social import meets
+        from engine.social import places, scene
 
         try:
             venues = social.load_file(directory, "venues")
@@ -1963,7 +2120,11 @@ class StoryValidator:
             population_data = social.load_file(directory, "population")
         except ValueError:
             return  # reported by check_social
-        for source, key, message in meets.meet_faults(venues, relationships_data, population_data or None):
+        if not venues and "meets" not in relationships_data:
+            return
+        faults = (places.venue_faults(venues, population_data or None)
+                  + scene.meets_faults(relationships_data, venues_declared=bool(venues)))
+        for source, key, message in faults:
             self._add(f"social/{source}", key, message)
 
     def _check_games(self, directory: Path) -> None:
@@ -2277,10 +2438,9 @@ class StoryValidator:
                     behaviour.build_archetype(str(name), row, arcs)
                 except ValueError as exc:
                     report(exc, f"archetypes.{name}")
-            try:
-                behaviour.check_pacing(data.get("pacing"))   # spec §9.2, v0.22.0 T8
-            except ValueError as exc:
-                report(exc, "pacing")
+            if "pacing" in data:                             # v0.22.0's block: its terms moved (v0.23.0 T3)
+                self._add(source, "pacing", "went in v0.23.0: the reply and ghost terms are conversation.yaml's "
+                                            "`reply:` block")
             try:
                 behaviour.check_canon(data)                  # spec §12.1, v0.22.0 T12
             except ValueError as exc:

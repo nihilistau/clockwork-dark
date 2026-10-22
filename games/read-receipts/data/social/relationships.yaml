@@ -5,7 +5,11 @@
 # Later tasks added rows: T11 reads `claims:`, T19 added the `offer_photo`,
 # `offer_voice` and `offer_video` proposals, T22 added `invite_game`, T24
 # `ask_meet`, `meet_claims`, `meet_denials` and the `meets:` block
-# (engine/social/meets.py).
+# (v0.22's meets.py, deleted in T13), v0.23.0 T4 the `promise` proposal
+# (engine/social/promises.py); T12 cut the `meets:` block to the outcome's rows
+# and moved the plan to plans.yaml (engine/social/plans.py); T13 moved the
+# outcome to scenes.yaml (engine/social/scene.py) and left `meets:` its band
+# words and `post_meet`.
 #
 # stages        every stage spec §10.3 names, in the engine's order
 #               (engine/social/kinds.py STAGES): `words` (what the player
@@ -13,24 +17,52 @@
 #                 from     the stages it is reached from
 #                 trigger  automatic (checked after every exchange), ask (a
 #                          request accepted: the player's `ask` or the
-#                          person's proposal) or meet (T24's meet agreed);
-#                          `branch` marks dating, friends and fling, chosen
-#                          from `meeting` by `branch:` below
-#                 gate     the measures that must hold, each a minimum:
-#                          warmth, trust (0-100), exchanges (turns taken,
-#                          either way), days (in-game days with contact),
-#                          stage_days (days at the current stage, counted
-#                          each morning), meets_good (meet-ups that went
-#                          `good` or better, T24)
+#                          person's proposal), meet (a scene's end, v0.23.0
+#                          T13: `numbers` moves to `meeting` when the two
+#                          meet in person, engine/social/scene.py) or event
+#                          (the wedding scene's end, v0.23.0 T18: `engaged`
+#                          moves to `married`); `branch` marks dating,
+#                          friends and fling, chosen from `meeting` by
+#                          `branch:` below. A `meet` or `event` stage
+#                          carries no gate: nothing would read it, so it
+#                          refuses to load (v0.23.0 T18 removed `meeting`'s)
+#                 gate     what must hold: `willing: <commitment>` (a
+#                          growth.yaml `willing:` row, v0.23.0 spec §6.5),
+#                          and measures, each a minimum: warmth, trust
+#                          (0-100), exchanges (turns taken, either way),
+#                          meets_good (scenes that went `good` or better,
+#                          v0.23.0 T13). No gate reads days (`days` and
+#                          `stage_days` are refused at load, spec §1.4)
 #                 needs    what both sides want: `both: long_term` (the
-#                          player's looking_for and their intent)
+#                          player's looking_for and their intent); the
+#                          `exclusive` gate's lives in willing.exclusive
+#               living_together (from exclusive: moving in asked and
+#               accepted, `willing: move_in`; at engaged or married moving
+#               in records the household and moves no stage), engaged (from
+#               exclusive or living_together: `propose` asked and accepted,
+#               on the phone, as a scene's closer or as their proposal,
+#               `willing: propose`) and married (the wedding scene's end,
+#               `wedding_after_days` after the engagement: life_events.yaml's
+#               `wedding` row) are v0.23.0 spec §12.1's. None is an ending:
+#               cooling off, ending and fading apply to them all
 # branch        from `meeting`, the first row that matches: `either` (one
 #               side wants it) picks `stage`; a row with no `either` is the
 #               default
 # claims        per stage, phrases a reply that claims that stage would use
 #               (agreement's "stage claimed", spec §11.5): a stage the person
 #               has not reached -- neither theirs nor one theirs is reached
-#               through -- named in a statement fails the reply
+#               through -- named in a statement fails the reply. Two more
+#               keys are tables (v0.23.0 T7, spec §13.4): `promise` (a
+#               window -> phrases promising to message in it; a reply that
+#               names a window other than the promise the engine holds, or
+#               any from someone who makes none, fails "promise claimed")
+#               and `commitment` (number, meet, come_over, exclusive,
+#               move_in or propose -> phrases stating or asking that step,
+#               in the second person; a step whose growth.yaml `willing:`
+#               row does not hold, its stage not yet reached, fails
+#               "commitment claimed" -- asked counts, since asking IS the
+#               step, but a phrase with a third-person subject before it,
+#               "my brother wants to ...", does not)
 # media_claims  phrases saying media was sent; a reply with no media attached
 #               that states one fails ("media claimed")
 # media_denials phrases refusing to send; a reply with media attached that
@@ -52,16 +84,18 @@
 #               or more. An archetype's warmth_cap_band stops warmth one
 #               below the next band's `warmth`
 # regard        start (where warmth and trust start at a match), per_reply
-#               ([low, high] a reply may move each), per_day_gain (the most
-#               each may GAIN per person per in-game day; losses are never
-#               capped), fight_warmth (a day's warmth loss this low or lower
+#               ([low, high] a reply may move each), per_episode_gain (the
+#               most each may GAIN per person per conversation episode --
+#               a scene counts as one -- and again between episodes, reset
+#               when one closes; losses are never capped; v0.23.0 spec §6.4,
+#               I9), fight_warmth (a day's warmth loss this low or lower
 #               is a fight, a history row; the engine's own exact moves,
 #               a turn's say, are not counted), reconcile_warmth (a day's
 #               warmth gain this high after a fight is a reconciliation),
 #               fallback (what an engine-authored fallback reply proposes,
 #               spec §10.2's ruling; applied by T13 through apply_regard,
-#               under the same caps, and `per_day` {warmth, trust}: the most
-#               fallback replies may add per person per in-game day (T26),
+#               under the same caps, and `per_episode` {warmth, trust}: the
+#               most fallback replies may add per person per episode,
 #               so a run with no model progresses, more slowly than a
 #               working model)
 # interest      the engine's own measure of whether they keep turning up:
@@ -72,8 +106,8 @@
 #               `max`, charged at their next event)
 # mood          values (the enum a reply may set), decay_hours (back to
 #               neutral), media_mult ([low, high], T19's accept multiplier)
-# asks          per_day (asks of one kind a day; the next is refused, "Give
-#               it a day"), repeat_mult (a repeat ask's accept odds,
+# asks          per_episode (asks of one kind an episode; the next is
+#               refused, "Give it a while"), repeat_mult (a repeat ask's accept odds,
 #               multiplied), repeat_warmth (what a repeat ask costs),
 #               turned_down {warmth, mood} (the player saying no to theirs;
 #               not to a game invite, which costs nothing)
@@ -86,6 +120,8 @@
 #               Recovery returns to the stage they left WITHOUT re-checking
 #               that stage's gate: deliberate, a cold spell is not a breakup
 # fade_days     no contact either way this many days: faded
+# wedding_after_days  the wedding follows the engagement by this many days
+#               (R15; life_events.yaml's `wedding` row waits for it)
 # proposals     what a voiced reply may propose (spec §10.5): id -> stage
 #               (a stage id, or `live`: any live stage) and gate (a stage
 #               whose gate and needs must hold, or null). The three
@@ -96,50 +132,48 @@
 #               app's `unlock` stage reached, no game running with them and
 #               none asked (engine/social/games/ proposal_open).
 #               `ask_meet` (T24) is also held by the engine: stage numbers or
-#               past it, no meet-up planned with them and none asked
-#               (engine/social/meets.py proposal_open); the engine picks the
-#               venue (by the hobbies you share) and the first slot free for
-#               both of you
-# meet_claims   phrases stating a meet-up is on (agreement's "meeting
-#               claimed", spec §11.5), by when: `today` ("see you tonight")
-#               needs a meet-up planned for today, `tomorrow` one for
-#               tomorrow, `any` one at all; a reply stating one with no such
-#               meet-up planned fails
+#               past it, no plan open with them and none asked
+#               (engine/social/plans.py proposal_open); the engine picks the
+#               venue (by the hobbies you share) and asks for `tonight` when
+#               their evening is free, else `soon` (plans have no slot).
+#               `promise` (v0.23.0 T4, spec §5.2) is also held by the engine:
+#               legal only while their conversation is winding or signed off;
+#               `window:` lists the windows it may name, and the promise is
+#               made only if that window opens within promises.yaml
+#               `max_ahead_hours` (engine/social/promises.py)
+#               `followups` (v0.23.0 T6, spec §7.3) is never offered in the
+#               proposals list: it holds the reply's own `followups` key
+#               (T7) to its stage and gate, at most `max` (1-2) a reply;
+#               each becomes an open row in the person's memory, due
+#               `tomorrow`, `days:<n>` or `after:<window>`
+#               (engine/social/relationships.py apply_followups)
+#               `move_in` and `propose` (v0.23.0 T18, spec §12.1) are requests
+#               to the player, held by growth.yaml's `willing.move_in` and
+#               `willing.propose` (their gate stages); a yes to moving in
+#               records the household (and moves the stage only from
+#               exclusive), a yes to proposing makes them engaged
+# meet_claims   `any`: phrases stating a plan to meet is on (agreement's
+#               "plan claimed", spec §13.4); a reply stating one with no plan
+#               open fails. A plan has no slot or day, so there is one list
 # meet_denials  phrases denying any plan to meet: a reply stating one while a
-#               meet-up is planned fails (not negatable)
-# meets         meet-ups (spec §14, engine/social/meets.py):
-#                 slots        id -> [start, end] hours: a meet-up starts at
-#                              `start`; no answer from you by `end` is a
-#                              no-show
-#                 days_ahead   [first, last]: how many days ahead you may
-#                              propose (spec §7.1's +1..+7)
-#                 quality      the meet's quality: compat x compatibility x
-#                              compat_scale + chemistry x their chemistry +
-#                              warmth x their warmth + venue_hobby_bonus (a
-#                              venue hobby you both hold) + a gaussian of sd
-#                              `spread` (one SOCIAL_MEET draw)
-#                 bands        the least quality of each band, best first;
-#                              below the last, `bad`
-#                 effects      per band, warmth, trust and interest moved
-#                              (exactly: the engine's own), and a mood
-#                 cancel_cost  rows by how long before the start you cancel,
-#                              first match: `within_hours` (the last row has
-#                              none: any earlier); warmth and interest lost,
-#                              larger the later
-#                 no_show      what not turning up costs
-#                 post_meet    their text afterwards: `pace_mult` (times their
-#                              reply latency), and none after a band in
+#               plan is open fails (not negatable)
+# arrival_claims `any`: phrases saying they are at the place they planned to
+#               meet (agreement's "arrival claimed", v0.23.0 addendum 4 W4):
+#               a statement passes only while a `now` / `tonight` plan of
+#               theirs is open and they have got there. A question ("where
+#               are you?") is never a claim; "I'm here for you" is not one
+# meets         what is left of v0.22.0's meet-ups beside a scene
+#               (engine/social/scene.py, v0.23.0 T13; its prior, moments and
+#               bands are scenes.yaml's, its plans plans.yaml's):
+#                 post_meet    their text after a scene: `pace_mult` (times their
+#                              reply latency, then their next available
+#                              time), and none after a scene band in
 #                              `none_after` or from an archetype in
 #                              `none_from`
-#                 recap_lines  per band, the engine's words for how it went
-#                              ("It was a little awkward."): the recap's
-#                              HOW IT WENT block and its fallback line
-#                 recap_tone   phrases saying a meet-up went very well
-#                              (`glowing`) or badly (`grim`), and per band
-#                              which list contradicts it (`contradicts`): a
-#                              recap stating one is retried once, then the
-#                              engine line. They test how it WENT, never
-#                              register (rule 12)
+#                 recap_lines  per scene band, the engine's words for how it
+#                              went ("It was a little awkward."): the history
+#                              line, the post_meet text's HOW IT WENT, the
+#                              scene recap's fallback
 #
 # Every number here is a balance constant (rule 10).
 # Measured 2026-10-13 (v0.22.0 T26, fix round 1): `python scripts/simulate_social.py --game
@@ -162,7 +196,7 @@
 # The numbers gate re-measured 2026-10-14 (v0.22.0 final review wave 2, the
 # owner's "phone numbers don't work": `days: 6` and `trust: 40` were
 # unreachable in a session that moves hours). Now warmth 30, trust 23,
-# exchanges 20, no days. Trust 23 is the most `per_day_gain` (4) lets a
+# exchanges 20, no days. Trust 23 is the most a day's regard gain (4) lets a
 # match's start (15) reach by its second in-game day; 25 needs a third.
 # One person messaged and waited on (`wait next`), the gate checked after
 # each reply, seeds 0-19, `neutral_model` and `romantic_model` alike (the
@@ -176,7 +210,13 @@
 #   v0.23.0 redesigns pacing around real session time; the dead model server
 #   still progresses slower than the neutral model (its test passes)
 #
-# Version: v0.7.0
+# v0.23.0 T5 replaced that gate: `numbers` is `{willing: number}` (growth.yaml:
+# depth 1 and warmth 25, no exchanges, no days) and every per-day cap above is
+# per conversation episode. The rows above are v0.22.0's, kept as its record.
+# v0.23.0 T9's harness retired them (spec §17.2: its rows are per session);
+# its numbers rows are growth.yaml's header.
+#
+# Version: v0.8.0
 
 stages:
   matched: {words: Just matched}
@@ -189,12 +229,11 @@ stages:
     words: Swapped numbers
     from: [talking]
     trigger: ask
-    gate: {warmth: 30, trust: 23, exchanges: 20, days: 0}
+    gate: {willing: number}
   meeting:
     words: Seeing each other
     from: [numbers]
     trigger: meet
-    gate: {warmth: 70, trust: 70}
   dating:
     words: Dating
     from: [meeting]
@@ -214,8 +253,21 @@ stages:
     words: Together
     from: [dating]
     trigger: ask
-    gate: {warmth: 80, trust: 70, stage_days: 28}
-    needs: {both: long_term}
+    gate: {willing: exclusive}
+  living_together:
+    words: Living together
+    from: [exclusive]
+    trigger: ask
+    gate: {willing: move_in}
+  engaged:
+    words: Engaged
+    from: [exclusive, living_together]
+    trigger: ask
+    gate: {willing: propose}
+  married:
+    words: Married
+    from: [engaged]
+    trigger: event
   winding_down: {words: Cooling off}
   ended: {words: Ended}
   faded: {words: Lost touch}
@@ -231,7 +283,29 @@ claims:
   meeting: ["our first date was", "since our first date", "when we met up", "last time I saw you", "great to meet you last night"]
   dating: ["we're dating", "you're my girlfriend", "you're my boyfriend", "my girlfriend now", "my boyfriend now", "since we started dating"]
   exclusive: ["we're exclusive", "exclusive now", "official now", "just us now", "we're official"]
+  engaged: ["we're engaged", "my fiancé", "my fiancée", "since we got engaged", "our engagement"]
+  married: ["we're married", "my husband", "my wife", "since we got married", "our wedding day"]
   ended: ["it's over between us", "we're over", "this is goodbye"]
+  promise:                       # v0.23.0 T7: a window a reply promises to message in (promise_claimed)
+    morning: ["i'll message you in the morning", "i'll text you in the morning", "message you in the morning",
+              "text you in the morning", "text you tomorrow morning", "message you tomorrow morning",
+              "talk in the morning", "speak in the morning"]
+    lunch: ["i'll message you at lunch", "i'll text you at lunch", "message you at lunch", "text you at lunch",
+            "text you on my lunch", "message you on my lunch", "talk at lunch"]
+    after_work: ["i'll message you after work", "i'll text you after work", "message you after work",
+                 "text you after work", "message you after my shift", "text you after my shift", "talk after work"]
+    tonight: ["i'll message you tonight", "i'll text you tonight", "message you tonight", "text you tonight",
+              "message you later tonight", "text you later tonight", "talk tonight"]
+    at_work: ["i'll message you at work", "i'll text you at work", "message you at work", "text you at work",
+              "message you while you're at work", "text you while you're at work"]
+  commitment:                    # v0.23.0 T7: a step a reply states or asks, second person (commitment_claimed)
+    exclusive: ["we should be exclusive", "let's be exclusive", "let's make it official",
+                "will you be exclusive with me", "will you be my girlfriend", "will you be my boyfriend"]
+    come_over: ["do you want to come over", "want to come over tonight", "you should come over",
+                "you could come over", "come over to mine tonight"]
+    move_in: ["let's move in together", "we should move in together", "you should move in with me",
+              "will you move in with me", "do you want to move in with me"]
+    propose: ["will you marry me", "let's get married", "we should get married"]
 
 media_claims: [
   "sent you a pic", "sent you a photo", "sent you a picture", "sent you a selfie",
@@ -272,10 +346,10 @@ bands:
 regard:
   start: {warmth: 20, trust: 15}
   per_reply: {warmth: [-4, 4], trust: [-2, 2]}
-  per_day_gain: {warmth: 6, trust: 4}
+  per_episode_gain: {warmth: 6, trust: 4}
   fight_warmth: -8
   reconcile_warmth: 6
-  fallback: {warmth: 1, trust: 1, per_day: {warmth: 3, trust: 2}}
+  fallback: {warmth: 1, trust: 1, per_episode: {warmth: 3, trust: 2}}
 
 interest:
   start: 50
@@ -290,7 +364,7 @@ mood:
   media_mult: [0.3, 1.3]
 
 asks:
-  per_day: 2
+  per_episode: 2
   repeat_mult: 0.5
   repeat_warmth: -2
   turned_down: {warmth: -3, mood: hurt}
@@ -298,6 +372,8 @@ asks:
 cold: {warmth_below: 15, days: 5, recover_above: 30, recover_days: 2}
 
 fade_days: 21
+
+wedding_after_days: 14
 
 proposals:
   offer_number: {stage: talking, gate: numbers}
@@ -307,33 +383,25 @@ proposals:
   offer_voice: {stage: live, gate: null}
   offer_video: {stage: live, gate: null}
   invite_game: {stage: live, gate: null}     # games open with them and none running (engine/social/games/)
-  ask_meet: {stage: live, gate: meeting}     # numbers or past it, no meet-up planned or asked (engine/social/meets.py)
+  ask_meet: {stage: live, gate: null}        # v0.23.0 spec 9.2: numbers or past it and willing to meet (growth.yaml willing.meet), nothing asked, no plan but a soon one (engine/social/plans.py)
+  promise: {stage: live, gate: null, window: [lunch, after_work, tonight, morning, at_work]}   # v0.23.0: only while winding or signed off (engine/social/promises.py)
+  followups: {stage: live, gate: null, max: 2}    # v0.23.0 §7.3 (T6): the reply's own key, never the enum
+  move_in: {stage: live, gate: living_together}  # v0.23.0 §12.1 (T18): willing.move_in (exclusive or later, no household)
+  propose: {stage: live, gate: engaged}          # v0.23.0 §12.1 (T18): willing.propose (exclusive or living together)
 
 meet_claims:
-  today: ["see you tonight", "see you later tonight", "see you this evening", "see you later today",
-          "see you this afternoon", "tonight's still on", "still on for tonight"]
-  tomorrow: ["see you tomorrow", "still on for tomorrow", "tomorrow's still on"]
   any: ["it's a date", "can't wait for our date", "looking forward to our date", "see you there",
-        "our plans are still on", "still on for our date"]
+        "our plans are still on", "still on for our date",
+        "see you tonight", "see you later tonight", "see you this evening", "see you later today",
+        "see you this afternoon", "tonight's still on", "still on for tonight",
+        "see you tomorrow", "still on for tomorrow", "tomorrow's still on"]
 meet_denials: ["we never made plans", "we don't have plans", "we haven't made any plans",
                "i never said i'd meet you", "we never agreed to meet"]
+arrival_claims:
+  any: ["i'm here", "i am here", "im here", "i'm already here", "just got here", "i've arrived", "i have arrived",
+        "got us a table", "grabbed us a table", "i'm at the bar", "i'm at the door"]
 
 meets:
-  slots: {morning: [10, 12], afternoon: [14, 16], evening: [19, 21]}
-  days_ahead: [1, 7]
-  quality: {compat: 1.0, compat_scale: 0.3, chemistry: 0.3, warmth: 0.003, venue_hobby_bonus: 0.05, spread: 0.18}
-  bands: {great: 0.665, good: 0.51, fine: 0.37, awkward: 0.225}
-  effects:
-    great: {warmth: 8, trust: 6, interest: 10, mood: fond}
-    good: {warmth: 5, trust: 4, interest: 6, mood: fond}
-    fine: {warmth: 2, trust: 2, interest: 2}
-    awkward: {warmth: -2, trust: 0, interest: -4}
-    bad: {warmth: -6, trust: -3, interest: -10, mood: annoyed}
-  cancel_cost:
-    - {within_hours: 3, warmth: -8, interest: -6}
-    - {within_hours: 24, warmth: -4, interest: -3}
-    - {warmth: -2, interest: -1}
-  no_show: {warmth: -8, interest: -6, mood: hurt}
   post_meet: {pace_mult: 1.0, none_after: [bad], none_from: [ghoster]}
   recap_lines:
     great: It went really well.
@@ -341,10 +409,3 @@ meets:
     fine: It was fine.
     awkward: It was a little awkward.
     bad: It didn't go well.
-  recap_tone:
-    glowing: ["best night ever", "best date ever", "perfect evening", "perfect night", "perfect date",
-              "couldn't have gone better", "hit it off", "sparks flew", "never wanted it to end",
-              "an amazing time", "an incredible time"]
-    grim: ["a disaster", "a nightmare", "went badly", "didn't go well", "couldn't wait to leave",
-           "no spark", "fell flat", "a terrible time", "an awful time"]
-    contradicts: {great: [grim], good: [grim], fine: [glowing, grim], awkward: [glowing], bad: [glowing]}

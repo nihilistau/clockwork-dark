@@ -402,6 +402,12 @@ class GameSession:
     # whose save failed (the away advance's ``{kind: away}``), written by the
     # retry that next succeeds (``engine.social.saves.save_now``).
     pending_entry: Optional[dict[str, Any]] = field(default=None, repr=False, compare=False)
+    # v0.23.0 T8 (spec §20.1), never saved: the per-session narration
+    # turnstile (``engine.social.turnstile.Turnstile``), so this player's world
+    # turn and voicing pass never both ask for a narration ticket. Built by
+    # ``SessionStore._build`` only for a story declaring ``paths.social``;
+    # None otherwise (``turnstile.of`` reads None as always free).
+    narration_turnstile: Any = field(default=None, repr=False, compare=False)
 
     @property
     def session_id(self) -> str:
@@ -593,6 +599,14 @@ class SessionStore:
         owner: str = "",
         saves: Any = None,
     ) -> GameSession:
+        from engine import social   # config-only (v0.22 Plan decision 2)
+        from engine.social import kinds as social_kinds
+
+        if social.declared() and getattr(state, "social", None) and state.social.get("schema") != social_kinds.SCHEMA:
+            # A route that bypassed SaveStore.load would voice a v0.22 slice (v0.23.0 spec §16.1, N8):
+            # fail loudly instead.
+            raise RuntimeError(f"social: a schema-{state.social.get('schema', 1)} slice reached _build "
+                               "without SaveStore.load's upgrade")
         engine = GameEngine(state)
         resolved_ledger = ledger or StoryLedger()
         # The skills that need the session's memory read it off the engine
@@ -612,6 +626,12 @@ class SessionStore:
             owner=owner,
             saves=saves if saves is not None else self._store_for(owner),
         )
+        if social.declared():
+            # Set BEFORE the session is published into ``_sessions``, so no other
+            # thread can see the session without it (spec §20.1, m10).
+            from engine.social.turnstile import Turnstile
+
+            session.narration_turnstile = Turnstile()
         one_per_owner = bool(owner) and _hosted()  # read before the leaf lock
         released: list[GameSession] = []
         with self._guard:

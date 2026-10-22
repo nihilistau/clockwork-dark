@@ -28,6 +28,14 @@ export function coreState(phone, story = initialState, busy = false) {
   return { world: { phone }, story, busy, sessionId: "s1", error: "" };
 }
 
+/**
+ * Core's state for the two layers (v0.23.0 T21, pre-flight F8): the phone block under `world.phone`, the
+ * narrator's `choices`, a live link and an empty log. `coreState` keeps its positional signature.
+ */
+export function worldState({ phone = phoneFixture(), choices = [], log = [] } = {}) {
+  return { ...coreState(phone), link: "live", choices, log };
+}
+
 export function Harness({ onAct, busySeq = 0, busy = false, phone = null }) {
   const block = useRef(phone || phoneFixture()).current;
   const host = useRef(null);

@@ -1,0 +1,76 @@
+# READ RECEIPTS -- promises.yaml (paths.social, v0.23.0 spec §5).
+#
+# Promises and sign-offs. Read by engine/social/promises.py (and
+# engine/social/windows.py for `later_min_hours`); `promises.check_data` checks
+# the whole file at load and validate_content.py runs the same check.
+#
+# The design is docs/superpowers/specs/2026-10-14-v0.23.0-read-receipts-rework-design.md.
+#
+# A promise is ENGINE state (rule 1): a chip (`sign_off`), the person's own
+# sign-off decision (their archetype's `promise_prob`), a model's bounded
+# `promise` proposal, or -- with no model -- a phrase below matched in the
+# player's own message. Never a model's free text.
+#
+# Keys:
+#   later_min_hours   `later` resolves to the next free band at least this far
+#                     ahead (§5.1)
+#   max_ahead_hours   a promise whose window opens further ahead than this is
+#                     refused ("That's too far off to promise")
+#   grace_minutes     a player's promise is judged broken this long after its
+#                     window closes (§5.3)
+#   closed_kept       closed promises (kept, broken, void) kept per person at
+#                     each save's compaction; older ones leave state, tallied
+#                     on the person (`promises_closed`), unless a reader still
+#                     needs them (promises.forget_closed; T9 fix round 1)
+#   kept_trust        trust a kept player promise gives (an exact engine move)
+#   broken            trust and warmth a broken player promise costs (exact)
+#   broken_reason     the engine's words the person's next reply carries once
+#                     after a broken promise ({window}: its window's words)
+#   phrases           with no model (§5.2): a whole phrase, case-folded, not in a
+#                     question, matched in the player's message. `you`: "message
+#                     me ..." (the PERSON promises to write); `me`: "I'll message
+#                     you ..." (the PLAYER promises). Keyed by window.
+#   words             how each window reads (§5.1's truthful wording);
+#                     `fallback` words a window that does not exist for them:
+#                     {window} its words, {when} when it actually opens
+#
+# Every number is a balance constant (rule 10): first values. Measured
+# 2026-10-19 by v0.23.0 T9's phone-only harness (10 seeds x 6 sessions,
+# neutral model, at 6 / 15 / 30 model seconds a reply):
+#   python scripts/simulate_social.py --game read-receipts --sessions 6 --first-seed N --seeds 2
+#     --policy attentive --model-seconds S --raw r-N.json   (N = 0, 2, 4, 6, 8), then --fold
+#   person_promises_kept 1.0 at all three (asserted); the attentive player's
+#   own 1.0 (band 95%+, banded); the flaky player's (a third broken by
+#   choice) 74.5 / 75.9 / 74.4% (55-75: DEFERRED to T29, CLAUDE.md). Nothing
+#   here retuned; `closed_kept` (T9 fix round 1) bounds the save, a count, not
+#   a balance constant.
+
+later_min_hours: 2
+max_ahead_hours: 48
+grace_minutes: 60
+closed_kept: 3                   # closed promises kept per person at save compaction; the rest tallied (T9 fix round 1)
+kept_trust: 1
+broken: {trust: -3, warmth: -2}
+broken_reason: "they said they'd message you {window} and didn't"
+phrases:                         # with no model (§5.2): whole phrase, case-folded, not in a question
+  you:                           # "message me ..." -> the PERSON promises to write
+    morning: ["message me in the morning", "text me in the morning", "message me tomorrow morning"]
+    at_work: ["message me at work", "text me at work"]
+    lunch: ["message me at lunch", "text me at lunch"]
+    after_work: ["message me after work", "text me after work"]
+    tonight: ["message me tonight", "text me tonight", "message me later tonight"]
+  me:                            # "I'll message you ..." -> the PLAYER promises
+    morning: ["i'll message you in the morning", "i'll text you in the morning"]
+    lunch: ["i'll message you at lunch"]
+    after_work: ["i'll message you after work"]
+    tonight: ["i'll message you tonight"]
+    at_work: ["i'll message you at work"]
+words:                           # how a window reads, by speaker (spec §5.1's truthful wording)
+  morning: "in the morning"
+  lunch: "at lunch"
+  after_work: "after work"
+  tonight: "tonight"
+  weekend: "at the weekend"
+  at_work: "at work"
+  later: "later"
+  fallback: "{window}, so {when}"           # a window that does not exist for them, worded truthfully

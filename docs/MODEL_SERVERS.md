@@ -314,35 +314,99 @@ log says which case it was, and only then what to do:
 ## The texter profile
 
 READ RECEIPTS' people are voiced on their own profile, `llm.profiles.texter`
-(`config/default.yaml`, v0.22.0 T13): the narration lane, no tools, a
-4096-token context, a 360-token answer, `reasoning: "off"` with
-`reasoning_budget: 0`, temperature 0.9. It is a custom profile, so it starts
-from `big`'s defaults and its own keys override them
-(`engine/llm/profiles.py::_config_for`); with no `model:` it is bound like
-any profile, and naming a smaller model there is the lever for speed.
+(`config/default.yaml`): the narration lane, no tools, `min_context: 4096`,
+`reasoning: "off"` with `reasoning_budget: 0`, temperature 0.9. It is a
+custom profile, so it starts from `big`'s defaults and its own keys override
+them (`engine/llm/profiles.py::_config_for`); with no `model:` it is bound
+like any profile, and naming a smaller model there is the lever for speed.
 
-**Why reasoning is off.** A text reply is one to three short bubbles in a
-small JSON envelope, and the player watches typing dots while it is
-written: thinking buys nothing a texter needs and costs seconds per
-message. The budget is zero, not a reserve, because a reply that starves
-is not lost: an answer cut at the cap with no content raises, and the
-voice falls back to the story's own lines (`texter.md`'s fallbacks), which
-are final. On a server whose reasoning-off patch is untrusted (an
-undeclared model, [above](#turning-reasoning-off)) a model whose template
-ignores the patch may still think and starve; declare the model's
-`reasoning`, name a non-thinking model in `llm.profiles.texter.model`, or
-give the profile a budget. **Latency and starvation: not measured.** The
-voicing pass (v0.22.0 T14) was built and tested with a scripted voice only;
-no live model was called in that task (the release's working rules forbid
-it), so the `texter` call's p50/p95 time and how often `reasoning_budget: 0`
-starves on the owner's model are still open.
+**The modes and their caps (v0.23.0).** A reply runs in one of three modes
+the engine decides (`Decision.mode`, READ RECEIPTS' `conversation.yaml`
+`modes.caps`): `quick` (1-2 bubbles of at most 280 characters, a 300-token
+reply), `chatting` (1-4 of 500, 560 tokens) and `deep` (1-3 of 700, 760
+tokens; voiced with `chatting`'s caps since v0.23.0 T9, `modes.deep_as_chatting`,
+below). Each call passes its mode's cap through `backend.chat`'s own
+`max_tokens` (`engine/social/voicing.py::TexterCall`); the profile's
+`max_tokens: 800` is only a ceiling. Fuller replies cost wait time: a
+chatting or deep reply is two to three times a quick one's tokens.
+
+**The prompt's window is derived per call** (`voicing.window_for`):
+min(`social.voice.window_tokens`, the binding's usable context) less the
+mode's cap and a 128-token margin for the estimator's error. `window_tokens` is 6144 (8192 before T9's latency lever), a ceiling. **A binding under it is
+degraded**, so a 4096-context model still voices every reply: `deep` uses
+`chatting`'s caps, the person's story is cut to its newest 120 words and
+three recaps are kept before anything else is trimmed, and the
+conversation keeps its floor of 16 lines. The trim order, oldest first
+within each part, is older recaps, the story, canon, history, then the
+conversation (`memory.budgeted`); who they are now, what is still open, how
+the last conversation ended and RIGHT NOW are never trimmed. The prompt's
+blocks run from stable to volatile, so a server's prompt-prefix cache (LM
+Studio, llama.cpp) reuses as much of it as it can. The latency levers --
+`modes.chatting_after`, a smaller `window_tokens`, `deep` on `chatting`'s
+caps -- are applied in config by v0.23.0's latency probe (below).
+
+**The texter's latency (v0.23.0 T9, spec §20.2).** A reply's seconds are
+estimated per mode by `scripts/simulate_social.py`'s `latency_table`: p50 at
+half the mode's `max_tokens`, p95 at all of it, and p95 counting the one
+starvation retry (`backend.chat`'s, within the call's own cap: twice the cap),
+over a tokens-per-second figure that is PROMPT-EVAL WEIGHTED (a call's output
+tokens over its whole wall time, so the prompt's evaluation is folded in). No
+live probe has run: the figure is ASSUMED, 20 tokens a second for a 4B model on
+the owner's RTX 2060 (`ASSUMED_TOKENS_PER_SECOND`). The prompts are the stub
+voice's own, measured by `memory._estimate` over T9's phone-only runs (10
+seeds x 6 sessions, attentive, neutral model; no run reaches depth 2, so no
+`deep` prompt was built):
+
+| Mode | `max_tokens` (before T9) | Prompt tokens p50 / p95 | p50 | p95 | p95 with the retry |
+|---|---|---|---|---|---|
+| quick | 300 | 1,809-1,862 / 2,237-2,296 | 7.5 s | 15.0 s | 30.0 s |
+| chatting | 560 | 2,057-2,079 / 2,301-2,367 | 14.0 s | 28.0 s | 56.0 s |
+| deep | 760 | (none phone-only) | 19.0 s | 38.0 s | 76.0 s |
+
+The prompt-token column is the stub's measured prompt size, recorded for the reader: it does not
+enter the arithmetic (the rate already folds the prompt's evaluation in, so `latency_table` no
+longer carries it; T9 fix round 3).
+
+So all three pre-committed levers trip, and are applied, each with its
+measured line in a comment: chatting over 15 s, so `conversation.yaml`
+`modes.chatting_after` is 5 (was 3: `quick`'s caps until the fifth exchange);
+over 20 s, so `social.voice.window_tokens` is 6144 (was 8192); deep over 30 s,
+so `modes.deep_as_chatting` is true and `deep` is voiced with `chatting`'s
+caps (`voicing.mode_caps`): deep's p95 is chatting's, 28.0 s (56.0 s with the
+retry). **At these estimates a smaller `texter` binding is recommended**:
+bind `llm.profiles.texter.model` to a smaller or faster model than the
+narrator's (`engine/llm/profiles.py`), since every reply above `quick` still
+runs past 15 s at p95. The levers cost balance: with `chatting_after` 5, the
+share of chatting replies in long conversations fell from 70% to 53-54% in T9's
+runs (spec §17.2's band is 60% or more; deferred by data in CLAUDE.md). The
+live figure: `tests/test_texter_latency_probe.py` (`@pytest.mark.live`; set
+`CLOCKWORK_LIVE_LLM` to the configured provider) sends one request per mode
+through the `texter` profile with a prompt the size of the stub's p50 and
+prints the measured tokens a second and this table from it. T31 re-measures
+live, with the fallback rate per mode.
+
+**Why reasoning is off.** A reply is a few bubbles in a small JSON
+envelope, and the player watches typing dots while it is written: thinking
+buys nothing a texter needs and costs seconds per message. The budget is
+zero, not a reserve, because a reply that starves is not lost: an answer
+cut at the cap with no content raises, and the voice falls back to the
+story's own lines (`texter.md`'s fallbacks), which are final. On a server
+whose reasoning-off patch is untrusted (an undeclared model,
+[above](#turning-reasoning-off)) a model whose template ignores the patch
+may still think and starve, and `quick`'s 300-token cap starves soonest;
+declare the model's `reasoning`, name a non-thinking model in
+`llm.profiles.texter.model`, or give the profile a budget. **Latency and
+starvation: not measured.** The voice was built and tested with a scripted
+voice only; no live model was called (the release's working rules forbid
+it), so the `texter` call's p50/p95 time per mode and how often
+`reasoning_budget: 0` starves on the owner's model are still open.
 
 The voice call is made by a background pass holding no lock; hosted, it
 runs inside the pass's own narration place (the pass is admitted first, and
 a narration-lane call made inside an admitted context shares its ticket), so
-a reply never waits in the narration queue twice. Its thread summary is a
-`small` profile call on the utility lane, made after that place is given
-back.
+a reply never waits in the narration queue twice. A closed conversation's
+recap is a `small` profile call on the utility lane, made after that place
+is given back.
 
 The call is not streamed, and its grammar rides the same structured-output
 ladder as narration (`backend.structured_output`): on rungs 2 and 3 the

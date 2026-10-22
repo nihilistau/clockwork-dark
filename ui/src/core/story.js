@@ -149,6 +149,10 @@
  *     {state, busy, onChoose, onCustom, onOpenOverlay, onOpenMenu,
  *      showDiceBreakdown}
  *
+ * A story-owned `PlayScreen` (not a slot) takes `{state, sessionId, busy, onAct, onChoose, onCustom, onOpenMenu,
+ * onOpenSaves, blocked}`; `onCustom(text)` sends typed words as core's own compose box does (READ RECEIPTS'
+ * world compose box, v0.23.0).
+ *
  * An overlay's Component is NOT a slot and takes its own set:
  *
  *     {state, sessionId, busy, onAct, onClose}

@@ -124,15 +124,28 @@ def compact(session: Any) -> int:
     spec §17.2, v0.22.0 T26): each thread's messages past `social.state_messages`
     -- and a dead thread's every one (`archive.dead`) -- to the archive
     (`archive.spill`), every swiped-only person cut to what dedupe needs
-    (`matching.compact_swiped`), and answered requests past
-    `social.requests_kept` forgotten (`relationships.forget_answered`). None
-    changes a mechanic: the archive and the thread's stamp answer every later
-    read. How many rows moved, were cut or left.
+    (`matching.compact_swiped`), answered requests past
+    `social.requests_kept` forgotten (`relationships.forget_answered`), and
+    a dormant person's older recaps, `current` and `bridge` moved to the
+    archive whole (`memory.compact_dormant`, v0.23.0 T6; their next
+    conversation brings them back), and closed promises past
+    `promises.yaml` `closed_kept` a person forgotten, tallied on the person
+    (`promises.forget_closed`, v0.23.0 T9 fix round 1), and closed plans past `plans.yaml` `closed_kept` a
+    person likewise (`plans.forget_closed`, v0.23.0 T12), and past life events beyond `life_events.yaml`
+    `kept.past` a person (`life.forget_past`, v0.23.0 T17). None changes a
+    mechanic or loses a word: the archive, the thread's stamp, the story and
+    the tallies answer every later read. How many rows moved, were cut or left.
     """
-    from engine.social import matching, relationships
+    from engine.social import life, matching, memory, plans, promises, relationships
 
     state = session.engine.state
-    return archive.spill(session) + matching.compact_swiped(state) + relationships.forget_answered(state)
+    try:
+        directory = archive.save_dir(session)
+    except ValueError:                                  # an id the store refuses: no archive to move into
+        directory = None
+    return (archive.spill(session) + matching.compact_swiped(state) + relationships.forget_answered(state)
+            + memory.compact_dormant(state, directory) + promises.forget_closed(state)
+            + plans.forget_closed(state) + life.forget_past(state))
 
 
 def mark_dirty(session: Any, reason: str) -> None:

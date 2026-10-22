@@ -60,16 +60,21 @@ def write_json_atomic(path: Path, payload: Any, *, keep_backup: bool = True, com
                 exc,
             )
 
+    # `json.dumps`, then one write (v0.23.0 T29a): `json.dump` never takes the C encoder (it streams through
+    # the pure-Python one, chunk by chunk), while `dumps` does whenever there is no indent. The text is the
+    # same either way; a day-60 phone save spent a third of its world turn in `dump`. A payload that cannot
+    # be written now fails here, before the temp file is made.
+    if compact:
+        text = json.dumps(payload, separators=(",", ":"), ensure_ascii=False, sort_keys=False)
+    else:
+        text = json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=False)
     fd, tmp_name = tempfile.mkstemp(
         dir=str(path.parent), prefix=path.name + ".", suffix=".tmp"
     )
     tmp_path = Path(tmp_name)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            if compact:
-                json.dump(payload, handle, separators=(",", ":"), ensure_ascii=False, sort_keys=False)
-            else:
-                json.dump(payload, handle, indent=2, ensure_ascii=False, sort_keys=False)
+            handle.write(text)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(tmp_path, path)

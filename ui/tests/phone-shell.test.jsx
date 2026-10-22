@@ -27,7 +27,7 @@ function Shell({ phone, story, onAct }) {
 }
 
 describe("the lock screen", () => {
-  it("lists notifications newest first, puts the phone down, and opens onto home", () => {
+  it("lists notifications newest first, has one way to put the phone down, and opens onto home", () => {
     const onAct = vi.fn(() => true);
     const phone = phoneFixture();
     view.render(<Shell phone={phone} story={initialState} onAct={onAct} />);
@@ -35,8 +35,11 @@ describe("the lock screen", () => {
     const ids = [...view.host.querySelectorAll('[data-testid^="notif-"]')].map((el) => el.dataset.testid);
     expect(ids).toEqual(phone.notifications.map((n) => `notif-${n.id}`).reverse());
     expect(byTestId(view.host, "status-time").textContent).toBe("17:41");
-    click(button(view.host, "Put it down"));
-    expect(onAct).toHaveBeenCalledWith({ action: "wait", target: "", args: { until: "next" }, text: "" });
+    // One way to put it down (v0.23.0 T22): the status bar's `put_down`; the lock screen's old "Put it down" is gone.
+    expect(button(view.host, "Put it down")).toBeNull();
+    expect([...view.host.querySelectorAll("button")].filter((b) => /put the phone down/i.test(b.textContent))).toHaveLength(1);
+    click(button(view.host, "Put the phone down"));
+    expect(onAct).toHaveBeenCalledWith({ action: "put_down", target: "", args: {}, text: "" });
     click(button(view.host, "Open phone"));
     expect(byTestId(view.host, "home")).not.toBeNull();
   });

@@ -521,6 +521,31 @@ class StorytellerMind:
         return f"{system_prompt}\n\nGM disposition: " + "; ".join(bits) + "."
 
 
+@interceptor(PHASE_DIRECTIVE, priority=40)
+class SocialWorld:
+    """PRE: a phone story's world, in engine words (v0.23.0 spec §8.3): where the player is, the buzz count
+    and who (later: who is with them, open plans, the household). Never a message's content. A no-op
+    without `paths.social`, and named only by READ RECEIPTS' `settings.governance.directives`.
+    Priority 40, after `StorytellerMind`'s 30, so the chain's order is fixed (pre-flight F43)."""
+
+    def run_pre(
+        self,
+        state: GameState,
+        system_prompt: str,
+        *,
+        player_action: str = "",
+        **_: Any,
+    ) -> str:
+        from engine import social
+
+        if not social.declared() or not getattr(state, "social", None):
+            return system_prompt
+        from engine.social import world
+
+        block = world.narration_block(state)
+        return f"{system_prompt}\n\n{block}" if block else system_prompt
+
+
 @interceptor(PHASE_POST, priority=50)
 class RulesGovernor:
     """

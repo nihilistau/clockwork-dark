@@ -1,0 +1,53 @@
+# READ RECEIPTS -- the parcel (v0.23.0 spec §11.2): a life event's world moment.
+# ==========================================================================
+#
+# Dealt at reception while a parcel waits for the player (`life_parcel`, set by the life event `parcel`
+# in data/social/life_events.yaml and cleared when its day is out, or by collecting it here). Read by
+# engine/content/deck.py through `paths.decks`; THE FILENAME IS THE DECK ID.
+#
+# An ordinary errand. The `collect_parcel` activity (data/world/activities.yaml) is the same errand
+# without the card. REPEATABLE, so the next parcel deals again once the flag has cleared.
+#
+# Version: v0.1.0
+
+id: parcel
+
+repeatable: true
+
+draw: 1
+
+when:
+  all:
+    - { flag: life_parcel }
+    - { at_location: bldg_reception }
+
+cards:
+
+  - id: PA1_at_the_desk
+    tags: [menu, gm]
+    title: "A Parcel At Reception"
+    text: >-
+      INTENT: a brown-paper parcel with the player's name on it sits on the reception counter among the
+      building's other post. CONSTRAINTS: it is ordinary post; the player decides whether to take it now.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: collect_it
+        label: "Collect the parcel"
+        text: >-
+          Sign for the parcel and carry it up.
+        gate:
+          on_pass:
+            text: >-
+              You sign the slip with the stub of the pen on its string, tuck the parcel under your arm
+              and take it up.
+            effects:
+              - { type: flag, flag: life_parcel, value: false }
+
+      - id: leave_it_for_now
+        label: "Leave it for now"
+        text: >-
+          Leave it on the counter until you have a free hand.
+        gate:
+          on_pass:
+            text: >-
+              It will keep. You nod to the porter and leave it where it is, for now.

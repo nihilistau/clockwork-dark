@@ -1,0 +1,92 @@
+# READ RECEIPTS -- growth.yaml (paths.social, v0.23.0 spec §6.1-§6.5).
+#
+# Disclosure depth, openness, pace, willingness. Read by engine/social/growth.py.
+#
+# The design is docs/superpowers/specs/2026-10-14-v0.23.0-read-receipts-rework-design.md.
+#
+# Depth is self-disclosure and topics only. The five rungs and their kinds are
+# fixed in the engine (`growth.RUNGS`); this file mirrors them and sets the
+# numbers. `growth.check_data` refuses at load:
+#   - a `kinds:` list that is not exactly the engine's vocabulary;
+#   - `depths:` that do not list the five rungs in order, a rung listing a kind
+#     outside its own set, or any key but id, kinds, floors, counts;
+#   - a `floors:` key but warmth/trust, a `counts:` key but episodes/scenes
+#     (whole play counts: no floor or count reads in-game days);
+#   - a `trait_mult` key that is not a population.yaml trait id;
+#   - a `willing:` id outside `growth.COMMITMENTS`, a key outside its
+#     closed set (stage_min, stages, warmth, trust, episodes, scenes, needs,
+#     depth, days_since_exclusive, no_household), `depth` on any row but
+#     number and meet, `days_since_exclusive` on any row but move_in, and a
+#     stage that is not one;
+#   - any other top-level key.
+#
+# Keys:
+#   kinds             the closed disclosure vocabulary, mirrored
+#   depths            per rung: floors {warmth, trust} and counts {episodes, scenes}
+#                     that must hold, with openness at 100, to step up into it
+#   pace              {jitter}: the lognormal spread of a person's fixed pace
+#                     (archetype `growth.pace` x each trait's `trait_mult` x jitter)
+#   trait_mult        population trait id -> pace multiplier
+#   gain              openness per engine-measured event (spec §6.3): exchange
+#                     (x pace x mode_mult[mode]), good_end (x pace),
+#                     moment[band] (x pace), promise_kept and support (flat)
+#   loss              openness lost per event (x the archetype's decay_mult)
+#   guarded_episodes  episodes a betrayal's `guarded` halves every gain for
+#   topics_per_kind   topics.yaml rows drawn per kind per person
+#   life_lines        "Since you met" lines the voice is given at most
+#   closer_soon_at    openness at which the client hints "Getting closer"
+#                     (a boolean in the payload, never the number)
+#   willing           commitment -> gate (spec §6.5, engine/social/growth.py
+#                     `willing`): what each person is willing to do NOW.
+#                     A gate may read only: `stage_min` (a stage rank at
+#                     least) or `stages` (one of), `warmth`/`trust` floors,
+#                     `episodes`/`scenes` play counts, `needs` ({both:
+#                     <intent>}), `depth` (number and meet only: swapping
+#                     numbers or meeting follows from talking about one's
+#                     day), `days_since_exclusive` (move_in only, R15) and
+#                     `no_household`. Why not: not_yet, stage, needs,
+#                     household. relationships.yaml's `numbers` and
+#                     `exclusive` gates are `{willing: number}` and
+#                     `{willing: exclusive}`; reaching depth 1 queues their
+#                     number offer (behaviours.yaml `offer_number_prob`)
+#
+# First values (spec §6.4's table); the simulator measures them (rule 10).
+# Measured 2026-10-19 by v0.23.0 T9's phone-only harness (10 seeds x 6
+# sessions, attentive, neutral model; at 6 / 15 / 30 model seconds a reply),
+# the REAL minutes of the player's time from a match to their number, by pace
+# tercile: fast 11.0 / 13.65 / 14.75 (band 6-15, banded), mid 11.43 / 14.45 /
+# 17.68 (12-30), slow 14.25 / 17.95 / 25.3 (25-60); to the `everyday` rung
+# 7.2-11.6 / 10.4-15.3 / 13.47-21.1 (unbanded); numbers within the first
+# session they talked in 13.8 / 8.7 / 6.8% (40-70). The rest DEFERRED to T29
+# (CLAUDE.md); nothing here retuned. No phone-only run reaches depth 2 (it
+# needs a scene).
+
+kinds: [places, hobbies, work_outline, the_apps, daily_life, work, friends, plans, opinions,
+        upbringing, family_outline, past, travel, proud_of, hopes, worries, regrets, values,
+        family, future_plans, home_life, money]
+depths:
+  - {id: small_talk, kinds: [places, hobbies, work_outline, the_apps], floors: {}, counts: {}}
+  - {id: everyday, kinds: [daily_life, work, friends, plans, opinions], floors: {warmth: 25, trust: 18}, counts: {episodes: 1}}
+  - {id: personal_stories, kinds: [upbringing, family_outline, past, travel, proud_of], floors: {warmth: 40, trust: 32}, counts: {episodes: 3, scenes: 1}}
+  - {id: hopes_and_fears, kinds: [hopes, worries, regrets, values], floors: {warmth: 55, trust: 48}, counts: {scenes: 3}}
+  - {id: family_and_future, kinds: [family, future_plans, home_life, money], floors: {warmth: 68, trust: 62}, counts: {scenes: 8}}
+pace: {jitter: 0.2}
+trait_mult: {private: 0.7, shy: 0.7, warm: 1.3, confident: 1.3}
+gain: {exchange: 6, good_end: 10, moment: {lands: 14, fine: 6, flat: 0, misstep: 0},
+       promise_kept: 8, support: 15, mode_mult: {quick: 0.6, chatting: 1.0, deep: 1.5}}
+loss: {broken_promise: 12, left_on_read: 6, fight: 10, too_deep: 8}
+guarded_episodes: 6
+topics_per_kind: 1
+life_lines: 3
+closer_soon_at: 70
+willing:
+  number:       {depth: 1, warmth: 25}
+  meet:         {depth: 1, warmth: 30, trust: 22}
+  come_over:    {stage_min: meeting, scenes: 1}
+  go_to_theirs: {stage_min: meeting, scenes: 1}
+  stay_over:    {stages: [dating, fling, exclusive, living_together, engaged, married]}
+  exclusive:    {stages: [dating], warmth: 70, trust: 65, scenes: 4, needs: {both: long_term}}
+  meet_family:  {stage_min: exclusive}
+  move_in:      {stage_min: exclusive, days_since_exclusive: 14, scenes: 12, warmth: 78, trust: 72, no_household: true}
+  propose:      {stages: [exclusive, living_together], warmth: 85, trust: 80}
+  stay_or_go:   {warmth: 70, trust: 65}

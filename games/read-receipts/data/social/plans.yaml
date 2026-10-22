@@ -1,0 +1,57 @@
+# READ RECEIPTS -- plans.yaml (paths.social, v0.23.0 spec §9).
+#
+# Plans with no set time (engine/social/plans.py). A plan is a time of day in
+# words, a place and a person: `now` (they head there, you have a little
+# while), `tonight` (this evening) or `soon` (it stays open for a number of
+# their conversations, not days). Every number here is a first value
+# (rule 10), measured at the balance pass.
+#
+# kinds                  what sort of plan it is (also the kind of a venue in
+#                        venues.yaml, which the engine picks from when none is
+#                        named); `their_place` and `your_place` meet at a
+#                        home, so they name no venue
+# patience_hours         how long a `now` / `tonight` plan waits for you once
+#                        made; arrive after it and you have stood them up
+# now_min_hours          a `now` plan needs this much of their time free
+# late_grace_hours       a "running late" message within patience extends it
+#                        by this much, once
+# lapse_after_hours      a `now` / `tonight` plan nobody went to closes quietly
+#                        this long after its patience (and grace) ran out; one
+#                        you arrive at before then is judged on arrival
+# soon_patience_episodes a `soon` plan lapses quietly after this many of the
+#                        person's conversations have ended since it was made
+# closed_kept            plans over and done kept a person (the newest); older
+#                        ones leave state at every save
+# stood_up               what standing someone up costs, exact regard moves
+# flake                  the chance they cannot make it after all, drawn once
+#                        when a `now` / `tonight` plan is made: their own
+#                        archetype's `flake_prob`, joined with this one by
+#                        relationship stage (`stage_prob`, `default` for any
+#                        other)
+# invite                 their own invitation: each morning, `prob` by
+#                        disclosure depth (0 to 4) for a live person with a
+#                        willing `meet` and no plan, sent inside their `window`
+#                        for the evening (a `tonight` request)
+# running_late           phrases the player writes that tell them so
+# arrival                the person heading to a `now` / `tonight` plan
+#                        (v0.23.0 addendum 4 W2-W4): they get there after
+#                        the place's travel minutes (their home's for
+#                        `your_place`; at once for `their_place`, where they
+#                        are home) plus `late_minutes` [low, high], drawn once
+#                        per plan; patience runs from then. `wait_cap_hours`
+#                        is the longest "Wait for {name}" waits at once.
+#                        First values (rule 10), measured at T29
+
+kinds: [coffee, drinks, dinner, walk, visit, film, climbing, games, gig, their_place, your_place]
+patience_hours: {now: 1.5, tonight: 4}
+now_min_hours: 2
+late_grace_hours: 0.5
+lapse_after_hours: 12
+soon_patience_episodes: 6
+closed_kept: 3
+stood_up: {warmth: -8, trust: -6, interest: -6}
+flake: {stage_prob: {numbers: 0.10, meeting: 0.06, default: 0.03}}
+invite: {prob: [0, 0.05, 0.12, 0.2, 0.25], window: evening}
+running_late: ["running late", "i'm running late", "im running late", "be a bit late",
+               "be a few minutes late", "stuck in traffic"]
+arrival: {late_minutes: [0, 20], wait_cap_hours: 2}

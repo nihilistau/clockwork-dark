@@ -1,0 +1,84 @@
+# READ RECEIPTS -- layers.yaml (paths.social, v0.23.0 spec §6.4, §6.7).
+#
+# What a person reveals as they open up: one layer when they step up a rung,
+# drawn (a counterless key on SOCIAL_GROWTH) among the rows whose kind is one
+# of that rung's kinds, whose `when` holds and which they have not revealed.
+# The voice is given it as the situation `opens_up` in the next episode.
+# Read by engine/social/growth.py.
+#
+# The design is docs/superpowers/specs/2026-10-14-v0.23.0-read-receipts-rework-design.md.
+#
+# Rows: {id, kind, text, when?}. Any other key, a kind outside the closed
+# disclosure vocabulary or a repeated id is a load error (growth.check_data).
+#   text   one plain fact about them, in the third person
+#   when   {job, job_shape, flag, hobby, life}, as in topics.yaml
+#
+# Small talk (rung 0) reveals nothing: a person starts there. Every kind of
+# rungs 1-4 keeps at least three rows.
+
+layers:
+  # -- everyday (1) ----------------------------------------------------------
+  - {id: l_early_riser, kind: daily_life, text: They are up before six most days and like the town before anyone else is about}
+  - {id: l_same_cafe, kind: daily_life, text: They get the same coffee from the same place every morning and feel off when it is shut}
+  - {id: l_long_walk_home, kind: daily_life, text: They walk the long way home along the water to clear their head}
+  - {id: l_flatmate_rota, kind: daily_life, text: They wrote the cleaning rota their flat still runs on, when: {flag: lives_with_flatmates}}
+  - {id: l_boss_trouble, kind: work, text: They do not get on with their manager and are quietly looking around}
+  - {id: l_work_fell_into, kind: work, text: They fell into their line of work by accident and turned out to be good at it}
+  - {id: l_shift_swap, kind: work, text: They swap shifts so often the rota has a column for them, when: {job_shape: [shifts]}}
+  - {id: l_night_quiet, kind: work, text: They like working nights because the city is quieter and the people are kinder, when: {job_shape: [nights]}}
+  - {id: l_thesis, kind: work, text: Their dissertation has taken a year longer than it should have, when: {job_shape: [student]}}
+  - {id: l_school_friend, kind: friends, text: Their best friend has known them since they were seven}
+  - {id: l_group_chat, kind: friends, text: Their friends' group chat has been running for ten years under the same silly name}
+  - {id: l_friend_moved_away, kind: friends, text: Their closest friend moved abroad last year and they miss them}
+  - {id: l_saving_trip, kind: plans, text: They are putting money aside for a long trip next year}
+  - {id: l_learning, kind: plans, text: They have signed up for an evening class and keep almost skipping it}
+  - {id: l_moving_flat, kind: plans, text: They are planning to move somewhere with more light before winter}
+  - {id: l_strong_views_food, kind: opinions, text: They have firm views on which chip shop on the front is the real one}
+  - {id: l_hates_crowds, kind: opinions, text: They think the town is at its best out of season}
+  - {id: l_film_snob, kind: opinions, text: They will defend one unfashionable film to anyone who will listen}
+
+  # -- personal_stories (2) --------------------------------------------------
+  - {id: l_grew_up_inland, kind: upbringing, text: They grew up inland and only saw the sea for the first time at twelve}
+  - {id: l_moved_a_lot, kind: upbringing, text: Their family moved house five times before they were sixteen}
+  - {id: l_small_village, kind: upbringing, text: They grew up in a village with one shop and one bus a day}
+  - {id: l_dad_fisherman, kind: family_outline, text: Their dad was a fisherman out of the Quays}
+  - {id: l_older_sister, kind: family_outline, text: They have an older sister they talk to every Sunday}
+  - {id: l_raised_by_gran, kind: family_outline, text: Their gran raised them for a few years while their parents worked away}
+  - {id: l_long_relationship, kind: past, text: They were with someone for six years and it ended when they moved here}
+  - {id: l_first_job_kitchen, kind: past, text: Their first job was washing up in a hotel kitchen}
+  - {id: l_lived_in_city, kind: past, text: They lived in a big city for a while and came back because it never felt like theirs}
+  - {id: l_gap_year, kind: travel, text: They spent a year working their way round on farms and in hostels}
+  - {id: l_missed_ferry, kind: travel, text: They once missed the last ferry home and slept in a waiting room}
+  - {id: l_trip_alone, kind: travel, text: The best trip they ever took was one they went on alone}
+  - {id: l_marathon, kind: proud_of, text: They finished a marathon after swearing they never would}
+  - {id: l_first_in_family, kind: proud_of, text: They were the first in their family to finish a degree}
+  - {id: l_built_it, kind: proud_of, text: They are proudest of something they made with their own hands}
+
+  # -- hopes_and_fears (3) ---------------------------------------------------
+  - {id: l_own_place, kind: hopes, text: They would love to run a place of their own one day}
+  - {id: l_write_book, kind: hopes, text: They have half a book written and want to finish it}
+  - {id: l_by_the_sea, kind: hopes, text: They hope to live somewhere they can see the sea from the window}
+  - {id: l_parents_ageing, kind: worries, text: They worry about their parents getting older and living far away}
+  - {id: l_falling_behind, kind: worries, text: They worry that everyone their age is further along than they are}
+  - {id: l_job_security, kind: worries, text: They worry their job will not be there in a few years}
+  - {id: l_left_course, kind: regrets, text: They wish they had not dropped the course they started at eighteen}
+  - {id: l_old_friend, kind: regrets, text: They regret letting an old friendship go over something small}
+  - {id: l_didnt_go, kind: regrets, text: They once turned down a job abroad and still wonder about it}
+  - {id: l_honesty, kind: values, text: They would rather hear a hard truth than a kind lie}
+  - {id: l_loyalty, kind: values, text: They stand by their friends even when it costs them}
+  - {id: l_time_over_money, kind: values, text: They would take more time over more money every time}
+
+  # -- family_and_future (4) -------------------------------------------------
+  - {id: l_close_family, kind: family, text: Their whole family still gets together every Sunday}
+  - {id: l_estranged_parent, kind: family, text: They have not spoken to one of their parents in years}
+  - {id: l_kids_first, kind: family, text: Everything they plan starts with what is right for their kids, when: {flag: has_kids}}
+  - {id: l_want_family, kind: family, text: They would like a family of their own one day}
+  - {id: l_settle_here, kind: future_plans, text: They want to settle in this town for good}
+  - {id: l_go_abroad, kind: future_plans, text: They half plan to move abroad in a few years}
+  - {id: l_change_career, kind: future_plans, text: They mean to change career before they are forty}
+  - {id: l_home_full, kind: home_life, text: They want a home that is always full of people and noise}
+  - {id: l_home_quiet, kind: home_life, text: They need a quiet home to come back to at the end of the day}
+  - {id: l_garden, kind: home_life, text: They want a garden more than they want a bigger house}
+  - {id: l_careful_money, kind: money, text: They grew up with little money and are careful with every penny}
+  - {id: l_debt, kind: money, text: They are still paying off a loan from a business that did not work}
+  - {id: l_saving_house, kind: money, text: They are saving for a deposit on a place of their own}

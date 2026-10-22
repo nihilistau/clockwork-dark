@@ -5,13 +5,13 @@ for, sometimes declined -- and the people's portraits.
 
 WHO DECIDES (rule 1). The ENGINE decides whether anything is sent, from data
 (`media.yaml`, rule 10): a person's per-kind **budget** (refilled each
-morning, `budget.<kind>.per_day` to `cap`), the kind's **unlock stage**, the
+time a conversation with them closes, `budget.<kind>.per_episode` to `cap`: v0.23.0 spec §6.4), the kind's **unlock stage**, the
 **app** (a thread can carry only its app's `capabilities`), and a draw on
 `SOCIAL_MEDIA` (rule 4): the player's `ask {what}` is answered at the
 person's next read (`decide_request`: accept, decline or "later"), a model's
-`offer_*` proposal draws at `unsolicited.offered_mult` x the morning odds
-(`offer`), and each morning a person may send one unasked (`_daily`). The
-model only WORDS the message that carries it (the voice schema's `media`
+`offer_*` proposal draws at `unsolicited.offered_mult` x the per-episode odds
+(`offer`), and as each conversation closes a person may send one unasked
+(`after_episode`). The model only WORDS the message that carries it (the voice schema's `media`
 caption, spec §11.2).
 
 THE ROW (`state.social["media"][mid]`, spec §13.2), written only through
@@ -149,9 +149,9 @@ def media_faults(data: dict[str, Any], population_data: Optional[dict[str, Any]]
     for kind in MEDIA_KINDS:
         row = budget.get(kind) if isinstance(budget, dict) else None
         if not isinstance(row, dict):
-            out.append((f"budget.{kind}", "required: {start, per_day, cap, unlock_stage}"))
+            out.append((f"budget.{kind}", "required: {start, per_episode, cap, unlock_stage}"))
             continue
-        for key in ("start", "per_day", "cap"):
+        for key in ("start", "per_episode", "cap"):
             if not _num(row.get(key)) or row[key] < 0:
                 out.append((f"budget.{kind}.{key}", f"must be a number, 0 or more, not {row.get(key)!r}"))
         if row.get("unlock_stage") not in STAGES:
@@ -173,15 +173,15 @@ def media_faults(data: dict[str, Any], population_data: Optional[dict[str, Any]]
             if mood not in values:
                 out.append((f"request.mood_mult.{mood}", "is no relationships.yaml mood value"))
     unsolicited = data["unsolicited"] if isinstance(data["unsolicited"], dict) else {}
-    per_stage = unsolicited.get("per_day_at_stage")
+    per_stage = unsolicited.get("per_episode_at_stage")
     if not isinstance(per_stage, dict) or not per_stage:
-        out.append(("unsolicited.per_day_at_stage", "must map stages to chances"))
+        out.append(("unsolicited.per_episode_at_stage", "must map stages to chances"))
     else:
         for stage, p in per_stage.items():
             if stage_rank(stage) < 0:
-                out.append((f"unsolicited.per_day_at_stage.{stage}", "is no live stage"))
+                out.append((f"unsolicited.per_episode_at_stage.{stage}", "is no live stage"))
             if not _num(p) or not 0 <= p <= 1:
-                out.append((f"unsolicited.per_day_at_stage.{stage}", f"must be a chance 0-1, not {p!r}"))
+                out.append((f"unsolicited.per_episode_at_stage.{stage}", f"must be a chance 0-1, not {p!r}"))
     if not _num(unsolicited.get("offered_mult")):
         out.append(("unsolicited.offered_mult", "required: a number"))
     flags = set(((population_data or {}).get("flags") or {}).keys()) if population_data else None
@@ -481,7 +481,7 @@ def _draw(state: GameState, pid: str) -> float:
 def unsolicited_draw(state: GameState, pid: str, kind: str, mult: float = 1.0) -> bool:
     """
     Whether they send `kind` unasked now: one draw at the stage's
-    `unsolicited.per_day_at_stage` (the highest listed stage at or below
+    `unsolicited.per_episode_at_stage` (the highest listed stage at or below
     theirs) x the archetype's `media.offer_mult` x `mult`.
     """
     stage_p = _stage_chance(_person(state, pid).get("stage"))
@@ -493,7 +493,7 @@ def unsolicited_draw(state: GameState, pid: str, kind: str, mult: float = 1.0) -
 def _stage_chance(stage: Any) -> float:
     rank = stage_rank(stage)
     best, chance = -1, 0.0
-    for name, p in ((_block("unsolicited") or {}).get("per_day_at_stage") or {}).items():
+    for name, p in ((_block("unsolicited") or {}).get("per_episode_at_stage") or {}).items():
         r = stage_rank(name)
         if 0 <= r <= rank and r > best:
             best, chance = r, float(p)
@@ -605,6 +605,8 @@ def _e_decision(state: GameState, effect: dict[str, Any], ctx: EffectContext) ->
         mid = attach(state, pid, tid, message["id"], what, subject)
         return {"type": "social_media_decision", "ok": True, "text": f"{pid} sent a {what}", "sent": True,
                 "message_id": message["id"], "mid": mid}
+    if op == "episode":
+        return _after_episode(state, pid, float(effect.get("at", state.world_clock_hours)))
     return {"type": "social_media_decision", "ok": False, "text": f"{op!r} is no decision op"}
 
 
@@ -615,33 +617,39 @@ def _asdict(decision: Decision) -> dict[str, Any]:
 
 
 def answer_request(state: GameState, pid: str, request: dict[str, Any], thread_id: str, at: float,
-                   reply_at: float, burst: int) -> dict[str, Any]:
+                   shape: Decision) -> dict[str, Any]:
     """
     At their read (inside the read handler): the player's media ask decided,
-    the request answered (`yes`, `no` or `later`), and the answer due at
-    `reply_at` -- the medium itself (`send_*`), or the decline in their words.
+    the request answered (`yes`, `no` or `later`), and the answer due at the
+    read's own minute (v0.23.0 §4.3) -- the medium itself (`send_*`), or the
+    decline in their words -- in the conversation's `shape` (`convo.decide`:
+    its mode, bubbles and end).
     """
+    import dataclasses
+
     what = str(request["what"])
-    decided = decide_request(state, pid, what, at=reply_at)
+    decided = decide_request(state, pid, what, at=at)
     status = dict(ANSWER_STATUS)[decided["answer"]]
     apply_effect(state, {"type": "social_request", "op": "answer", "request_id": request["id"],
                          "status": status, "at": at})
     where = thread_id if can_carry(state, thread_id, what) else (media_thread(state, pid, what) or thread_id)
     if decided["answer"] == "accept":
-        decision = send_decision(what, str(decided.get("subject") or ""), str(request["id"]))
+        own = send_decision(what, str(decided.get("subject") or ""), str(request["id"]))
+        decision = dataclasses.replace(shape, situation=own.situation, kind=own.kind, media_kind=own.media_kind,
+                                       subject=own.subject, request_id=own.request_id)
     else:
-        decision = Decision(situation=f"decline_{what}", kind="decline", max_bubbles=min(3, 1 + burst),
-                            request_id=str(request["id"]))
-    messaging.queue_due(state, pid, where, decision, reply_at)
+        decision = dataclasses.replace(shape, situation=f"decline_{what}", kind="decline",
+                                       request_id=str(request["id"]))
+    messaging.queue_due(state, pid, where, decision, at)
     return {"ok": True, what: decided["answer"]}
 
 
 def ask_refusal(state: GameState, pid: str, thread_id: str, what: str) -> str:
     """
     Why the player may not ask `pid` for `what` in this thread now: the app
-    cannot carry it, their stage is too early, or a third ask of the kind
-    today ("Give it a day", spec §10.6). Never the budget: that is theirs to
-    decline.
+    cannot carry it, their stage is too early, or past `asks.per_episode`
+    asks of the kind this episode ("Give it a while", spec §6.4, §10.6).
+    Never the budget: that is theirs to decline.
     """
     name = relationships._name(state, pid)
     t = messaging.thread(state, thread_id)
@@ -650,8 +658,8 @@ def ask_refusal(state: GameState, pid: str, thread_id: str, what: str) -> str:
         return f"{apps.label(str(t['app']))} can't send {noun}"
     if not unlocked(state, pid, what):
         return f"It's too soon to ask {name} for {dict(ONE_OF).get(what, what)}."
-    if relationships.asks_today(state, pid, what) >= int(relationships._block("asks")["per_day"]):
-        return relationships.GIVE_IT_A_DAY
+    if relationships.asks_this_episode(state, pid, what) >= int(relationships._block("asks")["per_episode"]):
+        return relationships.GIVE_IT_A_WHILE
     return ""
 
 
@@ -1426,11 +1434,22 @@ def _later_requests(state: GameState) -> list[dict[str, Any]]:
 
 
 def _when_free(state: GameState, pid: str, day_at: float) -> Optional[float]:
-    """A free hour inside the morning's day for `pid` (the initiations' rule, §9.3)."""
+    """A free hour inside the morning's day for `pid` (v0.22.0's initiation rule, §9.3, kept for media when
+    initiations moved to windows in v0.23.0): one of the day's hours they are free or out, and a minute in it."""
     from engine.game.rng import SOCIAL_PACE
 
     person = population.profile(state, pid)
-    return messaging._initiation_at(person, {}, day_at, behaviour.person_rng(state, SOCIAL_PACE, pid))
+    rng = behaviour.person_rng(state, SOCIAL_PACE, pid)
+    midnight = day_at - events.DAILY_HOUR
+
+    def clock_at(hour: int) -> float:
+        at = midnight + hour
+        return at + 24.0 if at < day_at else at
+
+    hours = [h for h in range(24) if behaviour.status_at(person, clock_at(h)) in messaging.FREE]
+    if not hours:
+        return None
+    return clock_at(rng.choice(hours)) + rng.random()
 
 
 def _queue_send(state: GameState, pid: str, kind: str, at: float, *, request_id: str = "", prefer: str = "") -> bool:
@@ -1451,25 +1470,12 @@ def _queue_send(state: GameState, pid: str, kind: str, at: float, *, request_id:
 
 def _daily(state: GameState) -> None:
     """
-    Each morning (a `daily_hooks` step): every live person's budgets
-    refilled (`per_day`, to `cap`); each "later" media request kept (budget
-    and a draw on the accept odds: the medium is sent today) or broken;
-    then each live person's one draw per kind at the unsolicited odds (one
-    sent at most).
+    Each morning (a `daily_hooks` step): each "later" media request kept
+    (budget and a draw on the accept odds: the medium is sent today) or
+    broken. Budgets refill and unasked media are drawn per episode instead
+    (`after_episode`, v0.23.0 spec §6.4).
     """
     day_at = events.daily_at(state)
-    people = state.social.get("people") or {}
-    for pid in sorted(people):
-        person_state = people[pid]
-        if not relationships.live(person_state) or apps.gone(state, pid):
-            continue
-        held = person_state.get("media_budget")
-        if not isinstance(held, dict):
-            held = person_state["media_budget"] = {}
-        for kind in MEDIA_KINDS:
-            spec = _budget_row(kind)
-            held[kind] = round(min(float(spec.get("cap", 0)), budget_of(person_state, kind) + float(spec.get("per_day", 0))), 6)
-        relationships.touch(person_state)
     for request in _later_requests(state):
         pid, what = str(request["pid"]), str(request["what"])
         at = _when_free(state, pid, day_at)
@@ -1482,15 +1488,38 @@ def _daily(state: GameState) -> None:
                                    prefer=str(request.get("thread_id") or ""))
         apply_effect(state, {"type": "social_request", "op": "answer", "request_id": request["id"],
                              "status": "yes" if kept else "no", "at": day_at})
-    for pid in sorted(people):
-        if not relationships.live(_person(state, pid)) or apps.gone(state, pid):
+
+
+def after_episode(state: GameState, pid: str, at: float) -> dict[str, Any]:
+    """A conversation with `pid` closed at `at` (convo's `close` op): `social_media_decision` `op: episode`."""
+    return apply_effect(state, {"type": "social_media_decision", "op": "episode", "pid": pid, "at": float(at)})
+
+
+def _after_episode(state: GameState, pid: str, at: float) -> dict[str, Any]:
+    """
+    INSIDE the handler: their budgets refilled (`budget.<kind>.per_episode`, to `cap`), then one draw
+    per kind at the unsolicited odds (`unsolicited.per_episode_at_stage`), one sent at most, due at
+    their next available minute. Nothing for someone no longer live or gone.
+    """
+    person_state = state.social["people"].setdefault(pid, {})
+    if not relationships.live(person_state) or apps.gone(state, pid):
+        return {"type": "social_media_decision", "ok": True, "text": f"{pid}: not live", "sent": False}
+    held = person_state.get("media_budget")
+    if not isinstance(held, dict):
+        held = person_state["media_budget"] = {}
+    for kind in MEDIA_KINDS:
+        spec = _budget_row(kind)
+        held[kind] = round(min(float(spec.get("cap", 0)),
+                               budget_of(person_state, kind) + float(spec.get("per_episode", 0))), 6)
+    relationships.touch(person_state)
+    from engine.social import convo   # lazily: convo imports this module's own imports
+
+    for kind in MEDIA_KINDS:
+        if not offer_open(state, pid, kind) or not unsolicited_draw(state, pid, kind):
             continue
-        for kind in MEDIA_KINDS:
-            if not offer_open(state, pid, kind) or not unsolicited_draw(state, pid, kind):
-                continue
-            at = _when_free(state, pid, day_at)
-            if at is not None and _queue_send(state, pid, kind, at):
-                break
+        if _queue_send(state, pid, kind, convo.next_available(state, pid, at)):
+            return {"type": "social_media_decision", "ok": True, "text": f"{pid} sends a {kind}", "sent": True}
+    return {"type": "social_media_decision", "ok": True, "text": f"{pid}: budgets refilled", "sent": False}
 
 
 if _daily not in events.daily_hooks:
@@ -1498,7 +1527,7 @@ if _daily not in events.daily_hooks:
 
 
 __all__ = [
-    "ANSWERS", "IN_FLIGHT", "ROW_KINDS", "STATUSES", "accept_p", "answer_request", "apply_and_push",
+    "ANSWERS", "IN_FLIGHT", "ROW_KINDS", "STATUSES", "accept_p", "after_episode", "answer_request", "apply_and_push",
     "apply_media_result", "ask_refusal", "attach", "attach_own", "budget_of", "check_data", "daypart",
     "decide_request", "face_seed", "hand_off", "install", "jobs_for", "mark_procedural", "mark_submitted",
     "media_faults", "media_seed", "media_thread", "media_view", "now_for", "offer", "offer_open", "photo_request",

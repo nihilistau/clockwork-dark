@@ -91,6 +91,7 @@ LEAVES: tuple[str, ...] = (
     "engine.media.comfy.jobs.MediaJobWorker._lock",
     "engine.media.tts.SpeechWorker._lock",
     "engine.social.games.wordgame._WORDS_LOCK",
+    "engine.social.turnstile.Turnstile._cond",
 )
 
 #: Instance locks: ``(module, name)``; the module's ``threading.Lock`` and
@@ -129,10 +130,21 @@ INSTANCE_LOCKS: tuple[tuple[str, str], ...] = (
     ("engine.media.comfy.jobs", "engine.media.comfy.jobs.MediaJobWorker._lock"),
     # v0.22.0 T21 review I1: the speech worker's keyed voice-note requests (a leaf).
     ("engine.media.tts", "engine.media.tts.SpeechWorker._lock"),
+    # v0.23.0 T8: each session's narration turnstile's condition lock (a leaf).
+    ("engine.social.turnstile", "engine.social.turnstile.Turnstile._cond"),
 )
 
 #: The lane semaphores, one name for all (``engine/llm/gate.py``).
 LANE = "engine.llm.gate.lane"
+
+#: v0.23.0 T8 (spec §20.1, engine/locks.py "THE NARRATION TURNSTILE"): two
+#: holds outside the numbered list, so neither is in ``RANK``. ``TURN`` is a
+#: session's turn lock (``track_turn_lock``), taken only non-blocking, with
+#: every listed lock allowed under it; ``TURNSTILE`` is a session's narration
+#: turnstile (``install_turnstile``), taken before ``TURN`` and before every
+#: listed lock, never under a turn lock, and never WAITED for holding anything.
+TURN = "engine.session.store.GameSession.lock"
+TURNSTILE = "engine.social.turnstile.Turnstile.hold"
 
 RANK = {name: i for i, name in enumerate(ORDER)}
 
@@ -159,6 +171,20 @@ class Checker:
         for held in self._stack():
             if held == name:
                 continue  # an RLock re-entered
+            # The two holds outside the numbered list, judged BEFORE any RANK
+            # lookup: neither is in RANK (pre-flight F38).
+            if name == TURNSTILE:
+                if held == TURN:
+                    self._violation("took the turnstile while holding a turn lock")
+                elif blocking:
+                    self._violation(f"waited for the turnstile while holding {held}")
+                continue
+            if name == TURN:
+                if held != TURNSTILE and held not in LEAVES and held != LANE:
+                    self._violation(f"took a turn lock while holding {held}")
+                continue  # TURN has no RANK: never reaches the RANK rule (F38)
+            if held in (TURN, TURNSTILE):
+                continue  # every lock may be taken under either hold
             if held in LEAVES:
                 if blocking:
                     self._violation(f"took {name} while holding the leaf {held}")
@@ -215,7 +241,14 @@ class TrackedLock:
         return self._inner.locked()
 
     def _is_owned(self) -> bool:  # RLock's, used by Condition and by tests
-        return self._inner._is_owned()
+        inner = getattr(self._inner, "_is_owned", None)
+        if inner is not None:
+            return inner()
+        # A plain Lock (a Condition's, v0.23.0 T8's turnstile): Condition's own fallback.
+        if self._inner.acquire(False):
+            self._inner.release()
+            return False
+        return True
 
 
 class TrackedSemaphore:
@@ -327,6 +360,48 @@ def install(monkeypatch: pytest.MonkeyPatch, checker: Optional[Checker] = None) 
     return checker
 
 
+def install_turnstile(monkeypatch: pytest.MonkeyPatch, checker: Checker) -> Checker:
+    """
+    Track every narration turnstile's HOLD as ``TURNSTILE`` (v0.23.0 T8):
+    ``acquire_world`` is a blocking take, ``try_acquire_voice`` a try, each
+    pushed when it succeeds; ``release`` pops it. Undone by ``monkeypatch``.
+    """
+    from engine.social import turnstile
+
+    cls = turnstile.Turnstile
+    real_world, real_voice, real_release = cls.acquire_world, cls.try_acquire_voice, cls.release
+
+    def acquire_world(self: Any, timeout: float) -> bool:
+        checker.before(TURNSTILE, blocking=True)
+        got = real_world(self, timeout)
+        if got:
+            checker.push(TURNSTILE)
+        return got
+
+    def try_acquire_voice(self: Any) -> bool:
+        checker.before(TURNSTILE, blocking=False)
+        got = real_voice(self)
+        if got:
+            checker.push(TURNSTILE)
+        return got
+
+    def release(self: Any, who: str) -> None:
+        real_release(self, who)
+        checker.pop(TURNSTILE)
+
+    monkeypatch.setattr(cls, "acquire_world", acquire_world)
+    monkeypatch.setattr(cls, "try_acquire_voice", try_acquire_voice)
+    monkeypatch.setattr(cls, "release", release)
+    return checker
+
+
+def track_turn_lock(session: Any, checker: Checker) -> Any:
+    """``session``'s turn lock tracked as ``TURN`` (v0.23.0 T8). Returns the session."""
+    if not isinstance(session.lock, TrackedLock):
+        session.lock = TrackedLock(session.lock, TURN, checker)
+    return session
+
+
 def report(checker: Checker) -> str:
     """Every violation, once each, for an assertion message."""
     seen: list[str] = []
@@ -346,6 +421,10 @@ __all__ = [
     "RANK",
     "TrackedLock",
     "TrackedSemaphore",
+    "TURN",
+    "TURNSTILE",
     "install",
+    "install_turnstile",
     "report",
+    "track_turn_lock",
 ]

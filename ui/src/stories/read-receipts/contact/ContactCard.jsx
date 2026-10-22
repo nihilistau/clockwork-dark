@@ -1,10 +1,14 @@
 /**
  * A person's contact card (spec §18.2): their photos and profile as their
  * dating app shows it, where things stand -- the stage's words and the
- * closeness band, never a number -- "Your story" (the engine's history
- * lines), what they have chosen to tell you (their `canon`, never what they
- * know of you), and what you can do: message them, plan a meet-up, start a
- * game, and unmatch, end things or block, each behind a confirm.
+ * closeness band, never a number -- "Getting closer" when the engine's
+ * `hints` say so, what they have told you of their days, whether you could
+ * ask for their number and the engine's words for why not, the promises and
+ * plans open between you (`promises`, `plans`), "Your story" (the engine's
+ * history lines), what they have chosen to tell you (their `canon`, never
+ * what they know of you), and what you can do: message them, ask to meet
+ * (the plan sheet), start a game, and unmatch, end things or block, each
+ * behind a confirm.
  *
  * Everything is the payload's `contacts` row (engine/social/relationships.py)
  * and every action a `phone_action` (rule 1): whether they say yes to a
@@ -20,7 +24,9 @@ import Avatar from "../phone/Avatar.jsx";
 import Confirm from "../phone/Confirm.jsx";
 import { humanize, stampOf } from "../phone/format.js";
 import { GAME_WORDS } from "../thread/media.js";
-import PlanMeet from "./PlanMeet.jsx";
+import { promiseLine } from "../calendar/Calendar.jsx";
+import { venuesOf } from "../thread/Thread.jsx";
+import PlanSheet from "./PlanSheet.jsx";
 
 /** The confirms: what each does, in the player's words, and the action it sends. */
 export const ENDINGS = {
@@ -92,6 +98,11 @@ export default function ContactCard({
   const busy = (action) => Boolean(pending && pending.action === action && pending.target === contact.pid);
   const threads = (phone.threads || []).filter((t) => (contact.thread_ids || []).includes(t.thread_id));
   const open = threads.find((t) => t.open !== false) || threads[0] || null;
+  // What the engine lets the player see of how things stand: words and booleans (the `hints` section).
+  const hint = (phone.hints && phone.hints[contact.pid]) || null;
+  const number = hint && hint.number ? hint.number : null;
+  const promises = (phone.promises || []).filter((p) => p.pid === contact.pid && p.status === "open");
+  const plans = (phone.plans || []).filter((p) => p.pid === contact.pid);
   const now = phone.now;
   const facts = [profile.age ? String(profile.age) : "", profile.job, profile.neighbourhood].filter(Boolean).join(" · ");
   const games = Object.keys(GAME_WORDS);
@@ -137,7 +148,29 @@ export default function ContactCard({
           {contact.stage_words && <span className="rr-contact__stage">{contact.stage_words}</span>}
           {contact.band && <span className="rr-chip rr-contact__band">{humanize(contact.band)}</span>}
         </div>
+        {hint && hint.closer_soon && (
+          <p className="rr-contact__closer" data-testid="contact-closer">
+            Getting closer
+          </p>
+        )}
         <p className="rr-card__sub">{heardWords(contact.last_heard_days)}</p>
+        {hint && hint.available_words && <p className="rr-card__sub" data-testid="contact-available">{hint.available_words}</p>}
+        {number && !number.ok && number.why && (
+          <p className="rr-card__sub" data-testid="contact-number-why">
+            Their number: {number.why}
+          </p>
+        )}
+        {number && number.ok && <p className="rr-card__sub">You could ask for their number.</p>}
+        {(promises.length > 0 || plans.length > 0) && (
+          <ul className="rr-contact__open" data-testid="contact-open">
+            {plans.map((pl) => (
+              <li key={pl.id}>{pl.words}</li>
+            ))}
+            {promises.map((p) => (
+              <li key={p.id}>{promiseLine(p)}</li>
+            ))}
+          </ul>
+        )}
         {facts && <p className="rr-facts__line">{facts}</p>}
         {contact.matched_on && <p className="rr-card__sub">Matched on {contact.matched_on}</p>}
         {profile.bio && <p className="rr-card__bio">{profile.bio}</p>}
@@ -155,19 +188,20 @@ export default function ContactCard({
               Message
             </button>
           )}
-          {contact.open && (
+          {contact.open && open && (
             <button type="button" className="rr-btn rr-btn--small rr-btn--quiet" aria-expanded={planning} onClick={() => setPlanning((p) => !p)}>
-              Plan a meet-up
+              Ask to meet
             </button>
           )}
         </div>
-        {planning && contact.open && (
-          <PlanMeet
-            contact={contact}
-            options={phone.meet_options}
-            now={now}
+        {planning && contact.open && open && (
+          <PlanSheet
+            pid={contact.pid}
+            threadId={open.thread_id}
+            venues={venuesOf(phone)}
+            kinds={phone.meet_options && phone.meet_options.kinds}
             act={act}
-            busy={busy("propose_meet")}
+            busy={Boolean(pending && pending.action === "ask" && pending.target === open.thread_id)}
             onDone={() => setPlanning(false)}
           />
         )}

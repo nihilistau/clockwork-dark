@@ -60,8 +60,6 @@ def now_block(state: GameState) -> dict[str, Any]:
 
 
 def phone_block(state: GameState, session: Any = None, *, receipt: Optional[dict[str, Any]] = None) -> dict[str, Any]:
-    from engine.config import hosting_enabled
-
     if session is None and receipt is None:
         context = _BUILDING.get()
         if context is not None:
@@ -73,13 +71,10 @@ def phone_block(state: GameState, session: Any = None, *, receipt: Optional[dict
     badges = messaging.badges(state)
     block: dict[str, Any] = {
         "now": now_block(state),
-        # Whether the client may offer "Let time pass" (spec §15.1): local mode only. The preference
-        # itself is the client's (T29: kept in the browser); hosted mode never offers it, since each
-        # wait can create due messages and so a voicing admission (§22 NOT WIRED: persisting it).
-        "auto_wait": not hosting_enabled(),
         # The player's own switches the Settings app shows (T29): Natter's read receipts, and the
         # cap the engine puts on a bio (`edit_profile`'s text cap, review M10).
         "settings": {"receipts": bool((state.social.get("settings") or {}).get("receipts", True)),
+                     "wake_for_messages": bool((state.social.get("settings") or {}).get("wake_for_messages", False)),
                      "bio_max": int(social.setting("max_text_chars", 600))},
         # `capabilities`: what a thread on the app can carry (apps.yaml), so the
         # compose bar offers only those attachments (spec §18.2; the engine still refuses the rest).
@@ -152,3 +147,40 @@ def _refusal(receipt: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
     intent = receipt.get("intent") or {}
     return {"action": intent.get("action", ""), "target": intent.get("target", ""),
             "reason": str((receipt.get("result") or {}).get("error") or "That didn't work.")}
+
+
+@section("hints", time_varying=True)
+def _hints_section(state: GameState, session: Any) -> dict[str, Any]:
+    """
+    Per live person, what the client may hint (v0.23.0 spec §14.2, §15): `closer_soon` ("Getting
+    closer", a boolean), `available_words` (what they have told the player of their days, at depth 1
+    or more: the engine's words) and `number` (`ok`, and the engine's words for why not). Never a
+    number: no openness, depth, warmth or trust leaves the server. Read-only (I14).
+    """
+    from engine.social import apps, convo, growth, relationships
+
+    now = state.world_clock_hours
+    out: dict[str, Any] = {}
+    for pid, person in sorted((state.social.get("people") or {}).items()):
+        if not isinstance(person, dict) or not relationships.live(person) or apps.gone(state, pid):
+            continue
+        out[pid] = {"closer_soon": bool(growth.closer_soon(state, pid)),
+                    "available_words": convo.available_words(state, pid, now),
+                    "number": _number_hint(state, pid, person)}
+    return out
+
+
+def _number_hint(state: GameState, pid: str, person: dict[str, Any]) -> dict[str, Any]:
+    """Whether the player's ask for their number could be a yes now: `relationships.can_reach`, the Ask
+    menu's own rule (T5 review). Past `numbers` it is no longer on the table, with no reason to give."""
+    from engine.social import growth, relationships
+    from engine.social.kinds import stage_rank
+
+    if relationships.can_reach(state, pid, "numbers"):
+        return {"ok": True, "why": ""}
+    if stage_rank(person.get("stage")) >= stage_rank("numbers"):
+        return {"ok": False, "why": ""}
+    if person.get("stage") not in (relationships.gate_spec_from("numbers")):
+        return {"ok": False, "why": growth.WHY_WORDS["stage"]}
+    why = relationships.gate_why(state, pid, "numbers") or "needs"
+    return {"ok": False, "why": growth.WHY_WORDS.get(why, "")}

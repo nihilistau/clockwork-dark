@@ -10,41 +10,34 @@ release to release.
 
 ## Status
 
-**v0.22.0** (a new story: READ RECEIPTS, a dating story played on a phone) is the current release (CHANGELOG.md has every release since 0.4.0;
+**v0.23.0** (READ RECEIPTS' rework: growth, no set time on dating, phone numbers that follow the conversation, places and in-person scenes, living together and life events, and addendum 4's world interaction) is the current release; v0.24.0 is next, and it carries v0.23.0's deferred tail (the owner moved T29b, T31, T32 and T33 to its end, 2026-10-23) (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
-**Windows, v0.22.0 (`scripts/run_tests.py full`, measured 2026-10-14 at
-the release): 7386 passed, 32 skipped, 2 failed, exit 1, in 98.5 min**
-(parallel phase 6859 passed, 18 skipped in 21.8 min; serial phase 527
-passed, 14 skipped, 2 failed in 55.0 min; the solo re-run of the two 21.8
-min). The release is far slower than v0.21.1's 16.7 min because of
-READ RECEIPTS' `slow` pins: `tests/test_social_save_size.py` (940 s, a
-day-180 save), `tests/test_social_commit_scope.py` (422 s) and, in the
-serial phase (it starts interpreters), `tests/test_simulate_social.py`'s
-60-day and 75-day simulator runs (about 25 min, and again in the re-run).
-The two failures:
-`tests/test_admin_model.py::test_a_worker_restarted_for_another_reason_during_the_drain_boots_under_the_old_file`
-failed in the serial phase and in its solo re-run, which could not pass
-alone: it needed its module's earlier tests to have set 0.55. It now sets
-its own precondition (passed solo twice and in its file, v0.22.0 T32); the
-serial-phase failure was a timing flake, its cause not hunted. `tests/test_simulate_social.py::test_closeness_takes_its_days[warming-romantic]`
-fails for real: on its seeds 0-9 a romantic reaches warming in 5.22 days
-(band 2-5), 4.08 before the final review's wave 2 (the numbers gate,
-cfaf1c6, whose own run did not include the closeness tests); over 40 seeds
-it is 3.76, in band. The cell is deferred by data, not retuned
-(`DEFERRED_CLOSENESS`, its row below; v0.22.0 T32 ruling). The
-skips: `tests/test_llm_live.py` (unless `CLOCKWORK_LIVE_LLM` names the
-configured model server); the ten tests of `tests/test_docker_smoke.py`
+**Windows, v0.23.0 (`scripts/run_tests.py full`, measured 2026-10-23 at
+the release): 8380 passed, 28 skipped, 4 failed, exit 1, in 58.6 min** (parallel
+phase 7869 passed, 13 skipped, 4 failed in 48.3 min; serial phase 511 passed,
+15 skipped in 10.4 min, no FLAKY re-run). The four failures were fixed in 6779d36
+and their files re-run once, green (36 passed in 24.3 min): a deferred row's
+wording in this file, `chat_minutes_to_numbers.fast` at 30 s (16.8 against 6-15,
+deferred by data to v0.24.0's T29b), and two T29a replay fixtures re-recorded
+after 93ca910 added `scene_image` to every READ RECEIPTS frame (verified the only
+change). The release is slow because of READ RECEIPTS' `slow` pins:
+`tests/test_social_save_size.py` (a day-180 save), `tests/test_social_commit_scope.py`
+and, in the serial phase (it starts interpreters), `tests/test_simulate_social.py`'s
+simulator runs. The skips: `tests/test_llm_live.py` (unless `CLOCKWORK_LIVE_LLM`
+names the configured model server); the ten tests of `tests/test_docker_smoke.py`
 (opt-in, `CLOCKWORK_DOCKER_SMOKE=1` and a built image); the stamina
 soft-lock test's stories with no rest verb; THE LONG CON's word-limit
 check; `tests/test_constraints.py`'s installed-version check for
 `faster-whisper` and `gunicorn` (neither installed on Windows); the
-POSIX-only tests; and one bus test skipped by design. Plus **684 client
-tests** in 30 files under `ui/tests/` (`npm test --prefix ui`; `vitest` is a
+POSIX-only tests; and one bus test skipped by design. Plus **731 client
+tests** in 36 files under `ui/tests/` (`npm test --prefix ui`; `vitest` is a
 devDependency, so `npm install --prefix ui` once first). `fast` was not
-re-measured (v0.21.1: about 5.8 min). Re-measure and restate these at every
-release rather than trusting this line -- it has been stale before, in the
-very sentence that warned about it.
+re-measured (v0.21.1: about 5.8 min). Not run for this release, by the owner's
+deferral: the 40-seed simulator confirmation and the balance pass over full
+sessions (T29b), live play with a model (T31) and a whole-branch review (T33).
+Re-measure and restate these at every release rather than trusting this line --
+it has been stale before, in the very sentence that warned about it.
 A bare `pytest` is the fast tier since v0.21.1 (`slow` and `process` left
 out); the numbers above are `--full`.
 
@@ -124,7 +117,7 @@ to the audit log (`engine/hosting/audit.py`). **Metrics** in a closed
 schema (`engine/hosting/metrics_schema.py`), kept by the supervisor in
 SQLite. **Docker**: `Dockerfile`, `config/docker.yaml`, `docker-compose.yml`
 (published on the host's loopback, a `vllm` profile).
-Seven stories ship. READ RECEIPTS (`read-receipts`, v0.22.0) is endless
+Seven stories ship. READ RECEIPTS (`read-receipts`, v0.22.0, reworked in v0.23.0) is endless
 (`endless: true`, no ending, by the owner's brief): a dating story played on
 a phone, its cast run by the engine, and `tests/test_finales.py` holds that it
 declares no ending. The other six can each be played to an ending
@@ -187,8 +180,8 @@ only once the last of them lands:
 | v0.21.0 | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | **shipped** |
 | v0.21.1 | Patch: test speed -- tiers, pytest-xdist hybrid runs, bounded runs (`scripts/run_tests.py`), libyaml, a shared HTTP client | **shipped** |
 | v0.22.0 | A new story: a dating simulation played through a phone of apps (dating apps, texts, instant messages, voice and video messages, two-player games), a populated cast the engine runs, no endgame (owner's brief: docs/superpowers/briefs/2026-09-30-dating-sim-brief.md) | **shipped** |
-| v0.23.0 | READ RECEIPTS rework: growth (people who change at their own pace, conversations and willingness that ramp up), no set time on dating, phone numbers that work, places (the player's apartment and its rooms, 3-4 homes for the cast) with their art, and real-life events and meet-ups happening outside the phone; slice of life, no ending (owner's brief, with its addendum: docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md) | next |
-| v0.24.0 | Sound effects for the engine and every story: alerts, ringtones, button presses (owner's brief: docs/superpowers/briefs/2026-10-13-sound-effects-brief.md) | queued |
+| v0.23.0 | READ RECEIPTS rework: growth (people who change at their own pace, conversations and willingness that ramp up), no set time on dating, phone numbers that work, places (the player's apartment and its rooms, 3-4 homes for the cast) with their art, and real-life events and meet-ups happening outside the phone; slice of life, no ending (owner's brief, with its addendum: docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md). **Addendum 4 (2026-10-22, after the owner's playtest; docs/superpowers/specs/2026-10-22-v0.23.0-addendum4-world-interaction.md)** is part of it: the world's choices survive phone actions, a plan is kept where you stand (they arrive, the scene opens, `Wait for {name}`), the person is somewhere, a quiet phone while together, typing in the world (a typed line runs ONE offered choice or a scene move, or is narrated only), background people at venues and chance meetings with live contacts, T23A-T23H; replayed end to end in `tests/test_rr_playtest_replay.py` and `ui/tests/rr-playtest.test.jsx`, with the browser-pane walk (A4 §7.5, T31) deferred to the end of v0.24.0 | **shipped** (T29b, T31, T32, T33 deferred to the end of v0.24.0 by the owner) |
+| v0.24.0 | Sound effects for the engine and every story: alerts, ringtones, button presses (owner's brief: docs/superpowers/briefs/2026-10-13-sound-effects-brief.md), with READ RECEIPTS' morning scene and four more life-event decks (moved from v0.23.0 at its checkpoint C1); and, at its end, v0.23.0's deferred tail (owner, 2026-10-23): the full balance pass (T29b), live play with a model including the addendum-4 meet-up walk (T31), the docs pass (T32) and the whole-branch review (T33) | **next** |
 | v0.25.0 | The Clockwork Dark overhaul | queued |
 | v0.26.0 | The Wicked Garden overhaul | queued |
 | v0.27.0 | NEON CITY overhaul | queued |
@@ -229,6 +222,14 @@ outside the phone; brief and addendum verbatim in
 docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md), sound
 effects are v0.24.0 and the overhauls v0.25.0-v0.28.0. Same rule: spec,
 opus review, build.
+
+**Roadmap note for the owner (2026-10-22, v0.23.0 addendum 4): strangers at
+venues.** v0.23.0 puts the world's people where they live: staff on shift at
+venues and, by chance, your live contacts. It does NOT let you meet someone you
+have not matched with (main spec §21 keeps that a non-goal). If you want it, it
+is a release of its own (no row yet; say where it goes): a way to meet a
+non-contact, a place for them in the cast, and a path from a chance
+conversation to a number.
 
 **The README is kept current at every release through v1.0.0** (owner
 instruction, 2026-09-26): status, features and roadmap each release; new
@@ -778,33 +779,80 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   and refuses to activate: found in v0.22.0 T2, where READ RECEIPTS without
   `entry.archetypes` validated clean but could not be activated. Recorded,
   not fixed.
-- READ RECEIPTS' live relationships at day 30 (spec §20, band 4-10) measure 35.0 for the attentive player (20 seeds x 60 days, neutral model, v0.22.0 T26 fix round 1), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not banded.
-  The attentive player matches about 2.5 people a day and answers everything,
-  and a relationship that goes quiet stays live until it fades, `fade_days` 21
-  days later (spec §10.3). The band was reached once, with a 1.75-day fade and
-  a 1-day match expiry; that was rejected (relationships must remain, and a
-  weekend away cost a quarter of them). Ghosting is held to its own band
-  (20-35% in 14 days, measured 0.28), and the other rows land. The levers
-  left: fewer matches surfaced to the attentive player (its 19 likes a day are
-  the harness's, the like-back rate is at its band's floor), or a quiet
-  relationship counted as something other than live (a spec change).
-- READ RECEIPTS' talking-to-numbers within 21 days (spec §20, band 15-30%) measures 35.0% for the attentive player (10 seeds x 60 days, neutral model) since the numbers gate lost its 6 in-game days (owner bug, v0.22.0 final review wave 2: warmth 30, trust 23, 20 exchanges, no days), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not banded; v0.23.0 redesigns pacing around real session time (the owner's growth brief, docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md).
-- READ RECEIPTS' numbers-to-meet within 21 days (spec §20, band 25-45%) measures 16.0% for the attentive player (10 seeds x 60 days, neutral model) since numbers come days sooner, at lower warmth and trust, while the meeting gate (warmth 70, trust 70) is unchanged (v0.22.0 final review wave 2), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not banded; v0.23.0 redesigns pacing around real session time (the owner's growth brief).
-- READ RECEIPTS' awkward meet-ups (spec §20, band 10-20%) measure 20.8% for the attentive player (10 seeds x 60 days, neutral model) since the numbers gate lost its days (v0.22.0 final review wave 2), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not banded; v0.23.0 redesigns pacing around real session time (the owner's growth brief).
-- READ RECEIPTS' days from a match to warming for a romantic (spec §20, band 2-5 days) measure 5.22 on `tests/test_simulate_social.py`'s seeds 0-9 (attentive, neutral model, 60 days; 4.08 before the final review's wave 2 numbers gate, 9c09d38) and 3.76 over 40 seeds, in band: seed-sensitive, so the cell is deferred by data (`tests/test_simulate_social.py` `DEFERRED_CLOSENESS`), not retuned or widened; v0.23.0 replaces the pacing model (the owner's growth brief and its addenda).
-- READ RECEIPTS' backlog after a long absence (v0.22.0 T26, accepted): a
-  72-hour away at day 60 leaves 47 due messages for the first voicing pass at
-  the p95 (54 with a warm model; 20 seeds x 60 days, attentive), because a
-  quiet relationship stays live for its 21 days. `social.voice.max_per_pass`
-  stays 3: passes run back to back and each reply commits as it lands, so the
-  cap bounds one pass's work under the lock, not the catch-up, which takes
-  several passes (config/default.yaml's comment).
-- READ RECEIPTS' meet-ups come late (v0.22.0 T26, accepted): the `meeting`
-  gate is warmth 70 and trust 70 (relationships.yaml), so a first meet-up
-  needs weeks of steady contact (numbers to a meet within 21 days 0.36, in
-  its band). A player who looks at the phone only at fixed hours misses many
-  of those that come due -- the simulator's swiper 4.65 and slow player 2.2
-  no-shows a run over 30 days. Measured and kept; the lever is the gate.
+- READ RECEIPTS' simulator v2 (v0.23.0 T9, `scripts/simulate_social.py`: phone-only sessions of 40
+  real minutes, priced by `REAL_SECONDS`, at 6, 15 and 30 model seconds a reply; measured after T9's
+  fix round). `ghosted_per_episode.d0` and `player_promises_kept.attentive`
+  hold their bands at all three latencies (banded);
+  `person_promises_kept` is asserted 1.0. The rows T9 measured that miss their band at one latency or
+  more, each deferred by data, never widened:
+  - READ RECEIPTS' `exchanges_per_episode.d0` (spec §17.2, band 6-14) measures 6.0 / 6.0 / 5.0 at 6 / 15 / 30 s (T9's phone-only harness: 10 seeds x 6 sessions, attentive, neutral model), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not retuned or widened: measured again at T29b (world, scenes, deep growth), deferred to the end of v0.24.0.
+  - READ RECEIPTS' `end_reason.schedule` (spec §17.2, band 30-55%) measures 20.9% / 18.6% / 19.2% at 6 / 15 / 30 s (T9's phone-only harness: 10 seeds x 6 sessions, attentive, neutral model), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not retuned or widened: measured again at T29b (world, scenes, deep growth), deferred to the end of v0.24.0.
+  - READ RECEIPTS' `end_reason.energy` (spec §17.2, band 25-50%) measures 11.0% / 9.0% / 8.9% at 6 / 15 / 30 s (T9's phone-only harness: 10 seeds x 6 sessions, attentive, neutral model), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not retuned or widened: measured again at T29b (world, scenes, deep growth), deferred to the end of v0.24.0.
+  - READ RECEIPTS' `end_reason.player` (spec §17.2, band 10-30%) measures 26.5% / 32.3% / 35.4% at 6 / 15 / 30 s (T9's phone-only harness: 10 seeds x 6 sessions, attentive, neutral model), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not retuned or widened: measured again at T29b (world, scenes, deep growth), deferred to the end of v0.24.0.
+  - READ RECEIPTS' `cold_unanswered_1h.d0` (spec §17.2, band 15-35%) measures 65.1% / 63.7% / 61.3% at 6 / 15 / 30 s (T9's phone-only harness: 10 seeds x 6 sessions, attentive, neutral model), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not retuned or widened: measured again at T29b (world, scenes, deep growth), deferred to the end of v0.24.0.
+  - READ RECEIPTS' `chat_minutes_to_numbers.fast` (spec §17.2, band 6-15 real minutes) measures 16.8 at 30 s (6 and 15 s not recorded) (T9's phone-only harness: 10 seeds x 6 sessions, attentive, neutral model), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not retuned or widened: measured again at T29b (world, scenes, deep growth), deferred to the end of v0.24.0.
+  - READ RECEIPTS' `chat_minutes_to_numbers.mid` (spec §17.2, band 12-30 real minutes) measures 11.43 / 14.45 / 17.68 at 6 / 15 / 30 s (T9's phone-only harness: 10 seeds x 6 sessions, attentive, neutral model), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not retuned or widened: measured again at T29b (world, scenes, deep growth), deferred to the end of v0.24.0.
+  - READ RECEIPTS' `chat_minutes_to_numbers.slow` (spec §17.2, band 25-60 real minutes) measures 14.25 / 17.95 / 25.3 at 6 / 15 / 30 s (T9's phone-only harness: 10 seeds x 6 sessions, attentive, neutral model), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not retuned or widened: measured again at T29b (world, scenes, deep growth), deferred to the end of v0.24.0.
+  - READ RECEIPTS' `numbers_within_session` (spec §17.2, band 40-70%) measures 13.8% / 8.7% / 6.8% at 6 / 15 / 30 s (T9's phone-only harness: 10 seeds x 6 sessions, attentive, neutral model), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not retuned or widened: measured again at T29b (world, scenes, deep growth), deferred to the end of v0.24.0.
+  - READ RECEIPTS' `player_promises_kept.flaky` (spec §17.2, band 55-75%) measures 74.5% / 75.9% / 74.4% at 6 / 15 / 30 s (T9's phone-only harness: 10 seeds x 6 sessions, attentive, neutral model), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not retuned or widened: measured again at T29b (world, scenes, deep growth), deferred to the end of v0.24.0.
+  - READ RECEIPTS' `full_replies_in_long_episodes` (spec §17.2, band 60% or more) measures 53.9% / 52.9% / 53.1% at 6 / 15 / 30 s, below its band since the latency lever `conversation.yaml` `modes.chatting_after` 5 (70.3% at 30 s under 3, before T9's fix round) (T9's phone-only harness: 10 seeds x 6 sessions, attentive, neutral model), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not retuned or widened: measured again at T29b (world, scenes, deep growth), deferred to the end of v0.24.0.
+  The rows T9's phone-only sessions do not measure, each waiting for what it names (T29b's full
+  pass bands them, at the end of v0.24.0):
+  - READ RECEIPTS' `exchanges_per_episode.d2plus` is not measured by T9's phone-only sessions (it needs depth 2, which needs a scene (growth.yaml `counts.scenes`; T13)): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `ghosted_per_episode.d2plus` is not measured by T9's phone-only sessions (it needs depth 2, which needs a scene (growth.yaml `counts.scenes`; T13)): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `sessions_to_first_scene` is not measured by T9's phone-only sessions (it needs depth 2, which needs a scene (growth.yaml `counts.scenes`; T13)): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `real_hours_to_depth.fast.2` is not measured by T9's phone-only sessions (it needs depth 2, which needs a scene (growth.yaml `counts.scenes`; T13)): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `real_hours_to_depth.fast.3` is not measured by T9's phone-only sessions (it needs depth 2, which needs a scene (growth.yaml `counts.scenes`; T13)): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `real_hours_to_depth.fast.4` is not measured by T9's phone-only sessions (it needs depth 2, which needs a scene (growth.yaml `counts.scenes`; T13)): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `real_hours_to_depth.slow.2` is not measured by T9's phone-only sessions (it needs depth 2, which needs a scene (growth.yaml `counts.scenes`; T13)): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `real_hours_to_depth.slow.3` is not measured by T9's phone-only sessions (it needs depth 2, which needs a scene (growth.yaml `counts.scenes`; T13)): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `real_hours_to_depth.slow.4` is not measured by T9's phone-only sessions (it needs depth 2, which needs a scene (growth.yaml `counts.scenes`; T13)): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `scene_band.great` is not measured by T9's phone-only sessions (it needs depth 2, which needs a scene (growth.yaml `counts.scenes`; T13)): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `scene_band.good` is not measured by T9's phone-only sessions (it needs depth 2, which needs a scene (growth.yaml `counts.scenes`; T13)): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `scene_band.fine` is not measured by T9's phone-only sessions (it needs depth 2, which needs a scene (growth.yaml `counts.scenes`; T13)): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `scene_band.awkward` is not measured by T9's phone-only sessions (it needs depth 2, which needs a scene (growth.yaml `counts.scenes`; T13)): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `scene_band.bad` is not measured by T9's phone-only sessions (it needs depth 2, which needs a scene (growth.yaml `counts.scenes`; T13)): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `life_events.player_per_week` is not measured by T9's phone-only sessions (life events are T17's): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `life_events.person_per_month_d2plus` is not measured by T9's phone-only sessions (life events are T17's): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `devoted.together_10h` is not measured by T9's phone-only sessions (the long-term stages are T18's): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `devoted.living_together_20h` is not measured by T9's phone-only sessions (the long-term stages are T18's): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `devoted.married_40h` is not measured by T9's phone-only sessions (the long-term stages are T18's): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `active_relationships_20h.bachelor` is not measured by T9's phone-only sessions (20 real hours of full sessions): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `active_relationships_20h.attentive` is not measured by T9's phone-only sessions (20 real hours of full sessions): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `save_bytes_day180.attentive` is not measured by T9's phone-only sessions (`SAVE_SIZE_MEASURED` is re-pinned on full sessions): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `save_bytes_day180.bachelor` is not measured by T9's phone-only sessions (`SAVE_SIZE_MEASURED` is re-pinned on full sessions): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `save_bytes_day180.devoted` is not measured by T9's phone-only sessions (`SAVE_SIZE_MEASURED` is re-pinned on full sessions): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  - READ RECEIPTS' `events_per_jump_morning_day60` is not measured by T9's phone-only sessions (a day-60 run of full sessions): measured at T29b (world, scenes, deep growth), deferred to the end of v0.24.0: spec §24 stub table.
+  A fallback reply costs no model seconds, so with no model the player gets more exchanges into a
+  session and out-paces the neutral model at a real latency (3.17 numbers a run against 2.33 at 15 s,
+  T9's first pass); priced alike it is slower. Accepted as a harness artefact (T9 ruling), no change.
+  The day-180 save `write_day_save` makes (phone-only sessions) is 861,222 bytes since T9's fix round 2,
+  13.9% under the 1 MB budget (`tests/test_social_save_size.py` passes): people 533 KB, media 168 KB,
+  threads 164 KB (122 messages in state), promises 41 KB. T29b re-pins `SAVE_SIZE_MEASURED` on full sessions (end of v0.24.0).
+- READ RECEIPTS' backlog after a long absence is opt-in since v0.23.0 (T3):
+  a resume moves the clock by 0 by default (`social.away.mode: none`, spec
+  R9), so no default player meets it. Under `mode: real` a 72-hour absence
+  still queues what the cast would have said; v0.22.0 measured 47 due
+  messages for the first voicing pass at the p95 (54 with a warm model; 20
+  seeds x 60 days, attentive) on its per-exchange model, and that is NOT
+  re-measured on v0.23's episode model (the harness's `Phone.away` row can
+  run it). `social.voice.max_per_pass` stays 3: passes run back to back and
+  each reply commits as it lands (config/default.yaml's comment).
+- A stay-over ends in the morning with no scene: T24, moved to v0.24.0 at
+  v0.23.0's checkpoint C1. `scene.stay_the_night` closes the evening and
+  moves the clock to the morning; nothing opens a morning scene (the spec's
+  `kind: morning`, at `apt_kitchen` or the host's home).
+- The player's life-event decks are two, `boiler` and `parcel`; the other
+  four (spec §12.2) are T25, moved to v0.24.0 at checkpoint C1.
+- READ RECEIPTS' `meeting` stage gate was dead data (v0.23.0 T13: a scene's end
+  moves a relationship from `numbers` to `meeting` whatever the band,
+  `engine/social/scene.py::_end`) and v0.23.0 T18 REMOVED it: `relationships.yaml`'s
+  `meeting` row carries no gate, a gate on a stage reached by `meet` or `event`
+  refuses to load (`relationships.GATED_TRIGGERS`,
+  `tests/test_social_long_term.py::test_no_stage_row_carries_an_unread_gate`), and
+  the fixtures and `scripts/screenshot_runs.py` set warmth and trust 70 as their own
+  values. v0.22.0's "meet-ups come late" and "numbers to meet" rows no longer
+  describe the game; the 21-day numbers-to-meet band is re-measured at T29b (end of v0.24.0).
 - READ RECEIPTS' whole-state serialisation on every phone save (v0.22.0
   T15, deferred): a save (`engine/social/saves.py::save_now`, at once on a
   match, a stage change, an away advance, and from the dirty timer)
@@ -812,10 +860,16 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   after T26's compaction (seed 7, attentive, warm stub, 30 days on disk:
   1,201 people, 160 threads, 1,043 messages in state, `save.json` 598 KB):
   `GameState.to_save_dict` 60 ms (median; 220 ms before the compaction),
-  the store's whole save 112 ms, `compact` 2.4 ms. In hosted mode it is also
-  GIL time every account on the worker shares. The lever: a save that writes
-  only the slices an action dirtied. (The voicing pass's own commit no
-  longer pays it: T26's `voicer.ScopedTransaction`.)
+  the store's whole save 112 ms, `compact` 2.4 ms. Cut again in v0.23.0 T29a,
+  with every save byte-identical (`state._plain_copy`, and `write_json_atomic`
+  writing `json.dumps`' text): at a day-60 run (1,691 people rows,
+  `tests/test_social_turn_cost.py`) `to_save_dict` 114 to 13 ms and the
+  `save.json` write 88-94 to 17-18 ms. A world turn pays the copy twice (its
+  transaction snapshot and its autosave): 366-375 ms a turn before, 101-105 ms
+  after. Still whole-state, and in hosted mode still GIL time every account on
+  the worker shares. The lever left: a save that writes only the slices an
+  action dirtied. (The voicing pass's own commit no longer pays it: T26's
+  `voicer.ScopedTransaction`.)
 - READ RECEIPTS' agreement check re-normalises every contact's name forms on
   every check (v0.22.0 T15, deferred): `engine/social/agreement.py::_another_person`
   builds `name_forms` for each contact per reply, in the voicing pass and
@@ -826,6 +880,10 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   T15, deferred): `engine/social/payload.py::phone_block` (14 ms at day 30)
   and `engine/social/intents.py::legal_phone_intents` (10 ms) walk every
   thread on every action, O(threads), with nothing cached between actions.
+  Re-measured at day 60 in v0.23.0 T29a, untouched by it: `phone_block`
+  25-31 ms (now the largest single part of a world turn's ~100 ms; its
+  threads, contacts and deck sections, each spread over many small refusal
+  and name reads), `legal_phone_intents` 17-21 ms.
 - READ RECEIPTS' deck order is reshuffled on every top-card read (v0.22.0
   T15, recorded): `engine/social/apps.py::order` shuffles the day's whole
   pool (about 1,800 indices on Matchstick) for each `top_card`, 0.4 ms at
@@ -849,6 +907,39 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   54 s, p95 34), so `hosting.rate_limits.phone_actions_per_minute` stays 90
   (p95 under 0.75 x 90). A fast human thumb may approach the spec's 60 a
   minute, still inside 90 (docs/HOSTING.md).
+- **Addendum 4's NOT WIRED rows (v0.23.0, A4 §8; docs/GOVERNANCE.md):**
+  - Typed text never infers leaving, a closer, a plan, a promise, an approach, work or a phone action
+    (`engine/social/typed.py`): it may run ONE offered `do` or room `travel`, and in a scene a topic move or
+    `talk`; the narrator offers every other choice.
+  - Meeting a STRANGER in person is not built (main spec §21, kept; `engine/social/presence.py` reads live
+    contacts only). **For the owner:** the cast you can meet on the street, at a bar or at a home is your live
+    contacts and the venues' staff; a person you have not matched with never appears in the world. This wants a
+    roadmap row of its own (a release after the overhauls, or earlier if you say so), because it needs a way to
+    meet someone who is not yet a contact and a place for them in the cast.
+  - Background people (the staff, `games/read-receipts/data/world/npc_schedules.yaml`) are not datable and have no
+    thread and no portrait. There is NO people strip in READ RECEIPTS, matching dev-story (A4 ruling A5): the
+    world layer shows an "Also here" line of names.
+  - There is no chance presence on the street, at homes or in the flat (`engine/social/presence.py`): only at
+    venues.
+  - The replay (`tests/test_rr_playtest_replay.py`) drives the engine with the stub narrator; the real model's
+    words, the 80-200 word length and the pane's layout are T31 Step 0's, played by hand.
+- v0.23.0 shipped without its last four tasks (owner, 2026-10-23), moved to the
+  END of v0.24.0: T29b (the balance pass over full sessions, the 40-seed
+  simulator confirmation and the re-pin of `SAVE_SIZE_MEASURED`), T31 (live play
+  with a model, including the addendum-4 meet-up walk in the browser pane), T32
+  (the docs pass) and T33 (the whole-branch review). So the world layer, scenes,
+  chance meetings, life events and the long-term stages have been measured and
+  reviewed task by task but not as a whole; `scenes.yaml`'s, `life_events.yaml`'s
+  and `growth.yaml`'s first values are unmeasured, and no live model has narrated
+  a scene, a world turn or a typed line (READ RECEIPTS' world narration, scene
+  prose checks and the `xai` image provider are stub- and test-verified only).
+- READ RECEIPTS' world and scene choice row overflows horizontally with 13 or more
+  choices (scrollable; `npm run layout-check --prefix ui` passes). Found in
+  v0.23.0 T30, left for v0.24.0.
+- `engine/social/turnstile.py::report_share` swallows an exception silently
+  rather than logging it (v0.23.0 T28 review, parked), and
+  `scripts/generate_art.py --promote` writes a plate's time only, so the
+  manifest's base rows were added by hand in T27 (parked for the final review).
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 

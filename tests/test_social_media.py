@@ -286,19 +286,52 @@ def test_subjects_gate_on_fixed_flags_not_canon(receipts_state, matched, monkeyp
     assert "pet" in media.subjects_for(receipts_state, pid, at)
 
 
-def test_a_morning_refills_every_live_persons_budget_to_its_cap(receipts_state, matched) -> None:
+def test_each_closed_episode_refills_the_budget_to_its_cap_and_a_morning_does_not(receipts_state, matched,
+                                                                                  monkeypatch) -> None:
+    """v0.23.0 T5 (spec §6.4, I9): the media budget refills per conversation episode, never per in-game day."""
     from engine import social
     from engine.game import clock
+    from engine.game.effects import apply_effect
+    from engine.social import media
+    from tests.social_fixtures import _open_episode
 
-    pid = matched("matchstick").split(":")[1]
+    thread = matched("matchstick")
+    pid = thread.split(":")[1]
+    monkeypatch.setattr(media, "unsolicited_draw", lambda *a, **k: False)      # nothing sent unasked (F16)
     _force_stage(receipts_state, pid, "talking")
     _set_person(receipts_state, pid, media_budget={"photo": 0, "voice": 1.9, "video": 0})
-    clock.advance_time(receipts_state, 24.0)                    # exactly one morning passes
-    budget = social.data("media")["budget"]
+    clock.advance_time(receipts_state, 24.0)                    # a morning passes: no refill
     held = receipts_state.social["people"][pid]["media_budget"]
-    assert held["photo"] == pytest.approx(budget["photo"]["per_day"])
-    assert held["voice"] == pytest.approx(budget["voice"]["cap"])                   # 1.9 + 0.25, capped at 2
-    assert held["video"] == pytest.approx(budget["video"]["per_day"])
+    assert (held["photo"], held["voice"], held["video"]) == (0, 1.9, 0)
+    budget = social.data("media")["budget"]
+    for n in (1, 2):                                             # two episodes on the same in-game day
+        _open_episode(receipts_state, pid, thread)
+        apply_effect(receipts_state, {"type": "social_episode", "op": "close", "pid": pid,
+                                      "at": receipts_state.world_clock_hours, "end": "lapsed"})
+        held = receipts_state.social["people"][pid]["media_budget"]
+        assert held["photo"] == pytest.approx(n * budget["photo"]["per_episode"])
+        assert held["voice"] == pytest.approx(budget["voice"]["cap"])               # 1.9 + 0.25, capped at 2
+        assert held["video"] == pytest.approx(n * budget["video"]["per_episode"])
+
+
+def test_a_closed_episode_may_send_one_unasked(receipts_state, matched_numbers, monkeypatch) -> None:
+    """The unsolicited draw (`unsolicited.per_episode_at_stage`) is made as each episode closes, one sent at most,
+    due at their next available minute."""
+    from engine.game.effects import apply_effect
+    from engine.social import convo, media
+    from tests.social_fixtures import _open_episode
+
+    thread = matched_numbers("natter")
+    pid = thread.split(":")[1]
+    later = receipts_state.world_clock_hours + 2.0
+    monkeypatch.setattr(media, "unsolicited_draw", lambda *a, **k: True)
+    monkeypatch.setattr(convo, "next_available", lambda state, pid_, at: later)
+    _set_person(receipts_state, pid, media_budget={"photo": 0, "voice": 2, "video": 0})
+    _open_episode(receipts_state, pid, thread)
+    apply_effect(receipts_state, {"type": "social_episode", "op": "close", "pid": pid,
+                                  "at": receipts_state.world_clock_hours, "end": "lapsed"})
+    sends = [e for e in receipts_state.social["queue"] if (e.get("decision") or {}).get("media_kind")]
+    assert len(sends) == 1 and sends[0]["at"] == later
 
 
 @pytest.mark.parametrize("odds, kept", [(1.0, True), (0.0, False)])
@@ -326,7 +359,9 @@ def test_a_later_request_is_kept_or_broken_the_next_morning(receipts_state, matc
     held = receipts_state.social["people"][pid]["media_budget"]["photo"]
     if kept:                                                    # the medium is sent today, one spent
         assert [d["media_kind"] for d in queued + landed] == ["photo"]
-        assert held == pytest.approx(min(2.0, 2.0 + 0.15) - 1.0)
+        # Spent at the morning (2 -> 1); the conversation the ask opened (read after the night) closes
+        # later that day, one per-episode refill (+0.15, v0.23.0 T5).
+        assert held == pytest.approx(2.0 - 1.0 + 0.15)
     else:
         assert not queued and not landed and held == pytest.approx(2.0)
 
@@ -346,7 +381,7 @@ def test_a_media_ask_is_refused_in_words_where_it_cannot_happen(receipts_state, 
     for _ in range(2):
         assert not ask(natter, "photo").get("refused")
     third = ask(natter, "photo")
-    assert third["refused"] and third["result"]["error"] == "Give it a day"
+    assert third["refused"] and third["result"]["error"] == "Give it a while"
 
 
 # -- the image request (rule 12) ----------------------------------------------------------------
@@ -448,7 +483,7 @@ def test_on_match_portraits_cost_nothing_before_a_match(receipts_active, monkeyp
     _swipe_passes(scene, session, 60)
     assert recorder.specs == []                                   # 60 cards seen: not one job
     thread = _matched_in(session, "matchstick")
-    _phone(scene, session, "wait", args={"until": "15m"})
+    _phone(scene, session, "wait", args={"until": "1h"})
     pid = thread.split(":")[1]
     assert [s.mid for s in recorder.specs] == [session.engine.state.social["people"][pid]["portrait"]]
     assert recorder.specs[0].workflow == "portrait" and recorder.specs[0].priority == 2
@@ -500,7 +535,7 @@ def test_procedural_contacts_no_server(receipts_active, monkeypatch) -> None:
     scene, session, pid, natter = _numbers_session()
     row = _ask_and_get_photo(scene, session, natter, monkeypatch)
     voicer.run_until_quiet(session, StubVoice("warm"))
-    _phone(scene, session, "wait", args={"until": "15m"})
+    _phone(scene, session, "wait", args={"until": "1h"})
     state = session.engine.state
     row = state.social["media"][row["mid"]]
     assert row["status"] == "fallback" and row["url"] == "" and row["caption"] == "this one's for you"
@@ -571,7 +606,7 @@ def test_a_video_request_with_comfyui_off_is_a_poster_tile_and_caption(receipts_
     row = _ask_and_get_photo(scene, session, natter, monkeypatch, "video")
     assert row["priority"] == 0 and row["subject"]                 # thread media, a subject the engine drew
     voicer.run_until_quiet(session, StubVoice("warm"))
-    _phone(scene, session, "wait", args={"until": "15m"})
+    _phone(scene, session, "wait", args={"until": "1h"})
     state = session.engine.state
     row = state.social["media"][row["mid"]]
     assert row["status"] == "fallback" and row["url"] == "" and row["poster_url"] == ""
@@ -678,7 +713,7 @@ def test_a_media_result_mid_action_parks_in_the_inbox(receipts_active) -> None:
         assert not pushed
     finally:
         session.lock.release()
-    _phone(scene, session, "wait", args={"until": "15m"})       # the next action drains it under the lock
+    _phone(scene, session, "wait", args={"until": "1h"})       # the next action drains it under the lock
     row = session.engine.state.social["media"][mid]
     assert row["status"] == "ready" and row["file"] == f"{mid}.png" and len(session.inbox) == 0
     ready = [body for event, body in pushed if event == "media_ready"]
@@ -883,7 +918,7 @@ def test_media_yaml_is_checked_whole(receipts_active) -> None:
     bad = json.loads(json.dumps(data))
     bad["subjects"][0]["when"] = "dancing"
     bad["subjects"][3]["requires_flag"] = "has_a_dragon"
-    bad["budget"]["video"]["unlock_stage"] = "married"
+    bad["budget"]["video"]["unlock_stage"] = "eloped"  # no stage (v0.23 made "married" one)
     faults = dict(media.media_faults(bad, social.data("population"), social.data("relationships")))
     assert "subjects[0].when" in faults and "subjects[3].requires_flag" in faults
     assert "budget.video.unlock_stage" in faults
@@ -955,7 +990,7 @@ def test_a_fault_in_step_3_costs_the_jobs_never_the_action(receipts_active, monk
 
     monkeypatch.setattr(media, "jobs_for", broken)
     caplog.set_level(logging.WARNING)
-    turn = _phone(scene, session, "wait", args={"until": "15m"})
+    turn = _phone(scene, session, "wait", args={"until": "1h"})
     assert turn["receipts"][0]["success"]
     assert session.engine.state.social["media"][mid]["status"] == "requested"
     assert "Media jobs not submitted" in caplog.text
@@ -972,12 +1007,12 @@ def test_no_portrait_is_made_for_someone_gone(receipts_active, monkeypatch) -> N
     pid = _matched_in(session, "matchstick").split(":")[1]
     turn = _phone(scene, session, "unmatch", target=pid)
     assert not turn["receipts"][0].get("refused"), turn["receipts"][0]
-    _phone(scene, session, "wait", args={"until": "15m"})
+    _phone(scene, session, "wait", args={"until": "1h"})
     assert recorder.specs == [] and not session.engine.state.social["people"][pid].get("portrait")
 
 
 def test_only_a_declared_value_not_offered_now_takes_the_rows_own_words(receipts_state, matched_numbers) -> None:
-    """M2: the row's `refuse` words answer a declared value not offered now ("Give it a day"); a value the row
+    """M2: the row's `refuse` words answer a declared value not offered now ("Give it a while"); a value the row
     never takes keeps the payload's own problem."""
     from engine.agents.tool_dispatcher import execute_phone_intent
     from tests.social_fixtures import _engine

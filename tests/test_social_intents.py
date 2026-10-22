@@ -40,9 +40,15 @@ def test_text_over_its_cap_is_refused_never_cut(receipts_state) -> None:
     assert receipt["refused"] is True and "600" in receipt["result"]["error"]
 
 
+
+def _players_last(state, thread: str) -> dict:
+    """The player's newest message in ``thread`` (v0.23.0: a person who is free reads and answers at once,
+    so their due reply may already follow it)."""
+    return [m for m in state.social["threads"][thread]["messages"] if m["from"] == "player"][-1]
+
 # -- rows: wait, edit_profile, set_receipts ------------------------------------
 
-@pytest.mark.parametrize("until, hours", [("15m", 0.25), ("1h", 1.0)])
+@pytest.mark.parametrize("until, hours", [("1h", 1.0)])
 def test_wait_advances_the_clock_through_advance_time(receipts_state, until, hours) -> None:
     before = receipts_state.world_clock_hours
     receipt = _act(receipts_state, "wait", args={"until": until})
@@ -50,9 +56,10 @@ def test_wait_advances_the_clock_through_advance_time(receipts_state, until, hou
     assert receipts_state.world_clock_hours == pytest.approx(before + hours)
 
 
-def test_wait_morning_sleeps_to_eight(receipts_state) -> None:
+def test_wait_morning_sleeps_to_conversation_yamls_morning(receipts_state) -> None:
+    """v0.23.0 §3.6: `morning` is conversation.yaml's `clock.morning` (7), not a literal 8."""
     _act(receipts_state, "wait", args={"until": "morning"})
-    assert receipts_state.world_hour == 8
+    assert receipts_state.world_hour == 7
 
 
 def test_wait_next_stops_at_the_cap_with_nothing_queued(receipts_state) -> None:
@@ -70,6 +77,18 @@ def test_edit_profile_and_receipts_write_through_effects(receipts_state) -> None
     assert receipts_state.social["settings"]["receipts"] is False
 
 
+def test_set_wake_stores_wake_for_messages_and_the_payload_says_so(receipts_state) -> None:
+    """"Wake me for messages" (v0.23.0 T22): the Settings switch's verb writes the flag the sleep reads."""
+    from engine.social import payload
+
+    assert payload.phone_block(receipts_state)["settings"]["wake_for_messages"] is False
+    assert _act(receipts_state, "set_wake", args={"to": "on"})["success"]
+    assert receipts_state.social["settings"]["wake_for_messages"] is True
+    assert payload.phone_block(receipts_state)["settings"]["wake_for_messages"] is True
+    assert _act(receipts_state, "set_wake", args={"to": "off"})["success"]
+    assert receipts_state.social["settings"]["wake_for_messages"] is False
+
+
 # -- the channel ----------------------------------------------------------------
 
 def test_a_local_phone_action_over_the_socket_answers_a_turn_update_with_the_phone(receipts_active) -> None:
@@ -82,7 +101,7 @@ def test_a_local_phone_action_over_the_socket_answers_a_turn_update_with_the_pho
     sock = scene.socketio.test_client(app, flask_test_client=http)
     sock.emit("join_session", {"session_id": sid})
     sock.get_received()
-    sock.emit("phone_action", {"session_id": sid, "action": "wait", "target": "", "args": {"until": "15m"}})
+    sock.emit("phone_action", {"session_id": sid, "action": "wait", "target": "", "args": {"until": "1h"}})
     events = {e["name"]: e["args"][0] for e in sock.get_received()}
     assert events["turn_update"]["narration"] == ""
     assert "phone" in events["turn_update"]["state"]
@@ -115,7 +134,7 @@ def test_each_phone_action_logs_its_name_and_time_never_its_text(receipts_active
     http = app.test_client()
     sid = http.post("/api/game/new", json={"seed": 3}).get_json()["session_id"]
     caplog.set_level(logging.INFO, logger="engine.social.routes")
-    http.post("/api/phone/action", json={"session_id": sid, "action": "wait", "args": {"until": "15m"}})
+    http.post("/api/phone/action", json={"session_id": sid, "action": "wait", "args": {"until": "1h"}})
     http.post("/api/phone/action", json={"session_id": sid, "action": "send", "target": "nobody",
                                          "args": {"kind": "text"}, "text": "a secret only I typed"})
     lines = [r.getMessage() for r in caplog.records if "operation=phone_action" in r.getMessage()]
@@ -148,18 +167,19 @@ def test_an_action_not_in_the_catalogue_is_logged_as_a_fixed_token(receipts_acti
     assert not any("secret" in r.getMessage() for r in caplog.records)
 
 
-def test_player_choice_is_answered_on_the_phone(receipts_active) -> None:
+def test_player_choice_is_refused_while_the_phone_is_up(receipts_active) -> None:
+    """v0.23.0 T11 (spec §8.2-§8.3; Plan decision 18): the socket choice runs a world turn, refused only while
+    the phone is up -- v0.22's "played on the phone" refusal is gone."""
     from engine.scenes.default_scene import create_app
-    from engine.social.turn import played_on_the_phone
+    from engine.social import world
 
     scene, app = create_app(testing=True)
     http = app.test_client()
     sid = http.post("/api/game/new", json={"seed": 3}).get_json()["session_id"]
     sock = scene.socketio.test_client(app, flask_test_client=http)
-    sock.emit("player_choice", {"session_id": sid, "choice_id": "c1"})
+    sock.emit("player_choice", {"session_id": sid, "choice_id": "b"})
     errors = [e for e in sock.get_received() if e["name"] == "turn_error"]
-    assert errors and errors[0]["args"][0]["message"] == played_on_the_phone()
-    assert played_on_the_phone() == "Read Receipts is played on the phone."   # the manifest's title (Plan decision 26)
+    assert errors and errors[0]["args"][0] == {"message": world.PHONE_UP_REFUSAL, "busy": False, "phone_up": True}
 
 
 @pytest.mark.parametrize("slug", ["clockwork-dark", "wicked-garden", "neon-city", "the-long-con", "dev-story", "hue-and-cry"])
@@ -186,19 +206,19 @@ def test_a_target_outside_the_verb_s_options_is_refused_at_execution(receipts_st
 
 
 def test_text_on_a_verb_that_takes_none_is_refused(receipts_state) -> None:
-    receipt = _act(receipts_state, "wait", args={"until": "15m"}, text="hello")
+    receipt = _act(receipts_state, "wait", args={"until": "1h"}, text="hello")
     assert receipt["refused"] is True and "text" in receipt["result"]["error"]
 
 
-def test_the_http_choice_is_answered_on_the_phone(receipts_active) -> None:
+def test_the_http_choice_is_refused_while_the_phone_is_up(receipts_active) -> None:
     from engine.scenes.default_scene import create_app
-    from engine.social.turn import played_on_the_phone
+    from engine.social import world
 
     _, app = create_app(testing=True)
     http = app.test_client()
     sid = http.post("/api/game/new", json={"seed": 3}).get_json()["session_id"]
-    answered = http.post("/api/game/choice", json={"session_id": sid, "choice_id": "c1"})
-    assert answered.status_code == 409 and answered.get_json() == {"error": played_on_the_phone()}
+    answered = http.post("/api/game/choice", json={"session_id": sid, "choice_id": "b"})
+    assert answered.status_code == 409 and answered.get_json() == {"error": world.PHONE_UP_REFUSAL, "phone_up": True}
 
 
 def test_a_phone_block_that_cannot_import_is_an_error_not_a_debug_line(receipts_state, monkeypatch, caplog) -> None:
@@ -263,8 +283,8 @@ def test_the_label_is_read_under_the_lock_and_rides_on_the_receipt(receipts_acti
     _, app = create_app(testing=True)
     http = app.test_client()
     sid = http.post("/api/game/new", json={"seed": 3}).get_json()["session_id"]
-    turn = http.post("/api/phone/action", json={"session_id": sid, "action": "wait", "args": {"until": "15m"}})
-    assert turn.get_json()["receipts"][0]["label"] == "Put the phone down"
+    turn = http.post("/api/phone/action", json={"session_id": sid, "action": "wait", "args": {"until": "1h"}})
+    assert turn.get_json()["receipts"][0]["label"] == "Wait"
 
 
 # -- rows: swipe, like, like_back, pass, unmatch, block (T7) --------------------
@@ -391,7 +411,7 @@ def test_ask_number_is_legal_only_at_talking(receipts_state, matched) -> None:
     assert _act(receipts_state, "ask", target=thread, args={"what": "meet"})["refused"] is True   # too soon: numbers first
     asked = _act(receipts_state, "ask", target=thread, args={"what": "number"})
     assert asked["success"], asked
-    request = receipts_state.social["threads"][thread]["messages"][-1]
+    request = _players_last(receipts_state, thread)
     assert request["from"] == "player" and request["kind"] == "request" and request["ask"] == "number"
 
 
@@ -411,10 +431,10 @@ def test_ask_exclusive_is_legal_only_at_dating_and_says_what_it_asks(receipts_st
     assert label.startswith("Ask ") and label.endswith(" to be exclusive")
     asked = _act(receipts_state, "ask", target=thread, args={"what": "exclusive"})
     assert asked["success"], asked
-    assert receipts_state.social["threads"][thread]["messages"][-1]["ask"] == "exclusive"
+    assert _players_last(receipts_state, thread)["ask"] == "exclusive"
 
 
-def test_a_spent_ask_is_give_it_a_day_while_other_threads_are_offered(receipts_state, matched) -> None:
+def test_a_spent_ask_is_give_it_a_while_while_other_threads_are_offered(receipts_state, matched) -> None:
     from tests.social_fixtures import _force_stage
 
     first = matched("matchstick")
@@ -425,7 +445,7 @@ def test_a_spent_ask_is_give_it_a_day_while_other_threads_are_offered(receipts_s
         assert _act(receipts_state, "ask", target=first, args={"what": "number"})["success"]
     assert _verb(receipts_state, "ask").targets == (second,)          # the spent one is not offered
     refused = _act(receipts_state, "ask", target=first, args={"what": "number"})
-    assert refused["refused"] and refused["result"]["error"] == "Give it a day"
+    assert refused["refused"] and refused["result"]["error"] == "Give it a while"
 
 
 def test_answer_takes_only_an_open_request_of_theirs(receipts_state, matched) -> None:
@@ -477,7 +497,7 @@ def test_ask_offers_a_photo_only_where_the_app_carries_it_and_the_stage_allows(r
     assert {"photo", "voice", "video"} <= set(verb.extra["what"])
     asked = _act(receipts_state, "ask", target=natter, args={"what": "photo"})
     assert asked["success"], asked
-    message = receipts_state.social["threads"][natter]["messages"][-1]
+    message = _players_last(receipts_state, natter)
     assert message["kind"] == "request" and message["ask"] == "photo"
     video = _act(receipts_state, "ask", target=texts, args={"what": "video"})
     assert video["refused"] and video["result"]["error"] == "Texts can't send videos"
@@ -513,7 +533,7 @@ def test_send_takes_a_camera_roll_photo_or_a_subject(receipts_state, matched) ->
     assert "my_coffee" in verb.extra["subject"]
     sent = _act(receipts_state, "send", target=natter, args={"kind": "photo", "photo_id": "mirror_jacket"})
     assert sent["success"], sent
-    assert receipts_state.social["threads"][natter]["messages"][-1]["media_id"]
+    assert _players_last(receipts_state, natter)["media_id"]
     stranger = _act(receipts_state, "send", target=natter, args={"kind": "photo", "photo_id": "dog_cuddle"})
     assert stranger["refused"] and "photo_id" in stranger["result"]["error"]
     filmed = _act(receipts_state, "send", target=natter, args={"kind": "video", "subject": "my_coffee"}, text="cosy")
@@ -532,7 +552,7 @@ def test_the_player_sends_a_voice_note_by_transcript(receipts_state, matched_num
     before = receipts_state.world_clock_hours
     receipt = _act(receipts_state, "send", target=natter, args={"kind": "voice", "audio_transcript": "on my way"})
     assert receipt["success"], receipt
-    sent = receipts_state.social["threads"][natter]["messages"][-1]
+    sent = _players_last(receipts_state, natter)
     assert sent["from"] == "player" and sent["kind"] == "voice" and sent["voiced"] is True
     assert sent["transcript"] == "on my way" and sent["bubbles"] == [] and sent["media_id"] is None
     assert not any(r["kind"] == "voice" for r in (receipts_state.social.get("media") or {}).values())
@@ -548,7 +568,7 @@ def test_a_players_voice_note_is_cut_by_length_and_needs_words(receipts_state, m
     assert empty["refused"] and empty["result"]["error"] == "Say something first."
     long = " ".join(f"w{i}" for i in range(100))
     assert _act(receipts_state, "send", target=natter, args={"kind": "voice", "audio_transcript": long})["success"]
-    kept = receipts_state.social["threads"][natter]["messages"][-1]["transcript"]
+    kept = _players_last(receipts_state, natter)["transcript"]
     assert kept.split() == long.split()[:media.voice_max_words()]
     over = _act(receipts_state, "send", target=natter, args={"kind": "voice", "audio_transcript": "x" * 601})
     assert over["refused"]                                          # the catalogue's own character cap
@@ -613,52 +633,46 @@ def test_game_move_carries_this_or_thats_five_answers(receipts_state, matched) -
     assert receipts_state.social["games"][gid]["picks"]["player"] == ["a", "b", "a", "b", "b"]
 
 
-# -- rows: propose_meet, meet, ask {what: meet} (T24) -------------------------------------
+# -- rows: ask {what: meet} (T24; v0.23.0 T12: a plan with no set time) -----------------------------
 
 
-def test_propose_meet_is_legal_from_numbers_and_checks_its_payload(receipts_state, matched) -> None:
-    from engine.social import meets, messaging
+def test_ask_meet_is_legal_from_numbers_and_checks_its_payload(receipts_state, matched) -> None:
+    from engine.social import messaging, places
     from tests.social_fixtures import _force_stage
 
     thread = matched("matchstick")
     pid = thread.split(":", 1)[1]
     _force_stage(receipts_state, pid, "talking")
-    assert _verb(receipts_state, "propose_meet") is None                 # before numbers
-    early = _act(receipts_state, "propose_meet", target=pid, args={"venue": "copper_kettle", "day": 1,
-                                                                     "slot": "evening"})
-    assert early["refused"] and early["result"]["error"].startswith("It's too soon"), early
+    early = _act(receipts_state, "ask", target=thread, args={"what": "meet", "when": "soon"})
+    assert early["refused"] and early["result"]["error"].startswith("It's too soon"), early      # before numbers
     _force_stage(receipts_state, pid, "numbers")
     messaging.open_numbers(receipts_state, pid)
-    verb = _verb(receipts_state, "propose_meet")
-    assert verb.targets == (pid,) and verb.extra["venue"] == meets.venue_ids()
-    assert verb.extra["slot"] == tuple(meets.slots())
-    for args, problem in (({"venue": "the_moon", "day": 1, "slot": "evening"}, "venue must be one of"),
-                          ({"venue": "copper_kettle", "day": 8, "slot": "evening"}, "day must be between 1 and 7"),
-                          ({"venue": "copper_kettle", "day": 1, "slot": "midnight"}, "slot must be one of")):
-        refused = _act(receipts_state, "propose_meet", target=pid, args=args)
+    verb = _verb(receipts_state, "ask")
+    assert "meet" in verb.extra["what"] and verb.extra["venue"] == places.venue_ids()
+    for args, problem in (({"venue": "the_moon", "when": "soon"}, "venue must be one of"),
+                          ({"venue": "copper_kettle", "when": "midnight"}, "when must be one of"),
+                          ({"kind": "tango", "when": "soon"}, "kind must be one of")):
+        refused = _act(receipts_state, "ask", target=thread, args={"what": "meet", **args})
         assert refused["refused"] and refused["result"]["error"].startswith(problem), refused
-    made = _act(receipts_state, "propose_meet", target=pid, args={"venue": "copper_kettle", "day": 1, "slot": "evening"})
-    assert made["success"] and made["result"]["answer"] in ("accept", "counter", "not_yet"), made
+    made = _act(receipts_state, "ask", target=thread,
+                args={"what": "meet", "kind": "coffee", "venue": "copper_kettle", "when": "tonight"})
+    assert made["success"], made
+    row = receipts_state.social["requests"][made["result"]["request_id"]]
+    assert (row["what"], row["kind"], row["venue"], row["when"]) == ("meet", "coffee", "copper_kettle", "tonight")
+    assert "day" not in row and "slot" not in row                          # a plan has no slot
+    again = _act(receipts_state, "ask", target=thread, args={"what": "meet", "when": "soon"})
+    assert again["refused"] and "already asked" in again["result"]["error"], again
 
 
-def test_meet_takes_a_planned_meet_and_ask_offers_a_meet_from_numbers(receipts_state, matched,
-                                                                      monkeypatch) -> None:
-    from engine.game.effects import apply_effect
-    from engine.social import behaviour, messaging
+def test_an_ask_with_no_words_for_a_plan_is_a_soon_plan_the_engine_fills(receipts_state, matched) -> None:
+    from engine.social import messaging
     from tests.social_fixtures import _force_stage
 
-    monkeypatch.setattr(behaviour, "status_at", lambda person, at: "free")
     thread = matched("matchstick")
     pid = thread.split(":", 1)[1]
-    assert _verb(receipts_state, "meet") is None
     _force_stage(receipts_state, pid, "numbers")
     messaging.open_numbers(receipts_state, pid)
-    assert "meet" in _verb(receipts_state, "ask").extra["what"]
-    mid = apply_effect(receipts_state, {"type": "social_meet", "op": "agree", "pid": pid, "venue": "copper_kettle",
-                                        "day": receipts_state.world_day + 2, "slot": "evening"})["meet_id"]
-    assert _verb(receipts_state, "meet").targets == (mid,)
-    assert "meet" not in (_verb(receipts_state, "ask") or type("V", (), {"extra": {"what": ()}})).extra["what"]
-    assert _act(receipts_state, "meet", target=mid, args={"do": "dance"})["refused"] is True
-    assert _act(receipts_state, "meet", target="t99", args={"do": "go"})["refused"] is True
-    assert _act(receipts_state, "meet", target=mid, args={"do": "cancel"})["success"]
-    assert _verb(receipts_state, "meet") is None
+    made = _act(receipts_state, "ask", target=thread, args={"what": "meet"})
+    assert made["success"], made
+    row = receipts_state.social["requests"][made["result"]["request_id"]]
+    assert (row["kind"], row["venue"], row["when"]) == ("", "", "soon")

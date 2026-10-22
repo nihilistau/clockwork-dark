@@ -11,8 +11,8 @@ through `apply_effect` (rule 3): `social_queue` pushes one event,
 handler its module registered with `@handles(kind)`.
 
 **An event handler writes `state.social` directly; it IS the effect**: it
-runs inside `social_event`'s handler, so its writes (a `pending_read` flag, a
-person's draw counters, a reconnecting person's `ghosted`) are that effect's
+runs inside `social_event`'s handler, so its writes (a person's draw
+counters, a reconnecting person's `ghosted`) are that effect's
 under rule 3, and anything another module owns still goes through its own
 `social_*` effect.
 
@@ -51,8 +51,19 @@ logger = logging.getLogger(__name__)
 #: that owns it, registered as that module's task lands.
 KINDS: frozenset[str] = frozenset({
     "see_like", "read", "reply", "initiate", "double_text", "expire",
-    "likes_you", "game_move", "meet_start", "arc_beat", "daily",
+    "likes_you", "game_move", "arc_beat", "daily",
+    "episode_lapse",                                   # v0.23.0 T3: a chat episode's gap (engine/social/convo.py)
+    "promise_due", "promise_close",                    # v0.23.0 T4: a promise kept or judged (engine/social/promises.py)
+    "offer_number",                                    # v0.23.0 T5: their number offer at depth 1 (engine/social/convo.py)
+    "life",                                            # v0.23.0 T17: a life event reaches its end (engine/social/life.py)
+    "plan_lapse", "plan_flake",                        # v0.23.0 T12: a plan closes quietly, or they cannot make it (engine/social/plans.py)
+    "plan_arrive",                                     # v0.23.0 T23C: the person gets to a plan's place (engine/social/plans.py)
 })
+
+#: The kinds a ghost cancels (v0.23.0 pre-flight F7, Plan decision 31): the person's side of the
+#: conversation. Everything else they hold in the queue (a player's promise, a plan's lapse, a life
+#: event, a number offered) stays, and is voided through its own handler.
+REPLY_FAMILY: frozenset[str] = frozenset({"read", "reply", "initiate", "double_text", "episode_lapse"})
 
 #: The in-game hour the day's `daily` event runs (spec §9.1: likes reset,
 #: drift, budgets refill, mood decay), before anyone's morning.
@@ -177,8 +188,8 @@ def cancel(state: GameState, pid: str, kinds: Optional[set[str]] = None, *,
     """Drop pid's queued events (a ghost, an unmatch, a moot opener), of `kinds` and matching
     `where` when given; the number dropped. With `social_event`, the queue's one remover.
 
-    A dropped `read` also clears its thread's `pending_read` mark (messaging.schedule_reply), so
-    a later send in that thread schedules a read again (after a ghost and a reconnect, say).
+    A queued `read` is the burst rule's own record (v0.23.0 Plan decision 22: `convo._read_pending`
+    reads the queue), so dropping it is all a later send needs to schedule a read again.
 
     Called only from inside a `social_*` handler, so the write is that effect's (rule 3).
     """
@@ -186,13 +197,6 @@ def cancel(state: GameState, pid: str, kinds: Optional[set[str]] = None, *,
     keep = [e for e in queue if not (e["pid"] == pid and (kinds is None or e["kind"] in kinds)
                                      and (where is None or where(e)))]
     dropped = len(queue) - len(keep)
-    if dropped:
-        kept = {id(e) for e in keep}
-        pending = ((state.social.get("people") or {}).get(pid) or {}).get("pending_read")
-        if isinstance(pending, dict):
-            for event in queue:
-                if id(event) not in kept and event["kind"] == "read":
-                    pending.pop(event.get("thread_id"), None)
     state.social["queue"] = keep
     return dropped
 

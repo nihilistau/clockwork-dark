@@ -1,0 +1,72 @@
+# READ RECEIPTS -- activities (v0.23.0 spec §8.4): the world verb `do {activity}`.
+#
+# Found beside `paths.locations` (Plan decision 6) and checked whole when the story's data loads
+# (engine/social/world.py::check_activities: a fault is a ValueError naming this file). Each row:
+#
+#   id             unique
+#   label          the choice's words
+#   at             the location ids it is offered in ([] = never by place: the two work rows are
+#                  offered only while the player is at work, m11)
+#   minutes | until  exactly one: minutes spent, or a clock key it runs until
+#                  (`morning`: the player's waking band at least `clock.min_sleep_hours` ahead,
+#                  Plan decision 12; `evening`; `work_end`: the end of the player's work band)
+#   when           optional: `flag` (a story flag that must be set) or `not_flag`
+#   interruptible  true: it stops at the first notification that may wake the player and offers
+#                  "Carry on" (sleep only at a promise or a late-night person's message, and only
+#                  with "wake me for messages" on)
+#   narrate        one line the narrator is handed with the receipt
+#   say            optional (v0.23.0 addendum 4 §3.1): base-form verb-object phrases, two words
+#                  or more, that a TYPED world line may name the activity by ("make breakfast",
+#                  "cook breakfast"); the `label` counts too when it is two words or more. The
+#                  work rows carry none: a typed line never runs them (engine/social/typed.py)
+#
+# `typed:` (addendum 4 §3.1) is what engine/social/typed.py reads a typed world line with. It may
+# run ONE activity or room move the engine offers that turn, never a venue, a closer, a plan or
+# work. All of it is data, first values:
+#
+#   modals / negations / shifts   a line holding any of these, as whole words, is never matched
+#                                 (a wish, a "maybe", a "don't", a "later" or a habit -- "every
+#                                 day", "usually" -- is talk, not a move)
+#   leads                         one of these may start a clause before the phrase ("I'll ...")
+#   progressive_leads             these may too, and allow the -ing form ("I'm making ...")
+#   movement                      the verbs a room move starts with ("go to the kitchen")
+#   rooms                         per flat and building place (location ids), the nouns that name
+#                                 it, beside its locations.yaml `name`
+#
+# Rule 6: sleep is offered in the bedroom with no gate. An activity is a time and a place.
+#
+# Version: v0.2.0 (say: and typed:, v0.23.0 addendum 4)
+
+activities:
+  - {id: make_dinner, label: "Make dinner", at: [apt_kitchen], minutes: 40, interruptible: false, narrate: "You cook something simple.", say: ["make dinner", "cook dinner", "cook something"]}
+  - {id: make_breakfast, label: "Make breakfast", at: [apt_kitchen], minutes: 20, interruptible: false, narrate: "Toast, coffee.", say: ["make breakfast", "cook breakfast"]}
+  - {id: eat, label: "Eat", at: [apt_dining, apt_kitchen], minutes: 25, interruptible: false, narrate: "You eat.", say: ["eat something", "have something to eat", "grab a bite"]}
+  - {id: get_ready, label: "Shower and get ready", at: [apt_bedroom], minutes: 25, interruptible: false, narrate: "You get ready.", say: ["get ready", "have a shower", "take a shower", "get dressed"]}
+  - {id: tidy_up, label: "Tidy up", at: [apt_lounge, apt_kitchen], minutes: 30, interruptible: false, narrate: "You tidy.", say: ["tidy up", "clean up", "do the dishes", "wash up"]}
+  - {id: watch_something, label: "Watch something", at: [apt_lounge], minutes: 90, interruptible: true, narrate: "An episode, then another.", say: ["watch something", "watch tv", "watch a film", "put something on to watch", "put a film on"]}
+  - {id: read, label: "Read", at: [apt_lounge, apt_bedroom], minutes: 60, interruptible: true, narrate: "You read.", say: ["read a book", "read for a bit", "read for a while"]}
+  - {id: sleep, label: "Sleep", at: [apt_bedroom], until: morning, interruptible: true, narrate: "You sleep.", say: ["go to sleep", "go to bed", "get some sleep"]}
+  - {id: go_to_work, label: "Go to work", at: [apt_hall], until: work_end, interruptible: true, narrate: "You go to work."}
+  - {id: carry_on_working, label: "Carry on working", at: [], until: work_end, interruptible: true, narrate: "Back to it."}
+  - {id: leave_early, label: "Leave early", at: [], minutes: 0, interruptible: false, narrate: "You leave early."}
+  - {id: collect_parcel, label: "Collect a parcel", at: [bldg_reception], minutes: 10, interruptible: false, when: {flag: life_parcel}, narrate: "A parcel with your name on it.", say: ["collect the parcel", "collect my parcel", "pick up the parcel", "pick up my parcel"]}
+  - {id: step_outside, label: "Step outside", at: [merrow_street], minutes: 5, interruptible: false, narrate: "Air.", say: ["get some air"]}
+
+typed:
+  modals: [would, could, should, might, maybe, perhaps, sometime, someday, "let's", "want to", wanna, "love to",
+           "like to", if, wish, "i'd", "for you", "for us"]
+  negations: ["don't", "do not", not, never, "won't", "can't", cannot, "didn't", "no"]
+  shifts: [later, tomorrow, tonight, after, afterwards, before, earlier, yesterday, soon, "instead of",
+           every, usually, always, often, sometimes, normally, generally, regularly, "most days", "each day"]
+  leads: [i, "i'll", "i'll just", ok, okay, now, then, "let me", so]
+  progressive_leads: ["i'm", "i am"]
+  movement: [go, head, walk, step, wander, pop]
+  rooms:
+    apt_lounge: [lounge, living room]
+    apt_bedroom: [bedroom, bed]
+    apt_kitchen: [kitchen]
+    apt_dining: [dining room, dining table]
+    apt_hall: [hall, hallway, front door]
+    bldg_lift: [lift]
+    bldg_reception: [lobby, reception]
+    merrow_street: [street, outside]

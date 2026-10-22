@@ -15,6 +15,7 @@ const GLYPHS = {
   calendar: "C",
   contacts: "@",
   settings: "S",
+  places: "↗",
 };
 
 export default function AppIcon({ app, onOpen, dock = false }) {

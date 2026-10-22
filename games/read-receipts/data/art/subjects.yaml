@@ -1,0 +1,238 @@
+# READ RECEIPTS -- art subjects (v0.23.0 spec §18.1): the 48-plate pack.
+#
+# One row per location (the 28 of data/world/locations.yaml): its `base:` daypart (the plate shown for any
+# daypart it has no plate for) and its `times:` (the 48 plates of spec §18.1, base first), each a `setting` and a
+# `light`. T27 renders them (scripts/generate_art.py --game read-receipts); until it does, every location falls
+# through to the procedural silhouette. No row declares `alts:`, so the plate shown is always the base (m2).
+#
+# The subjects carry no `negative` key, no "no X" terms and no rating words; plates are unpeopled.
+#
+# Version: v0.2.0
+
+style:
+  prose: >-
+    Warm contemporary illustration of a small harbour city of the present day, soft painterly finish,
+    lived-in places, natural window light by day and lamplight at night, muted teal and terracotta with
+    warm highlights, gentle film grain, quiet and intimate, unpeopled scenes that feel like someone
+    just stepped out
+  tags: >-
+    warm contemporary illustration, small harbour city, soft painterly finish, lived-in places,
+    natural window light, lamplight, muted teal and terracotta, gentle film grain, quiet, unpeopled
+
+locations:
+
+  apt_bedroom:
+    subject: "Bedroom"
+    base: night
+    details: "a small bedroom with an unmade double bed, a bedside lamp, boxes not yet unpacked, a window over the harbour roofs"
+    times:
+      night: {setting: "the bedroom at night with the bedside lamp on and the curtains half drawn", light: "warm lamplight, deep blue window"}
+      dawn: {setting: "the bedroom at first light, sheets rumpled, a phone charging on the sill", light: "pale grey-gold dawn through the window"}
+      day: {setting: "the bedroom in the afternoon, bed made, a folded jumper on the chair", light: "soft flat daylight"}
+
+  apt_lounge:
+    subject: "Lounge"
+    base: dusk
+    details: "a lounge with a sofa, a low table, a few stacked boxes and a wide window onto the street"
+    times:
+      dusk: {setting: "the lounge at dusk, phone lying on the sofa arm, a half-unpacked box", light: "amber dusk light and the first lamps"}
+      day: {setting: "the lounge by day, sunlight across the floorboards, a plant on the sill", light: "bright window light"}
+      night: {setting: "the lounge at night, one lamp on, the television dark, the city lights outside", light: "a single warm lamp, cool window glow"}
+
+  apt_kitchen:
+    subject: "Kitchen"
+    base: dawn
+    details: "a galley kitchen with a narrow window over a lane, a kettle, a small table for two"
+    times:
+      dawn: {setting: "a galley kitchen at first light, kettle on the hob, window over a narrow lane", light: "cool dawn light, warm kettle steam"}
+      dusk: {setting: "a galley kitchen at dusk, warm under-cabinet light, a pan left to soak", light: "warm under-cabinet glow, amber window"}
+      night: {setting: "a galley kitchen at night, one lamp on, the window dark", light: "a single lamp, dark window"}
+
+  apt_dining:
+    subject: "Dining room"
+    base: dusk
+    details: "a dining nook with a round table, two chairs and a shelf of mismatched crockery"
+    times:
+      dusk: {setting: "the dining nook at dusk, the table laid for two, a candle unlit", light: "soft amber dusk light"}
+      day: {setting: "the dining nook by day, a bowl of lemons on the table, post stacked beside it", light: "clear daylight"}
+
+  apt_hall:
+    subject: "Hall"
+    base: day
+    details: "a narrow hall with coat hooks, a shoe rack, a mirror and the front door"
+    times:
+      day: {setting: "the hall in daylight, a coat on the hook, keys in a dish", light: "daylight from the lounge doorway"}
+      night: {setting: "the hall at night, the lamp left on by the door, shoes lined up", light: "a low warm lamp"}
+
+  bldg_lift:
+    subject: "Lift"
+    base: day
+    details: "a small lift with brushed steel walls, a mirror and a row of floor buttons"
+    times:
+      day: {setting: "a small lift with brushed steel walls, a mirror and a row of floor buttons", light: "even overhead light"}
+
+  bldg_reception:
+    subject: "Lobby"
+    base: day
+    details: "a ground-floor lobby with a concierge desk, a rack of pigeonholes and a potted palm"
+    times:
+      day: {setting: "the building lobby by day, the concierge desk tidy, parcels on the shelf", light: "bright light from the glass door"}
+      night: {setting: "the building lobby at night, the desk lamp on, the street dark beyond the glass", light: "low lamplight, blue street glow"}
+
+  merrow_street:
+    subject: "Merrow Street"
+    base: day
+    details: "a sloping street of terraced shopfronts and flats, bicycles chained to railings, the harbour glimpsed between roofs"
+    times:
+      day: {setting: "Merrow Street on a bright day, shop awnings out, the harbour glinting at the end", light: "clear daylight"}
+      dusk: {setting: "Merrow Street at dusk, shop windows lit, the sky peach over the harbour", light: "peach dusk and shop-window light"}
+      night: {setting: "Merrow Street at night, wet pavements shining, streetlamps in a row", light: "sodium streetlamps, cool shadows"}
+
+  copper_kettle:
+    subject: "The Copper Kettle"
+    base: day
+    details: "a small corner cafe with copper pots, a chalkboard menu, window seats and a glass cake stand"
+    times:
+      day: {setting: "a corner cafe by day, window table set with two cups, a cake stand by the till", light: "bright window light, warm interior"}
+
+  driftwood_roasters:
+    subject: "Driftwood Roasters"
+    base: day
+    details: "a coffee roastery with sacks of beans, a long wooden counter, a big roaster and bare brick walls"
+    times:
+      day: {setting: "a coffee roastery by day, bean sacks stacked, two stools at the counter", light: "daylight through high windows"}
+
+  the_anchor:
+    subject: "The Anchor"
+    base: night
+    details: "a harbour pub with dark panelling, a brass anchor over the bar, a corner booth and a fire"
+    times:
+      night: {setting: "a harbour pub at night, a booth by the fire, two glasses on the table", light: "firelight and brass lamps"}
+      dusk: {setting: "a harbour pub at dusk, the first lamps lit, the bar quiet", light: "amber window light"}
+
+  lantern_wine_bar:
+    subject: "The Lantern Wine Bar"
+    base: night
+    details: "a narrow wine bar with paper lanterns, a zinc counter, bottles on shelves and small round tables"
+    times:
+      night: {setting: "a wine bar at night, paper lanterns glowing, a bottle and two glasses on a small table", light: "soft lantern light"}
+      dusk: {setting: "a wine bar at dusk, lanterns just lit, the street still pale outside", light: "lantern glow against dusk blue"}
+
+  salt_and_ember:
+    subject: "Salt & Ember"
+    base: dusk
+    details: "a grill restaurant with an open kitchen, copper hoods, linen tables and a view of the fire"
+    times:
+      dusk: {setting: "a grill restaurant at dusk, a table for two by the window, embers glowing in the open kitchen", light: "warm ember glow and dusk light"}
+
+  merrow_noodle_house:
+    subject: "Merrow Noodle House"
+    base: dusk
+    details: "a bright noodle house with a steaming counter, paper menus on the wall and shared wooden tables"
+    times:
+      dusk: {setting: "a noodle house at dusk, steam rising from the counter, two bowls on a shared table", light: "warm bulb light, steamy windows"}
+
+  westcliff_path:
+    subject: "The Westcliff Path"
+    base: day
+    details: "a clifftop path with sea grass, a wooden bench and a long view over the bay"
+    times:
+      day: {setting: "a clifftop path on a clear day, a bench facing the bay, sea grass bending", light: "bright sea light"}
+      dusk: {setting: "a clifftop path at dusk, the bay turning rose and gold, the bench empty", light: "low golden sunset light"}
+
+  river_walk:
+    subject: "The River Walk"
+    base: day
+    details: "a tree-lined towpath beside a slow river, a stone bridge and moored narrowboats"
+    times:
+      day: {setting: "a tree-lined towpath by the river, dappled shade, a stone bridge ahead", light: "dappled green daylight"}
+      dusk: {setting: "the river towpath at dusk, narrowboat windows lit, mist on the water", light: "soft violet dusk and window glow"}
+
+  saltmarsh_boardwalk:
+    subject: "The Saltmarsh Boardwalk"
+    base: day
+    details: "a wooden boardwalk over saltmarsh, reeds, tidal creeks and wading birds in the distance"
+    times:
+      day: {setting: "a wooden boardwalk over the saltmarsh, reeds swaying, tidal creeks shining", light: "wide open daylight"}
+      dusk: {setting: "the saltmarsh boardwalk at dusk, the creeks reflecting a pink sky", light: "pink and teal dusk"}
+
+  harbour_gallery:
+    subject: "The Harbour Gallery"
+    base: day
+    details: "a white converted warehouse gallery with large canvases, a bench in the middle and tall windows"
+    times:
+      day: {setting: "a white gallery hall with large canvases, a bench in the middle of the floor", light: "clean skylight"}
+
+  castle_hill_museum:
+    subject: "Castle Hill Museum"
+    base: day
+    details: "one long stone gallery inside a small museum, glass cases, a model ship, tall arched windows along one wall"
+    times:
+      day: {setting: "inside the museum gallery, a single room seen from its doorway, glass cases and a model ship, light falling from the arched windows", light: "soft window light on stone"}
+
+  the_rialto:
+    subject: "The Rialto"
+    base: night
+    details: "an old cinema with a glowing marquee, red velvet seats and a bar in the foyer"
+    times:
+      night: {setting: "an old cinema foyer at night, the marquee glowing, velvet seats through the doors", light: "marquee glow and red velvet warmth"}
+
+  the_crate:
+    subject: "The Crate"
+    base: night
+    details: "a basement club with a low ceiling, a small dance floor, a booth and coloured lights"
+    times:
+      night: {setting: "a basement club at night, coloured lights across an empty dance floor, a booth in the corner", light: "magenta and teal club lights"}
+
+  the_dice_box:
+    subject: "The Dice Box"
+    base: night
+    details: "a board game cafe with shelves of boxed games, a long table set with a game half played and string lights"
+    times:
+      night: {setting: "a board game cafe at night, a game half played on a long table, shelves of boxes behind", light: "warm string lights"}
+
+  the_vinyl_cellar:
+    subject: "The Vinyl Cellar"
+    base: night
+    details: "a windowless record bar in a vaulted brick cellar below street level, crates of vinyl, a turntable, low sofas and candles"
+    times:
+      night: {setting: "the vaulted cellar record bar late at night, crates of vinyl, a turntable spinning, candles on low tables", light: "candlelight and a warm amber lamp in a closed underground room"}
+
+  home_harbour_studio:
+    subject: "A studio flat on the harbour"
+    base: night
+    details: "a studio flat with a bed in an alcove, a tiny kitchen and a window onto moored boats"
+    times:
+      night: {setting: "a studio flat on the harbour at night, lamps on, a coat over a chair", light: "warm lamplight, dark windows"}
+      day: {setting: "a studio flat on the harbour by day, a mug left on the table, the bed made", light: "soft natural daylight"}
+
+  home_terrace_share:
+    subject: "A shared terrace house"
+    base: night
+    details: "the front room of a shared terrace house, a bike leaning in the corner, mugs on a bookshelf, a sofa under the window"
+    times:
+      night: {setting: "the front room at night, one continuous room, lamps on, a coat over a chair, the curtains half drawn on a dark street", light: "warm lamplight, deep night blue at the window"}
+      day: {setting: "a shared terrace house by day, a mug left on the table, the bed made", light: "soft natural daylight"}
+
+  home_westcliff_house:
+    subject: "A house in Westcliff"
+    base: night
+    details: "a tall house in Westcliff with a bay window, a bookshelf wall and a view down to the sea"
+    times:
+      night: {setting: "a tall house in Westcliff at night, lamps on, a coat over a chair", light: "warm lamplight, dark windows"}
+      day: {setting: "a tall house in Westcliff by day, a mug left on the table, the bed made", light: "soft natural daylight"}
+
+  home_quays_loft:
+    subject: "A loft in the Quays"
+    base: night
+    details: "a converted loft in the Quays with exposed brick, tall windows and a mezzanine bed"
+    times:
+      night: {setting: "a converted loft in the Quays at night, lamps on, a coat over a chair", light: "warm lamplight, dark windows"}
+      day: {setting: "a converted loft in the Quays by day, a mug left on the table, the bed made", light: "soft natural daylight"}
+
+  registry_office:
+    subject: "Registry Office"
+    base: day
+    details: "a civic registry office room with a long table, two chairs, a vase of flowers and tall windows"
+    times:
+      day: {setting: "a registry office room, a long table with a vase of flowers, two chairs side by side", light: "clear window light"}

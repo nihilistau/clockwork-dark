@@ -11,7 +11,9 @@ from tests.social_fixtures import matched, receipts_active, receipts_state  # no
 
 FIXTURES = Path(__file__).parent / "fixtures" / "social_agreement"
 CHECKS = ["media_claimed", "media_denied", "stage_claimed", "profile_contradicted",
-          "another_person", "number", "decline_wording", "meeting_claimed"]
+          "another_person", "number", "decline_wording", "plan_claimed",
+          "promise_claimed", "commitment_claimed",                      # v0.23.0 T7 (spec §13.4)
+          "arrival_claimed"]                                            # v0.23.0 T23C (addendum 4 W4)
 
 
 def _cases(name: str, which: str) -> list[dict]:
@@ -43,7 +45,8 @@ def test_every_check_is_registered_and_fixtured(receipts_active) -> None:
     from engine.social import agreement
 
     assert list(agreement.CHECKS) == CHECKS
-    assert agreement.STATE_CHECKS == frozenset({"stage_claimed", "another_person", "meeting_claimed"})
+    assert agreement.STATE_CHECKS == frozenset({"stage_claimed", "another_person", "plan_claimed",
+                                                "commitment_claimed", "arrival_claimed"})
     assert {p.stem for p in FIXTURES.glob("*.yaml")} == set(CHECKS)
 
 
@@ -114,7 +117,7 @@ def test_view_from_state_matches_the_live_person(receipts_state, matched) -> Non
     assert view.player == receipts_state.social["player"]
     assert view.contacts == (second_name,)
     assert agreement.view_from_state(receipts_state, second).contacts == (view.person.name,)
-    assert view.agreed_meets == () and view.told == () and view.stage_before == ""
+    assert view.plans == () and view.told == () and view.stage_before == ""
     # the player names the other person in this thread: now this person may know the name
     assert messaging.send(receipts_state, first_tid, "text", f"{second_name} says hi")["ok"]
     assert agreement.view_from_state(receipts_state, first).told == (second_name,)

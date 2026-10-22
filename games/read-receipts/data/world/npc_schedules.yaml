@@ -1,0 +1,68 @@
+# READ RECEIPTS -- the background people (v0.23.0 addendum 4, W8).
+#
+# Read by engine/world/npc_sim.py via `paths.npc_schedules`. Seven people who
+# belong to a place: a barista at each coffee house, bar staff at the two bars,
+# the building's concierge and two neighbours. They are the world's furniture
+# and are NOT datable and NOT on the phone.
+#
+# THE CAST DOES NOT GO THROUGH npc_sim. The people in the apps are run by
+# engine/social from data/social/ and are never rows here: a row would put a
+# match on a map by a schedule the engine's own behaviours do not keep.
+#
+# NO `home`. Off shift a person is off the map: with no slot and no home
+# `npc_sim.resolve_npc` gives an empty location, so `npcs_at` never lists them.
+# The shifts are first values. Every `location` is in data/world/locations.yaml.
+# `activity` lands verbatim in the narrator's PEOPLE HERE block: write what a
+# person in the doorway could see.
+#
+# Their first names are kept out of data/social/population.yaml's name lists
+# (tests/test_rr_people_around.py), so the cast gate and the agreement check
+# never mistake a contact for staff or staff for a contact.
+
+version: 1
+
+defaults:
+  activity: "getting on with the day"
+
+npcs:
+  marcelline_barista:
+    name: "Marcelline Duarte"
+    role: "barista at The Copper Kettle"
+    routine:
+      - {hours: [7, 8, 9, 10, 11, 12, 13, 14], location: copper_kettle, activity: "working the espresso machine behind the counter", available: true}
+
+  rhodri_barista:
+    name: "Rhodri Penhale"
+    role: "barista at Driftwood Roasters"
+    routine:
+      - {hours: [8, 9, 10, 11, 12, 13, 14, 15], location: driftwood_roasters, activity: "weighing beans at the salvaged-board counter", available: true}
+
+  tobias_bartender:
+    name: "Tobias Wynn"
+    role: "bar staff at The Anchor"
+    routine:
+      - {hours: [16, 17, 18, 19, 20, 21, 22, 23], location: the_anchor, activity: "pulling pints and wiping down the bar", available: true}
+
+  odette_sommelier:
+    name: "Odette Marlowe"
+    role: "bar staff at The Lantern Wine Bar"
+    routine:
+      - {hours: [17, 18, 19, 20, 21, 22, 23], location: lantern_wine_bar, activity: "lighting candles and pouring from the short list", available: true}
+
+  bertrand_concierge:
+    name: "Bertrand Achebe"
+    role: "the building's concierge"
+    routine:
+      - {hours: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17], location: bldg_reception, activity: "behind the desk, sorting the post", available: true}
+
+  winifred_neighbour:
+    name: "Winifred Okonkwo"
+    role: "a neighbour from the floor above"
+    routine:
+      - {hours: [7, 8, 9], location: bldg_lift, activity: "waiting for the lift with a shopping trolley", available: true}
+
+  cormac_neighbour:
+    name: "Cormac Lindqvist"
+    role: "a neighbour from down the hall"
+    routine:
+      - {hours: [18, 19, 20], location: bldg_reception, activity: "checking his post box", available: true}

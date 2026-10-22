@@ -56,7 +56,7 @@ SPEC_ENUMS = {
     ("session", "event"): {"created", "resumed", "released", "swept", "ended_by_admin"},
     ("login", "outcome"): {"ok", "failed", "limited", "disabled", "must_change"},
     ("process", "event"): {"started", "ready", "unhealthy", "exited", "restarted", "held_down", "stopped"},
-    ("phone", "event"): {"action", "voice_pass", "media_job"},
+    ("phone", "event"): {"action", "voice_pass", "media_job", "scene_prose", "narration_world", "narration_voice"},
     ("phone", "status"): {"ok", "busy", "refused", "fallback", "failed", "discarded", "dropped"},
 }
 

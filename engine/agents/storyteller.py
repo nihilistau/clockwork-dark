@@ -92,6 +92,13 @@ NEUTRAL_FALLBACK_NARRATION = (
 )
 
 
+#: The retry note for a generation cut off before it finished.
+CUT_OFF_NOTE = (
+    "Your previous reply was cut off before it finished. "
+    "Write a shorter, complete narration that ends on a full stop."
+)
+
+
 def fallback_narration() -> str:
     """
     The canned line shown when the LLM is unavailable, in the story's voice.
@@ -890,6 +897,7 @@ class StorytellerAgent:
         on_delta: Optional[Callable[[str], None]] = None,
         agreed_block: str = "",
         intent_receipts: Optional[list[dict[str, Any]]] = None,
+        prose_check: Any = None,
     ) -> StorytellerTurnResult:
         """
         Execute one Storyteller turn with tools and evaluator retry.
@@ -912,6 +920,16 @@ class StorytellerAgent:
                 that the argument is over by the time the prose starts. Empty
                 for a single-agent story such as the flagship; The Wicked
                 Garden declares two agents and passes the agreed turn here.
+            prose_check: A story's fact checks on the prose, or None (every
+                story but a phone story's in-person scene, v0.23.0 T15, spec
+                §10.6; ``engine.social.scene.ProseCheck``). It has ``check(text)
+                -> failures``, ``correction(failures) -> str``,
+                ``fallback(failures) -> str`` and ``receipts_text() -> str``. A
+                draft that fails is retried once through the evaluator's retry
+                path, the correction as one more line of its notes; a second
+                failure ships ``fallback`` in place of the prose; with no model,
+                ``receipts_text``. The retry is this same call -- the same turn,
+                the same narration ticket. None changes nothing.
 
         Returns:
             StorytellerTurnResult with narration and evaluation.
@@ -982,6 +1000,14 @@ class StorytellerAgent:
             float(self.engine.state.evil_progress) if doom_enabled() else None
         )
 
+        # The story's prose checks (`prose_check`): the last draft's failures.
+        prose_failed: list[Any] = []
+        # A checked turn's stream is HELD until its prose passes (review M5): a
+        # draft the checks reject never reaches the screen. Every other turn
+        # streams as it always did.
+        held: list[str] = []
+        sink = held.append if (prose_check is not None and on_delta is not None) else on_delta
+
         while retries <= self.MAX_RETRIES:
             if retries:
                 tx.rollback()
@@ -1001,13 +1027,14 @@ class StorytellerAgent:
                 agreed_block=agreed_block,
             )
             self._turn_schema = None
+            no_model = False
             try:
                 # Only stream the first attempt: a retry would replay text the
                 # player has already watched appear. The retry's narration
                 # still reaches them -- `turn_update` carries the authoritative
                 # text and the client replaces the streamed entry with it.
                 generation = self._infer(
-                    messages, on_delta=on_delta if not retries else None
+                    messages, on_delta=sink if not retries else None
                 )
             except Exception as exc:
                 logger.warning(
@@ -1015,6 +1042,7 @@ class StorytellerAgent:
                 )
                 generation = Generation(raw=fallback_narration(), complete=True)
                 self._llm_failed = True
+                no_model = True
 
             raw = generation.raw
             parsed = conform_turn(parse_storyteller_response(raw), self._turn_schema)
@@ -1122,7 +1150,15 @@ class StorytellerAgent:
             # tell a deliberate ending from a guillotine, and the trimmed text
             # is by definition missing its last beat.
             incomplete = not generation.complete or bool(parsed.get("salvaged"))
-            if evaluation.passed and not incomplete:
+            prose_failed = (
+                list(prose_check.check(narration))
+                if prose_check is not None and not no_model
+                else []
+            )
+            if evaluation.passed and not incomplete and not prose_failed:
+                break
+            if prose_failed and retries >= self.MAX_RETRIES:
+                # Out of retries with the facts still wrong: the fallback below.
                 break
             if incomplete and retries < self.MAX_RETRIES:
                 logger.info(
@@ -1131,17 +1167,40 @@ class StorytellerAgent:
                     generation.finish_reason,
                     bool(parsed.get("salvaged")),
                 )
-            elif evaluation.passed:
+            elif evaluation.passed and not prose_failed:
                 # Out of retries but the surviving prose is good. Keep it
                 # rather than spending another generation the player waits for.
                 break
 
-            retry_notes = evaluation.notes or [
-                "Your previous reply was cut off before it finished. "
-                "Write a shorter, complete narration that ends on a full stop."
-            ]
+            if prose_failed:
+                # Through the evaluator's own retry path (spec §10.6): its
+                # notes when it failed the draft too, then the correction as
+                # one line.
+                retry_notes = (
+                    list(evaluation.notes or [CUT_OFF_NOTE])
+                    if (incomplete or not evaluation.passed)
+                    else []
+                ) + [prose_check.correction(prose_failed)]
+            else:
+                retry_notes = evaluation.notes or [CUT_OFF_NOTE]
             rejected_draft = raw
             retries += 1
+
+        if prose_check is not None and (prose_failed or no_model):
+            # The engine's receipt lines in place of the prose: after a second
+            # failure of the facts, or when no model narrated (§21). The
+            # choices are the engine's too, never the rejected draft's.
+            lines = (
+                prose_check.fallback(prose_failed)
+                if prose_failed
+                else prose_check.receipts_text()
+            )
+            parsed["narration"] = lines
+            parsed["choices"] = prose_check.choices() or parsed.get("choices", [])
+            processed_tags = StreamProcessor.extract_tags(lines).all_tags
+        elif held and on_delta is not None and not retries:
+            # The first draft passed: what was held reaches the screen now.
+            on_delta("".join(held))
 
         tx.commit()
 

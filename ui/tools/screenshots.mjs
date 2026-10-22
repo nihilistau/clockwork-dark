@@ -19,9 +19,11 @@ import { chromium } from "playwright-core";
 
 const DESKTOP = { width: 1366, height: 768 };
 const PHONE = { width: 390, height: 844 };
+/** Under 1200 px READ RECEIPTS' phone covers the world rather than sitting beside it: the world with the phone put away. */
+const SMALL = { width: 900, height: 600 };
 
 /**
- * Every UI capture the README carries: seventeen. `run` names a runs.json tag.
+ * Every UI capture the README carries: twenty. `run` names a runs.json tag.
  * `jpeg: true` for the plate-heavy ones (final review finding 22): a painted
  * plate is a photograph, and as PNG the title screen weighed 1.06 MB. They
  * are written as `<name>.jpg` at JPEG_QUALITY; the rest stay PNG.
@@ -48,6 +50,12 @@ export const CAPTURES = [
   { name: "read-receipts-deck", story: "read-receipts", run: "phone", phone: ["open", "matchstick"] },
   { name: "read-receipts-thread", story: "read-receipts", run: "media", phone: ["open", "natter", "chat"] },
   { name: "read-receipts-tiletalk", story: "read-receipts", run: "media", size: PHONE, phone: ["open", "games", "tiletalk"] },
+  // v0.23.0: the world outside the phone (the `world` and `scene` runs), its plate a photograph, so JPEG.
+  // `world` is the world with the phone put away, taken under 1200 px (at 1366 the phone always sits beside it);
+  // `beside` is the phone up beside the world, at 1366.
+  { name: "read-receipts-world", story: "read-receipts", run: "world", jpeg: true, size: SMALL, phone: ["away"] },
+  { name: "read-receipts-scene", story: "read-receipts", run: "scene", jpeg: true, phone: ["away"] },
+  { name: "read-receipts-beside", story: "read-receipts", run: "world", jpeg: true, phone: ["up"] },
 ];
 
 /** A phone walk's steps: each clicks one control and waits for what it opens. */
@@ -58,7 +66,35 @@ const PHONE_STEPS = {
   games: ['[data-testid="app-games"]', ".rr-app--games"],
   chat: [".rr-chat", ".rr-compose"],
   tiletalk: ['.rr-app--games .rr-chat:has-text("Tile Talk")', ".rr-game--tiles .rr-board"],
+  down: [".rr-status__down", ".rr-world__choices"],
 };
+
+/**
+ * A step that ends on the world with the phone put away, from wherever the run's save left it: the lock screen
+ * opened and the phone put down when they are shown, skipped when the phone is already away (a save the `down`
+ * step put down). Under 1200 px a put-away phone is not drawn at all, so `open` alone would wait forever.
+ */
+async function putAway(page) {
+  await page.waitForSelector(".rr-world__choices", { state: "attached", timeout: 15000 });   // the frame has landed
+  for (const control of [".rr-lock__open", ".rr-status__down"]) {
+    const found = page.locator(control).first();
+    if (await found.isVisible()) await found.click();
+  }
+  await page.waitForSelector(".rr-world__choices", { timeout: 15000 });
+}
+
+/** The reverse, for the phone up beside the world (at 1366): picked up when it is away, and opened when locked. */
+async function pickUp(page) {
+  await page.waitForSelector(".rr-world__choices", { timeout: 15000 });   // the frame has landed
+  const pick = page.locator(".rr-world__pickup").first();
+  if (await pick.isVisible()) {
+    await pick.click();
+    await pick.waitFor({ state: "detached", timeout: 15000 });
+  }
+  const lock = page.locator(".rr-lock__open").first();
+  if (await lock.isVisible()) await lock.click();
+  await page.waitForSelector(".rr-home", { timeout: 15000 });
+}
 
 /** Every flag the tool takes; any other is refused, never ignored. */
 const FLAGS = ["story", "url", "runs", "out", "only", "channel", "executable-path"];
@@ -92,6 +128,10 @@ async function settle(page) {
 async function walk(page, steps) {
   await page.waitForSelector(".rr-screen", { timeout: 30000 });
   for (const name of steps) {
+    if (name === "away" || name === "up") {
+      await (name === "away" ? putAway : pickUp)(page);
+      continue;
+    }
     const [control, opens] = PHONE_STEPS[name];
     await page.locator(control).first().click();
     await page.waitForSelector(opens, { timeout: 15000 });

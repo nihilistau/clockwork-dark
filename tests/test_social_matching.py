@@ -236,7 +236,7 @@ def test_unmatch_hides_the_thread_and_leaves_a_card_line(receipts_state, matched
     assert not matching.listed(thread)
     listed_after = receipts_state.to_client_dict()["phone"]["threads"]
     assert isinstance(listed_after, list) and all(row["thread_id"] != tid for row in listed_after)
-    history = [row["text"] for row in receipts_state.social["people"][pid]["history"]]
+    history = [row["text"] for row in receipts_state.social["people"][pid]["memory"]["history"]]
     assert "This match is no longer available" in history
     assert not [e for e in receipts_state.social["queue"] if e["pid"] == pid]    # their expiry cancelled
     assert _act(receipts_state, "unmatch", target=pid)["refused"] is True
@@ -370,7 +370,7 @@ def _break(data: dict, how: str) -> tuple[str, str]:
         apps_["texts"]["capabilities"] = ["text", "smoke_signal"]
         return "social/apps.yaml", "apps.texts.capabilities"
     if how == "cost_verb":
-        apps_["natter"]["cost_minutes"]["hug"] = 1
+        apps_["natter"]["cost_minutes"] = {"text": 1}         # v0.23.0: a message's cost is conversation.yaml's
         return "social/apps.yaml", "apps.natter.cost_minutes"
     if how == "weights_sum":
         data["matching"]["weights"]["distance"] = 0.2

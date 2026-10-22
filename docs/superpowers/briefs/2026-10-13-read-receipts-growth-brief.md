@@ -57,3 +57,10 @@ Addendum 3, 2026-10-14, verbatim (refines addendum 2):
 > reply to messages except for ghosting, non-replies etc instantly. only jump
 > if the user puts phone down. or says like message me back later or message
 > me at work etc.
+
+Addendum 4, 2026-10-22 (during v0.23.0's build, at Task 22), verbatim:
+
+> you need to be able to type and interact at home and a tall places outside
+> the phone. it should be more elaborate than the text messages. this is an
+> interactive story. the world should handle the other characters etc like it
+> does in dev-story etc

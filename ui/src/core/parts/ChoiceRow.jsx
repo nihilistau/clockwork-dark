@@ -33,8 +33,12 @@ export default function ChoiceRow({
   // no longer on offer): the row takes focus, unless the player has put it
   // somewhere else.
   focusSignal = 0,
+  // A story that cannot take a choice yet (READ RECEIPTS: the phone is up) greys the row with a note saying
+  // why. Unlike `busy` this is a real `disabled`: nothing is in flight, so there is no focus to keep.
+  disabledNote = "",
 }) {
-  useDigitKeys(choices, onChoose, !busy && !blocked);
+  const held = Boolean(disabledNote);
+  useDigitKeys(choices, onChoose, !busy && !blocked && !held);
 
   // THE "MORE BELOW" CUE (v0.21.0 T7; T6 review issue A). The list is capped
   // and scrolls among itself, and on a landscape phone it is held to one
@@ -115,6 +119,11 @@ export default function ChoiceRow({
 
   return (
     <div className="choices" role="group" aria-label="Choices" ref={listRef} data-more={more ? "true" : undefined}>
+      {held && (
+        <p className="choices__note" role="status">
+          {disabledNote}
+        </p>
+      )}
       {choices.map((choice, index) => (
         <button
           key={choice.id}
@@ -125,9 +134,10 @@ export default function ChoiceRow({
           // keyboard player lost their place on every press. The handler
           // returns early instead, and focus is kept through the turn.
           aria-disabled={busy ? "true" : undefined}
+          disabled={held}
           data-hint={choice.hint || "unknown"}
           onClick={() => {
-            if (busy) return;
+            if (busy || held) return;
             // Safari does not focus a clicked button; a keyboard press does
             // land here with the chip focused, so note it before the turn.
             if (inRow()) hadFocus.current = true;

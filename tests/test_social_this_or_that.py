@@ -106,13 +106,13 @@ def test_the_reveal_writes_canon_both_ways_in_engine_words(receipts_state, match
     out = this_or_that.reveal(receipts_state, game_id)
     assert out["agreements"] == 3
     person = receipts_state.social["people"][pid]
-    assert any(line.startswith("You both pick") for line in person["canon"])
-    assert any(line.startswith("You both pick") for line in person["knows"])
+    assert any(line.startswith("You both pick") for line in person["memory"]["canon"])
+    assert any(line.startswith("You both pick") for line in person["memory"]["knows"])
     pairs = _row(receipts_state, game_id)["pairs"]
     expected = [f"You both pick {pairs[i]['a']['label']} over {pairs[i]['b']['label']}" for i in (0, 1, 3)]
     assert out["agreed"] == expected                                             # the engine's words, exactly
-    assert [line for line in person["canon"] if line.startswith("You both pick")] == expected
-    assert [line for line in person["knows"] if line.startswith("You both pick")] == expected
+    assert [line for line in person["memory"]["canon"] if line.startswith("You both pick")] == expected
+    assert [line for line in person["memory"]["knows"] if line.startswith("You both pick")] == expected
 
 
 def test_the_reveal_queues_their_reaction(receipts_state, matched) -> None:
@@ -252,7 +252,7 @@ def test_they_answer_on_their_own_clock_and_the_reveal_follows(receipts_state, m
     clock.advance_time(state, 1 / 60)
     (banter,) = _banter(state, pid)
     assert banter["decision"]["game_id"] == game_id
-    canon = [line for line in state.social["people"][pid]["canon"] if line.startswith("You both pick")]
+    canon = [line for line in state.social["people"][pid]["memory"]["canon"] if line.startswith("You both pick")]
     assert len(canon) == len(row["agreed"])
 
 

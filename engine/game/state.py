@@ -18,6 +18,7 @@ Version: v0.2.1 [2026-08-14]
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import uuid
 from dataclasses import asdict, dataclass, field, fields, is_dataclass
@@ -66,6 +67,40 @@ def _coerce_annotated(annotation: Any, raw: Any) -> Any:
             return [_coerce(args[0], item) for item in raw]
 
     return raw
+
+
+#: The standard library's own per-value step of ``dataclasses.asdict`` (CPython 3.11-3.13), or None where a later
+#: Python drops it; then ``to_save_dict`` uses ``asdict`` whole, as it always did.
+_ASDICT_INNER = getattr(dataclasses, "_asdict_inner", None)
+_ATOMS = frozenset({str, int, float, bool, type(None)})
+
+
+def _plain_copy(value: Any) -> Any:
+    """
+    ``dataclasses.asdict``'s copy of one field's value, the JSON-shaped part done directly (v0.23.0 T29a).
+
+    ``asdict`` walks every value through ``_asdict_inner``: a dict or list rebuilt item by item, and every leaf
+    ``copy.deepcopy``'d -- which for a str, int, float, bool or None returns the same object. A phone story's
+    ``social`` slice is about a million such leaves at day 60, and that walk was a third of a world turn. Here a
+    value whose type is EXACTLY dict, list or one of those five is copied the same way without the per-leaf
+    machinery; anything else (a dataclass, a tuple, an enum, a subclass) goes to the standard library's own step,
+    so the result is equal, key order included, to ``asdict``'s for every story.
+    """
+    kind = type(value)
+    if kind in _ATOMS:
+        return value
+    if kind is dict:
+        return {k if type(k) in _ATOMS else _plain_copy(k): _plain_copy(v) for k, v in value.items()}
+    if kind is list:
+        return [_plain_copy(v) for v in value]
+    return _ASDICT_INNER(value, dict)  # type: ignore[misc]
+
+
+def _save_asdict(state: Any) -> dict[str, Any]:
+    """``asdict(state)``, field by field through ``_plain_copy`` (equal to it; see there)."""
+    if _ASDICT_INNER is None:
+        return asdict(state)
+    return {spec.name: _plain_copy(getattr(state, spec.name)) for spec in fields(state)}
 
 
 class EvilPhase(str, Enum):
@@ -457,12 +492,18 @@ class GameState:
         Every field round-trips; tests/test_state.py asserts this on a fully
         non-default state and is not permitted to hand-patch omissions.
         """
-        data = asdict(self)
+        data = _save_asdict(self)
         data["evil_phase"] = self.evil_phase.value
         # A story without `paths.social` writes no `social` key (v0.22.0, spec
         # §2.1): its saves stay byte-identical, and an absent key loads empty.
         if not data.get("social"):
             data.pop("social", None)
+        else:
+            # A phone story's slice leaves out what loading puts back exactly (v0.23.0 T9 fix round 2,
+            # engine/social/packing.py); `from_dict` unpacks it.
+            from engine.social import packing
+
+            packing.pack(data["social"])
         return data
 
     def to_client_dict(self) -> dict[str, Any]:
@@ -906,6 +947,11 @@ class GameState:
                 kwargs.pop(name)
                 continue
             kwargs[name] = _coerce_annotated(annotation, value)
+
+        if isinstance(kwargs.get("social"), dict) and kwargs["social"]:
+            from engine.social import packing   # a phone story's packed slice (to_save_dict), restored
+
+            kwargs["social"] = packing.unpack(kwargs["social"])
 
         # evil_progress is the source of truth for phase on load.
         kwargs["evil_progress"] = evil_progress

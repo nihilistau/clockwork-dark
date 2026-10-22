@@ -122,6 +122,17 @@ in `config/local.yaml`, never a story.
 | Structural systems | `clocks`, `threads`, `endings`, `decks`, `challenge_bounds`, `epilogues` | §3.3–3.6 |
 | The phone | `social` — a DIRECTORY, not a file (v0.22.0): `creation`, `population`, `behaviours`, `apps`, `relationships`, `media`, `venues` and `games` `.yaml`, found by fixed name, plus `words.txt` | `engine/social/` (§3.15). A story that does not declare it pays nothing: no `engine.social` submodule is imported and its payload carries no `phone` key |
 
+**A location edge's `minutes` (v0.23.0).** An edge in `paths.locations` may carry
+`minutes`, a whole number 0-59, for a leg shorter than an hour (READ RECEIPTS'
+one-minute doors between rooms). An edge with `minutes` defaults `hours` to 0,
+not 1, and `GameEngine.move_to` charges `hours + minutes/60` through the clock;
+the travel label reads "Kitchen, 1 min", and the move receipt carries a
+`minutes` key only when it is non-zero. The loader refuses (logs an error and
+drops the edge) a `minutes` outside 0-59, one that is not a whole number, and an
+edge whose `hours` and `minutes` are both 0. An edge with no `minutes` is read
+exactly as before. `validate_content.py` reports a malformed `minutes` edge as an ERROR, and a one-way-less
+minutes edge's mirrored return keeps its `minutes`. The graph's own flagship-style `hours: 0` edges are untouched.
+
 A path habit worth adopting from the shipped manifests: write a comment block
 naming what you deliberately do NOT declare — `games/dev-story/game.yaml` is
 the model.
@@ -645,8 +656,9 @@ What cuts across:
   Either way the rest of the hand is dropped, the same as an open encounter,
   and the narrator is told on that turn.
 - **A deal waits for whatever owns the turn.** The director deals nothing
-  while a hand is open, a job is under way, or an encounter is open. The
-  last covers a Lantern's stop, which the Law's patrol can open in the same
+  while a hand is open, a job is under way, an encounter is open, or (a story
+  declaring `paths.social`) an in-person social scene is open. The
+  encounter covers a Lantern's stop, which the Law's patrol can open in the same
   turn an arrival makes a deck due. A card can open an encounter, never the
   reverse. The deal is not spent by waiting: it lands on the first turn
   after, if its `when:` still holds. So a deck scheduled on arrival
@@ -1237,6 +1249,9 @@ which carries a new story fine. When the prompts are written,
 `scripts/art_missing.py --game <slug>` writes `data/art/MISSING-PLATES.md` —
 every gap, with a ready-to-paste prompt in both dialects at the right pixel
 size. `games/dev-story/README.md` § Art shows the intended workflow.
+A declared `art_root` must exist as a directory or the story will not activate: a story whose plates are
+not rendered yet keeps an empty one (a `.gitkeep`), as READ RECEIPTS does (`data/art/plates/`). A location row
+with `base:` and `times:` (no `alts:`) shows its `base` plate for any daypart it has none for.
 
 A `portraits:` row keyed by an NPC id (`npc_ardane: …`) is shown in the people
 strip (`ui.panels: [people]`), to a player who has met that person; a stranger
@@ -2422,15 +2437,36 @@ rule 6). Leave it out and the story has neither. Models:
 `paths.social` (v0.22.0) names a DIRECTORY. Its files are found by fixed name
 (`engine/social/__init__.py::FILES`): `creation`, `population`,
 `behaviours`, `apps`, `relationships`, `media`, `venues` and `games`
-`.yaml`, plus `words.txt` beside `games.yaml`, and the story's
-`prompts/texter.md` (and, for meet-ups, `prompts/date_recap.md`; for a
-thread's running summary, `prompts/thread_summary.md`). READ RECEIPTS
+`.yaml`, plus `words.txt` beside `games.yaml`; since v0.23.0 also
+`conversation`, `promises`, `growth`, `topics`, `layers`, `plans`,
+`scenes`, `life_events` and `homes` `.yaml` (`growth`, `topics` and
+`layers` are read by `engine/social/growth.py`, `conversation` by
+`engine/social/convo.py`, `life_events` by `engine/social/life.py`
+and `homes` by `engine/social/places.py`, below), and `activities.yaml` found beside `paths.locations` rather than in
+the directory (`social.world_dir()`, read into `load_all()["activities"]`,
+`{}` when absent); and the story's
+`prompts/texter.md` (for what
+a person remembers, `prompts/episode_recap.md`, below). READ RECEIPTS
 (`games/read-receipts/`) is the one shipped story that declares it, and
 each of its files opens with a header that documents every key: read those
 headers beside this section, which is the map. A story that declares the
-key is played through phone actions (`phone_action`), never through
-`player_choice`, and its client is a plugin with its own `PlayScreen` and
+key is played on two layers: the phone, through phone actions
+(`phone_action`, no model), and since v0.23.0 the world, through the
+ordinary narrated turn (`player_choice`), refused only while the phone is up
+(below, "The world"); its client is a plugin with its own `PlayScreen` and
 `NewRun` (§2.5).
+
+**Background people, and `npc_schedules` in a phone story (v0.23.0).** A
+phone story MAY also declare `paths.npc_schedules` for the people who belong
+to a place and are not on the phone (READ RECEIPTS: two baristas, two bars'
+staff, a concierge, two neighbours). The rows are the ordinary `npc_sim`
+shape (`name`, `role`, `routine` slots of `hours`, `location`, `activity`,
+`available`) with NO `home`: off shift a person resolves to no location, so
+`npcs_at` never lists them. The cast is never a row there (engine/social runs
+it), so the cast gate's roster is these people only, and a contact's name is
+checked by the agreement check as before. Keep their first names out of
+`population.yaml`'s lists (`tests/test_rr_people_around.py`). They show in
+PEOPLE HERE and the dossiers only while on shift; no people strip is declared.
 
 What is fixed and what is yours: the people are a pure function of the seed
 and an index (`population.py`), every decision about them is the engine's
@@ -2439,13 +2475,15 @@ number in these files is a balance constant: run
 `scripts/simulate_social.py` before changing one (rule 10; §5.2).
 
 **Checked twice.** Each file is parsed and checked when the story's data
-loads (`social._check_loaded`: `behaviours`' pacing, arcs and canon,
-`relationships`, `media`, `venues` with `relationships.meets`, and `games`
-refuse to load with a `ValueError` naming file and key), and every file is
+loads (`social._check_loaded`: `behaviours`' arcs and canon,
+`relationships`, `media`, `venues` with `relationships.meets`, `games`,
+`conversation`, `growth` with `topics` and `layers`, `plans`, `scenes`, `life_events`, and `activities` refuse to load with a `ValueError` naming file and key), and every file is
 checked whole by `scripts/validate_content.py` and the doctor
 (`engine/games/validation.py::check_social`, one finding per fault). A file
 that is absent reads as empty, and most blocks are then required: ship all
-eight.
+eight of v0.22.0's, and `conversation`, `growth`, `topics` and `layers`;
+`promises`, `plans`, `scenes` and `life_events` are checked once they have any
+rows (`homes` is checked by nothing yet).
 
 #### `population.yaml` — who is in the apps
 
@@ -2559,9 +2597,12 @@ against the field's), and is then also a possible `dealbreakers` id.
 
 #### `behaviours.yaml` — how people behave
 
-Read by `engine/social/behaviour.py` (rows), `messaging.py` (pacing,
-initiations, double texts) and `relationships.py` (arcs). Four blocks:
-`pacing`, `archetypes`, `arcs` and `canon`.
+Read by `engine/social/behaviour.py` (rows), `convo.py` (each
+conversation's start draws and the initiations by window, v0.23.0),
+`messaging.py` (openers, double texts) and `relationships.py` (arcs).
+Three blocks: `archetypes`, `arcs` and `canon`. (v0.22.0's `pacing:` block
+went in v0.23.0: its reply and ghost terms are `conversation.yaml`'s
+`reply:` block, below; a `pacing:` block is now a validation error.)
 
 **The event queue.** Nothing a person does runs on the wall clock. Every
 read, reply, opener, double text, initiation, like seen, likes-you arrival,
@@ -2572,10 +2613,12 @@ in-game hour in `state.social["queue"]` (`engine/social/events.py`), kept in
 (`events.KINDS`); a story chooses only the numbers that time them. At 04:00
 each day the `daily` event runs every module's morning step: likes reset,
 the day's likes-you, the day's initiations, mood back to neutral, interest
-decay, drift, the cold wind-down and the fade, media budgets refilled, the
-games' invites and clean-up. So a latency in this file is a time IN THE
-GAME: a person who replies in a median 120 minutes does so whether the
-player waits two real minutes or two real hours.
+decay, drift, the cold wind-down and the fade, a "later" media request
+kept or broken, the games' invites and clean-up (since v0.23.0 media budgets
+refill, and unasked media are drawn, as each conversation closes instead). So a time in this file is a time IN THE
+GAME, never a wall-clock one. Since v0.23.0 a reply inside a conversation
+is never delayed at all (`conversation.yaml`, below): `reply_minutes` times
+only an opener after a match and a game's answer.
 
 **An archetype** carries every key of `behaviour.ARCHETYPE_KEYS`, and no
 other:
@@ -2583,11 +2626,10 @@ other:
 ```yaml
 archetypes:
   steady:
-    reply_minutes: {median: 25, spread: 0.6}   # lognormal, in-game minutes
-    read_minutes: {median: 8, spread: 0.6}
-    reply_prob: 0.96
+    reply_minutes: {median: 25, spread: 0.6}   # lognormal, in-game minutes: an opener's delay
+    reply_prob: 0.96                # the reply draw when a conversation starts (v0.23.0)
     opener_prob: 0.6                # writes first after a match (an `either` app)
-    ghost_per_exchange: 0.008
+    ghost_per_episode: 0.008        # the ghost draw when a conversation starts (v0.23.0)
     left_on_read_sensitivity: 0.4   # interest lost per hour left on read
     warmth_mult: 1.0                # times the model's proposed warmth
     warmth_cap_band: null           # or a relationships.yaml band warmth never passes
@@ -2596,29 +2638,48 @@ archetypes:
     double_text: {after_hours: 18, prob: 0.15, max_in_row: 1}
     initiations:
       - id: how_was_your_day
-        at_hours: [18, 19, 20]      # whole hours 0-23; only in their free or out hours
+        window: after_work          # waking | commute | lunch | after_work | evening | late
         when: {stage_min: numbers, hours_since_player: 18}
-        prob_per_day: 0.6           # or `prob`: once per spell of the player's silence
+        prob: [0.1, 0.4, 0.6, 0.7, 0.75]   # the chance each morning, by disclosure depth 0-4
         kind: text
-        instruction: check_in       # a row of texter.md's ## Instructions (default: the id)
+        instruction: window_message # a row of texter.md's ## Instructions (default: window_message)
     media: {offer_mult: 0.9, accept_mult: 1.0}
     games: {skill: 0.55, invite_prob_per_day: 0.04}
     arc: null                       # or an `arcs:` id
+    growth: {pace: 1.0, cap: 4, cap_in_person: 4, decay_mult: 1}   # v0.23.0, below
+    promise_prob: 0.85              # v0.23.0: a sign-off carries a promise (drawn from T4)
+    offer_number_prob: 0.8          # v0.23.0: they offer their number at depth 1 (drawn from T5)
 ```
 
-An initiation's `when` may name `stage_min` (a live stage),
-`hours_since_player`, `days_since_last`, `ghosted` (true: only after they
-went quiet, and it brings them back) and `weekend`; nothing else loads. At
-most one initiation a day per person is queued. `kind` is the decision's
-message kind: every shipped one is `text`, and a person's photos, voice
-notes and videos come from `media.yaml`, not from an initiation.
+`growth` (v0.23.0, every key required, `behaviour.GROWTH_KEYS`): `pace`
+(above 0) multiplies every paced openness gain; `cap` is the deepest
+disclosure rung (0-4) they reach on the phone and `cap_in_person` in a
+scene; `decay_mult` scales every openness loss (a ghoster's 2: their
+openness "decays twice as fast"). See `growth.yaml` below.
 
-**Pacing** (`pacing:`, all four keys required) holds the terms every
-archetype's reply and ghost chances share: `interest_factor [at 0, at
-100]`, `burst_factor` (by how many messages the player sent in a row),
-`status_mult` (each of `asleep`, `work`, `free`, `out`: the latency's
-multiplier at the moment they read) and `stage_factor` (per stage, the
-ghost chance's multiplier; unlisted is 1.0).
+`promise_prob` and `offer_number_prob` (v0.23.0, 0-1, required) are read
+by nothing yet: the person's sign-off promise is drawn from T4 and the
+number offer from T5 (docs/GOVERNANCE.md NOT WIRED).
+
+An initiation (v0.23.0) names a `window` -- resolved against the person's
+own schedule (`engine/social/windows.py`: `waking` their first waking
+hour, `commute` the hour before work, `lunch` 12-14 if awake, `after_work`
+two hours from their shift's end, `evening` 18-22 off work, `late` 22-01
+if up) -- and `prob`, five chances, one per disclosure depth. Each morning
+every live person's rows are tried in order: the window is resolved for
+the day, `when` checked, `prob[depth]` drawn and the minute drawn inside
+the window (SOCIAL_CONVO); at most one is queued a day, and none while a
+conversation with them is going. When due it is skipped if a conversation
+is going, if the player wrote to them within
+`initiation.skip_if_talked_minutes`, or if its `instruction` is one of the
+situations retired as bare (`good_morning`, `check_in`, `late_night`);
+otherwise it lands and starts a conversation. `at_hours`, `prob_per_day`
+and a single `prob` are load errors. `when` may name `stage_min` (a live
+stage), `hours_since_player`, `days_since_last`, `ghosted` (true: only after
+they went quiet, and it brings them back) and `weekend`; nothing else
+loads. `kind` is the decision's message kind: every shipped one is `text`,
+and a person's photos, voice notes and videos come from `media.yaml`, not
+from an initiation.
 
 **Arcs** change a relationship over time. Exactly one of `at` (a point,
 counted in `exchanges`) or `from` (a start, counted in
@@ -2650,8 +2711,555 @@ archetype is an error. (3) Every initiation's `instruction` (or id) a row
 of `texter.md`'s `## Instructions`. (4) Optionally a `## Fallbacks` block
 for it: an archetype with none falls back to the engine's one line, "hey".
 (5) A `warmth_cap_band` names a `relationships.yaml` band. Then run
-`scripts/simulate_social.py`: its per-archetype table reports the days from
-a match to each closeness band.
+`scripts/simulate_social.py`: its `also.days_to_*` and `also.real_hours_to_*`
+rows report the in-game days and real hours from a match to each closeness
+band per archetype.
+
+#### `conversation.yaml` — conversations that flow
+
+Read by `engine/social/convo.py` (v0.23.0), and by `turn.py` for `costs`
+and `clock`; `convo.check_data` checks it whole at load. A conversation is
+an **episode** (`people[pid]["episode"]`, written only by the
+`social_episode` effect): it opens when the person answers a cold message
+(the draws below), when an opener or an initiation of theirs lands, or (T13)
+when a scene starts; it closes when no message passes either way for
+`episode_gap_minutes` (a chat only), or when a new one begins after a
+sign-off, and the closed row joins `people[pid]["recap_due"]` (at most
+`social.recap_due_max`) until its recap is written into the person's
+memory (below).
+
+**Instant replies.** While an episode is going, the player's message is read
+at its own minute and the reply is due at that same minute: the send's
+`advance_time` walks it, so chatting needs no `wait`. A person who is not
+available reads it at `convo.next_available`, the first whole hour their
+schedule and habits allow -- a boundary, never a random delay. Ghosting,
+left on read and the reply itself are drawn once per episode START
+(`reply:`), never mid-conversation. A burst (more messages before their
+reply is voiced) is answered by one reply, re-decided in place; a message
+sent while a voicing pass is already writing the reply is answered by the
+NEXT decision, queued when that reply commits (`convo.after_commit`).
+
+| Key | What it holds |
+|---|---|
+| `costs` | in-game minutes a message costs the player: `text`, `voice`, `photo`, `video` (required), `reply` (0: a reply costs nothing) |
+| `clock` | `wait`'s targets, whole hours: `evening`, `morning`; `min_sleep_hours` (sleep's floor, read from T11); `work_lead_hours` (optional, default 2: how long before the player's work band "Go to work" is offered) |
+| `episode_gap_minutes` | above 0: no message either way for this long and a chat episode lapses |
+| `together` (optional) | `{hold_retry_minutes}`, 1 or more (v0.23.0 W5): while a person is with the player their due texts are held and tried again this many minutes on; they land once the two are apart |
+| `habits` | `weights` per archetype (`default` required) of each phone habit's options -- `at_work` `never`/`glances`/`chatty`, `late_night` `no`/`sometimes`/`night_owl` (quote `"no"`: YAML reads a bare `no` as false), `in_company` `rude_not_to`/`glances` -- drawn once per person (a counterless key); `night_owl_shift_hours` |
+| `talk` | the nudge: `exchanges` `[low, high]` per archetype (`default` required), the target drawn when it opens; `per_depth` (five), `late_mult` (`default`, `night_owl`; 21:00-04:00) and `work_mult` scale it; `energy_per_exchange`, `short_player_chars`, `short_extra_energy`, `topic_energy_back`; `boundary_minutes` (to their next schedule change: the pressure climbs steeply under it); `winding_at` <= `sign_off_at`; `after_sign_off` `[low, high]` replies still answered; `away_after_sign_off`: minutes they are gone after a sign-off, by what ended it -- exactly `boundary` (at least until the boundary itself), `glance`, `energy`, `length`, `player` -- then their next available moment; `player_chars_kept` |
+| `modes` | `chatting_after`, `deep_energy`, `deep_player_chars`; `caps` per mode (`quick`, `chatting`, `deep`): `bubbles` `[min, max]`, `bubble_chars`, `max_tokens`; optional `deep_as_chatting` (true: `deep` is voiced with `chatting`'s caps on any binding, spec §20.2's latency lever, `voicing.mode_caps`) |
+| `reply` | the episode-start draws: `depth_factor` (five) and `interest_factor` `[at 0, at 100]` multiply `reply_prob`; `stage_factor` (`default` required) multiplies `ghost_per_episode` x (1 - interest/100) |
+| `left_on_read_quiet_minutes` | after they leave the player on read, their next read waits this long or until their next schedule boundary, whichever is first: another message does not re-roll the draw |
+| `initiation` | `skip_if_talked_minutes`: a window's nudge is skipped this soon after the player wrote |
+| `reasons` | the engine's words for why they wind down, voiced in their own words: `work` (with `{hour}`), `lunch_over`, `asleep`, `out`, `early`, `energy`, `length`, `glance` (a glance at work), `player` (the player said "talk later") |
+| `reasons_recap` | exactly the `reasons` keys, each the line a recap uses about them when no model writes it ("they had to go to sleep"; `memory.recap_fallback`) |
+
+**Availability** combines their schedule status with their habits: free
+and out answer (out caps the mode at `quick`); at work a `chatty` worker
+answers, a `glances` one answers once and signs off, a `never` one does
+not; asleep, a `night_owl` is up `night_owl_shift_hours` into their sleep
+band and a `sometimes` answers in their first sleep hour (`quick`).
+
+**The nudge.** Each decision weighs three terms -- exchanges against the
+drawn target, energy spent, and the minutes to their next schedule boundary
+-- a change to LESS available only: work starting for a `never` or
+`glances` worker, going out, bed; coming off work, coming home, a chatty
+worker's shift start and a night owl's late band are none --
+and past `winding_at` they start to wind down, past `sign_off_at` they sign
+off with the term's `reasons:` line. The decision's **mode** (`quick`
+until `chatting_after` exchanges, and whenever capped; `deep` with energy,
+depth 2+, long player messages and one of their rung's topics named) sets
+its bubbles; a burst of three raises the minimum to two. The voice reads
+the mode, the end and the reason from T7.
+
+**What a person remembers** (v0.23.0, `engine/social/memory.py`, spec §7):
+one memory per PERSON, `people[pid]["memory"]`, whatever app the two of you
+talk on -- so moving from a dating app to Texts or Natter keeps the
+conversation. It holds `current` (the open conversation, both sides, word
+for word, `social.memory.verbatim` bubbles), `bridge` (the last
+`bridge_bubbles` of the one before: how you left it), `episodes` (each
+closed conversation's recap, `{id, kind, where, from_at, to_at, recap,
+topics, end_reason}`, at most `episodes_kept`), `story` (the oldest recaps
+folded into the story so far, at most `story_words`), `open` (follow-ups
+due, at most `open_max`), and `canon`, `knows`, `told` and `history`. A
+conversation that ends is recapped by one utility call over
+`prompts/episode_recap.md`: the text above its `## The story so far`
+heading is the recap's system prompt (one to three sentences, at most
+`social.memory.recap_words`), the text below it the story fold's (at most
+`story_words`); "you" in both is the phone's owner and the person is
+"they". With no model the engine writes the recap from what it knows: the
+topics named, why it ended (`reasons_recap:`) and a promise made, and the
+story keeps its newest sentences. A **follow-up** (`{about, due_at}`, from
+a reply's `followups`, T7, or from a promise the player broke) rides on
+the person's next reply once it is due ("ask how it went") and is closed
+when that reply is written. Someone you have not talked to for
+`dormant_days` keeps their story and three recaps in the save, and the
+rest goes to the archive whole (a `recap` row of `phone_archive.jsonl`):
+nothing is lost, and when they talk again it is folded back into their
+story. Every fold leaves its record there too.
+
+#### `promises.yaml` — promises and sign-offs
+
+Read by `engine/social/promises.py` (v0.23.0); `promises.check_data` checks
+it whole at load and in `validate_content.py`. A promise is engine state,
+`state.social["promises"]["pr<n>"]` (`{id, pid, by: person|player, window,
+opens_at, closes_at, about, made_at, status: open|kept|broken|void,
+fallback, message_id?}`), written only by the `social_promise` effect. An
+open promise of the same side and window whose span overlaps is the same
+promise: it is never made twice. It is made four ways, none of them a
+model's free text:
+
+- **the chip**, the phone verb `sign_off {who: me|you, window}` ("Talk
+  later"): the player's line (or "Talk later — I'll message you {window}" /
+  "Message me {window}?") is sent, the promise recorded, and the person's
+  reply signs the conversation off (`reasons.player`);
+- **their own sign-off**: their archetype's `promise_prob` (`behaviours.yaml`)
+  is drawn when they sign off; a glance at work promises `lunch`, any other
+  sign-off the first of `after_work`, `tonight`, `morning` their day has in
+  reach, else `later`. Recorded before the reply is voiced;
+- **a model's proposal**, `relationships.yaml` `proposals: promise` (its
+  `window:` lists the windows it may name), legal only while the
+  conversation is winding down or signed off;
+- **with no model**, a `phrases:` row stated (not asked, not negated) in
+  the player's own message: a pending request the person's next reply
+  accepts.
+
+**Whose day the window is.** The sender's -- whoever will write in it --
+except `at_work`, which is the receiver's: "message me at work" lands in the
+PLAYER's work band, whatever the person's habits. `morning` is their waking
+band (never before `conversation.yaml` `clock.morning`; a night shift's
+small hours are not a morning), `lunch` 12:00-14:00, `after_work` the two
+hours after their last work band, `tonight` 18:00-24:00 while they are up,
+`weekend` Saturday or Sunday 09:00-22:00, `at_work` their work band,
+`later` their first free band at least `later_min_hours` ahead. A window
+their day does not have is their next free band, and its words say so
+(`words.fallback`: "after work, so tomorrow morning").
+
+**Keeping them.** The person's promise is always kept: their
+`promised_message` falls due inside the window and the promise is kept when
+that message is written (void only if they leave or the relationship ends
+first), and nobody ghosts while they hold one. The
+player's is kept by any message to that person inside the window (trust
+`kept_trust`, openness `growth.yaml` `gain.promise_kept`) and broken by
+silence until `grace_minutes` past it (`broken`'s trust and warmth,
+openness `loss.broken_promise`; the person's next reply carries
+`broken_reason` once). `wait {until: promise:<id>}` jumps to one.
+
+**A promise made inside its own window** means that window's NEXT
+occurrence: "message you at lunch" said at lunch is tomorrow's lunch, never
+the lunch already under way.
+
+| Key | What it holds |
+|---|---|
+| `later_min_hours` | `later`'s lead, hours (0 or more) |
+| `max_ahead_hours` | a promise whose window opens further ahead is refused ("That's too far off to promise") |
+| `grace_minutes` | how long past its window a player's promise is broken |
+| `closed_kept` | whole number 0 or more, REQUIRED (no default; a file without it fails to load): closed promises (kept, broken, void) kept per person at save compaction; older ones are forgotten and tallied on the person as `promises_closed`, except any a reader still needs |
+| `kept_trust` | whole number 0 or more: trust a kept player promise gives |
+| `broken` | exactly `{trust, warmth}`, whole numbers 0 or less |
+| `broken_reason` | the engine's words the next reply carries, naming `{window}` |
+| `phrases` | exactly `you` ("message me ...": the person promises) and `me` ("I'll message you ...": the player does), each a mapping of chip window (`lunch`, `after_work`, `tonight`, `morning`, `at_work`) to a list of phrases |
+| `words` | every promise window's words (`lunch`, `after_work`, `tonight`, `morning`, `weekend`, `at_work`, `later`) and `fallback`, naming `{window}` and `{when}` |
+
+
+#### The phone's own switches and the world layer
+
+The phone verb `set_wake {to: on|off}` (skill `social_set_wake`; Settings' "Wake me for messages") sets
+`settings.wake_for_messages`, which the payload's `settings` reports; it needs no data file. In the world
+layer (the phone down) the client draws the **companion card** from the payload's `scene` section (name, stage
+words and closeness words, portrait: words only, never a number) while a scene is open, and the **household
+card** from `world.household` (who lives with the player and where they are, in words) otherwise. Every phone
+action's answer carries the world's legal choices (`away.world_choices`), so the world is never dead after the
+phone is used. Both are the engine's; a story authors none of it.
+
+#### `plans.yaml` — plans with no set time
+
+Read by `engine/social/plans.py` (v0.23.0 T12); `plans.check_data` checks it
+whole at load and in `validate_content.py`. A plan is engine state,
+`state.social["plans"]["pl<n>"]` (`{id, pid, kind, venue, when, made_at,
+patience_hours, by: player|person, status: open|met|lapsed|cancelled|
+stood_up, episodes_at}`, and on a `now` / `tonight` plan `due_at`,
+`arrives_at` and `arrived`, v0.23.0 T23C), written only by the `social_plan`
+effect. It has a
+time of day in WORDS (`when`: `now`, `tonight` or `soon`), a place and a
+person, and no slot or date; the payload (`plans`) carries words, never when
+it was made. It is made by the player's `ask {what: meet, kind?, venue?,
+when}` (a request their read answers: the `meet` commitment in growth.yaml
+`willing:` and their time -- `now` needs them available with
+`now_min_hours` free, `tonight` their evening, `soon` willingness alone --
+and the engine picks the venue by kind and shared hobbies when none is
+named), by their own ask (the `ask_meet` proposal, or `invite`, a morning
+chance by disclosure depth for the evening) which the player answers, and
+by a scene's closer (`scenes.yaml`, below: `call_it_a_night:plan:soon`, and
+the `now` plan of `back_to_yours`, `back_to_theirs` and `go_somewhere_else`,
+made in person with no time to find and no flake). Arriving on a kept plan
+opens its scene.
+
+**The person really travels** (v0.23.0 addendum 4, T23C). A `now` plan is
+due when made, a `tonight` one at the start of their evening; the person
+gets there at `arrives_at`: the venue's `travel_minutes` (their home's, in
+`homes.yaml`, for `your_place`; none for `their_place`, where they are
+home) plus a lateness from `arrival.late_minutes`, one counterless draw keyed
+on the plan id. The `plan_arrive` event at that minute only records it
+(`arrived`) and, when the player is somewhere else, queues their message
+(`texter.md`'s `arrived`). The scene opens where the clock has stopped: on
+`go`, on putting the phone down, at the end of an activity (an
+interruptible one stops at their arrival: "Kai arrives."), after "Wait for
+{name}" (the world verb `scene`'s `plan:<id>` target, offered while their
+plan's place is where the player is and they are not there yet; it waits
+up to `arrival.wait_cap_hours`), when another scene ends with the player
+staying, and after a world turn. A `your_place` plan counts any of the
+flat's places and meets in the lounge. A plan made in person (a closer)
+arrives with the player: no lateness, no event, no text. Patience runs from
+`arrives_at`. Keys:
+
+- `kinds` -- exactly `coffee, drinks, dinner, walk, visit, film, climbing,
+  games, gig, their_place, your_place` (a venue's `kind` in `venues.yaml` is
+  one of the first nine; the last two meet at a home and name no venue).
+- `patience_hours` -- `{now, tonight}`: how long a plan waits once made.
+  Arrive (`go`) inside it and it is kept; after it, the plan is `stood_up` at
+  `stood_up` (exact regard moves) and they say so (`texter.md`'s `stood_up`).
+  A "running late" message within patience (`running_late`: phrases, not negated: "not running late" does not count) extends it
+  once by `late_grace_hours`.
+- `now_min_hours`, `late_grace_hours`, `lapse_after_hours` (a plan nobody went
+  to closes quietly that long after its patience), `soon_patience_episodes`
+  (a `soon` plan lapses after that many of the person's closed conversations,
+  never days) and `closed_kept` (closed plans kept a person).
+- `flake.stage_prob` -- `{<stage>: chance, default: chance}`, joined with the
+  archetype's `flake_prob`; one draw when a `now` or `tonight` plan is made
+  (SOCIAL_SCENE), shown a minute later as their message (`texter.md`'s
+  `flake`) with the plan cancelled.
+- `invite` -- `{prob: [by depth 0..], window}`: their own evening invitation
+  (`texter.md`'s `invite`), at most one a morning, never mid-conversation, with
+  a plan open or an ask waiting, or before the `meet` commitment holds.
+- `arrival` (optional, v0.23.0 T23C) -- `{late_minutes: [low, high],
+  wait_cap_hours}`: the lateness drawn once per plan on top of the travel
+  (default `[0, 20]`), and the longest "Wait for {name}" waits at once
+  (default 2).
+
+Every number is a first value (rule 10). Every key is required once the file has
+any, and `kinds` must be the engine's list.
+
+#### `scenes.yaml` — meet-ups played in person
+
+Read by `engine/social/scene.py` (v0.23.0 T13); `scene.check_data` checks it
+whole at load (passed the `population.yaml` trait ids) and in
+`validate_content.py`. A scene opens when the player arrives on a kept plan
+(`plans.arrive`), and owns the narrated turn: the verbs are `scene {move,
+topic?}`, `close {closer[:arg]}` and, at the flat, `do` for a shared
+activity; `go` only through a closer. It is engine state,
+`state.social["scene"]` (one at a time), written only by the `social_scene`
+effect, and a conversation episode of kind `scene` runs beside it (it never
+lapses; it closes at the scene's end and is recapped like any other). Each
+scene turn's narration is written to the run's archive as a `scene` row,
+never to state or memory. Keys:
+
+- `prior` -- `{base, terms: {chemistry, warmth, mood: {<mood>: term}},
+  spread}`: v0.22's meet quality, moved. Drawn once when the scene opens:
+  base, plus chemistry x their chemistry (0-1), warmth x their warmth / 100,
+  their mood's term, and a centred SOCIAL_SCENE draw of `spread`. It biases
+  every moment, and x100 is their starting energy.
+- `moment` -- `{spread, bands: {lands, fine, flat}, topic_fit: {theirs,
+  shared}, energy_cost: {lands, fine, flat, misstep}}`: a move's score is the
+  prior, the move's fit, the topic's fit (`theirs`: asking about a topic of
+  theirs at their own rung; `shared`: telling them about a hobby you share),
+  their mood's term and a centred draw of `spread`, banded by the least scores
+  (below `flat`, a misstep). Each band spends their energy.
+- `moves` -- exactly `ask_about, tell_about, playful, quiet, phone, talk`, in
+  that order. Offered are three of their topics, two of yours, then `playful`,
+  `quiet` and `talk` (v0.23.0 addendum 4 W7): `phone` is never offered, its
+  row scoring the phone picked up in company; `talk` is what a line the
+  player TYPES in a scene becomes when it names no topic (a typed line that
+  names one of their topics, or a hobby, a running event or "my job" of
+  yours, becomes that `ask_about`/`tell_about` move; see `typed:` below). **A move row is exactly `label`, `minutes`, `fit` and `bands`**: no
+  floor, no stage, no refusal (`check_data` refuses any other key). `label`
+  may name `{topic}`; `fit` is `{traits: {<population.yaml trait id>: term},
+  archetypes: {<archetype>: term}}` (a `fit.traits` key that is not a
+  `population.yaml` trait fails to load); `bands` gives each of `lands, fine,
+  flat, misstep` the exact `warmth`/`trust` it moves (whole numbers). Asking
+  about a topic above their rung is answered by them steering elsewhere: the
+  band is `too_deep_band` and growth.yaml's `loss.too_deep` is paid -- a
+  scored outcome, never a refusal. Checking the phone with someone who finds
+  it rude (their `in_company` habit) is a misstep.
+- `closers` -- the closers offered, from `another_round, go_somewhere_else,
+  walk_them_home, back_to_yours, back_to_theirs, stay_the_night,
+  call_it_a_night, propose` (`call_it_a_night` is required: the way home has no gate;
+  `propose` is v0.23.0 T18's, below with `wedding`).
+  `call_it_a_night` may add `:promise:morning` (a promise of the player's),
+  `:plan:soon` (a plan) or `:stay` (stay where you are; otherwise home, the
+  travel charged). `back_to_yours` and `back_to_theirs` are offered only when
+  growth.yaml's `come_over` / `go_to_theirs` holds; `stay_the_night` is
+  offered at a home (theirs, or the flat) when `stay` allows it (below). A closer's promise or plan is the only commitment a scene
+  makes, and is recorded for the fact checks.
+- `close` -- `energy_out` and `misstep_run` (they close when their energy is
+  spent or after that many missteps in a row; their schedule's next boundary,
+  under conversation.yaml `talk.boundary_minutes`, closes it too),
+  `another_round_minutes`, `another_round_energy` (a share of 100 given back),
+  `walk_extra_minutes`.
+- `end_bands` -- `{great, good, fine, awkward}`: the moments' average score
+  bands the evening (below `awkward`, bad). A `great` or `good` one counts
+  toward the branch from `meeting` (`meets_good`); `fine` or better swaps
+  numbers if none were; a first scene moves `numbers` to `meeting`; their
+  `post_meet` text follows (relationships.yaml `meets.post_meet`).
+- `too_deep_band` -- a moment band.
+- `shared_activities` -- `{<location id>: [activities.yaml ids]}`: what the
+  two of you can do together at the flat.
+- `stay` -- staying over (§10.5), logistics only. `stay_the_night` is offered
+  when growth.yaml's `stay_over` holds, the evening so far bands `fine` or
+  better, their energy is above `energy_min` and no work start is within
+  `early_start_hours`. `accept` is the chance they say yes, keyed by
+  archetype alone (`default` otherwise): there is no intent term. A yes ends
+  the scene, takes the clock to the player's morning and writes a "Stayed
+  over" history row; a no is a plain answer whose reason is only their
+  energy or the home's `homes.yaml` `stay_reasons`. The morning scene is
+  v0.24.0's.
+- `wedding` -- `{moments, moves}` (§12.2, T18): the wedding is a scene at
+  the registry office, opened by arriving on its plan (a `wedding` plan, the
+  engine's own: it stands in no other plan's way and never lapses) while
+  the two are engaged. Only `moves` are offered, no closer, every moment's
+  band is floored at `fine` (it cannot go badly), and it ends after
+  `moments` moments: the couple is `married`. The closer `propose` (in the
+  `closers` list) is offered while growth.yaml's `willing.propose` holds;
+  they say yes, the stage is `engaged`, and the evening goes on. At home,
+  with a household partner whose schedule says `free` while the player is
+  in the flat, the `scene` world verb offers "Spend time with ..." with no
+  plan and no travel (`kind: at_home`: `call_it_a_night` staying in,
+  `another_round` and `propose` only), and the narrator is handed the
+  partner's companion block whenever they are home and free. With no scene
+  open, that prose is held only to the profile, other people and the stage
+  (`agreement.HOME_PROSE_CHECKS`): "see you tonight" at home names no plan.
+  The partner who lives with the player gets no `their_place` plan, and an
+  unmatch, a block, an end, a fade or an expiry moves them out (a `wedding`
+  plan not yet kept is called off with it).
+- `chance` (optional; v0.23.0 addendum 4 W9) -- `{prob: {<status>: share},
+  block_hours, max_here, max_candidates, prior_bias}`: chance meetings with
+  people the player already knows. Only while the player is at a VENUE (never
+  the flat, the building, the street, a home or the registry office, and not
+  at work), a live contact may be there by their schedule
+  (`engine/social/presence.py::chance_here`). Per person and block of
+  `block_hours`, ONE counterless draw (`stable_rng`, keyed on the person, the
+  day and the block: it moves no counter, so no other system's draws shift)
+  says whether they are out -- under `prob` of their schedule's status now
+  (`out`, `free`; `work` and `asleep` never count) -- and which ONE venue that
+  fits their hobbies (`places.fitting_venues`, `pick_venue`'s overlap) they
+  are at. The candidates are the player's live contacts, never the
+  population: at most `max_candidates`, the most recently in contact first,
+  less the blocked or unmatched, the ghosting, anyone away on a life event,
+  the household partner, anyone with an open `now`/`tonight` plan (they are
+  on their way, W4) and the scene's person; at most `max_here` at one venue
+  (by pid). They are named to the narrator as "Also here: Sam (just
+  matched)." (seen, not voiced, until approached), listed on the world's
+  plate by name (`world.here`, with the background people on shift), and
+  their texts are held while they are there, approached or not (W5). The
+  `scene` world verb offers "Go over to {name}" (`approach:<pid>`), which
+  opens a scene of kind `chance` with no plan (an open `soon` plan with them
+  is recorded `met`); its prior takes `prior_bias`. **Its end is gated** (C3):
+  `fine` or better swaps numbers only while growth.yaml's `willing.number`
+  holds then, and `numbers` moves to `meeting` only while `willing.meet`
+  holds; `meets_good` counts only from `meeting`; the run-in goes on their
+  card ("Ran into each other at The Anchor: ..."); no `post_meet` text
+  follows (`texter.md` has no chance row); and they stay "Also here" but
+  are not offered "Go over to" again for the rest of that block. When their block moves them on, their held
+  texts land at the next phone action or world turn. The closers that make a
+  plan (`back_to_yours`, `back_to_theirs`, `go_somewhere_else` and
+  `call_it_a_night:plan:soon`) are offered only while `willing.meet` holds.
+  Absent, nobody is anywhere by chance. Every value is a first value,
+  unmeasured until T29.
+
+Everything here is conversation, an activity, a mood or something shared
+about yourself. What two adults do on an evening is the narration's, in the
+storyteller prompt's register: no move, band or closer describes it, and
+`back_to_yours` or staying over is where the evening goes, nothing more
+(rule 12).
+
+**The narration of a scene (v0.23.0 T15, spec §10.6).** While a scene is
+open the narrator is handed the companion block: who they are now
+(`growth.who_now`), where you are, their story with you, the last three
+recaps, what is open and how you left it, and this moment in the engine's
+words, trimmed to `social.world.companion_tokens` (1200, config). Its prose is
+then held to the same fact checks as their texts (`agreement.check_scene_prose`,
+relationships.yaml's phrase lists): their age, job and neighbourhood, a name
+they cannot know, a stage not reached, and a promise, plan or step no closer
+made. The checks read narration as narration: the companion's own words (a
+quote attributed to them, or a statement that starts with their name or
+pronoun) and the player's ("you") count; someone else's ("her brother says
+...", another contact's name) does not. A promise the narration states is
+only checked, never adopted: the storyteller is not their voice on the phone.
+A first miss is rewritten once; a second, or no model at all, shows the
+moment's engine words instead (`scene.receipt_lines`). The phrases an author
+adds to relationships.yaml's `claims`, `meet_claims` and `negations` are
+read by these checks too.
+
+```yaml
+moves:
+  quiet: {label: "Let a silence sit", minutes: 15, fit: {traits: {laid_back: 0.06}},
+          bands: {lands: {trust: 3}, fine: {trust: 1}, flat: {}, misstep: {warmth: -1}}}
+end_bands: {great: 0.72, good: 0.56, fine: 0.42, awkward: 0.3}
+```
+
+#### `growth.yaml`, `topics.yaml`, `layers.yaml` — who people become with you
+
+Read by `engine/social/growth.py` (v0.23.0). Each person keeps a growth
+record (`people[pid]["growth"]`): a disclosure **depth** 0-4, an
+**openness** meter 0-100, their fixed **pace**, a `guarded` count, and the
+layers revealed. Depth is self-disclosure and topics only: what a person
+will talk about and share. Nothing else is on a rung.
+
+**The closed vocabulary is the engine's, not yours.** The five rungs and
+the disclosure kinds each may hold are fixed in code (`growth.RUNGS`;
+`growth.KINDS` is their union):
+
+| Depth | Rung | Kinds |
+|---|---|---|
+| 0 | `small_talk` | `places`, `hobbies`, `work_outline`, `the_apps` |
+| 1 | `everyday` | `daily_life`, `work`, `friends`, `plans`, `opinions` |
+| 2 | `personal_stories` | `upbringing`, `family_outline`, `past`, `travel`, `proud_of` |
+| 3 | `hopes_and_fears` | `hopes`, `worries`, `regrets`, `values` |
+| 4 | `family_and_future` | `family`, `future_plans`, `home_life`, `money` |
+
+`growth.check_data` (run when the data loads, and by `validate_content.py`)
+refuses: a `kinds:` list that is not exactly `growth.KINDS`; `depths:` that
+do not list the five rungs in order; a rung listing a kind outside its own
+set; a `topics:` or `layers:` row whose `kind` is not in the vocabulary;
+a repeated topic or layer id; **any key outside each row's schema** (a
+rung's `id, kinds, floors, counts`; `floors`' `warmth, trust`; `counts`'
+`episodes, scenes`, whole numbers -- no floor or count reads in-game days;
+a topic's `id, kind, label, when, follows_up`; a layer's `id, kind, text,
+when`; a `when`'s `job, job_shape, flag, hobby, life`, each an id or a
+list of ids); a top-level key outside `growth.TOP_KEYS`; a `trait_mult`
+key that is not a `population.yaml` trait id; a `willing:` id outside
+`growth.COMMITMENTS`, or a key outside its closed set; `depth` on any
+`willing:` row but `number` and `meet`; `days_since_exclusive` on any row
+but `move_in`; a `willing:` stage that is not one; and a value of the wrong type or range: every floor, gain, loss,
+`mode_mult` and `jitter` a number 0 or more, every `trait_mult` above 0,
+`guarded_episodes`, `topics_per_kind` and `life_lines` whole numbers 0 or
+more, `gain:` keys only `growth.GAIN_EVENTS` and `mode_mult`, `loss:` keys
+only `growth.LOSS_EVENTS`, `mode_mult` keys only the episode modes.
+
+| `growth.yaml` key | Shape |
+|---|---|
+| `kinds` | the vocabulary, mirrored |
+| `depths` | five `{id, kinds, floors: {warmth, trust}, counts: {episodes, scenes}}` rows: with openness at 100, the NEXT rung's floors and counts must hold to step up into it |
+| `pace` | `{jitter}`: a person's pace is the archetype's `growth.pace` x each of their traits' `trait_mult` x `exp(jitter x N(0,1))`, drawn once |
+| `trait_mult` | population trait id -> pace multiplier (READ RECEIPTS: `private`, `shy` 0.7; `warm`, `confident` 1.3) |
+| `gain` | openness per engine-measured event: `exchange` (x pace x `mode_mult[mode]`), `good_end` (x pace), `moment[band]` (x pace), `promise_kept`, `support` (flat) |
+| `loss` | openness lost: `broken_promise`, `left_on_read`, `fight`, `too_deep` (x the archetype's `decay_mult`) |
+| `guarded_episodes` | how many episodes a betrayal's `guarded` +1 halves every gain for |
+| `topics_per_kind` | topics drawn per kind per person |
+| `life_lines` | "Since you met" lines the voice is given at most |
+| `closer_soon_at` | openness at which the client hints "Getting closer" (the payload's `hints`, a boolean, never the number); 70 shipped |
+| `willing` | commitment -> gate: what each person is willing to do NOW (below) |
+
+**Willingness** (`growth.willing(state, pid, commitment) -> (ok, why)`,
+v0.23.0 T5, spec §6.5). The commitments are a closed engine enum,
+`growth.COMMITMENTS`: `number`, `meet`, `come_over`, `go_to_theirs`,
+`stay_over`, `exclusive`, `meet_family`, `move_in`, `propose`,
+`stay_or_go`. A row's gate may read only: `stage_min` (a stage rank at
+least) or `stages` (one of), `warmth`/`trust` floors, `episodes`/`scenes`
+play counts, `needs` (`{both: <intent>}`), `depth` (`number` and `meet`
+only: swapping numbers or meeting follows from talking about one's day),
+`days_since_exclusive` (`move_in` only, R15: since the stage
+`exclusive` began, `people[pid]["exclusive_since"]`) and `no_household`.
+Why not: `not_yet` (a floor, count, depth or the days), `stage`, `needs`,
+`household`. No life-logistics commitment may read depth (rule 12). A
+commitment the story leaves out is a `ValueError` when the engine asks.
+Read since T5: `number` (the `numbers` stage gate, `{willing: number}`, and
+the payload's `hints`) and `exclusive` (`{willing: exclusive}`); the rest
+are read by the task that brings their mechanic (docs/GOVERNANCE.md NOT
+WIRED). Reaching `everyday` queues the person's **number offer**: an
+`offer_number` event at once in an open conversation, else at their next
+available minute; it draws the archetype's `offer_number_prob` and, on
+yes, makes a request of theirs (answered through `answer`, as their
+`offer_number` proposal's is) and an `offer_number` message.
+
+```yaml
+willing:
+  number:   {depth: 1, warmth: 25}
+  exclusive: {stages: [dating], warmth: 70, trust: 65, scenes: 4, needs: {both: long_term}}
+  move_in:  {stage_min: exclusive, days_since_exclusive: 14, scenes: 12, warmth: 78, trust: 72, no_household: true}
+```
+
+Openness is never written by the model: the engine's mechanics call
+`growth.gain` and `growth.loss` with the event they measured (an event
+outside `GAIN_EVENTS` or `LOSS_EVENTS` is a `ValueError`). A full meter
+steps one rung when the next rung's floors, its counts and the
+archetype's cap all hold; openness returns to 0, a history row is written
+and the rung's next **layer** is queued as a reveal. Depth never goes
+down. The conversation calls them (`engine/social/convo.py`, v0.23.0 T3):
+every reply decided is an `exchange` (by its mode; a burst answered once is
+one), an episode that closes after a sign-off with warmth risen across it is
+a `good_end`, every closed episode ticks `guarded` down, and the first
+charge of a spell left on read (`relationships.settle_left_on_read`) is a
+`left_on_read` loss. Promises (T4), scenes (T13) and life events (T17) call
+the rest: `moment`, `promise_kept` and `support` (a reply of yours or a scene with them while a hard event of
+theirs runs, once per event, `life.support`) all gain now, and `growth._STUBBED` is empty. A queued reveal is voiced from T7 (situation
+`opens_up`): until then `reveal_due` waits.
+
+`topics.yaml`: `{id, kind, label, when?, follows_up?}` rows. Each person
+draws `topics_per_kind` per kind, once (a counterless key), among the rows
+whose `when` holds for them: keep at least one row with no `when` in every
+kind. `follows_up` is accepted and read by nothing yet. `layers.yaml`:
+`{id, kind, text, when?}` rows, each one plain fact in the third person;
+on a step up, a layer is drawn (a counterless key per rung) among the
+rows of that rung's kinds whose `when` holds and which they have not
+revealed. A `when`'s `life` names their life events (v0.23.0 T17,
+`life_events.yaml` ids, running or past).
+
+```yaml
+# topics.yaml
+topics:
+  - {id: t_shifts, kind: work, label: their shifts, when: {job_shape: [shifts]}}
+  - {id: t_sister, kind: family_outline, label: their sister}
+# layers.yaml
+layers:
+  - {id: l_dad_fisherman, kind: family_outline, text: Their dad was a fisherman out of the Quays}
+```
+
+`growth.who_now(state, pid)` is the who-they-are-now block: name, age,
+job and neighbourhood, hobbies, traits, the texting style (at depth 2 or
+more a `short` style reads `medium` in a chatting or deep episode), the
+dating bio and prompt answers at depth 0 only, "Since you met", "What you
+talk about with them now" (their topics up to their depth) and "What you
+still keep to yourself" (the next rung's). The voice does not read it yet
+(v0.23.0 T7); its home line (T10) and "Since you met" (T17, `life.since_lines`) are filled.
+
+#### `life_events.yaml` — what happens to people, and to the player
+
+Read by `engine/social/life.py` (v0.23.0 T17, spec §11); checked at load and by
+`validate_content` (`life.check_data`: an unknown key, a bad id, number, mood, stage or
+`when` is a load error naming the key). Life events are the world's calendar, so odds and
+cooldowns are in DAYS (R15). They are ordinary life -- a boiler, a parcel, a holiday, a job
+offer, illness, family news (rule 12) -- and each row's `text` (or a public row's `canon`) is a plain fact. Keys:
+`kept: {past: n}` (the past events a person and the player keep in a save beside the running
+ones and those on cooldown), `player` (12 rows, drawn once a day from `world_rng(SOCIAL_LIFE)`),
+`person` (15 rows, one daily draw per eligible row per live person, each on their own SOCIAL_LIFE
+counter) and `seen` (§12.4, T18: `prob`, one `world_rng(SOCIAL_LIFE)` draw at the end of every scene
+with someone ELSE while the player has a partner at `exclusive` or later; on a discovery each such
+partner's trust moves by `trust` (0 or less), their `guarded` count rises by one, their mood is `hurt`
+for `mood_days`, and their history says "They found out" -- a fact, someone saw; the `cold:` rule is
+the repair). A row: `id`, `when` (`stage_min` or `stages`; a person's
+only), `prob_per_week`, `cooldown_days`, `text`, `lasts_days`, `news`, `mood: {value, days}`,
+`followup: {about, when}`, `unavailable` (a holiday: they do not answer; needs `lasts_days`),
+`support` (a reply of yours or a scene with them while it runs gains `support` once; needs
+`lasts_days`), `blocked_by_open_promise`, `proposal: stay_or_go` (a job offer: they ask, you answer
+"ask them to stay" or "tell them to go", and `growth.yaml` `willing.stay_or_go` decides),
+`job: draw` (a new job, a counterless draw; `who_now` reads it), `home: redraw` (a new home; never drawn for
+the partner who lives in the player's flat, T18) and `plan: wedding`
+(T18: the wedding's row, `when: {stages: [engaged]}`, eligible only once relationships.yaml
+`wedding_after_days` have passed since `engaged_since` and no wedding plan is open; it queues the
+registry office plan, `plans.make_wedding`; READ RECEIPTS draws it at odds 1 a day, `prob_per_week: 7`). A player
+row also has `label` (its `tell_about` topic: "your boiler"), `sign_off` (the reason the engine
+gives when YOU end a chat while it runs), `flag` (`life_<id>` held while it runs), `scene` (the deck
+dealt for it), `schedule` (`work_extra_hours` or `lift_extra_minutes`) and `effects`.
+
+**The player's decks.** A world moment is an ordinary deck (§3.3) whose `when:` reads the event's
+flag and the room: `data/scenes/boiler.yaml` (`life_boiler`, `apt_kitchen`) and `parcel.yaml`
+(`life_parcel`, `bldg_reception`). Make it `repeatable: true` (the event comes round again) and let each
+beat's `gate.on_pass.effects` clear the flag (`{type: flag, flag: life_boiler, value: false}`); the
+event clears it itself when its days are out. A deck waits while a scene is open (the director deals
+nothing over one). A deck schedules on its own `when:`, not a card's. Telling people: the player's
+news is offered as a `tell_about` topic and a sign-off reason, and a person hears it only if the player
+says it (`memory.add_knows` after the move). No row means anything beyond the fact it states.
 
 #### `apps.yaml` — the phone
 
@@ -2669,7 +3277,7 @@ or spends time needs them, and every value given is checked.
 | `kind` | every app, **required** | `dating \| messenger \| games \| gallery \| calendar \| contacts \| settings` |
 | `label` | every app | what the phone calls it |
 | `capabilities` | threads; unset is none, so a thread on the app carries nothing | what a thread may carry: `text`, `photo`, `voice`, `video` (each checked) |
-| `cost_minutes` | every app; unset is none, so its verbs cost no time | in-game minutes per verb: `swipe`, `like`, `edit`, `text`, `photo`, `voice`, `video`, `move` (each checked, 0 or more) |
+| `cost_minutes` | every app; unset is none, so its verbs cost no time | in-game minutes per verb: `swipe`, `like`, `edit`, `move` (each checked, 0 or more). A message's cost is `conversation.yaml`'s `costs:`, the same on every app (v0.23.0); a `text`, `photo`, `voice` or `video` row here is an error |
 | `unlock` | messenger, games | the live stage that opens the app with a person |
 | `receipts`, `typing` | threads | whether read receipts show, and typing dots (`typing`, true when unset: Texts says `false`, as SMS shows none) |
 | `pool` | dating | `{from, size}`: a range of person indices, disjoint across apps; `overlap_with` + `overlap` add a band after every pool whose people are on both |
@@ -2700,7 +3308,6 @@ apps:
     capabilities: [text, photo, voice, video]
     receipts: true
     typing: true
-    cost_minutes: {text: 2, photo: 1, voice: 3, video: 2}
 ```
 
 **Adding an app.** A `messenger`, `gallery`, `calendar`, `contacts`,
@@ -2719,50 +3326,105 @@ docs/GOVERNANCE.md row).
 #### `relationships.yaml` — where they stand with the player
 
 Read by `engine/social/relationships.py`, `agreement.py`, `media.py` and
-`meets.py`; required blocks: `stages`, `branch`, `claims`, `bands`,
+`scene.py`; required blocks: `stages`, `branch`, `claims`, `bands`,
 `regard`, `interest`, `mood`, `asks`, `cold`, `fade_days`, `proposals`.
 
 - `stages` lists exactly the engine's stages, in its order
   (`engine/social/kinds.py::STAGES`), each with `words` (all the player
   sees, never a number) and, if reached by a gate, `from`, `trigger`
-  (`automatic`, `ask`, `meet` or `branch`), `gate` (minimums of `warmth`,
-  `trust`, `exchanges`, `days`, `stage_days`, `meets_good`) and `needs:
-  {both: long_term}`. A story re-tunes the gates and words; it cannot add a
-  stage.
+  (`automatic`, `ask`, `meet`, `branch` or `event`), `gate` (`willing:
+  <commitment>`, a `growth.yaml` `willing:` row that must hold, and
+  minimums of `warmth`, `trust`, `exchanges`, `meets_good`) and `needs:
+  {both: long_term}`. No gate reads days: `days` and `stage_days` refuse to
+  load (v0.23.0 spec §1.4). READ RECEIPTS' `numbers` gate is `{willing:
+  number}` and its `exclusive` gate `{willing: exclusive}`; an ask below
+  its gate is answered no with `why` `not_yet` (or `stage`, `needs`,
+  `household`), which the voice and the phone both say. A story re-tunes
+  the gates and words; it cannot add a stage. A gate is read only for a
+  stage reached `automatic`, by `ask` or by `branch`: a `meet` stage
+  (`meeting`, moved by a scene's end) or an `event` one (`married`, moved by
+  the wedding's end) carrying a gate refuses to load, since nothing would
+  read it (v0.23.0 T18 removed v0.22's `meeting` gate, warmth 70 and trust
+  70, for that reason). Since v0.23.0 the list holds the long term after
+  `exclusive` (ranked 6-8, `kinds.STAGE_RANKS`; spec §12): `living_together`
+  (from `exclusive`, `{willing: move_in}`), `engaged` (from `exclusive` or
+  `living_together`, `{willing: propose}`; `engaged_since` is written) and
+  `married` (from `engaged`, `trigger: event`). Moving in at `engaged` or
+  `married` records the household (`state.social["household"]`, the
+  partner's pid, written only by the `social_household` effect) and moves
+  no stage; ending, fading or expiring moves the partner out. None of them
+  is an ending: cooling off, ending, fading and the cold recovery apply to
+  every one. Moving into THEIR home is not built (docs/GOVERNANCE.md).
 - `branch` picks dating, friends or fling out of `meeting`: the first row
   whose `either` one side wants.
 - `bands` are the closeness bands the player sees, each `{name, warmth,
   contact_days}`, lowest first.
 - `regard` bounds the model: `start`, `per_reply` (a reply's warmth and
-  trust move, clamped), `per_day_gain` (gains only), `fight_warmth`,
-  `reconcile_warmth`, and `fallback` -- what an engine-written fallback
-  reply moves (+1/+1 shipped) and its own `per_day` cap, so a run with no
-  model server still progresses, more slowly than a working one.
+  trust move, clamped), `per_episode_gain` (gains only, per conversation
+  episode -- a scene counts as one -- and again between episodes, reset as
+  each closes: `convo.cap_key`, v0.23.0), `fight_warmth`,
+  `reconcile_warmth` (a fight and a making-up are still a day's), and
+  `fallback` -- what an engine-written fallback reply moves (+1/+1 shipped)
+  and its own `per_episode` cap, so a run with no model server still
+  progresses, more slowly than a working one.
 - `interest`, `mood` (`values`, the enum a reply may set; `decay_hours`;
-  `media_mult`), `asks` (`per_day`, `repeat_mult`, `repeat_warmth`,
+  `media_mult`), `asks` (`per_episode`: asks of one kind an episode, the
+  next refused "Give it a while"; `repeat_mult`, `repeat_warmth`,
   `turned_down`), `cold` (`warmth_below` for `days` winds a live stage down;
   warming to `recover_above` for `recover_days` mornings goes back to the
-  stage it left) and `fade_days` (no contact for that long: faded; 21
-  shipped).
+  stage it left), `fade_days` (no contact for that long: faded; 21
+  shipped) and `wedding_after_days` (R15: the wedding follows the
+  engagement by days; 14 shipped, read from T18).
+- **No gate or cap reads days** (`tests/test_social_no_days.py` walks
+  `growth`, `relationships` and `media.yaml`): a key naming days, hours or
+  a per-day cap fails unless it is one of the test's named exemptions,
+  each with its reason (an absence measure such as `fade_days`, a decay or
+  grace window such as `mood.decay_hours`, R15's two).
 - **Proposals** are the only things a voiced reply may ask the engine for
   (spec §10.5): `offer_number`, `ask_exclusive`, `cool_off`, `offer_photo`,
-  `offer_voice`, `offer_video`, `invite_game` and `ask_meet`
-  (`relationships.PROPOSALS`). Each row is `{stage, gate}`: the stage it may
+  `offer_voice`, `offer_video`, `invite_game`, `ask_meet`, `promise`,
+  `followups`, and (v0.23.0 T18) `move_in` and `propose`, each a request to
+  the player (`{stage: live, gate: living_together}` and `{stage: live,
+  gate: engaged}`: the `move_in` and `propose` willingness), answered yes
+  through the household and the stage (`relationships.PROPOSALS`; `followups` is never offered in
+  the list: it holds a reply's own follow-ups, `max` 1-2 of them, to its
+  stage and gate, `relationships.apply_followups`). Each row is `{stage, gate}`: the stage it may
   be made at (`live`: any live stage) and the stage whose gate must hold.
   List a subset to offer fewer; an id the engine does not apply refuses to
   load. The engine re-checks every one at commit (the media offers also
   hold `media.yaml`'s budget and unlock; `invite_game` the games app's
-  unlock and no game running; `ask_meet` numbers or past it and no plan).
+  unlock and no game running; `ask_meet` numbers or past it, willing to meet
+  (growth.yaml `willing.meet`) and no plan but a `soon` one; it has no `gate:`).
 - The phrase lists the agreement checks MATCH (`engine/social/agreement.py`):
   `claims` (per stage), `media_claims`, `media_denials`, `agree_phrases`,
-  `negations`, `ordinary_names`, `meet_claims` (`today`, `tomorrow`,
-  `any`) and `meet_denials`. A whole phrase, case-folded, in a clause that
+  `negations`, `ordinary_names`, `meet_claims` (just `any`: a plan has no day,
+  v0.23.0 T12), `meet_denials` and `arrival_claims` (just `any`, v0.23.0
+  T23C: "i'm here", "just got here"; a statement passes only while a `now` /
+  `tonight` plan of theirs is open and they have got there, so nobody texts
+  "I'm here" from the road; it is judged only while a plan with the player is
+  open, and "I'm here for you", "my mum just got here" and a contact's
+  name before the phrase are no claim). A whole phrase, case-folded, in a clause that
   is not a question. They test facts, never tone (rule 12): precision first.
-- `meets:` runs meet-ups (`meets.py`): `slots`, `days_ahead`, `quality`,
-  `bands`, `effects`, `cancel_cost`, `no_show`, `post_meet`, `recap_lines`
-  and `recap_tone`. It is **required** once the story ships a `venues.yaml`
-  (and a `venues.yaml` once it has `meets:`): `meets.check_data` refuses
-  either alone.
+  `claims` also holds two tables (v0.23.0): `claims.promise` (a promise
+  window -- `lunch`, `after_work`, `tonight`, `morning`, `at_work` -- ->
+  phrases promising to message in it; "promise claimed" fails a reply that
+  names a window other than the promise the engine holds, one that does
+  not resolve for them now, or any from someone whose archetype makes
+  none; a window that resolves is kept as their promise) and
+  `claims.commitment` (`number`, `meet`, `come_over`, `exclusive`,
+  `move_in` or `propose` -> phrases stating or asking that step, in the
+  second person; "commitment claimed" fails one whose growth.yaml
+  `willing:` row does not hold and whose stage is not yet reached -- a
+  question counts here, since asking is the step, but a phrase with a
+  third-person subject in the three words before it does not).
+- `meets:` is what is left of v0.22.0's meet-ups beside scenes
+  (`engine/social/scene.py`, v0.23.0 T13; plans replaced the appointments in
+  T12, and `scenes.yaml` holds the prior and the bands): `post_meet`
+  (`pace_mult`, `none_after` scene bands, `none_from` archetypes),
+  and `recap_lines` (the engine's words for each scene band). Any other key
+  fails to load. It
+  is **required** once the story ships a `venues.yaml`
+  (`scene.meets_faults`).
 
 ```yaml
 stages:
@@ -2770,11 +3432,12 @@ stages:
     words: Swapped numbers
     from: [talking]
     trigger: ask
-    gate: {warmth: 30, trust: 23, exchanges: 20, days: 0}
+    gate: {willing: number}
 regard:
   start: {warmth: 20, trust: 15}
   per_reply: {warmth: [-4, 4], trust: [-2, 2]}
-  fallback: {warmth: 1, trust: 1, per_day: {warmth: 3, trust: 2}}
+  per_episode_gain: {warmth: 6, trust: 4}
+  fallback: {warmth: 1, trust: 1, per_episode: {warmth: 3, trust: 2}}
 proposals:
   offer_number: {stage: talking, gate: numbers}
   cool_off: {stage: live, gate: null}
@@ -2786,13 +3449,16 @@ Read by `engine/social/media.py`; every block of `media.BLOCKS` is required.
 The engine decides every medium (rule 1) and the model only words the
 message that carries it.
 
-- `budget`: per kind (`photo`, `voice`, `video`) `{start, per_day, cap,
-  unlock_stage}`; one send spends 1.
+- `budget`: per kind (`photo`, `voice`, `video`) `{start, per_episode,
+  cap, unlock_stage}`: `per_episode` is added as each conversation with
+  them closes (v0.23.0), to at most `cap`; one send spends 1.
 - `request`: the player's `ask {what: photo|voice|video}`, decided at their
   next read: `accept {base, trust_per_10, warmth_per_10}`, `later_share`,
   `mood_mult` (every mood a `relationships.yaml` mood value).
-- `unsolicited`: `per_day_at_stage` (a morning draw per kind at that stage
-  or past it) and `offered_mult` (a model's `offer_*` proposal).
+- `unsolicited`: `per_episode_at_stage` (a draw per kind as each
+  conversation closes, at that stage or past it, one sent at most, due at
+  their next available minute) and `offered_mult` (a model's `offer_*`
+  proposal).
 - `subjects`: what a photo or video of theirs shows: `{id, when, label,
   scene, requires_flag?}`; `when` a schedule status or statuses,
   `requires_flag` a `population.yaml` flag (never canon text).
@@ -2806,19 +3472,19 @@ is a procedural tile with its caption or transcript.
 
 ```yaml
 budget:
-  photo: {start: 0, per_day: 0.15, cap: 2, unlock_stage: talking}
+  photo: {start: 0, per_episode: 0.15, cap: 2, unlock_stage: talking}
 subjects:
   - {id: pet, when: free, requires_flag: has_pet, label: their pet, scene: "their pet curled up nearby"}
 ```
 
 #### `venues.yaml` — where meet-ups happen
 
-Read by `engine/social/meets.py`. `kinds` maps a kind to `{label, at}` (the
-engine's own line: "Coffee" "at" "The Copper Kettle"); `venues` holds
-twelve or more `{id, label, neighbourhood, kind, hobbies, duration_hours}`
-rows, each neighbourhood and hobby a `population.yaml` id. A hobby both
-sides hold is the meet's shared-hobby bonus, and a person who asks to meet
-picks a venue by the hobbies the two share.
+Read by `engine/social/places.py` (since v0.23.0 T13; `places.venue_faults`).
+`kinds` maps a kind to `{label, at}` (the engine's own line: "Coffee" "at"
+"The Copper Kettle"); `venues` holds twelve or more `{id, label,
+neighbourhood, kind, hobbies, duration_hours}` rows (plus `travel_minutes`),
+each neighbourhood and hobby a `population.yaml` id. A plan with no venue
+named is given one by the hobbies the two share.
 
 ```yaml
 kinds:
@@ -2826,6 +3492,100 @@ kinds:
 venues:
   - {id: copper_kettle, label: The Copper Kettle, neighbourhood: old_town, kind: coffee,
      hobbies: [coffee, reading, baking], duration_hours: 1.5}
+```
+
+#### `activities.yaml` and the world — a phone story's narrated turn
+
+v0.23.0 (spec §8.2-§8.5). A phone story is played on two layers. The PHONE
+is phone actions (no model, `engine/social/turn.py`); the WORLD is the
+engine's ordinary narrated turn (`default_state.run_turn`: the storyteller,
+`legal_intents`, the decks, the evaluator), with two world verbs of its own
+(`engine/social/world.py`, offered only where `paths.social` is declared):
+
+- **Phone up, phone down.** One saved flag, `phone_up`. Any phone action picks
+  the phone up; the phone verb `put_down` ("Put the phone down") puts it
+  down. While it is up a world choice is refused with "Put the phone down
+  first." (HTTP 409 with `phone_up: true`; the socket's `turn_error` carries
+  `phone_up` too). Notifications that land while it is down are the BUZZ: the
+  narrator is told how many and whose names, never a word of them.
+- **`do {activity}`**, from `activities.yaml`, found beside `paths.locations`
+  (`data/world/activities.yaml`, not in the social directory). A row is
+  `{id, label, at: [location ids], minutes | until, when?, interruptible,
+  narrate, say?}`: exactly one of `minutes` and `until` (`morning`, `evening`,
+  `work_end`); `when` holds only `flag` or `not_flag` (a story flag set or
+  unset); `say` lists base-form verb-object phrases of two words or more
+  that a typed line may name it by ("make breakfast", "do the dishes"; the
+  `label` counts too); no other key. Checked at load (`world.check_activities`: a
+  `ValueError` naming `activities.yaml`). An activity is offered where its
+  `at` holds the player's location. An `interruptible` one stops at the
+  first notification that may wake the player and offers "Carry on"; asleep,
+  only a person's promise or a late-night person's message wakes them, and
+  only with "wake me for messages" on. `until: morning` is the player's
+  waking band at least `conversation.yaml` `clock.min_sleep_hours` ahead.
+  "Carry on" resumes a cut-short activity to its original end; the next `do` or any `go` forgets it.
+  Rule 6: list sleep in the bedroom with no `when`.
+- **Work.** `go_to_work` (offered from `conversation.yaml` `clock.work_lead_hours`,
+  2 hours, before the player's work band) sets `at_work` until the band ends; while at work the only world
+  verbs are the two rows with `at: []`, `carry_on_working` and
+  `leave_early` (which returns the player to `apt_hall`). The phone stays
+  usable.
+- **`go {to}`** reaches the places with no edges (the venues, the cast's
+  homes and `registry_office`, tagged `sentinel` in `locations.yaml`): the
+  open plans' destinations, then the venues ranked by the hobbies the
+  player shares with each, at most eight. From anywhere outside the flat
+  and building "Head home" (`apt_lounge`) comes first and always, with no
+  gate. The travel is the row's `travel_minutes` (`venues.yaml`,
+  `homes.yaml`); the `social_go` effect writes the place. The phone's Places
+  app (the phone verb `go`, the payload's `places` section) lists every
+  venue, with no cap; choosing one puts the phone down and goes.
+- **The narrator** is the story's `prompts/storyteller.md`, with the
+  `SocialWorld` directive (name it in `settings.governance.directives`,
+  READ RECEIPTS: `[StorytellerMind, SocialWorld]`): where the player is and
+  the buzz. Like THE LONG CON, there is no `agents.yaml`. The opening
+  (`entry.opening.choices`) offers world choices; give one an intent the
+  entry can honour (READ RECEIPTS: "Tidy up a bit", `do tidy_up`).
+
+- **Typed lines** (v0.23.0 addendum 4 §3). The player may type into the
+  world instead of picking. The route gives typed text no intent (rule 1);
+  the engine reads it on the server, under the turn lock, against what it
+  offers at that moment (`engine/social/typed.py`), first match wins: ONE
+  offered `do` or room `travel` by the matcher below; in a scene, a topic
+  move the line names, else `talk`; otherwise nothing (the line is narrated
+  only, and no time passes). A typed line never runs a `go` (a venue, a
+  home), a closer, a plan, a promise, an approach, a phone action or the
+  work rows. The receipt carries `typed: true`, and the narrator is told
+  "The player said this; the engine read it as: <label> (<band>)."
+- **`typed:`**, a block beside `activities`, is the matcher's data, every
+  list checked at load (an unknown key, a non-list or a `rooms` key that is
+  no location is a load fault naming `activities.yaml`):
+  - `modals`, `negations`, `shifts` -- a line holding any of these as whole
+    words is never matched (a wish, a "maybe", a "don't", a "later");
+  - `leads` -- one may start a clause before the phrase ("I", "I'll", "ok");
+    `progressive_leads` ("I'm") also allow the `-ing` form;
+  - `movement` -- the verbs a room move starts with (`go`, `head`, ...);
+  - `rooms` -- `{<location id>: [nouns]}` for the flat and building places
+    (beside each one's `locations.yaml` `name`).
+
+  The matcher: a line ending in `?`, or holding a cue, is rejected; it
+  splits into clauses on `, ; . !`, "and" and "then"; strips one lead; and
+  a clause matches only if it STARTS with a phrase (an activity's `label` or
+  `say`), its verb in the base form, `+s` only in an acted line
+  (`*makes breakfast*`), `-ing` only acted or after a progressive lead -- or
+  with a `movement` verb and a room's noun within three words. Exactly one
+  target across the line, offered or not, or nothing.
+
+```yaml
+activities:
+  - {id: tidy_up, label: "Tidy up", at: [apt_lounge, apt_kitchen], minutes: 30, interruptible: false, narrate: "You tidy.", say: ["tidy up", "do the dishes"]}
+  - {id: sleep, label: "Sleep", at: [apt_bedroom], until: morning, interruptible: true, narrate: "You sleep.", say: ["go to sleep", "go to bed"]}
+typed:
+  modals: [would, could, should, maybe, "let's", "want to", if]
+  negations: ["don't", not, never]
+  shifts: [later, tomorrow, earlier]
+  leads: [i, "i'll", ok]
+  progressive_leads: ["i'm"]
+  movement: [go, head, walk]
+  rooms: {apt_kitchen: [kitchen], apt_hall: [hall, front door]}
 ```
 
 #### `games.yaml` and `words.txt` — the two games
@@ -2852,49 +3612,89 @@ a third.
 Read by `engine/social/voicing.py::parse_texter`, in three parts:
 
 1. **The persona**, everything above `## Instructions`: the system message
-   of every voicing call, sent as written.
+   of every voicing call, sent as written. Say how this person texts and
+   that a conversation that is going is a real conversation; the engine
+   tells the model the mode (quick, chatting, deep) and the bubble count.
 2. **The instruction table**: under `## Instructions`, one row per
    situation, exactly `` - `<id>`: <line> ``. The engine sends the row of the
    situation it decided (a reply, an opener, a decline, a photo sent ...)
-   in the prompt's RIGHT NOW block. Every situation the engine emits
-   (`voicing.SITUATIONS`: `opener`, `reply`, `double_text`,
+   in the prompt's RIGHT NOW block, and beside it the rows for how the
+   conversation ends (`winding`, `sign_off`), a follow-up to raise
+   (`followup`) and a layer to open up about (`opens_up`). A row may name
+   engine facts as `{field}`: `{reason}` (why the conversation ends),
+   `{promise_when}` (a promise's window in words), `{promise_words}`,
+   `{followup}`, `{topic}` and `{them}`; any other field refuses to load.
+   Every situation the engine emits (`voicing.SITUATIONS` and
+   `voicing.ENGINE_ROWS`: `opener`, `reply`, `double_text`,
    `answer_request`, `send_selfie`, `send_photo`, `send_voice`,
    `send_video`, `decline_photo`, `decline_voice`, `decline_video`,
-   `game_banter`, `post_meet`) and every one `behaviours.yaml` names (an initiation's
-   `instruction` or id, an arc beat's `instruction`) must have a row; the
-   validator names a missing one (and should one slip past it, that
-   message's voicing falls back to the story's line, logged at ERROR).
-   Rows the engine never emits are allowed: READ RECEIPTS keeps
-   `offer_number` and `ask_meet`, which a reply carries as proposals, in
-   its own words.
-3. **The Fallbacks fence**: under `## Fallbacks`, one fenced `yaml` block,
-   archetype -> situation -> lines. When no model answers (or both attempts
-   fail the agreement checks), the engine picks one line, seeded by the
-   message: `decline` first for any answer that is no, then the
-   situation's row, then `reply`, then the engine's "hey". Every archetype
-   in it must be a `behaviours.yaml` one, every situation a table row or
-   `decline`. A fallback reply moves `regard.fallback`, never more.
+   `game_banter`, `post_meet`, `offer_number`, `promised_message`,
+   `window_message`, `opens_up`, `winding`, `sign_off`, `followup`) and
+   every one `behaviours.yaml` names (an initiation's `instruction` or id,
+   an arc beat's `instruction`) must have a row; the validator names a
+   missing one (and should one slip past it, that message's voicing falls
+   back to the story's line, logged at ERROR). Rows the engine does not
+   emit yet are allowed: READ RECEIPTS keeps `news`, `stood_up` and `flake`
+   for the tasks that emit them, and `ask_meet`, which a reply carries as a
+   proposal. `good_morning`, `check_in`, `late_night` and `reveal_turn` are
+   retired as rows; a message still due under one of them is voiced by
+   `window_message` (or `opens_up`).
+3. **The Fallbacks fence**: under `## Fallbacks`, one fenced `yaml` block.
+   `reasons:` gives each `conversation.yaml` `reasons:` key in the
+   person's own words ("I've got an early start"). `any:` holds every
+   archetype's lines keyed `<situation>.<mode>` (`reply.quick`,
+   `sign_off.chatting`); an archetype's own block takes `<situation>`,
+   `<situation>.<mode>` or `decline`. When no model answers (or both
+   attempts fail the agreement checks), the engine picks one line, seeded
+   by the message: `decline` first for any answer that is no; for a reply,
+   how the conversation ends (`sign_off.<mode>`, `winding.<mode>`) or the
+   follow-up it raises; then the situation -- the archetype's
+   `<situation>.<mode>`, its plain `<situation>` (read as quick lines),
+   `any`'s `<situation>.<mode>` -- then `reply` the same way, then the
+   engine's "hey". A line may name the same `{fields}`; a line whose fact
+   is missing is skipped (`{promise_words}` may be empty). Every archetype
+   in it must be a `behaviours.yaml` one, every key a table row (with a
+   mode) or `decline`. A fallback reply moves `regard.fallback`, never
+   more, and reveals nothing.
 
 ````markdown
 ## Instructions
 
-- `reply`: Answer what they last said, the way you text.
-- `check_in`: Nobody has written for a while and you feel like talking to them. Start something, your way.
+- `reply`: Carry the conversation on. Answer what they said, all of it and not only the last line.
+- `sign_off`: You need to go now: {reason}. Say goodbye your way, and say why.
 
 ## Fallbacks
 
 ```yaml
+reasons:
+  early: "I've got an early start"
+any:
+  reply.quick: ["ha, fair", "tell me more"]
+  sign_off.chatting: ["Got to go — {reason}. {promise_words} This was nice."]
 steady:
   reply: ["That sounds good.", "How did it go?"]
   decline: ["Not yet, but I'm glad you asked."]
 ```
 ````
 
-The model's answer is a JSON reply (`voicing.reply_schema`: bubbles,
-facts learned and shared, a mood, warmth and trust within
-`regard.per_reply`, at most two proposals from the list above), checked
-against what the engine holds before it lands and again at commit. No line
-in any of these files may rate content (rule 12).
+**The prompt** (`voicing.messages`) is the persona, then eight blocks from
+the most stable to the most volatile: WHO YOU ARE NOW (`growth.who_now`),
+YOUR STORY TOGETHER (the story and recaps), WHAT YOU KNOW ABOUT THEM, STILL
+OPEN (promises and follow-ups), YOU AND THEM (stage, closeness, what you
+share, mood, the commitments that hold, what you have told them, history),
+THIS CONVERSATION (how the last one ended, then this one), RIGHT NOW and
+FORMAT. It is trimmed to the call's window (`social.voice.window_tokens`,
+the binding's context, less the mode's reply cap; docs/MODEL_SERVERS.md §
+The texter profile).
+
+The model's answer is a JSON reply (`voicing.reply_schema`: the mode's
+bubbles, facts learned and shared, a mood, warmth and trust within
+`regard.per_reply`, at most two proposals from the list above, up to two
+`followups` `{about, when}`, and -- only while the conversation is winding
+or signing off with no promise made -- a `promise` whose window is one that
+resolves for them), checked against what the engine holds before it lands
+and again at commit. No line in any of these files may rate content (rule
+12).
 
 ---
 
@@ -3204,13 +4004,18 @@ counts under-report reachability; use `--runs 200` before believing a
 **Phone stories** (`paths.social`, §3.15): `scripts/simulate_social.py
 --game read-receipts` plays the phone headless through the same mechanics action
 and voicing pass play uses, with a stub voice (never a model) and a seeded
-player policy (`--policy attentive|swiper|picky|slow|neglectful|pushy|all`,
-`--voice neutral_model|romantic_model|cold_model|zero|no_model|all`), and
-reports every balance row of the v0.22.0 spec's §20 -- like-to-match per
-app, talking, ghosting, numbers, meet-ups and how they went, interest's
-half-life, messages a day, media per relationship -- and the days from a
-match to each closeness band per archetype. A 60-day run is minutes, so
-seed ranges run side by side (`--first-seed N --seeds 1 --raw OUT`) and
+player policy (`--policy attentive|swiper|picky|slow|neglectful|pushy|devoted|bachelor|flaky|chatty|all`,
+`--voice neutral_model|romantic_model|cold_model|zero|no_model|all`), in
+SESSIONS of 40 real minutes (`--sessions`): every action is priced in real
+seconds (`REAL_SECONDS`: a send 30, a swipe 4, a bubble read 3, and the
+model's `--model-seconds` -- 6, 15 or 30 -- a reply; a wait is free), and the
+report is the v0.23.0 spec's §17.2 rows (`REPORT_ROWS`): conversations'
+length and ends, cold messages unanswered, ghosting, the real minutes from a
+match to a number, promises kept, fuller replies, the in-game minutes a real
+minute buys (`DERIVED_ROWS`, never banded), and the days and real hours to
+each closeness band per archetype. A row its sessions cannot reach (a scene,
+a life event, the long-term stages; T9's sessions are phone only) is `None`.
+Seed ranges run side by side (`--first-seed N --seeds 2 --raw OUT`) and
 fold (`--fold OUT...`). READ RECEIPTS' README has the commands and where
 its measured tables live. The harness is READ RECEIPTS' only (`--game`
 accepts that slug alone: its policies use that story's app ids), so a new
@@ -3276,7 +4081,7 @@ to the wrong ending.
 | `games/dev-story/` | **The full worked example.** One small working instance of every subsystem — thirteen locations, eight scheduled NPCs, a two-agent pipeline, a clock that forces a scene, a thread with renegotiations (declared only: renegotiation is NOT WIRED, §3.4), three gated endings and their epilogues — each file annotated at a depth a template cannot afford. When a mechanism is unclear, it is running here with the lights on. |
 | `games/wicked-garden/` | **The deck exemplar**, full scale. Its `data/scenes/README.md` is the deck grammar's reference treatment; its `data/canon/` established the dictionary shape; its manifest shows the "what this story deliberately does not ship" comment style. |
 | `games/clockwork-dark/` | **The graph exemplar**, full scale. The travel graph, arcs, encounters, the livelihood economy, doom — 5,300 lines of the shape the engine's clock was tuned for. |
-| `games/read-receipts/` | **The phone exemplar** (`paths.social`, §3.15): no locations to walk, no plot, no ending (`endless: true`); a seeded population the engine runs, two dating apps, messaging on the engine's clock, relationships, media, meet-ups and two games, voiced by `prompts/texter.md`. Every data file's header documents its keys and the measured rows its numbers move. |
+| `games/read-receipts/` | **The phone exemplar** (`paths.social`, §3.15): the flat, the building, the street and the city (28 locations: `travel`, and `do` and `go` in its narrated world turn), no plot, no ending (`endless: true`); a seeded population the engine runs, two dating apps, messaging on the engine's clock, relationships, media, meet-ups and two games, voiced by `prompts/texter.md`. Every data file's header documents its keys and the measured rows its numbers move. |
 | `scripts/story_template/minimal/` | The smallest thing that validates and plays a turn. Start here unless you already know your shape. |
 | `scripts/story_template/graph/` | The flagship's skeleton with Edgewood removed. |
 | `scripts/story_template/deck/` | The Garden's skeleton, one working instance of each coupling. |

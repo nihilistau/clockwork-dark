@@ -227,6 +227,7 @@ def test_a_flood_of_refused_logins_keeps_the_store_bounded(bare: _Bare) -> None:
     sup = bare.sup
     store = sup.metrics
     assert store is not None
+    store.clock = lambda: NOW  # the supervisor's store reads the wall clock; NOW is fixed, older than the 30-day retention today
     door = bare.connect("frontdoor")
     event = {"kind": "login", "ts": NOW, "account": None, "outcome": "limited"}
     for _ in range(50_000):

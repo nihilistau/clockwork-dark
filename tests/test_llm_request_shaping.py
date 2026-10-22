@@ -409,6 +409,20 @@ def test_a_trusted_retry_spends_the_whole_cap_on_the_answer(llm_server: Any) -> 
     assert retry["max_tokens"] == BIG[0]
 
 
+def test_a_starvation_retry_keeps_the_calls_own_cap(llm_server: Any) -> None:
+    """v0.23.0 T7 review M5: a call that names its own `max_tokens` (the texter's mode cap, 300 for a quick
+    reply) retries a starved answer within THAT cap, never the profile's ceiling."""
+    configure(
+        llm_server, "vllm", declared_models={"Qwen/Qwen3-1.7B": {"reasoning": ["off", "on"]}}
+    )
+    answers = discovery("vllm") + [chat_answer("", **STARVED), chat_answer("Autumn.")]
+    with wire(answers, exhaust=True) as seam:
+        backend().chat(MESSAGES, profile="big", max_tokens=300)
+    first, retry = chats(seam)
+    assert retry["chat_template_kwargs"] == {"enable_thinking": False}
+    assert retry["max_tokens"] == 300 and first["max_tokens"] >= 300
+
+
 @pytest.mark.parametrize("provider", ["vllm", "llamacpp"])
 def test_a_starved_request_that_carried_the_patch_is_never_repeated(
     llm_server: Any, provider: str, caplog: Any

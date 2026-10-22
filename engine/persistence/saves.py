@@ -847,7 +847,35 @@ class SaveStore:
         # carried that falls back to the namespace it was found in, which is
         # the directory the store was built for and therefore always right.
         migrated = migrate(raw_state, slug=str(envelope.get("game") or self.slug))
-        state = GameState.from_dict(migrated)
+        try:
+            state = GameState.from_dict(migrated)
+        except Exception as exc:
+            # A phone slice from a newer build may be packed in a form this one cannot unpack: refuse it
+            # clearly (MigrationError), not with whatever the unpacking tripped on.
+            from engine import social
+
+            raw_social = migrated.get("social") if isinstance(migrated, dict) else None
+            if social.declared() and isinstance(raw_social, dict) and raw_social.get("schema", 1) not in (1, 2):
+                logger.warning("[persistence] Save refused: its phone state is a newer schema "
+                               "(operation=load, id=%s)", save_id)
+                raise MigrationError(f"social: the save's phone state (schema {raw_social.get('schema')!r}) "
+                                     f"cannot be read by this build: {exc}") from exc
+            raise
+        # READ RECEIPTS (v0.23.0 spec §16.1, N8): a phone story's slice is upgraded HERE, the one load path
+        # every route takes (local resume, hosted, _flush_before_load), before _build, the first payload
+        # and the voicer. Lazily imported (the clock.py pattern): no other story imports engine.social's
+        # submodules, and CURRENT_SAVE_VERSION is untouched.
+        from engine import social
+
+        if social.declared() and getattr(state, "social", None):
+            from engine.social import migrate as social_migrate
+
+            try:
+                social_migrate.upgrade(state)
+            except MigrationError:
+                logger.warning("[persistence] Save refused: its phone state could not be upgraded "
+                               "(operation=load, id=%s)", save_id)
+                raise
 
         memory = read_json(self._dir(save_id) / "memory.json") or {}
         if not isinstance(memory, dict):
