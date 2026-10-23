@@ -1,0 +1,11 @@
+v0.24.0 T3: sound data and loader
+
+The sound data format (spec 3-5.1): engine/games/sounds.py loads, checks
+(every 4.4 fault names its file and key) and merges the engine's and a
+story's sounds.yaml; content/sounds/sounds.yaml is the engine's set with
+all 25 events bound; a sound: config block; check_sounds in the story
+validator; an "engine sounds" doctor row; the loader cache registered in
+caches and the module-state inventory. No story declares sounds yet, so
+every story is unchanged.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

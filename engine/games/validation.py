@@ -647,6 +647,7 @@ class StoryValidator:
 
         self.check_retired_paths()
         self.check_ui_panels()
+        self.check_sounds()
         self.check_state_schema()
         self.check_locations()
         self.check_items()
@@ -719,6 +720,19 @@ class StoryValidator:
                 self.schema_loaded = True
 
     # -- the manifest --------------------------------------------------------
+
+    def check_sounds(self) -> None:
+        """paths.sounds (v0.24.0 spec §4.4): the story's sounds.yaml, checked against the engine's set."""
+        if not (self.manifest.paths or {}).get("sounds"):
+            return
+        from engine.games import sounds
+
+        try:
+            sounds.load_story(self.manifest)
+        except (sounds.SoundError, OSError) as exc:
+            parts = str(exc).split(": ", 2)
+            self._add(parts[0] if len(parts) == 3 else "sounds.yaml", parts[1] if len(parts) == 3 else "sounds",
+                      parts[2] if len(parts) == 3 else str(exc))
 
     def check_ui_panels(self) -> None:
         """``ui.panels`` (spec §2.2): its errors, and an advisory per panel whose system is undeclared."""

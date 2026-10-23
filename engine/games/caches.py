@@ -151,6 +151,7 @@ NULLED_ATTRIBUTES: tuple[tuple[str, str], ...] = (
 # behaviour depends on what ran before it, and that is not a property worth
 # defending in a test.
 LRU_CACHES: tuple[tuple[str, str], ...] = (
+    ("engine.games.sounds", "_load_file"),
     ("engine.media.art", "load_subjects"),
     ("engine.media.providers.shipped", "load_manifest"),
     # The directory that manifest's paths resolve against. Read on every
@@ -284,6 +285,7 @@ RE_EXPORTS: tuple[tuple[str, str, str, str], ...] = (
 # A cache with no zero-argument public loader is warmed by a small function
 # in this module (``_warm_*``), named here like any other.
 WARMERS: tuple[tuple[str, str], ...] = (
+    ("engine.games.sounds", "warm"),
     ("engine.game.quests", "_ensure_grammar"),
     ("engine.state.active", "active_schema"),
     ("engine.state.active", "active_roster"),

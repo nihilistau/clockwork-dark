@@ -1319,6 +1319,15 @@ def check_ui(report: Report) -> None:
     report.add("UI", "fonts", OK if fonts else WARN,
                f"{len(fonts)} self-hosted" if fonts else "not self-hosted - will not render offline")
 
+    try:
+        from engine.games import sounds
+
+        engine_sounds = sounds.load_engine()["data"]
+        bound = sum(1 for value in engine_sounds["bind"].values() if value is not None)
+        report.add("UI", "engine sounds", OK, f"{len(engine_sounds['sounds'])} sounds, {bound} events bound")
+    except Exception as exc:  # noqa: BLE001 - diagnostics must not crash
+        report.add("UI", "engine sounds", FAIL, str(exc))
+
 
 def check_saves(report: Report) -> None:
     from engine.config import LegacyConfigError

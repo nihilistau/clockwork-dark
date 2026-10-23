@@ -3708,6 +3708,33 @@ resolves for them), checked against what the engine holds before it lands
 and again at commit. No line in any of these files may rate content (rule
 12).
 
+### 3.16 Sounds — `paths.sounds` (v0.24.0)
+
+A story hears the engine's set (`content/sounds/sounds.yaml`) unless it declares `paths.sounds: <dir>`; the
+directory holds its own `sounds.yaml` (and, from T7, `files/` and a provenance file). Sound is data: the
+browser plays it, the engine only loads, checks and serves it. A story with no `paths.sounds` is unchanged.
+
+- `version: 1`, then `events:` (story only), `sounds:` and `bind:`. An engine file also has `limits:`.
+- **A sound** is `category` (`ui game alert phone world`), a `label` (the audition page's words) and exactly one
+  of `synth:` (a parameter set: `layers` of oscillator or noise with `freq`/`to`/`glide_ms`, an envelope in
+  `attack_ms decay_ms sustain hold_ms release_ms`, `gain`, a `filter` and a `tremolo`; or a `sequence` of
+  `[at_ms, Hz or note name, length_ms]` notes on one `voice`; with `repeat` and `jitter_cents`) or `file:` (a
+  lower-case, portable `.ogg` path inside the directory, or `engine:<path>` to reuse an engine file). Every
+  file sound needs a `fallback:` synth. Optional: `gain throttle_ms essential rate start_ms`. No sound lasts
+  over 4000 ms.
+- **Events** are the things that happen. The engine's twenty-five are fixed (`ENGINE_EVENTS`); a story declares
+  its own under `events:` with a dotted id outside the engine's families (`ui. choice. turn. roll. alert. link.
+  game. cutscene. encounter. panel. plate.`).
+- **`bind:`** maps an event to a sound id, to `null` (silent on purpose) or, for a story's own event, to
+  `{default, choices}` (the player may pick among sounds of one category). A story's `bind:` overrides the
+  engine's per event; a story `sounds:` row with an engine id overrides that sound. Every declared event must be
+  bound.
+- **Checked** (`engine/games/sounds.py::check`, run by `validate_content` and `doctor.py`): an unknown key, a
+  value out of range, a missing label or category, both or neither of `synth`/`file`, a file with the wrong
+  case (rule 11: the check lists the directory, since `Path.exists()` is case-blind on Windows), a missing
+  fallback, an unbound event, a binding to an unknown sound, and a choice of another category. Each error
+  names the file and the key.
+
 ---
 
 ## 3.9 The studio — the same job, in a browser

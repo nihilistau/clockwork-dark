@@ -1060,6 +1060,10 @@ one — no bar width, no percentage, no tooltip with the integer in it. The band
 is the whole truth the player is allowed, and the shape of the payload row is
 the permission. Enforced by `tests/test_ui_contract.py` and by `ui/tests/`.
 
+### Sound (v0.24.0)
+
+Sound is client-side data. The engine's `content/sounds/sounds.yaml` and a story's optional `paths.sounds` name events, sounds (a synth parameter set, or an `.ogg` file with a synth fallback) and which sound each event plays (`engine/games/sounds.py`; AUTHORING 3.16). The server only loads, checks and serves that data and its files; the browser plays it, and no game state or rule depends on a sound.
+
 ---
 
 ## Technical Architecture
