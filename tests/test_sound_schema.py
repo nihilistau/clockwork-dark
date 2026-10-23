@@ -227,6 +227,17 @@ def test_the_story_validator_reports_a_bad_sounds_file(tmp_path, text, key) -> N
     assert validator.issues[0].severity == "error"
 
 
+def test_a_sounds_file_not_in_utf8_is_reported(tmp_path) -> None:
+    """Re-review R1: a file that is not UTF-8 is a fault named on the file, not a traceback."""
+    from engine.games.validation import StoryValidator
+
+    manifest = _manifest(tmp_path, "version: 1\n")
+    (tmp_path / "story_sounds" / "sounds.yaml").write_bytes(b"version: 1\nlabel: \xff\xfe\n")
+    validator = StoryValidator(manifest)
+    validator.check_sounds()
+    assert [(i.source, i.ref_id) for i in validator.issues] == [("story_sounds/sounds.yaml", "yaml")]
+
+
 def test_the_story_validator_passes_a_good_sounds_file(tmp_path) -> None:
     from engine.games.validation import StoryValidator
 

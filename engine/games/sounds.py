@@ -286,7 +286,7 @@ def _load_file(path: str, mtime: float, where: str, scope: str, engine_key: Opti
     try:
         with open(path, encoding="utf-8") as handle:
             data = yamlio.safe_load(handle) or {}
-    except yaml.YAMLError as exc:
+    except (yaml.YAMLError, UnicodeDecodeError) as exc:
         raise _fault(where, "yaml", f"is not valid YAML: {exc}") from exc
     root = Path(path).parent
     if engine_key is None:
