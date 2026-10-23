@@ -358,7 +358,7 @@ either.
 | Music and ambience (v0.24.0 sound) | `ui/src/core/sound/engine.js` | Effects only; no looping bed. A music layer would need its own bus, files and a setting. |
 | Phone calls in READ RECEIPTS (v0.24.0 sound) | `engine/social/media.py` | There is no call to ring: the ringtone event is the texter's incoming message. |
 | Haptics (v0.24.0 sound) | `ui/src/core/sound/engine.js` | `navigator.vibrate` is not called; a phone is silent to touch. |
-| File sounds on a browser without Ogg Vorbis (v0.24.0 sound) | `ui/src/core/sound/engine.js` | They play as their synth fallback (`oggSupported`); no other codec is shipped. |
+| File sounds on a browser without Ogg Vorbis (v0.24.0 sound) | `ui/src/core/sound/engine.js` | WebKit (iOS, where every browser is WebKit) may not decode Ogg Vorbis, and no version boundary is claimed: the `canPlayType` probe (`oggSupported`) plays every file sound as its synth fallback there; no other codec is shipped, and the fifteen files are never transcoded. |
 | Sound settings per account in hosted mode (v0.24.0 sound) | `ui/src/core/screens/Settings.jsx` | The levels live in the browser's `clockwork_prefs`, not the account. |
 | Sound in the studio and the admin panel (v0.24.0 sound) | `ui/src/studio/Studio.jsx`, `engine/hosting/admin/__init__.py` | Neither installs the sound engine. |
 | The audition page edits nothing (v0.24.0 sound) | `ui/src/core/sound/Audition.jsx` | It plays every sound and event; changing a sound is editing `sounds.yaml`. |

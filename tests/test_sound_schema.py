@@ -18,7 +18,8 @@ def _engine() -> dict[str, Any]:
 
 
 def _check_engine(data: dict[str, Any], root: Path) -> None:
-    sounds.check(data, where="sounds.yaml", root=root, story=False)
+    # The data under test is the engine's own, whose file rows name real files: check them in the engine's tree.
+    sounds.check(data, where="sounds.yaml", root=sounds.engine_root(), story=False)
 
 
 def _story(**rows: Any) -> dict[str, Any]:

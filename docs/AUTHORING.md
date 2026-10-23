@@ -3741,6 +3741,7 @@ browser plays it, the engine only loads, checks and serves it. A story with no `
   `game.save`, `game.ending`, `cutscene.start`, `encounter.start`, `panel.wanted|job|casing` (a rise or a
   new stage, inside a turn this page sent) and `plate.reveal`. A plugin that fires its own story events lists
   them in `soundEvents` (read by `tests/test_sound_events.py`).
+- **Files, provenance and the budget** (v0.24.0 T7): the engine ships fifteen CC0 `.ogg` files from Kenney's packs under `content/sounds/files/kenney/<pack>/`, and every story reuses them as `engine:files/kenney/...`; a story ships a `files/` directory only for audio of its own. A directory with files keeps a `PROVENANCE.yaml` (one row per file: path, sha256, bytes, author, pack, source URL, archive and its sha256, member, `licence: CC0-1.0`, licence file) and each pack's `License.txt` under `LICENSES/`; `tests/test_sound_provenance.py` holds one row per file, the bytes, the licence and the author. The budget (spec 8.3) is 1 MiB for all shipped audio, 48 KiB a file, Ogg Vorbis of at most 2 channels at 48 kHz or less (`tests/test_sound_budget.py`). Add a file with `python -I scripts/import_sounds.py --archive <zip> --pack "RPG Audio" --page <asset page> --member Audio/<name>.ogg --licence-member License.txt --downloaded <date> --to <sounds dir>`: it reads only the named members from the zip, never extracts or runs anything else, lower-cases the name (rule 11) and writes the provenance row. Download the zip into a fresh directory outside the repository.
 
 ---
 

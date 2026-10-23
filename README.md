@@ -989,6 +989,10 @@ Each story has its own README and CHANGELOG:
 
 When documents disagree, the code wins, then DESIGN.md.
 
+## Credits
+
+The engine's sound files are CC0 1.0 (public domain) recordings by Kenney (www.kenney.nl), from his Casino Audio, RPG Audio, Impact Sounds and Sci-fi Sounds packs. Each file's pack, archive hash and licence text are recorded in [content/sounds/PROVENANCE.yaml](content/sounds/PROVENANCE.yaml) and [content/sounds/LICENSES/](content/sounds/LICENSES/).
+
 ## Parent projects
 
 Built by merging patterns from:
