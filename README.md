@@ -491,6 +491,10 @@ declared meters and clocks.
   Narration levels, "Mute all sound" and "Quiet interface" (only alerts and
   messages), and a link to audition every sound (`/?sounds=1`). Nothing about
   sound reaches the server.
+- **The audition page** (`/?sounds=1`, a separate chunk a player never loads) lists the
+  engine's sounds and every story's, plays each one (or a whole section), and shows the
+  key to ask for a change by, the events, the source and a file's licence. It plays; it
+  edits nothing.
 
 </details>
 

@@ -136,3 +136,13 @@ def test_one_broken_story_does_not_sink_the_catalog(client, monkeypatch) -> None
     assert "broken" in rows["dev-story"]["error"]
     assert len(rows) > 1 and all("error" not in r for s, r in rows.items() if s != "dev-story")
     assert len(calls) == 1
+
+
+def test_a_file_row_carries_its_provenance(client) -> None:
+    body = client.get("/api/sounds/catalog").get_json()
+    files = [row for row in body["engine"]["sounds"].values() if "file" in row]
+    assert files
+    for row in files:
+        assert set(row["provenance"]) == {"author", "pack", "licence"}
+        assert row["provenance"]["licence"]
+        assert row["provenance"]["pack"]

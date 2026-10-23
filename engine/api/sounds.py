@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import copy
 import logging
+from pathlib import Path
 from typing import Any
 
+import yaml
 from flask import Blueprint, jsonify
 
 from engine.config import get_config
@@ -28,13 +30,42 @@ def _hosted_slugs() -> list[str] | None:
     return [str(s) for s in (get_config().get("hosting.stories") or [])]
 
 
-def _with_urls(catalogue: dict[str, Any]) -> dict[str, Any]:
+def _provenance(root: Any) -> dict[str, dict[str, Any]]:
+    """`{path: {author, pack, licence}}` from `<root>/PROVENANCE.yaml`, read per request; {} when absent or unreadable."""
+    from engine import yamlio
+
+    try:
+        with open(Path(root) / "PROVENANCE.yaml", encoding="utf-8") as handle:
+            rows = (yamlio.safe_load(handle) or {}).get("files") or []
+    except (OSError, ValueError, yaml.YAMLError):
+        return {}
+    return {str(r["path"]): {k: r.get(k) for k in ("author", "pack", "licence")}
+            for r in rows if isinstance(r, dict) and "path" in r}
+
+
+def _with_urls(catalogue: dict[str, Any], story_root: Any = None) -> dict[str, Any]:
+    from engine.games import sounds
+
+    tables: dict[str, dict[str, dict[str, Any]]] = {}
+
+    def table(scope: str) -> dict[str, dict[str, Any]]:
+        if scope not in tables:
+            root = sounds.engine_root() if scope == "_engine" or story_root is None else story_root
+            tables[scope] = _provenance(root)
+        return tables[scope]
+
     for row in catalogue["sounds"].values():
         if "file" in row:
             path = str(row["file"])
             scope, rel = ("_engine", path[len("engine:"):]) if path.startswith("engine:") else (row["scope"], path)
             row["url"] = f"/sound/{scope}/{rel}"
+            row["provenance"] = table(scope).get(rel) or None
     return catalogue
+
+
+def _story_root(manifest: Any) -> Any:
+    paths = getattr(manifest, "paths", None) or {}
+    return manifest.resolve(paths["sounds"]) if manifest is not None and paths.get("sounds") else None
 
 
 def sounds_blueprint(name: str = BLUEPRINT_NAME) -> Blueprint:
@@ -47,7 +78,8 @@ def sounds_blueprint(name: str = BLUEPRINT_NAME) -> Blueprint:
             return jsonify({"enabled": False})
         from engine.games import registry, sounds
 
-        return jsonify({"enabled": True, **_with_urls(sounds.merged(registry.entry_manifest()))})
+        manifest = registry.entry_manifest()
+        return jsonify({"enabled": True, **_with_urls(sounds.merged(manifest), _story_root(manifest))})
 
     @blueprint.get("/api/sounds/catalog")
     def api_catalog() -> Any:
@@ -66,7 +98,7 @@ def sounds_blueprint(name: str = BLUEPRINT_NAME) -> Blueprint:
                 logger.warning("sounds catalogue: %s: %s", slug, exc)
                 stories.append({"slug": slug, "title": manifest.title, "declares": True, "error": str(exc)})
                 continue
-            merged = _with_urls(sounds.merge(copy.deepcopy(engine_file), story))
+            merged = _with_urls(sounds.merge(copy.deepcopy(engine_file), story), _story_root(manifest))
             stories.append({"slug": slug, "title": manifest.title, "declares": story is not None,
                             "events": merged["events"], "sounds": merged["sounds"], "bind": merged["bind"],
                             "overrides": sorted(k for k, v in merged["sounds"].items() if v.get("overrides"))})

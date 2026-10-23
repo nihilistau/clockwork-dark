@@ -38,9 +38,22 @@ const kit = new URLSearchParams(window.location.search).get("kit");
 // on an ordinary server is a set of failed fetches rather than a way in.
 const studio = new URLSearchParams(window.location.search).get("studio");
 
+// The sound audition page (v0.24.0 spec §11), on the same terms: a lazy chunk a player never fetches.
+const sounds = new URLSearchParams(window.location.search).get("sounds");
+
 const root = createRoot(document.getElementById("root"));
 
-if (studio) {
+if (sounds) {
+  Promise.all([import("./core/sound/Audition.jsx"), import("./core/sound/audition.css")])
+    .then(([{ default: Audition }]) => {
+      document.title = "Sounds";
+      root.render(<Audition />);
+    })
+    .catch((err) => {
+      console.error("[sounds] failed to load", err);
+      root.render(<p style={{ padding: 24 }}>The sound list would not load.</p>);
+    });
+} else if (studio) {
   Promise.all([import("./studio/Studio.jsx"), import("./studio/studio.css")])
     .then(([{ default: Studio }]) => {
       // Not "Studio — <a story>": this tool edits every story on the machine,
