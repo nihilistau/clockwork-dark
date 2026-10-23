@@ -875,3 +875,62 @@ def test_the_morning_block_is_checked(receipts_active, morning, key) -> None:
     data["morning"] = morning
     with pytest.raises(ValueError, match=key.replace(".", r"\.")):
         social_scene.check_data(data)
+
+
+def test_a_morning_that_ends_by_itself_is_reported_as_the_morning(in_a_scene, monkeypatch) -> None:
+    """Review finding 1: the receipt said "They call it a night" over a morning that ran out of moments."""
+    from engine.social import scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="yours")
+    _moments(monkeypatch, "fine")
+    state.social["scene"]["energy"] = 100.0
+    result = {}
+    for _ in range(int(social_scene._data()["morning"]["moments"])):
+        result = social_scene.move(state, "quiet")
+    assert result["closed_by_them"] == "morning" and not state.social["scene"]
+    text = social_scene.receipt_lines(state, [{"skill": "social_scene", "result": result}])
+    assert "They have to get on with the day." in text and "call it a night" not in text
+
+
+@pytest.mark.parametrize("target, words", [
+    ("call_it_a_night", "You head home."),
+    ("call_it_a_night:plan:soon", "You head home, and say you'll do it again soon."),
+])
+def test_the_morning_at_theirs_closes_in_the_morning_words(in_a_scene, monkeypatch, target, words) -> None:
+    from engine.social import scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="theirs")
+    closers = dict(social_scene._close_options(state, state.social["scene"]))
+    assert closers[target].startswith("Head home")
+    result = social_scene.close(state, target)
+    assert result["ok"]
+    text = social_scene.receipt_lines(state, [{"skill": "social_close", "result": result,
+                                               "intent": {"action": "close", "target": target}}])
+    assert words in text and "call it a night" not in text.lower()
+
+
+def test_the_morning_is_worded_in_a_line_in_lower_case(in_a_scene, monkeypatch) -> None:
+    from engine.social import scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="yours")
+    assert social_scene._where_words(state, state.social["scene"]) == "The morning after, at yours"
+    assert social_scene._where_in_a_line(state, state.social["scene"]) == "the morning after, at yours"
+    assert "in person: the morning after, at yours." in social_scene.narration_line(state)
+
+
+def test_the_morning_opens_with_its_prior_bias(in_a_scene, monkeypatch) -> None:
+    """`morning.prior_bias` is added to the prior at the opening; another kind gets none of it."""
+    from engine.social import scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="yours")
+    social_scene.end_scene(state, "test")
+    monkeypatch.setattr(social_scene, "_prior_terms", lambda s, p: 0.0)
+    monkeypatch.setattr(social_scene, "_prior_draw", lambda s, p: 0.0)
+    bias = float(social_scene._data()["morning"]["prior_bias"])
+    assert bias != 0.0
+    for kind, want in (("morning", bias), ("date", 0.0)):
+        opened = social_scene.apply_effect(state, {"type": "social_scene", "op": "open", "pid": pid, "kind": kind,
+                                                    "location": "apt_kitchen"})
+        assert opened.get("ok")
+        assert abs(float(social_scene.current(state)["prior"]) - want) < 1e-6
+        state.social["scene"] = {}

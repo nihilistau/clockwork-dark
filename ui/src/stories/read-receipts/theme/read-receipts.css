@@ -2005,6 +2005,12 @@ body[data-story-skin="read-receipts"] {
   gap: 0 8px;
   min-width: 0;
 }
+.rr-companion__when {
+  flex: 0 0 100%;
+  font-size: 0.8em;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
 .rr-companion__stage,
 .rr-companion__close {
   opacity: 0.85;

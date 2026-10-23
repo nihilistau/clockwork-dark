@@ -500,7 +500,9 @@ def _where_words(state: GameState, scn: dict[str, Any]) -> str:
     if scn.get("kind") == CHANCE:
         return f"Ran into each other at {places.label(location)}"
     if scn.get("kind") == MORNING:
-        return "The morning after, at yours" if places.is_flat(location) else f"The morning after, at {_name(state, str(scn.get('pid') or ''))}'s"
+        if places.is_flat(location):
+            return "The morning after, at yours"
+        return f"The morning after, at {_name(state, str(scn.get('pid') or ''))}'s"
     if location in places.venue_ids():
         return places.place_line(location)
     if places.is_home(location):
@@ -515,7 +517,8 @@ def _where_in_a_line(state: GameState, scn: dict[str, Any]) -> str:
     history line keeps the capital); every other kind's words as they are."""
     if scn.get("kind") == CHANCE:
         return f"you ran into each other at {places.label(str(scn.get('location') or ''))}"
-    return _where_words(state, scn)
+    words = _where_words(state, scn)
+    return words[:1].lower() + words[1:] if scn.get("kind") == MORNING else words
 
 
 # -- opening (§10.1) ---------------------------------------------------------------------------------
@@ -779,6 +782,8 @@ def close(state: GameState, target: str) -> dict[str, Any]:
     name, _, arg = target.partition(":")
     data = _data().get("close") or {}
     out: dict[str, Any] = {"ok": True, "pid": pid, "closer": name}
+    if scn.get("kind") == MORNING:
+        out["kind"] = MORNING                           # the receipt's words are the morning's (`_close_words`)
     if name == "another_round":
         apply_effect(state, {"type": "social_scene", "op": "round"})
         clock.advance_time(state, float(data.get("another_round_minutes", 30)) / 60.0)
@@ -1420,7 +1425,7 @@ CLOSER_WORDS: dict[str, str] = {
     "propose": "You ask them to marry you. They say yes.", "see_them_out": "You see them to the door.",
 }
 #: Why a scene ended by itself, in the engine's words (`receipt_lines`); any other reason is them calling it a night.
-CLOSED_WORDS: dict[str, str] = {WEDDING: "You are married."}
+CLOSED_WORDS: dict[str, str] = {WEDDING: "You are married.", MORNING: "They have to get on with the day."}
 #: A scene's receipts: the skills its verbs run (`intents`' `scene`, `close` and, at the flat, `do`).
 SCENE_SKILLS: tuple[str, ...] = ("social_scene", "social_close", "social_do")
 
@@ -1521,6 +1526,8 @@ def _close_words(state: GameState, receipt: dict[str, Any], result: dict[str, An
 
         row = ((state.social.get("promises") or {}).get(str(result.get("promise_id") or "")) or {"window": value})
         words = f"You call it a night, and say you'll message them {promises.window_words(row, speaker='player')}."
+    elif name == "call_it_a_night" and result.get("kind") == MORNING:     # "Head home" after a night at theirs
+        words = "You head home" + (", and say you'll do it again soon." if what == "plan" else ".")
     elif name == "call_it_a_night" and what == "plan":
         words = "You call it a night, and say you'll do it again soon."
     elif name == "see_them_out" and what == "plan":
