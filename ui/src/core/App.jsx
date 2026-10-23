@@ -156,11 +156,12 @@ export default function App({ story }) {
     // is about to re-send never reaches the store. For a story with no
     // phone nothing is ever in flight there, and every action passes.
     const socket = connect((action) => {
+      if (phoneRef.current.filter(action)) return;
+      // Counted after the phone's filter: a frame it swallows is not a turn's answer.
       if (action && action.type === "SOCKET") {
         if (action.event === "turn_update") turnUpdates.current += 1;
         if (action.event === "turn_error") phoneUpRefusal.current = Boolean(action.payload && action.payload.phone_up);
       }
-      if (phoneRef.current.filter(action)) return;
       dispatch(action);
     });
     socketRef.current = socket;
@@ -237,7 +238,9 @@ export default function App({ story }) {
     player.src = state.audio;
     player.volume = narrationVolume(prefs);
     player.play().catch(() => {});
-  }, [state.audio, muted, prefs.volume, prefs.soundMaster]);
+    // The sliders are not deps: the effect below applies them live, and a drag must not restart the line.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.audio, muted]);
 
   // Volume is live, not next-line: a player reaching for the slider mid-
   // paragraph means "quieter now".
@@ -254,6 +257,11 @@ export default function App({ story }) {
   useSoundOnChange(state.ending ? state.ending.id || state.ending.ending_id || "ending" : null, "game.ending", {
     when: (a, b) => !a && Boolean(b),
   });
+  // The cutscene's cue lives here, not in Cutscene: that component mounts only once state.cutscene is set,
+  // and a hook is silent on its first render.
+  useSoundOnChange(state.cutscene ? state.cutscene.id || "cutscene" : null, "cutscene.start", {
+    when: (a, b) => !a && Boolean(b),
+  });
   useTurnSounds({
     busy: state.busy,
     error: state.error,
@@ -266,6 +274,7 @@ export default function App({ story }) {
   const begin = useCallback(async (payload) => {
     again.current = () => begin(payload);
     turnSent({ begin: true });
+    phoneUpRefusal.current = false;
     dispatch({ type: "SUBMIT", text: "" });
     let left;
     let answered = false;
@@ -309,6 +318,7 @@ export default function App({ story }) {
       if (!controlsLive(state) || !state.sessionId) return;
       const emit = (spoken, id, move) => {
         turnSent();
+        phoneUpRefusal.current = false; // a new submit forgets the last turn's refusal
         dispatch({ type: "SUBMIT", text: spoken, ...(move ? { move } : {}) });
         socketRef.current?.emit("player_choice", {
           // Read when SENT, not when pressed: a retry (Try again) after a

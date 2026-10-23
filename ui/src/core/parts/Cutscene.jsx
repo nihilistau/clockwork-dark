@@ -11,7 +11,6 @@
  */
 import React, { useEffect, useState } from "react";
 import useFocusTrap from "../hooks/useFocusTrap.js";
-import { useSoundOnChange } from "../sound/index.js";
 
 const SKIP_AFTER_MS = 5000;
 const CAPTION_MS = 4200;
@@ -25,7 +24,6 @@ export default function Cutscene({ cutscene, onClose }) {
   const frameRef = useFocusTrap(onClose);
 
   const captions = cutscene?.captions || [];
-  useSoundOnChange(cutscene ? cutscene.id || "cutscene" : null, "cutscene.start", { when: (a, b) => !a && Boolean(b) });
 
   useEffect(() => {
     if (!cutscene) return undefined;

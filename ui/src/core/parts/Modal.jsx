@@ -10,13 +10,22 @@ import React, { useEffect } from "react";
 import useFocusTrap from "../hooks/useFocusTrap.js";
 import { playSound } from "../sound/index.js";
 
+// How many Modals have opened. A Modal that closes in the same action another opens (the pause menu to Settings
+// or Saves) yields to the new one's ui.open: one click, one sound.
+let opened = 0;
+
 export default function Modal({ title, onClose, children, footer, wide = false }) {
   const ref = useFocusTrap(onClose);
 
   // ui.open on mount, ui.close on unmount: every way out sounds once (the close button is data-sound="none").
   useEffect(() => {
+    opened += 1;
     playSound("ui.open");
-    return () => playSound("ui.close");
+    return () => {
+      const at = opened;
+      // The next Modal's mount effect runs in this same commit, before this microtask.
+      queueMicrotask(() => { if (opened === at) playSound("ui.close"); });
+    };
   }, []);
 
   // Clicking the backdrop closes, which is what every player already expects

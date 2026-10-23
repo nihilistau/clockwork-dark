@@ -64,6 +64,25 @@ describe("rule 3: one action, one sound", () => {
     expect(events()).toEqual(["ui.open"]);
   });
 
+  it("one Modal giving way to another in the same action sounds ui.open alone; a plain close sounds ui.close", async () => {
+    function Swap() {
+      const [which, setWhich] = useState("menu");
+      return (<>
+        {which === "menu" && <Modal title="M" onClose={() => setWhich(null)}><button data-sound="none" onClick={() => setWhich("settings")}>go</button></Modal>}
+        {which === "settings" && <Modal title="S" onClose={() => setWhich(null)}>x</Modal>}
+      </>);
+    }
+    view.render(<Swap />);
+    await flush();
+    expect(events()).toEqual(["ui.open"]);
+    click([...document.querySelectorAll("button")].find((b) => b.textContent === "go"));
+    await flush();
+    expect(events()).toEqual(["ui.open", "ui.open"]);
+    click(document.querySelector('button[aria-label="Close"]'));
+    await flush();
+    expect(events()).toEqual(["ui.open", "ui.open", "ui.close"]);
+  });
+
   it("a typed line sends once, by its button or by Enter (F21)", async () => {
     const onCustom = vi.fn();
     const state = { ...initialState, screen: "scene", sessionId: "s1", link: "live",
