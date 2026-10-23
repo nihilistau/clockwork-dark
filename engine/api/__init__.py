@@ -9,6 +9,7 @@ The routes every story serves, as Blueprint factories.
     /api/saves/*        list, write, load, delete
     /api/settings       the player's own knobs
     /api/art            manifest art key -> URL
+    /api/sounds         the running story's sound catalogue; /sound/... its files
     /api/metrics        what the agents are actually doing
     /api/audio/<name>   synthesized narration
     /api/media/<name>   generated stills and portraits
@@ -45,6 +46,7 @@ from engine.api.media import media_blueprint
 from engine.api.metrics import metrics_blueprint
 from engine.api.saves import saves_blueprint
 from engine.api.settings import settings_blueprint
+from engine.api.sounds import sounds_blueprint
 from engine.api.voice import voice_blueprint
 from engine.games.api import games_blueprint
 from engine.session import SessionStore
@@ -75,6 +77,7 @@ def shared_blueprints(
         saves_blueprint(store, llm_fn=llm_fn),
         settings_blueprint(),
         art_blueprint(),
+        sounds_blueprint(),
         metrics_blueprint(),
         media_blueprint(),
         voice_blueprint(store),
@@ -89,6 +92,7 @@ __all__ = [
     "metrics_blueprint",
     "saves_blueprint",
     "settings_blueprint",
+    "sounds_blueprint",
     "shared_blueprints",
     "shipped_art_url",
     "voice_blueprint",

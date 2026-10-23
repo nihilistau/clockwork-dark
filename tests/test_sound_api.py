@@ -1,0 +1,87 @@
+"""The sound routes (v0.24.0 spec §10)."""
+
+from __future__ import annotations
+
+from typing import Any, Iterator
+
+import pytest
+
+
+@pytest.fixture
+def client() -> Iterator[Any]:
+    from engine.scenes.default_scene import create_app, reset_store
+
+    reset_store()
+    _, app = create_app(testing=True, llm_fn=lambda _m: "{}")
+    yield app.test_client()
+
+
+def test_the_running_storys_catalogue(client) -> None:
+    body = client.get("/api/sounds").get_json()
+    assert body["enabled"] is True
+    assert body["bind"]["turn.arrive"] in body["sounds"]
+    assert body["events"][:3] == ["ui.press", "ui.toggle", "ui.open"]
+    assert body["limits"]["voices"] == 8
+
+
+def test_sound_off_answers_enabled_false(client, monkeypatch) -> None:
+    from engine.config import get_config
+
+    real = get_config().get
+    monkeypatch.setattr(type(get_config()), "get", lambda self, k, d=None: False if k == "sound.enabled" else real(k, d))
+    assert client.get("/api/sounds").get_json() == {"enabled": False}
+
+
+def test_the_catalog_lists_the_engine_and_every_story(client) -> None:
+    from engine.games import registry
+
+    body = client.get("/api/sounds/catalog").get_json()
+    assert body["engine"]["sounds"]
+    slugs = [row["slug"] for row in body["stories"]]
+    assert slugs == sorted(registry.discover())
+    dev = next(row for row in body["stories"] if row["slug"] == "dev-story")
+    assert dev["declares"] is False and dev["overrides"] == []
+
+
+def test_a_file_is_served_as_private_ogg(client, tmp_path, monkeypatch) -> None:
+    from engine.games import sounds
+
+    root = tmp_path / "sounds"
+    (root / "files").mkdir(parents=True)
+    (root / "files" / "a.ogg").write_bytes(b"OggS" + b"\x00" * 60)
+    monkeypatch.setattr(sounds, "engine_root", lambda: root)
+    response = client.get("/sound/_engine/files/a.ogg")
+    assert response.status_code == 200
+    assert response.mimetype == "audio/ogg"
+    assert response.headers["Cache-Control"].startswith("private, max-age=")
+
+
+@pytest.mark.parametrize("url", [
+    "/sound/_engine/../config/default.yaml", "/sound/_engine/files/../../x.ogg", "/sound/no-such-story/a.ogg",
+    "/sound/dev-story/a.ogg", "/sound/_engine/files/A.OGG",
+    "/sound/_engine/%2e%2e/%2e%2e/a.ogg", "/sound/_engine/files%5C..%5Ca.ogg", "/sound/_engine/files%5Ca.ogg",
+    "/sound/_engine/files/a.txt",
+])
+def test_anything_else_is_404(client, tmp_path, monkeypatch, url) -> None:
+    from engine.games import sounds
+
+    root = tmp_path / "sounds"
+    (root / "files").mkdir(parents=True)
+    (root / "files" / "a.ogg").write_bytes(b"OggS" + b"\x00" * 60)
+    (root / "files" / "a.txt").write_text("x")
+    (tmp_path / "a.ogg").write_bytes(b"OggS")          # a real file just above the root: traversal must not reach it
+    monkeypatch.setattr(sounds, "engine_root", lambda: root)
+    assert client.get(url).status_code == 404
+
+
+def test_an_absolute_path_is_404(client, tmp_path, monkeypatch) -> None:
+    from engine.games import sounds
+
+    outside = tmp_path / "outside.ogg"
+    outside.write_bytes(b"OggS")
+    root = tmp_path / "sounds"
+    root.mkdir()
+    monkeypatch.setattr(sounds, "engine_root", lambda: root)
+    absolute = str(outside).replace("\\", "/").lstrip("/")
+    assert client.get(f"/sound/_engine/{absolute}").status_code == 404
+    assert client.get(f"/sound/_engine//{absolute}", follow_redirects=True).status_code == 404
