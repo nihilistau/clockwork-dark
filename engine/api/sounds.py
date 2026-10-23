@@ -8,6 +8,7 @@ Sound HTTP API (v0.24.0 spec §10): data and files only. The server never plays,
 
 from __future__ import annotations
 
+import copy
 import logging
 from typing import Any
 
@@ -46,7 +47,7 @@ def sounds_blueprint(name: str = BLUEPRINT_NAME) -> Blueprint:
             return jsonify({"enabled": False})
         from engine.games import registry, sounds
 
-        return jsonify({"enabled": True, **_with_urls(sounds.merged(registry.peek()))})
+        return jsonify({"enabled": True, **_with_urls(sounds.merged(registry.entry_manifest()))})
 
     @blueprint.get("/api/sounds/catalog")
     def api_catalog() -> Any:
@@ -54,12 +55,18 @@ def sounds_blueprint(name: str = BLUEPRINT_NAME) -> Blueprint:
 
         allowed = _hosted_slugs()
         engine = sounds.merged(None)
+        engine_file = sounds.load_engine()      # once per request, not once per story
         stories = []
         for slug, manifest in sorted(registry.discover().items()):
             if allowed is not None and slug not in allowed:
                 continue
-            story = sounds.load_story(manifest)
-            merged = _with_urls(sounds.merge(sounds.load_engine(), story))
+            try:
+                story = sounds.load_story(manifest)
+            except sounds.SoundError as exc:
+                logger.warning("sounds catalogue: %s: %s", slug, exc)
+                stories.append({"slug": slug, "title": manifest.title, "declares": True, "error": str(exc)})
+                continue
+            merged = _with_urls(sounds.merge(copy.deepcopy(engine_file), story))
             stories.append({"slug": slug, "title": manifest.title, "declares": story is not None,
                             "events": merged["events"], "sounds": merged["sounds"], "bind": merged["bind"],
                             "overrides": sorted(k for k, v in merged["sounds"].items() if v.get("overrides"))})
@@ -81,7 +88,10 @@ def sounds_blueprint(name: str = BLUEPRINT_NAME) -> Blueprint:
             root = manifest.resolve(manifest.paths["sounds"])
         if not name.endswith(".ogg") or not sounds.exists_exact(root, name):
             return jsonify({"error": "not found"}), 404       # also refuses any '..' part: it is in no listing
-        response = send_file(root / name, mimetype="audio/ogg", conditional=True)
+        target = (root / name).resolve()
+        if not target.is_relative_to(root.resolve()):
+            return jsonify({"error": "not found"}), 404       # a link inside the root that leaves it
+        response = send_file(target, mimetype="audio/ogg", conditional=True)
         response.headers["Cache-Control"] = f"private, max-age={int(get_config().get('sound.cache_seconds', 3600))}"
         return response
 

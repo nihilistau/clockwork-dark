@@ -363,7 +363,8 @@ without a login, and their files carry `Cache-Control: private,
 max-age=<sound.cache_seconds>` (3600), so a shared cache never keeps them. In
 hosted mode a story outside `hosting.stories` is not listed by the catalogue
 and its `/sound/<slug>/...` files answer `404`. The server only serves the
-data and the `.ogg` files; the browser makes the sound.
+data and the `.ogg` files; the browser makes the sound. The files are served whether or not
+`sound.enabled` is set; the setting only stops the client from playing them.
 
 The login is Flask's signed cookie, `clockwork_session` (`HttpOnly`,
 `SameSite=Lax`, `Secure` unless `hosting.cookie_secure: false`), valid for

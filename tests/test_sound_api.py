@@ -58,7 +58,7 @@ def test_a_file_is_served_as_private_ogg(client, tmp_path, monkeypatch) -> None:
 
 @pytest.mark.parametrize("url", [
     "/sound/_engine/../config/default.yaml", "/sound/_engine/files/../../x.ogg", "/sound/no-such-story/a.ogg",
-    "/sound/dev-story/a.ogg", "/sound/_engine/files/A.OGG",
+    "/sound/dev-story/a.ogg", "/sound/_engine/files/A.ogg",
     "/sound/_engine/%2e%2e/%2e%2e/a.ogg", "/sound/_engine/files%5C..%5Ca.ogg", "/sound/_engine/files%5Ca.ogg",
     "/sound/_engine/files/a.txt",
 ])
@@ -85,3 +85,54 @@ def test_an_absolute_path_is_404(client, tmp_path, monkeypatch) -> None:
     absolute = str(outside).replace("\\", "/").lstrip("/")
     assert client.get(f"/sound/_engine/{absolute}").status_code == 404
     assert client.get(f"/sound/_engine//{absolute}", follow_redirects=True).status_code == 404
+
+
+def test_a_link_out_of_the_root_is_404(client, tmp_path, monkeypatch) -> None:
+    from engine.games import sounds
+
+    outside = tmp_path / "outside.ogg"
+    outside.write_bytes(b"OggS")
+    root = tmp_path / "sounds"
+    root.mkdir()
+    try:
+        (root / "link.ogg").symlink_to(outside)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"symlinks cannot be created here: {exc}")
+    monkeypatch.setattr(sounds, "engine_root", lambda: root)
+    assert client.get("/sound/_engine/link.ogg").status_code == 404
+
+
+def test_no_active_story_uses_the_entry_manifest(client, monkeypatch) -> None:
+    from engine.games import registry, sounds
+
+    seen: list[Any] = []
+    real = sounds.merged
+    monkeypatch.setattr(registry, "peek", lambda: None)
+    monkeypatch.setattr(registry, "active", lambda *a, **k: (_ for _ in ()).throw(AssertionError("activated")))
+    marker = object()
+    monkeypatch.setattr(registry, "entry_manifest", lambda: marker)
+    monkeypatch.setattr(sounds, "merged", lambda m: (seen.append(m), real(None))[1])
+    assert client.get("/api/sounds").status_code == 200
+    assert seen == [marker]
+
+
+def test_one_broken_story_does_not_sink_the_catalog(client, monkeypatch) -> None:
+    from engine.games import sounds
+
+    real = sounds.load_story
+    calls: list[int] = []
+    real_engine = sounds.load_engine
+    monkeypatch.setattr(sounds, "load_engine", lambda: (calls.append(1), real_engine())[1])
+
+    def load_story(manifest):
+        if manifest.slug == "dev-story":
+            raise sounds.SoundError("sounds.yaml", "sounds.x", "broken")
+        return real(manifest)
+
+    monkeypatch.setattr(sounds, "load_story", load_story)
+    response = client.get("/api/sounds/catalog")
+    assert response.status_code == 200
+    rows = {row["slug"]: row for row in response.get_json()["stories"]}
+    assert "broken" in rows["dev-story"]["error"]
+    assert len(rows) > 1 and all("error" not in r for s, r in rows.items() if s != "dev-story")
+    assert len(calls) == 1

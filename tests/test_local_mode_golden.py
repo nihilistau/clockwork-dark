@@ -528,7 +528,7 @@ def with_read_receipts(value: Any) -> None:
 RECEIPTS_SANCTION: tuple[str, Callable[[str], str]] = ("games.json", json_sanction(with_read_receipts))
 
 
-#: S13 (v0.24.0 spec ง10): the sound blueprint's three URL rules, and nothing else in the app's shape.
+#: S13 (v0.24.0 spec ยง10): the sound blueprint's three URL rules, and nothing else in the app's shape.
 SOUND_RULES: list[list[Any]] = [
     ["/api/sounds", ["GET", "HEAD", "OPTIONS"], "sounds.api_sounds"],
     ["/api/sounds/catalog", ["GET", "HEAD", "OPTIONS"], "sounds.api_catalog"],
@@ -545,7 +545,7 @@ def with_sound_rules(value: Any) -> None:
 
 SOUND_RULES_SANCTION: tuple[str, Callable[[str], str]] = ("app_shape.json", json_sanction(with_sound_rules))
 
-#: S12 (v0.24.0 spec ง10): `paths.sounds` in each declaring story's catalogue rows, filled by the task that
+#: S12 (v0.24.0 spec ยง10): `paths.sounds` in each declaring story's catalogue rows, filled by the task that
 #: makes the story declare it (T9 READ RECEIPTS, through READ_RECEIPTS_ROW; T10 the other five). Empty until
 #: then, so each of those tasks moves the golden by exactly its own rows; S12's `SANCTIONED` entries and its
 #: exactness test land with T10, when a sanction can change its fixture.
