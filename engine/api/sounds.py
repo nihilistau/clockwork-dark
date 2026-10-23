@@ -50,8 +50,9 @@ def _with_urls(catalogue: dict[str, Any], story_root: Any = None) -> dict[str, A
 
     def table(scope: str) -> dict[str, dict[str, Any]]:
         if scope not in tables:
-            root = sounds.engine_root() if scope == "_engine" or story_root is None else story_root
-            tables[scope] = _provenance(root)
+            # A story-scoped row reads its own story's table; with no sounds root it has none (never the engine's).
+            root = sounds.engine_root() if scope == "_engine" else story_root
+            tables[scope] = {} if root is None else _provenance(root)
         return tables[scope]
 
     for row in catalogue["sounds"].values():

@@ -86,8 +86,11 @@ export default function Audition() {
   }, []);
 
   useEffect(() => {
-    // The engine's own listener (installed first) runs the Ogg probe; this one re-renders after it, in a microtask.
-    const onGesture = () => Promise.resolve().then(() => { setUnlocked(true); setProbe((n) => n + 1); });
+    // Whichever listener runs first on a gesture, the engine's unlock (which runs the Ogg probe) has run by the next
+    // task, so the re-render waits one: it never depends on listener order (a native event can run microtasks between).
+    const onGesture = () => {
+      timers.current.push(setTimeout(() => { setUnlocked(true); setProbe((n) => n + 1); }, 0));
+    };
     for (const t of GESTURES) window.addEventListener(t, onGesture, true);
     const onKey = (e) => {
       if (e.key === "/" && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName || "")) {
@@ -105,8 +108,10 @@ export default function Audition() {
 
   useEffect(() => {
     setLevels({ ...prefs, quietInterface: false });
-    savePrefs(prefs);
   }, [prefs]);
+
+  // clockwork_prefs is written only when the player changes a level or the mute, never on mount.
+  const changePrefs = (next) => { setPrefs(next); savePrefs(next); };
 
   const scopes = useMemo(() => {
     if (!body) return [];
@@ -147,10 +152,10 @@ export default function Audition() {
         <label className="audition__master">Master{" "}
           <input
             type="range" min="0" max="1" step="0.05" value={prefs.soundMaster ?? 0.8}
-            onChange={(e) => setPrefs({ ...prefs, soundMaster: Number(e.target.value) })}
+            onChange={(e) => changePrefs({ ...prefs, soundMaster: Number(e.target.value) })}
           />
         </label>
-        <label><input type="checkbox" checked={!!prefs.muted} onChange={(e) => setPrefs({ ...prefs, muted: e.target.checked })} /> Mute</label>
+        <label><input type="checkbox" checked={!!prefs.muted} onChange={(e) => changePrefs({ ...prefs, muted: e.target.checked })} /> Mute</label>
       </div>
       {scopes.map((sc) => {
         const sounds = sc.data.sounds || {};

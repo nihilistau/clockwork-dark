@@ -2,7 +2,7 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CATALOG, gesture, installFakeAudio } from "./helpers/fake-audio.js";
-import { click, mount, typeInto } from "./helpers/dom.js";
+import { click, key, mount, typeInto } from "./helpers/dom.js";
 import { resetSound, soundLog } from "../src/core/sound/index.js";
 import Audition from "../src/core/sound/Audition.jsx";
 
@@ -27,6 +27,7 @@ const BENCH = { slug: "bench", title: "Bench", declares: false, events: [...ENGI
 const BROKEN = { slug: "broken", title: "Broken", declares: true, error: "games/broken/data/sounds/sounds.yaml: sounds.x: bad" };
 const BODY = { engine: ENGINE, stories: [STORY, BENCH, BROKEN] };
 
+const gestureAndSettle = () => React.act(async () => { gesture(); await new Promise((r) => setTimeout(r, 5)); });
 const section = (host, scope) => host.querySelector(`section[data-scope="${scope}"]`);
 const row = (host, scope, id) => section(host, scope).querySelector(`[data-sound-id="${id}"]`);
 
@@ -39,7 +40,7 @@ function installAudio(opts) {
   return log;
 }
 
-beforeEach(() => { view = mount(); });
+beforeEach(() => { try { localStorage.clear(); } catch { /* none */ } view = mount(); });
 afterEach(() => { view.unmount(); resetSound(); });
 
 describe("the audition page", () => {
@@ -65,12 +66,12 @@ describe("the audition page", () => {
   it("marks a file row 'fallback' once the Ogg probe fails, and not when it succeeds (F9, F29)", async () => {
     installAudio({ canPlayOgg: "" }); resetSound({ logPlays: true });
     await view.renderAsync(<Audition />);
-    await React.act(async () => { gesture(); });
+    await gestureAndSettle();
     expect(row(view.host, "probe", "story.door").getAttribute("data-fallback")).toBe("true");
     view.unmount(); view = mount();
     installAudio({ canPlayOgg: "probably" }); resetSound({ logPlays: true });
     await view.renderAsync(<Audition />);
-    await React.act(async () => { gesture(); });
+    await gestureAndSettle();
     expect(row(view.host, "probe", "story.door").getAttribute("data-fallback")).not.toBe("true");
   });
 
@@ -97,5 +98,53 @@ describe("the audition page", () => {
     await view.renderAsync(<Audition />);
     click(row(view.host, "probe", "ui.click").querySelector("button.audition__copy"));
     expect(write).toHaveBeenCalledWith(PROBE_KEY("ui.click"));
+  });
+
+  it("marks the fallback even when the engine's unlock listener is registered AFTER the page's (not listener order)", async () => {
+    installAudio({ canPlayOgg: "" }); resetSound({ logPlays: true });
+    await view.renderAsync(<Audition />);
+    resetSound({ logPlays: true });       // a fresh engine: its unlock listener now sits behind the page's own
+    await gestureAndSettle();
+    expect(row(view.host, "probe", "story.door").getAttribute("data-fallback")).toBe("true");
+  });
+
+  it("writes clockwork_prefs only when the player changes a level, not on mount", async () => {
+    installAudio(); resetSound(); localStorage.clear();
+    await view.renderAsync(<Audition />);
+    expect(localStorage.getItem("clockwork_prefs")).toBeNull();
+    const mute = view.host.querySelector('input[type="checkbox"]');
+    click(mute);
+    expect(JSON.parse(localStorage.getItem("clockwork_prefs")).muted).toBe(true);
+  });
+
+  it("shows the unlock bar until the first gesture", async () => {
+    installAudio(); resetSound();
+    await view.renderAsync(<Audition />);
+    expect(view.host.querySelector(".audition__unlock")).not.toBeNull();
+    await gestureAndSettle();
+    expect(view.host.querySelector(".audition__unlock")).toBeNull();
+  });
+
+  it("'/' focuses the filter, but not while typing in it", async () => {
+    installAudio(); resetSound();
+    await view.renderAsync(<Audition />);
+    const filter = view.host.querySelector("input.audition__filter");
+    document.body.appendChild(view.host);
+    key("/");
+    expect(document.activeElement).toBe(filter);
+  });
+
+  it("'Play each' plays every row of its section, one a second, and only that section", async () => {
+    vi.useFakeTimers();
+    try {
+      installAudio(); resetSound({ logPlays: true });
+      await view.renderAsync(<Audition />);
+      await React.act(async () => { gesture(); await vi.advanceTimersByTimeAsync(5); });
+      const ids = Object.keys(STORY.sounds);
+      click(section(view.host, "probe").querySelector("button.audition__each"));
+      await React.act(async () => { await vi.advanceTimersByTimeAsync(ids.length * 1000); });
+      const played = soundLog().filter((r) => !r.dropped).map((r) => r.sound);
+      expect(played).toEqual(ids);       // every row of the probe section, in order, none of the others
+    } finally { vi.useRealTimers(); }
   });
 });

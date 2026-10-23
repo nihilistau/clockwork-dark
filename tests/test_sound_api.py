@@ -146,3 +146,47 @@ def test_a_file_row_carries_its_provenance(client) -> None:
         assert set(row["provenance"]) == {"author", "pack", "licence"}
         assert row["provenance"]["licence"]
         assert row["provenance"]["pack"]
+
+
+def _catalogue(*rows: dict[str, Any]) -> dict[str, Any]:
+    return {"sounds": {f"s{i}": dict(row) for i, row in enumerate(rows)}}
+
+
+def test_a_missing_provenance_file_gives_none_and_crashes_nothing(tmp_path, monkeypatch) -> None:
+    from engine.api import sounds as api
+    from engine.games import sounds
+
+    monkeypatch.setattr(sounds, "engine_root", lambda: tmp_path)       # an empty root: no PROVENANCE.yaml
+    out = api._with_urls(_catalogue({"file": "engine:files/a.ogg", "scope": "_engine"}))
+    row = out["sounds"]["s0"]
+    assert row["provenance"] is None
+    assert row["url"] == "/sound/_engine/files/a.ogg"
+
+
+def test_a_story_file_row_reads_its_own_stories_table(tmp_path, monkeypatch) -> None:
+    from engine.api import sounds as api
+    from engine.games import sounds
+
+    engine, story = tmp_path / "engine", tmp_path / "story"
+    engine.mkdir(); story.mkdir()
+    (engine / "PROVENANCE.yaml").write_text(
+        "files:\n- {path: files/door.ogg, author: Engine Author, pack: Engine Pack, licence: CC0-1.0}\n", encoding="utf-8")
+    (story / "PROVENANCE.yaml").write_text(
+        "files:\n- {path: files/door.ogg, author: Story Author, pack: Story Pack, licence: CC-BY-4.0}\n", encoding="utf-8")
+    monkeypatch.setattr(sounds, "engine_root", lambda: engine)
+    out = api._with_urls(_catalogue({"file": "files/door.ogg", "scope": "probe"},
+                                    {"file": "engine:files/door.ogg", "scope": "probe"}), story)
+    assert out["sounds"]["s0"]["provenance"]["pack"] == "Story Pack"
+    assert out["sounds"]["s0"]["url"] == "/sound/probe/files/door.ogg"
+    assert out["sounds"]["s1"]["provenance"]["pack"] == "Engine Pack"
+
+
+def test_a_story_file_row_with_no_sounds_root_never_reads_the_engines_table(tmp_path, monkeypatch) -> None:
+    from engine.api import sounds as api
+    from engine.games import sounds
+
+    (tmp_path / "PROVENANCE.yaml").write_text(
+        "files:\n- {path: files/door.ogg, author: A, pack: P, licence: CC0-1.0}\n", encoding="utf-8")
+    monkeypatch.setattr(sounds, "engine_root", lambda: tmp_path)
+    out = api._with_urls(_catalogue({"file": "files/door.ogg", "scope": "probe"}), None)
+    assert out["sounds"]["s0"]["provenance"] is None
