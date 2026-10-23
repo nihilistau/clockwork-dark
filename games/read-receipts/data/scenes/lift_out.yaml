@@ -1,7 +1,7 @@
 # READ RECEIPTS -- lift out (v0.24.0 spec §12.2): a life event's world moment.
 # ==========================================================================
 #
-# Dealt in the bldg_lift while the lift in the building is going on (`life_lift_out`, set by the life event `lift_out` in
+# Dealt at the lift while the building's lift is out of order (`life_lift_out`, set by the life event `lift_out` in
 # data/social/life_events.yaml and cleared when it has run its days, or by any answer here). Read by
 # engine/content/deck.py through `paths.decks`; THE FILENAME IS THE DECK ID.
 #

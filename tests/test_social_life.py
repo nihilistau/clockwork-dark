@@ -538,6 +538,7 @@ def _lift_out(state) -> None:
     ("the_anchor", "home_quays_loft", False),       # between two city places: never through the building
     ("apt_lounge", "merrow_street", True),          # out of the building
     ("merrow_street", "apt_lounge", True),          # home, through it
+    ("apt_lounge", "apt_kitchen", False),           # room to room in the flat: never through the lift
 ])
 def test_the_lift_minutes_only_through_the_building(receipts_state, here, to, pays) -> None:
     """FAILS before the fix: `go` added the lift's minutes to EVERY move."""
@@ -614,6 +615,8 @@ def test_the_shipped_life_rows_pass(tmp_path) -> None:
     (None, _drop_flag_from_when, "player.neighbour_party.scene"),
     (lambda rows: rows["neighbour_party"].pop("lasts_days"), None, "player.neighbour_party.lasts_days"),
     (lambda rows: rows["promotion"].pop("lasts_days"), None, "player.promotion.lasts_days"),
+    (lambda rows: (rows["neighbour_party"].pop("flag"), rows["neighbour_party"].pop("news", None)), None,
+     "player.neighbour_party.scene"),
 ])
 def test_each_life_check_names_its_row(tmp_path, edit_rows, edit_deck, key) -> None:
     """Each validation fault, canary-checked by breaking exactly what it guards (pre-flight F21, F22)."""

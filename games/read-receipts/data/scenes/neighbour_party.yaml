@@ -1,7 +1,7 @@
 # READ RECEIPTS -- neighbour party (v0.24.0 spec §12.2): a life event's world moment.
 # ==========================================================================
 #
-# Dealt in the apt_hall while a party across the landing is going on (`life_neighbour_party`, set by the life event `neighbour_party` in
+# Dealt in the flat's hall while a neighbour's party is on across the landing (`life_neighbour_party`, set by the life event `neighbour_party` in
 # data/social/life_events.yaml and cleared when it has run its days, or by any answer here). Read by
 # engine/content/deck.py through `paths.decks`; THE FILENAME IS THE DECK ID.
 #

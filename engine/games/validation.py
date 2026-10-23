@@ -2049,6 +2049,10 @@ class StoryValidator:
             deck_id = row.get("scene")
             if not deck_id:
                 continue
+            if not row.get("flag"):
+                self._add("social/life_events.yaml", f"player.{rid}.scene",
+                          f"deck {deck_id!r} needs the row's flag: its when: can read nothing else")
+                continue
             path = decks_dir / f"{deck_id}.yaml" if decks_dir else None
             if path is None or not path.is_file():
                 self._add("social/life_events.yaml", f"player.{rid}.scene", f"no deck {deck_id!r} in paths.decks")

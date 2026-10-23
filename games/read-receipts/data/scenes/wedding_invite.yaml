@@ -1,7 +1,7 @@
 # READ RECEIPTS -- wedding invite (v0.24.0 spec §12.2): a life event's world moment.
 # ==========================================================================
 #
-# Dealt in the apt_hall while a wedding invitation is going on (`life_wedding_invite`, set by the life event `wedding_invite` in
+# Dealt in the flat's hall while a wedding invitation waits for an answer (`life_wedding_invite`, set by the life event `wedding_invite` in
 # data/social/life_events.yaml and cleared when it has run its days, or by any answer here). Read by
 # engine/content/deck.py through `paths.decks`; THE FILENAME IS THE DECK ID.
 #
