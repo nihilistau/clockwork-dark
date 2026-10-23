@@ -524,3 +524,12 @@ def test_the_handler_refuses_a_stranger_and_a_malformed_effect(receipts_state, m
         assert out["ok"] is False and out["text"], effect
     assert "growth" not in people[pid]
     assert growth.record(receipts_state, pid)["openness"] == 0.0
+
+
+def test_the_morning_and_the_wedding_name_only_scene_moves(receipts_active) -> None:
+    """A kind's move list names rows of `moves:` and nothing else, so the guard above covers it (v0.24.0 §12.1)."""
+    from engine import social
+
+    data = social.data("scenes")
+    for kind in ("morning", "wedding"):
+        assert set(data[kind]["moves"]) <= set(data["moves"]), kind

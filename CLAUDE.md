@@ -838,10 +838,6 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   re-measured on v0.23's episode model (the harness's `Phone.away` row can
   run it). `social.voice.max_per_pass` stays 3: passes run back to back and
   each reply commits as it lands (config/default.yaml's comment).
-- A stay-over ends in the morning with no scene: T24, moved to v0.24.0 at
-  v0.23.0's checkpoint C1. `scene.stay_the_night` closes the evening and
-  moves the clock to the morning; nothing opens a morning scene (the spec's
-  `kind: morning`, at `apt_kitchen` or the host's home).
 - The player's life-event decks are two, `boiler` and `parcel`; the other
   four (spec §12.2) are T25, moved to v0.24.0 at checkpoint C1.
 - READ RECEIPTS' `meeting` stage gate was dead data (v0.23.0 T13: a scene's end

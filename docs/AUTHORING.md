@@ -3011,8 +3011,19 @@ never to state or memory. Keys:
   archetype alone (`default` otherwise): there is no intent term. A yes ends
   the scene, takes the clock to the player's morning and writes a "Stayed
   over" history row; a no is a plain answer whose reason is only their
-  energy or the home's `homes.yaml` `stay_reasons`. The morning scene is
-  v0.24.0's.
+  energy or the home's `homes.yaml` `stay_reasons`. A yes at the flat or at a
+  home then opens the morning scene (below).
+- `morning` -- `{moments, moves, prior_bias}` (v0.24.0 §12.1, optional): the
+  morning after a stay-over, a scene of `kind: morning` at `apt_kitchen` (the
+  flat) or the host's home. `moments` (1-4) is how many moments it lasts, else it
+  ends as any scene ends; `moves` the only moves offered (rows of `moves:`,
+  never `phone`, always `talk`); `prior_bias` (-0.2 to 0.2) is added to its
+  prior. The closer `see_them_out` (and `see_them_out:plan:soon`; list it in
+  `closers`) ends it at the flat with the player staying where they are; at their
+  home "Head home" is `call_it_a_night`. It is the night's tail: its end counts no
+  `scenes_done` or `meets_good`, swaps no numbers, moves no stage, writes no
+  history row and queues no `post_meet`. The phone payload's `scene` section
+  carries `kind` (a word) and `id` (opaque, `<pid>@<started_at>`).
 - `wedding` -- `{moments, moves}` (§12.2, T18): the wedding is a scene at
   the registry office, opened by arriving on its plan (a `wedding` plan, the
   engine's own: it stands in no other plan's way and never lapses) while

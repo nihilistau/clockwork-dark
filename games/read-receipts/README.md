@@ -221,8 +221,10 @@ What changed, release by release: [CHANGELOG.md](CHANGELOG.md). The design is
   parcel also deal a small scene (`data/scenes/boiler.yaml`, `parcel.yaml`) in
   the kitchen and at reception. Life events are ordinary life and mean nothing
   more than the fact they state.
-  Only those two decks exist so far: the other four, and the morning scene after
-  a stay-over, are v0.24.0's.
+  Only those two decks exist so far: the other four are v0.24.0's. Staying the
+  night is followed by a short morning scene (`scenes.yaml` `morning`): breakfast,
+  getting ready and seeing them out, with its own moves and the closer "See them to
+  the door"; it counts as the night's tail, not a second scene.
 - `data/social/creation.yaml` -- the player's own profile: every field the
   creation form asks for, its choices or range and its default. Where a
   field picks from a list the people are drawn from (hobbies, hair, style,

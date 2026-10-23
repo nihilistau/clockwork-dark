@@ -94,9 +94,11 @@ MOVES: tuple[str, ...] = ("ask_about", "tell_about", "playful", "quiet", "phone"
 OFFERED_PLAIN: tuple[str, ...] = ("playful", "quiet", "talk")
 #: The closers (§10.4; scenes.yaml `closers:` lists those offered, a subset of these).
 CLOSERS: tuple[str, ...] = ("another_round", "go_somewhere_else", "walk_them_home", "back_to_yours",
-                            "back_to_theirs", "stay_the_night", "call_it_a_night", "propose")
+                            "back_to_theirs", "stay_the_night", "call_it_a_night", "propose", "see_them_out")
 #: A scene's kinds beyond a plan's (T18): at home with the household partner, and the wedding.
 AT_HOME, WEDDING = "at_home", "wedding"
+#: The morning after a stay-over (v0.24.0 §12.1): the night's tail, never a second date.
+MORNING = "morning"
 #: A chance meeting (v0.23.0 addendum 4 W9): someone the player knows, at the player's venue by their schedule.
 CHANCE = "chance"
 #: The `scene` world verb's target that goes over to them (`approach:<pid>`, W9).
@@ -126,7 +128,9 @@ FIT_KEYS: frozenset[str] = frozenset({"traits", "archetypes"})
 REGARD_KEYS: tuple[str, ...] = ("warmth", "trust")
 #: scenes.yaml's top-level keys.
 TOP_KEYS: frozenset[str] = frozenset({"prior", "moment", "moves", "closers", "close", "end_bands", "too_deep_band",
-                                      "shared_activities", "stay", "wedding", "chance"})
+                                      "shared_activities", "stay", "wedding", "chance", "morning"})
+#: scenes.yaml `morning:`'s keys (optional block; v0.24.0 §12.1).
+MORNING_KEYS: frozenset[str] = frozenset({"moments", "moves", "prior_bias"})
 #: The stages a scene moves on (§10.4, §15.3).
 NUMBERS, MEETING = "numbers", "meeting"
 #: The window `call_it_a_night:promise:<window>` offers ("I'll text you in the morning").
@@ -220,6 +224,26 @@ def check_data(scenes: dict[str, Any], *, traits: frozenset[str] = frozenset()) 
         raise _fault("wedding.moves", f"must list moves from {', '.join(MOVES)}")
     if "chance" in scenes:
         _check_chance(scenes["chance"])
+    if "morning" in scenes:
+        _check_morning(scenes["morning"])
+
+
+def _check_morning(morning: Any) -> None:
+    if not isinstance(morning, dict):
+        raise _fault("morning", "must be a mapping")
+    extra = set(morning) - MORNING_KEYS
+    if extra:
+        raise _fault(f"morning.{sorted(extra)[0]}", "is not a morning key")
+    moments = morning.get("moments")
+    if not _whole(moments) or not 1 <= int(moments) <= 4:
+        raise _fault("morning.moments", "must be a whole number from 1 to 4")
+    moves = morning.get("moves")
+    if (not isinstance(moves, list) or not moves or any(m not in MOVES or m == "phone" for m in moves)
+            or "talk" not in moves):
+        raise _fault("morning.moves", "must be a non-empty list of scene moves, without phone, with talk")
+    bias = morning.get("prior_bias", 0.0)
+    if not _num(bias) or not -0.2 <= float(bias) <= 0.2:
+        raise _fault("morning.prior_bias", "must be a number from -0.2 to 0.2")
 
 
 def _check_chance(chance: Any) -> None:
@@ -475,6 +499,8 @@ def _where_words(state: GameState, scn: dict[str, Any]) -> str:
     location = str(scn.get("location") or "")
     if scn.get("kind") == CHANCE:
         return f"Ran into each other at {places.label(location)}"
+    if scn.get("kind") == MORNING:
+        return "The morning after, at yours" if places.is_flat(location) else f"The morning after, at {_name(state, str(scn.get('pid') or ''))}'s"
     if location in places.venue_ids():
         return places.place_line(location)
     if places.is_home(location):
@@ -525,8 +551,9 @@ def _move_options(state: GameState, pid: str) -> list[tuple[str, str]]:
     rung above), two of yours, then playful, quiet and talk (A4 W7: `talk` took the phone's place; the phone is
     scored by picking it up, `phone_in_company`)."""
     rows = _data().get("moves") or {}
-    if current(state).get("kind") == WEDDING:            # only the wedding's moves (§12.2)
-        allowed = set((_data().get("wedding") or {}).get("moves") or ())
+    kind = current(state).get("kind")
+    if kind in (WEDDING, MORNING):                       # only that kind's moves (§12.2, §12.1)
+        allowed = set((_data().get(kind) or {}).get("moves") or ())
         rows = {k: v for k, v in rows.items() if k in allowed}
     depth = growth.depth(state, pid)
 
@@ -558,6 +585,14 @@ def _close_options(state: GameState, scn: dict[str, Any]) -> list[tuple[str, str
     proposing = [("propose", "propose", f"Ask {name} to marry you")] if growth.willing(state, pid, "propose")[0] else []
     if scn.get("kind") == WEDDING:
         return []                                         # the wedding runs its moments; nothing ends it early
+    if scn.get("kind") == MORNING:                        # the morning after: see them out, or head home (§12.1)
+        if places.is_flat(here):
+            rows_m = [("see_them_out", "see_them_out", f"See {name} to the door"),
+                      ("see_them_out", "see_them_out:plan:soon", f"See {name} to the door, and say you'll do it again soon")]
+        else:
+            rows_m = [("call_it_a_night", "call_it_a_night", "Head home"),
+                      ("call_it_a_night", "call_it_a_night:plan:soon", "Head home, and say you'll do it again soon")]
+        return [(target, label) for closer, target, label in rows_m if closer in offered]
     if scn.get("kind") == AT_HOME:                        # at home together: no way home to go, nobody to see off
         rows_home = [("call_it_a_night", "call_it_a_night:stay", "Leave it there, and get on with your evening"),
                      ("another_round", "another_round", "Stay a while longer"), *proposing]
@@ -755,7 +790,7 @@ def close(state: GameState, target: str) -> dict[str, Any]:
     if name == "propose":
         out.update(propose(state, pid))
         return out
-    if name == "call_it_a_night":
+    if name in ("call_it_a_night", "see_them_out"):
         what, _, value = arg.partition(":")
         if what == "promise":
             from engine.social import promises
@@ -774,7 +809,8 @@ def close(state: GameState, target: str) -> dict[str, Any]:
             if row:
                 out["plan_id"] = str(row["id"])
                 made.append("meet")
-        out.update(end_scene(state, "player", then="stay" if what == "stay" else "home"))
+        then = "stay" if (what == "stay" or name == "see_them_out") else "home"
+        out.update(end_scene(state, "player", then=then))
     elif name == "walk_them_home":
         home = places.home_of(state, pid)
         clock.advance_time(state, (places.travel_minutes(home) + float(data.get("walk_extra_minutes", 10))) / 60.0)
@@ -873,7 +909,15 @@ def stay_the_night(state: GameState) -> dict[str, Any]:
     relationships.add_history(state, pid, "stay", "Stayed over")
     clock.advance_time(state, max(0.0, _player_morning(state) - state.world_clock_hours))
     _queue_post_meet(state, pid, str(ended.get("band") or ""), plan_id, state.world_clock_hours)
-    return {"ok": True, "stayed": True, "band": str(ended.get("band") or "")}
+    where = str(scn.get("location") or "")
+    out = {"ok": True, "stayed": True, "band": str(ended.get("band") or "")}
+    if not (places.is_flat(where) or places.is_home(where)):
+        return out                                       # a venue stay (a direct call only) ends as before (F6)
+    room = "apt_kitchen" if places.is_flat(where) else where     # a home_* home has no kitchen (F32)
+    if room != state.location_id:
+        apply_effect(state, {"type": "social_go", "op": "place", "to": room})   # the same morning: no clock (rule 2)
+    open_scene(state, pid, room, kind=MORNING)
+    return {**out, "morning": room}
 
 
 # -- the long term (§12, T18): proposing, at home -------------------------------------------------------------
@@ -1148,6 +1192,8 @@ def _open(state: GameState, effect: dict[str, Any], at: float) -> dict[str, Any]
     prior = _prior_terms(state, pid) + _prior_draw(state, pid)
     if effect.get("kind") == CHANCE:                    # nobody planned the evening (W9)
         prior += float((_data().get("chance") or {}).get("prior_bias", 0.0) or 0.0)
+    if effect.get("kind") == MORNING:                   # the night's tail (v0.24.0 §12.1)
+        prior += float((_data().get("morning") or {}).get("prior_bias", 0.0) or 0.0)
     state.social["scene"] = {
         "pid": pid, "plan_id": str(effect.get("plan_id") or ""), "location": str(effect.get("location") or ""),
         "kind": str(effect.get("kind") or "date"), "started_at": round(at, 4), "moments": [],
@@ -1214,6 +1260,8 @@ def _moment(state: GameState, scn: dict[str, Any], effect: dict[str, Any], at: f
 def _closing(state: GameState, scn: dict[str, Any], pid: str, after: float) -> str:
     """Why they close now ("" when they don't): their energy spent, a run of missteps, or their schedule."""
     rules = _data().get("close") or {}
+    if scn.get("kind") == MORNING and int(scn.get("count", 0)) >= int((_data().get("morning") or {}).get("moments", 2)):
+        return MORNING                                  # the morning ends after its moments, else as any scene (§12.1)
     if scn.get("kind") == WEDDING:                      # its moments, and nothing else, end it (§12.2)
         return WEDDING if int(scn.get("count", 0)) >= int((_data().get("wedding") or {}).get("moments", 3)) else ""
     if float(scn.get("energy", 0)) <= float(rules.get("energy_out", 0)):
@@ -1256,7 +1304,9 @@ def _end(state: GameState, scn: dict[str, Any], effect: dict[str, Any], at: floa
     person = state.social["people"][pid]
     count = int(scn.get("count", 0))
     band = _scene_band(float(scn.get("sum", 0.0)) / count) if count else _scene_band(float(scn.get("prior", 0.5)))
-    person["scenes_done"] = int(person.get("scenes_done", 0)) + 1
+    morning = scn.get("kind") == MORNING                # the night's tail: no second scene's bookkeeping (§12.1)
+    if not morning:
+        person["scenes_done"] = int(person.get("scenes_done", 0)) + 1
     relationships.touch(person)
     from engine.social import plans   # lazily: plans imports this module's peers
 
@@ -1271,6 +1321,9 @@ def _end(state: GameState, scn: dict[str, Any], effect: dict[str, Any], at: floa
     kind = str(scn.get("kind") or "")
     chance = kind == CHANCE                             # read before the row is cleared
     state.social["scene"] = {}
+    if morning:                                         # no numbers, stage, meets_good, history, post_meet or seen_check
+        return {"type": "social_scene", "ok": True, "text": f"the morning with {pid} ended {band}", "pid": pid,
+                "band": band, "reason": str(effect.get("reason") or ""), "save_reason": "stage"}
     stage = str(person.get("stage") or "")
     # A chance meeting (W9, C3) moves the number swap and `numbers -> meeting` only as far as `willing` holds NOW;
     # every other kind's plan already passed `meet`. Each gate is asked only where its move could happen.
@@ -1314,7 +1367,8 @@ def _end(state: GameState, scn: dict[str, Any], effect: dict[str, Any], at: floa
 @section("scene")
 def _scene_section(state: GameState, session: Any) -> dict[str, Any]:
     """Who the player is with, while a scene is open: their name, the stage's words, the closeness band's words
-    and their portrait (the helpers v0.22's `contacts` section uses). Words only, never a number; {} otherwise."""
+    and their portrait (the helpers v0.22's `contacts` section uses), plus `kind` (a word: `morning` heads the
+    card) and `id` (an opaque key, `<pid>@<started_at>`, that carries the start hour). No number; {} otherwise."""
     pid = str(current(state).get("pid") or "")
     if not pid:
         return {}
@@ -1325,7 +1379,8 @@ def _scene_section(state: GameState, session: Any) -> dict[str, Any]:
     return {"pid": pid, "name": _name(state, pid),
             "stage_words": relationships.stage_words(stage) if stage else "",
             "closeness_words": relationships.band(person_state) if stage else "",
-            "portrait": media.portrait_url(state, pid)}
+            "portrait": media.portrait_url(state, pid),
+            "kind": str(current(state).get("kind") or ""), "id": f"{pid}@{current(state).get('started_at')}"}
 
 
 def household_card(state: GameState) -> dict[str, Any]:
@@ -1362,7 +1417,7 @@ CLOSER_WORDS: dict[str, str] = {
     "call_it_a_night": "You call it a night.", "another_round": "You stay a while longer.",
     "walk_them_home": "You walk them home.", "back_to_yours": "You ask them back to yours.",
     "back_to_theirs": "You go back to theirs.", "stay_the_night": "You stay the night.",
-    "propose": "You ask them to marry you. They say yes.",
+    "propose": "You ask them to marry you. They say yes.", "see_them_out": "You see them to the door.",
 }
 #: Why a scene ended by itself, in the engine's words (`receipt_lines`); any other reason is them calling it a night.
 CLOSED_WORDS: dict[str, str] = {WEDDING: "You are married."}
@@ -1468,6 +1523,8 @@ def _close_words(state: GameState, receipt: dict[str, Any], result: dict[str, An
         words = f"You call it a night, and say you'll message them {promises.window_words(row, speaker='player')}."
     elif name == "call_it_a_night" and what == "plan":
         words = "You call it a night, and say you'll do it again soon."
+    elif name == "see_them_out" and what == "plan":
+        words = "You see them to the door, and say you'll do it again soon."
     elif name == "call_it_a_night" and what == "stay":
         words = "You say goodnight, and stay here a while."
     elif name == "go_somewhere_else":

@@ -11,6 +11,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- The morning after a stay-over (`scenes.yaml` `morning:`): staying the night now wakes in a short morning scene, in your kitchen or at their home, with breakfast, getting ready and seeing them out. It offers quiet, telling them something, being playful and talking, and ends after two moments or when you see them to the door (`See them to the door`, or the same and say you'll do it again soon) or head home. It is the night's tail, not a second date: it counts no scene, swaps no numbers, moves no stage and queues no text of its own, and the night's text is held until you part. The companion card is headed "The morning after".
+
 ## [0.23.3] — 2026-10-23
 
 ### Fixed

@@ -14,6 +14,10 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+### Added
+
+- READ RECEIPTS' morning scene (v0.24.0 T1, spec 12.1): `scene.stay_the_night` opens a `morning` scene after a stay-over at the flat's kitchen or the host's home (`scenes.yaml` `morning:`, checked at load), with the closer `see_them_out`; `_end` skips a morning's scene bookkeeping. The phone payload's `scene` section gains `kind` and `id`. Other stories are unchanged.
+
 ## [0.23.3] — 2026-10-23
 
 v0.23.2's CI run errored all six tests of `tests/test_admin_no_play_text.py` in their shared setup on Linux, solo re-run included: "their voice note never fell due". Reproduced in `python:3.11-slim-bookworm` (pinned) on a fresh clone; the failing run's save held the player's voice-note ask `pending` seventeen game days on, no read queued for it and no media row. A repair release.
