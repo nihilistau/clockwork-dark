@@ -51,5 +51,3 @@ cards:
           on_pass:
             text: >-
               It will keep. You nod to the porter and leave it where it is, for now.
-            effects:
-              - { type: flag, flag: life_parcel, value: false }

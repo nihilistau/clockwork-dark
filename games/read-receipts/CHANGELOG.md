@@ -19,7 +19,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - The broken lift adds its five minutes only when you go in or out of your building, not on every move (the engine's fix, root CHANGELOG).
-- Leaving the parcel at reception now clears it too (`parcel.yaml`'s second answer), as every other life-event answer does.
 
 ### Changed
 

@@ -511,12 +511,18 @@ def test_no_life_deck_deals_over_a_scene(receipts_state, monkeypatch, deck, room
     assert director.ensure_scene(receipts_state) == []
 
 
+# A beat that puts the event off keeps its flag: leaving the parcel at reception keeps `collect_parcel` offered.
+DEFERRING_BEATS = {("parcel", "leave_it_for_now")}
+
+
 @pytest.mark.parametrize("deck", ["boiler", "parcel", "neighbour_party", "lift_out", "family_visit", "wedding_invite"])
 def test_every_life_beat_clears_its_flag(receipts_active, deck) -> None:
     from engine.content import deck as decks
 
     for card in decks.load_deck(deck).cards:
         for beat in card.beats:
+            if (deck, beat.get("id")) in DEFERRING_BEATS:
+                continue
             effects = ((beat.get("gate") or {}).get("on_pass") or {}).get("effects") or []
             assert {"type": "flag", "flag": f"life_{deck}", "value": False} in effects, (deck, card.id, beat.get("id"))
 
