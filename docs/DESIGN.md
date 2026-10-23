@@ -1489,6 +1489,11 @@ evil progress, awareness and trust to defaults.
 | Lore | `LoreInject` is a no-op when the DB is empty; seed with `scripts/seed_lore.py` |
 | Frontend | Vite + React in `ui/`, built into a **committed** `content/scenes/clockwork/static/dist` so the game runs without Node |
 
+### The client sound module (v0.24.0)
+
+`ui/src/core/sound/` plays the catalogue `GET /api/sounds` serves (engine/games/sounds.py merges it). It has no side effect at import, so the node-environment panel tests can import every panel; the engine installs lazily on the first API call. Sound parameters are data (rule 5): a sound is a synth description, or an `.ogg` with a synth `fallback`, never a number in code. Web Audio unlocks on the first gesture; a play before it is dropped, never queued; a file is fetched only after it. Three firing rules keep one action to one sound: (1) a `key` plays once, and `markSeen` hydrates keys that must not play (512 newest kept); (2) `useSoundOnChange` plays a changed value only while a turn THIS page sent is in flight (`turnSent`/`turnSettled`), so a reconnect or a resume is silent; (3) one capturing click listener (`installClickSounds`) gives `ui.press`/`ui.toggle`, deferred and skipped when anything else sounded in that click. `soundLog()` (and `?soundlog=1`) records every play and drop for tests.
+
+
 ---
 
 ## Skills & Tags Manifest
