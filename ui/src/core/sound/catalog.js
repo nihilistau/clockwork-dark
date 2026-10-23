@@ -6,8 +6,12 @@ export async function loadCatalog() {
     const res = await fetch("/api/sounds");
     if (!res.ok) return null;
     const body = await res.json();
-    installCatalog(body);
-    return body;
+    const ok = body && typeof body === "object" && typeof body.enabled === "boolean"
+      && (!body.enabled || (Array.isArray(body.events) && body.bind && typeof body.bind === "object"
+        && body.sounds && typeof body.sounds === "object" && body.limits && typeof body.limits === "object"));
+    const catalog = ok ? body : { enabled: false };
+    installCatalog(catalog);
+    return catalog;
   } catch {
     return null;
   }

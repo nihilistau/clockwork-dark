@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CATALOG, gesture, installFakeAudio } from "./helpers/fake-audio.js";
-import { installCatalog, playSound, resetSound, setLevels, soundLog } from "../src/core/sound/index.js";
+import { installCatalog, playCount, playSound, resetSound, setLevels, soundLog } from "../src/core/sound/index.js";
 
 let log;
 beforeEach(() => { log = installFakeAudio(); resetSound({ logPlays: true }); installCatalog(CATALOG); });
@@ -39,11 +39,20 @@ describe("the sound engine", () => {
   });
 
   it("plays through master x category, and mute or a zero category plays nothing", () => {
-    gesture(); setLevels(PREFS);
+    gesture(); setLevels({ ...PREFS, soundMaster: 0.5, soundUi: 0.25 });
+    const ctx = log.contexts[0];
+    const gainOf = (n) => n.gain.value;
+    const gains = log.nodes.filter((n) => n.kind === "gain" && n.to);
+    const master = gains.find((n) => n.to === ctx.destination);
+    expect(gainOf(master)).toBe(0.5);
+    expect(master.gain.value).toBe(0.5);
+    const ui = gains.find((n) => n.to === master && gainOf(n) === 0.25);
+    expect(ui).toBeTruthy();
     playSound("ui.press");
     expect(log.starts.length).toBeGreaterThan(0);
     const before = log.starts.length;
     setLevels({ ...PREFS, muted: true });
+    expect(gainOf(master)).toBe(0);
     playSound("turn.arrive");
     expect(log.starts.length).toBe(before);
     setLevels({ ...PREFS, soundGame: 0 });
@@ -62,8 +71,40 @@ describe("the sound engine", () => {
 
   it("throttles a sound inside its throttle_ms", () => {
     gesture(); setLevels(PREFS);
-    playSound("ui.press"); playSound("ui.press");
+    const clock = vi.spyOn(performance, "now");
+    clock.mockReturnValue(1000);
+    playSound("ui.press");
+    clock.mockReturnValue(1030);
+    playSound("ui.press");
     expect(soundLog().at(-1).dropped).toBe("throttled");
+    clock.mockReturnValue(1100);
+    playSound("ui.press");
+    expect(soundLog().at(-1).dropped).toBeUndefined();
+    clock.mockRestore();
+  });
+
+  it("the voice cap counts only voices still sounding", () => {
+    gesture(); setLevels(PREFS);
+    installCatalog({ ...CATALOG, limits: { ...CATALOG.limits, voices: 2, throttle_ms: 0 } });
+    const ctx = log.contexts[0];
+    for (let i = 0; i < 4; i += 1) { playSound("ui.press"); ctx.currentTime += 1; }   // each is long over before the next
+    expect(soundLog().filter((r) => r.stopped).length).toBe(0);
+  });
+
+  it("a malformed row never throws out of play, and is not counted", () => {
+    gesture(); setLevels(PREFS);
+    const bad = { ...CATALOG, sounds: { ...CATALOG.sounds, "ui.click": { category: "ui", synth: { sequence: { voice: { wave: "sine" }, notes: [[0, "H9", 100]] } } } } };
+    installCatalog(bad);
+    const n = playCount();
+    expect(() => playSound("ui.press")).not.toThrow();
+    expect(soundLog().at(-1).dropped).toBe("error");
+    expect(playCount()).toBe(n);
+  });
+
+  it("resetting the engine closes the previous context", () => {
+    gesture();
+    resetSound();
+    expect(log.closed).toBe(1);
   });
 
   it("caps the voices and stops the oldest", () => {

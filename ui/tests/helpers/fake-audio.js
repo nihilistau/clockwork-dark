@@ -15,6 +15,7 @@ export function installFakeAudio({ canPlayOgg = "probably", decodeFails = false 
   };
   class FakeContext {
     constructor() { this.state = "suspended"; this.currentTime = 0; this.sampleRate = 48000; this.destination = node("destination"); log.contexts.push(this); }
+    close() { log.closed = (log.closed || 0) + 1; this.state = "closed"; return Promise.resolve(); }
     resume() { log.resumes += 1; this.state = "running"; return Promise.resolve(); }
     createGain() { const n = node("gain"); n.gain = param(n, "gain"); return n; }
     createOscillator() {

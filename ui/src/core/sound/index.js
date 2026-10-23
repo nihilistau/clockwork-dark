@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { ensure, installCatalog, limits, markSeen, noteSkip, play, playCount, resetEngine, setLevels, soundLog } from "./engine.js";
-import { inSentTurn, resetTurns, settledCount, turnSent, turnSettled } from "./turns.js";
+import { inSentTurn, resetTurns, turnSent, turnSettled } from "./turns.js";
 
 export { installCatalog, markSeen, setLevels, soundLog, turnSent, turnSettled };
 export { inSentTurn } from "./turns.js";
@@ -9,7 +9,7 @@ export { limits, playCount, oggSupported } from "./engine.js";
 export { loadCatalog } from "./catalog.js";
 export { ENGINE_EVENTS } from "./events.js";
 
-/** Play `event` now (or after `delayMs`); `key` de-duplicates (spec §6.3 rule 1). Never throws in play. */
+/** Play `event` now (or after `delayMs`); `key` de-duplicates (spec §6.3 rule 1). Never throws unless the catalogue is strict. */
 export function playSound(event, opts = {}) {
   return play(event, opts);
 }
@@ -23,12 +23,11 @@ export function useSoundOnChange(value, event, { when = (prev, next) => prev !==
   const seen = useRef(null);
   useEffect(() => {
     const was = seen.current;
-    const now = settledCount();
     if (was && was.value !== value && when(was.value, value)) {
       if (inSentTurn()) play(event);
       else noteSkip(event, "not_my_turn");
     }
-    seen.current = { value, settled: now };
+    seen.current = { value };
   });
 }
 
@@ -50,7 +49,7 @@ export function useSoundLevels(prefs) {
 
 /**
  * One capturing click listener (rule 3): `ui.press` / `ui.toggle` unless the control names its own event. The
- * press is DEFERRED to a microtask and skipped when any sound played during the click's dispatch (a Modal's
+ * press is DEFERRED to a macrotask and skipped when any sound played during the click's dispatch (a Modal's
  * `ui.open`, a handler's own event): one action, one sound (Plan decision 16).
  */
 export function installClickSounds(root = typeof document !== "undefined" ? document : null) {
@@ -63,7 +62,8 @@ export function installClickSounds(root = typeof document !== "undefined" ? docu
     if (named === "none") return;
     const event = named || (el.type === "checkbox" ? "ui.toggle" : "ui.press");
     const before = playCount();
-    queueMicrotask(() => { if (playCount() === before) play(event); });
+    // A macrotask: it runs after the whole dispatch, React's delegated handlers included (a microtask would not).
+    setTimeout(() => { if (playCount() === before) play(event); }, 0);
   };
   root.addEventListener("click", onClick, true);
   return () => root.removeEventListener("click", onClick, true);

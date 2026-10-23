@@ -1,4 +1,4 @@
-import { render } from "./synth.js";
+import { durationMs, render } from "./synth.js";
 
 const CATEGORIES = ["ui", "game", "alert", "phone", "world"];
 const PREF_OF = { ui: "soundUi", game: "soundGame", alert: "soundAlert", phone: "soundPhone", world: "soundWorld" };
@@ -11,6 +11,7 @@ const hasWindow = () => typeof window !== "undefined";
 /** A fresh engine. Installs the unlock listener only where a window exists (pre-flight F5). Never runs at import. */
 export function resetEngine({ logPlays = false } = {}) {
   if (S.listener && hasWindow()) for (const t of GESTURES) window.removeEventListener(t, S.listener, true);
+  if (S.ctx && typeof S.ctx.close === "function") { try { Promise.resolve(S.ctx.close()).catch(() => {}); } catch { /* already closed */ } }
   Object.assign(S, {
     ready: true, ctx: null, master: null, buses: {}, prefs: null, catalog: null, strict: false, oggOk: null,
     buffers: new Map(), failed: new Set(), last: new Map(), voices: [], seen: new Set(), seenOrder: [], plays: 0,
@@ -91,26 +92,47 @@ export function play(event, { key, delayMs = 0 } = {}) {
   const p = S.prefs || {};
   if (p.muted || (p.soundMaster ?? 0.8) === 0 || (p[PREF_OF[row.category]] ?? 1) === 0) return note({ ...entry, dropped: "muted" });
   if (p.quietInterface && !row.essential) return note({ ...entry, dropped: "quiet" });
-  const gap = row.throttle_ms ?? S.catalog.limits.throttle_ms ?? 60;
+  const lim = S.catalog.limits || {};
+  const gap = row.throttle_ms ?? lim.throttle_ms ?? 60;
   const now = performance.now();
   if (now - (S.last.get(id) ?? -Infinity) < gap) return note({ ...entry, dropped: "throttled" });
+  const when = S.ctx.currentTime + delayMs / 1000;
+  let out = null;
+  const voice = { sources: [], entry: note({ ...entry }), end: when };
+  try {
+    out = S.ctx.createGain();
+    out.gain.setValueAtTime(row.gain ?? 1, when);
+    out.connect(S.buses[row.category]);
+    if (row.synth) voice.sources = render(S.ctx, row.synth, out, when);
+    else playFile(row, out, when, voice);
+    voice.end = when + voiceSeconds(row, voice);
+  } catch (err) {
+    for (const src of voice.sources) { try { src.stop(); } catch { /* not started */ } }
+    try { if (out) out.disconnect(); } catch { /* not connected */ }
+    voice.entry.dropped = "error";
+    if (!S.errorWarned) { S.errorWarned = true; console.warn(`[sound] ${event} could not play`, err); }
+    if (S.strict) throw err;
+    return voice.entry;
+  }
   S.last.set(id, now);
   S.plays = (S.plays || 0) + 1;
-  const when = S.ctx.currentTime + delayMs / 1000;
-  const out = S.ctx.createGain();
-  out.gain.setValueAtTime(row.gain ?? 1, when);
-  out.connect(S.buses[row.category]);
-  const voice = { sources: [], entry: note({ ...entry }) };
-  if (row.synth) voice.sources = render(S.ctx, row.synth, out, when);
-  else playFile(row, out, when, voice);
+  for (const src of voice.sources) src.onended = () => { src.ended = true; };
   S.voices.push(voice);
-  const cap = S.catalog.limits.voices ?? 8;
+  const cap = lim.voices ?? 8;
+  S.voices = S.voices.filter((v) => v.end > S.ctx.currentTime && !v.sources.every((x) => x.ended));  // only voices still sounding count
   while (S.voices.length > cap) {
     const old = S.voices.shift();
     for (const src of old.sources) { try { src.stop(); } catch { /* already stopped */ } }
     old.entry.stopped = true;
   }
   return voice.entry;
+}
+
+function voiceSeconds(row, voice) {
+  const def = row.synth || (voice.entry.fallback ? row.fallback : null);
+  if (def) return durationMs(def) / 1000;
+  const buf = S.buffers.get(row.url);
+  return ((buf && buf.duration) || 1) / (row.rate || 1);
 }
 
 function playFile(row, out, when, voice) {
