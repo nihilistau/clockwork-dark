@@ -481,6 +481,19 @@ declared meters and clocks.
 
 </details>
 
+<details>
+<summary><b>Sound</b></summary>
+
+- **Sound effects, played in the browser.** Button presses, choices, rolls,
+  alerts, panels rising and the link dropping each sound once, from data
+  (`content/sounds/sounds.yaml`, a story's own `paths.sounds`). Settings has a
+  Sound fieldset: a master, Interface, Game, Alerts, Phone, World and
+  Narration levels, "Mute all sound" and "Quiet interface" (only alerts and
+  messages), and a link to audition every sound (`/?sounds=1`). Nothing about
+  sound reaches the server.
+
+</details>
+
 ---
 
 ## How the engine works

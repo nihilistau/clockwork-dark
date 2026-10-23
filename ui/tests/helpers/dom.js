@@ -13,6 +13,7 @@ export function mount() {
   return {
     host,
     render: (node) => React.act(() => root.render(node)),
+    renderAsync: (node) => React.act(async () => { root.render(node); }),
     unmount: () => {
       React.act(() => root.unmount());
       host.remove();

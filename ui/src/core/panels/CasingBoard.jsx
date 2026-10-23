@@ -40,6 +40,7 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 
 import Panel from "./Panel.jsx";
+import { useSoundOnChange } from "../sound/index.js";
 
 function House({ house }) {
   // Closed unless empty right now: the question a thief reading this board
@@ -88,6 +89,9 @@ function House({ house }) {
 
 export default function CasingBoard({ premises, prep = "" }) {
   const houses = premises || [];
+  // The total the board draws as known: more learned lines sound once.
+  const totalCased = houses.reduce((n, house) => n + (house.known || []).length, 0);
+  useSoundOnChange(totalCased, "panel.casing", { when: (a, b) => b > a });
   if (houses.length === 0) return null;
   const empty = houses.filter((house) => house.empty_now).length;
   const title = [

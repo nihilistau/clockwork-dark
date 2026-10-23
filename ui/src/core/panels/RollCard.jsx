@@ -13,6 +13,8 @@
  */
 import React, { useEffect, useRef, useState } from "react";
 
+import { useRollSounds } from "../sound/index.js";
+
 export const ROLL_CARD_MS = 6000;
 
 /**
@@ -53,6 +55,7 @@ export function degreeWords(degree) {
 
 export default function RollCard({ state, showDiceBreakdown = true }) {
   const dice = state?.dice || null;
+  useRollSounds(dice);
   const [roll, setRoll] = useState(() => (dice && !SHOWN.has(dice) ? dice : null));
   // The roll THIS card took up, so an effect re-run for the same roll (a
   // development double-invoke) keeps it rather than treating it as seen.

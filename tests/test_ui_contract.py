@@ -665,7 +665,8 @@ PANELS_SRC = UI_SRC / "core" / "panels"
 
 
 def _reads(text: str, name: str) -> set[str]:
-    return set(re.findall(rf"\b{name}\.([a-z_]+)", text))
+    # A property read, not the head of a quoted sound-event id ("encounter.start", v0.24.0).
+    return set(re.findall(rf"(?<![\"'`])\b{name}\.([a-z_]+)", text))
 
 
 def test_the_poster_reads_only_keys_the_law_block_sends(tmp_path: Path) -> None:

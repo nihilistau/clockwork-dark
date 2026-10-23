@@ -181,10 +181,38 @@ async function probe(browser, opts, tag, player, size) {
     const ledger = await ledgerPanels(page, opts, tag, size);
     if (ledger.missing.length) result.failures.push(`ledger panels not reachable: ${ledger.missing.join(", ")}`);
     if (ledger.clipped?.length) result.failures.push(`ledger controls cut off unreachably: ${ledger.clipped.join("; ")}`);
-    return { ...result, shelf, roll, ledger, png: file, override: opts.panels ? { panels: opts.panels } : null };
+    const sound = await soundSettings(page);
+    for (const failure of sound.failures) result.failures.push(`settings: ${failure}`);
+    return { ...result, shelf, roll, ledger, sound, png: file, override: opts.panels ? { panels: opts.panels } : null };
   } finally {
     await context.close();
   }
+}
+
+/**
+ * The Settings Sound fieldset (v0.24.0 T6): opened from the header, every one of its controls (the seven sliders,
+ * the two toggles, the audition link) must scroll into the window and lie wholly inside it. Escape closes it.
+ */
+async function soundSettings(page) {
+  const failures = [];
+  await page.getByRole("button", { name: "Settings", exact: true }).first().click();
+  await page.waitForSelector('[role="dialog"][aria-label="Settings"]', { timeout: 10000 });
+  const unreachable = await page.evaluate(() => {
+    const group = [...document.querySelectorAll(".settings__group")].find((g) => g.querySelector("legend")?.textContent.trim() === "Sound");
+    if (!group) return ["the Sound fieldset is missing"];
+    const bad = [];
+    for (const el of group.querySelectorAll("input, a")) {
+      el.scrollIntoView({ block: "nearest" });
+      const b = el.getBoundingClientRect();
+      const name = el.getAttribute("aria-label") || el.closest("label")?.textContent.trim() || el.textContent.trim() || el.type;
+      if (b.width <= 0 || b.height <= 0 || b.left < -0.5 || b.right > innerWidth + 0.5 || b.top < -0.5 || b.bottom > innerHeight + 0.5) bad.push(name);
+    }
+    return bad;
+  });
+  for (const name of unreachable) failures.push(`Sound control not reachable: ${name}`);
+  await page.keyboard.press("Escape");
+  await page.waitForSelector('[role="dialog"][aria-label="Settings"]', { state: "detached", timeout: 10000 });
+  return { failures };
 }
 
 /**

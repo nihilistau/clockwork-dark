@@ -6,11 +6,18 @@
  * the journal, the codex and the barter screen, every overlay now goes through
  * here and inherits all three from useFocusTrap.
  */
-import React from "react";
+import React, { useEffect } from "react";
 import useFocusTrap from "../hooks/useFocusTrap.js";
+import { playSound } from "../sound/index.js";
 
 export default function Modal({ title, onClose, children, footer, wide = false }) {
   const ref = useFocusTrap(onClose);
+
+  // ui.open on mount, ui.close on unmount: every way out sounds once (the close button is data-sound="none").
+  useEffect(() => {
+    playSound("ui.open");
+    return () => playSound("ui.close");
+  }, []);
 
   // Clicking the backdrop closes, which is what every player already expects
   // and what the overlay previously did not do -- only Esc and the ✕ worked.
@@ -33,7 +40,7 @@ export default function Modal({ title, onClose, children, footer, wide = false }
       >
         <header className="overlay__head">
           <h2 className="overlay__title">{title}</h2>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close" data-sound="none">
             ✕
           </button>
         </header>

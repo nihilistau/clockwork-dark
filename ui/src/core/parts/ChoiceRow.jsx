@@ -9,6 +9,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useDigitKeys } from "../hooks/useDigitKeys.js";
+import { playSound } from "../sound/index.js";
 
 const HINT_LABEL = {
   safe: "quiet",
@@ -38,7 +39,12 @@ export default function ChoiceRow({
   disabledNote = "",
 }) {
   const held = Boolean(disabledNote);
-  useDigitKeys(choices, onChoose, !busy && !blocked && !held);
+  // One sound per pick, whether pressed or keyed (spec §6.3 rule 3).
+  const pick = (choice) => {
+    playSound("choice.pick");
+    onChoose(choice);
+  };
+  useDigitKeys(choices, pick, !busy && !blocked && !held);
 
   // THE "MORE BELOW" CUE (v0.21.0 T7; T6 review issue A). The list is capped
   // and scrolls among itself, and on a landscape phone it is held to one
@@ -135,13 +141,14 @@ export default function ChoiceRow({
           // returns early instead, and focus is kept through the turn.
           aria-disabled={busy ? "true" : undefined}
           disabled={held}
+          data-sound="none"
           data-hint={choice.hint || "unknown"}
           onClick={() => {
             if (busy || held) return;
             // Safari does not focus a clicked button; a keyboard press does
             // land here with the chip focused, so note it before the turn.
             if (inRow()) hadFocus.current = true;
-            onChoose(choice);
+            pick(choice);
           }}
         >
           <span className="chip__key" aria-hidden="true">

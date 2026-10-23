@@ -233,7 +233,7 @@ export default function Start({ onBegin, busy, onOpenSaves, story = {}, error = 
             begin says why here, where the player is sent. */}
         {error && <p className="overlay__error" role="alert">{error}</p>}
 
-        <button type="submit" className="btn btn--lg" disabled={busy}>
+        <button type="submit" className="btn btn--lg" data-sound="none" disabled={busy}>
           {busy ? "Waking…" : story.beginLabel || "Begin"}
         </button>
 

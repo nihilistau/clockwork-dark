@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CATALOG, gesture, installFakeAudio } from "./helpers/fake-audio.js";
 import {
-  installCatalog, installClickSounds, playSound, resetSound, setLevels, soundLog, turnSent, turnSettled, useSoundOnChange,
+  installCatalog, installClickSounds, playSound, resetSound, setLevels, soundLog, turnSent, turnSettled, useRollSounds, useSoundLevels, useSoundOnChange,
 } from "../src/core/sound/index.js";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -63,5 +63,55 @@ describe("useSoundOnChange", () => {
     act(() => root.render(<Probe v={3} />));                       // a change with no sent turn: a resume or rejoin
     expect(played()).toEqual(["turn.arrive"]);
     expect(soundLog().at(-1).dropped).toBe("not_my_turn");
+  });
+});
+
+describe("installClickSounds: data-sound and checkboxes", () => {
+  it("a named data-sound on the control or an ancestor plays that event; a checkbox toggles", () => {
+    installCatalog({ ...CAT, events: [...CAT.events, "ui.toggle"], bind: { ...CAT.bind, "ui.toggle": "ui.click" } });
+    off = installClickSounds(document);
+    act(() => root.render(<div data-sound="alert.error"><button id="b">go</button><input id="c" type="checkbox" /></div>));
+    click(host.querySelector("#b"));
+    act(() => { vi.runAllTimers(); });
+    expect(played()).toEqual(["alert.error"]);
+    act(() => root.render(<input id="c" type="checkbox" />));
+    click(host.querySelector("#c"));
+    act(() => { vi.runAllTimers(); });
+    expect(played().at(-1)).toBe("ui.toggle");
+  });
+
+  it("data-sound none, a disabled button and an aria-disabled one are silent", () => {
+    off = installClickSounds(document);
+    act(() => root.render(<div><button id="a" data-sound="none">a</button><button id="b" disabled>b</button><button id="c" aria-disabled="true">c</button></div>));
+    for (const id of ["#a", "#b", "#c"]) click(host.querySelector(id));
+    act(() => { vi.runAllTimers(); });
+    expect(played()).toEqual([]);
+  });
+});
+
+describe("useRollSounds", () => {
+  function Roll({ dice }) { useRollSounds(dice); return null; }
+  it("casts then lands once per roll inside a sent turn; a re-render of the same roll and a roll outside a turn are silent", () => {
+    act(() => root.render(<Roll dice={{ at: 1, degree: "success" }} />));
+    expect(played()).toEqual([]);
+    turnSent();
+    act(() => root.render(<Roll dice={{ at: 2, degree: "success" }} />));
+    act(() => { vi.runAllTimers(); });
+    act(() => root.render(<Roll dice={{ at: 2, degree: "success" }} />));
+    expect(soundLog().filter((r) => r.event === "roll.cast").length).toBe(1);
+    expect(played()).toContain("roll.success");
+    expect(played().filter((e) => e === "roll.success").length).toBe(1);
+  });
+});
+
+describe("useSoundLevels", () => {
+  function Levels({ prefs }) { useSoundLevels(prefs); return null; }
+  it("keeps the buses on the preferences: mute silences, unmute plays again", () => {
+    act(() => root.render(<Levels prefs={{ ...PREFS, muted: true }} />));
+    playSound("alert.error");
+    expect(soundLog().at(-1).dropped).toBe("muted");
+    act(() => root.render(<Levels prefs={PREFS} />));
+    playSound("alert.error");
+    expect(soundLog().at(-1).dropped).toBeUndefined();
   });
 });

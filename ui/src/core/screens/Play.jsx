@@ -67,6 +67,7 @@ import { COARSE_QUERY, NARROW_QUERY, useMedia } from "../hooks/useMedia.js";
 import { OPEN_EVENT } from "../panels/Panel.jsx";
 import { matchedChoiceIds } from "../panels/approaches.js";
 import { resolvePanels } from "../panels/resolve.js";
+import { playSound } from "../sound/index.js";
 import { controlsLive } from "../store.js";
 
 const TABS = [
@@ -221,6 +222,7 @@ export default function Play({
     if (!value || off) return;
     setText("");
     onCustom(value);
+    playSound("choice.send");
   }
 
   /**
@@ -339,7 +341,7 @@ export default function Play({
               disabled={off || !state.sessionId}
               onTranscript={acceptTranscript}
             />
-            <button type="submit" className="btn" disabled={off || !text.trim()}>
+            <button type="submit" className="btn" data-sound="none" disabled={off || !text.trim()}>
               Send
             </button>
           </form>

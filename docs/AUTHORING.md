@@ -3734,6 +3734,13 @@ browser plays it, the engine only loads, checks and serves it. A story with no `
   case (rule 11: the check lists the directory, since `Path.exists()` is case-blind on Windows), a missing
   fallback, an unbound event, a binding to an unknown sound, and a choice of another category. Each error
   names the file and the key.
+- **Where the engine events fire** (v0.24.0 T6; the client only plays, nothing is sent to the server):
+  `ui.press`/`ui.toggle` on a button or checkbox click (unless the control, or an ancestor, says `data-sound`),
+  `choice.pick`/`choice.send`, `ui.open`/`ui.close` (a Modal's mount and unmount), `turn.arrive`/`alert.error`
+  (a turn this page sent ends), `roll.cast` and `roll.<degree>`, `link.lost`/`link.back`, `game.begin`,
+  `game.save`, `game.ending`, `cutscene.start`, `encounter.start`, `panel.wanted|job|casing` (a rise or a
+  new stage, inside a turn this page sent) and `plate.reveal`. A plugin that fires its own story events lists
+  them in `soundEvents` (read by `tests/test_sound_events.py`).
 
 ---
 

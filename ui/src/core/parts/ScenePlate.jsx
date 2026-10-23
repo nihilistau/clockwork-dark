@@ -13,11 +13,13 @@ import React from "react";
 
 import PaintFrame from "./PaintFrame.jsx";
 import { prettyPlace } from "./Chrome.jsx";
+import { useSoundOnChange } from "../sound/index.js";
 
 export default function ScenePlate({ state }) {
   const world = state?.world || {};
   const place = world.location_name || (world.location_id ? prettyPlace(world.location_id) : "");
   const src = state?.sceneImage || "";
+  useSoundOnChange(src, "plate.reveal", { when: (a, b) => Boolean(b) && a !== b });
   return (
     <PaintFrame size="hero" className="sceneplate">
       {src ? (

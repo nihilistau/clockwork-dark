@@ -76,6 +76,8 @@
  *                 twice. The flagship owns ["rolls", "encounter"], NEON CITY
  *                 ["encounter"]. A visual slot: KEPT when borrowed (the
  *                 borrower inherits the drawing, so it inherits the claim).
+ *   soundEvents   Story sound events this plugin fires (v0.24.0 spec §5.2); declared by its
+ *                 story's sounds.yaml; read by tests/test_sound_events.py. Kept when borrowed.
  *
  *   panelDeclaration  NOT a plugin field. Core sets it from the catalogue's
  *                 `ui.panels` (the story's manifest); `loadStory` writes it

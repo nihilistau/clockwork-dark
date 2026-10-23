@@ -25,6 +25,8 @@ import Settings, { loadPrefs, savePrefs } from "./screens/Settings.jsx";
 import Start from "./screens/Start.jsx";
 import { clearSaveId, connect, createPhoneSender, loadSaveId, storeSaveId } from "./socket.js";
 import { createLink } from "./link.js";
+import { installClickSounds, loadCatalog, playSound, turnSent, useSoundLevels, useSoundOnChange } from "./sound/index.js";
+import { narrationVolume, useLinkSounds, useTurnSounds } from "./sound/hooks.js";
 import { controlsLive, createStore } from "./store.js";
 
 // The last line of defence against a server that dies without emitting
@@ -95,6 +97,10 @@ export default function App({ story }) {
     () => story.onboarding.length > 0 && shouldOnboard(story.slug)
   );
   const muted = prefs.muted;
+  // Sound is client-only (rule 1: it never carries or changes game intent). Counted where the store is fed, read
+  // at render by useTurnSounds.
+  const turnUpdates = useRef(0);
+  const phoneUpRefusal = useRef(false);
   const socketRef = useRef(null);
   const audioRef = useRef(null);
   const watchdog = useRef(null);
@@ -150,6 +156,10 @@ export default function App({ story }) {
     // is about to re-send never reaches the store. For a story with no
     // phone nothing is ever in flight there, and every action passes.
     const socket = connect((action) => {
+      if (action && action.type === "SOCKET") {
+        if (action.event === "turn_update") turnUpdates.current += 1;
+        if (action.event === "turn_error") phoneUpRefusal.current = Boolean(action.payload && action.payload.phone_up);
+      }
       if (phoneRef.current.filter(action)) return;
       dispatch(action);
     });
@@ -221,22 +231,41 @@ export default function App({ story }) {
   // Narration audio, gated on a real user gesture -- browsers refuse autoplay
   // before one, and a rejected play() promise is an unhandled rejection.
   useEffect(() => {
-    if (!state.audio || muted) return;
+    if (!state.audio || narrationVolume(prefs) <= 0) return;
     const player = audioRef.current;
     if (!player) return;
     player.src = state.audio;
-    player.volume = prefs.volume ?? 0.8;
+    player.volume = narrationVolume(prefs);
     player.play().catch(() => {});
-  }, [state.audio, muted, prefs.volume]);
+  }, [state.audio, muted, prefs.volume, prefs.soundMaster]);
 
   // Volume is live, not next-line: a player reaching for the slider mid-
   // paragraph means "quieter now".
   useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = prefs.volume ?? 0.8;
-  }, [prefs.volume]);
+    if (audioRef.current) audioRef.current.volume = narrationVolume(prefs);
+  }, [prefs.volume, prefs.soundMaster, muted]);
+
+  useSoundLevels(prefs);
+  useEffect(() => {
+    loadCatalog();
+    return installClickSounds(document);
+  }, []);
+  // The ending (Plan decision 11), declared BEFORE useTurnSounds so it runs first in the turn's commit.
+  useSoundOnChange(state.ending ? state.ending.id || state.ending.ending_id || "ending" : null, "game.ending", {
+    when: (a, b) => !a && Boolean(b),
+  });
+  useTurnSounds({
+    busy: state.busy,
+    error: state.error,
+    phoneUp: phoneUpRefusal.current,
+    link: state.link,
+    turns: turnUpdates.current,
+  });
+  useLinkSounds(state.link);
 
   const begin = useCallback(async (payload) => {
     again.current = () => begin(payload);
+    turnSent({ begin: true });
     dispatch({ type: "SUBMIT", text: "" });
     let left;
     let answered = false;
@@ -262,6 +291,7 @@ export default function App({ story }) {
       const data = await res.json();
       storeSaveId(data.save_id);
       linkRef.current?.join(data.session_id); // 32
+      playSound("game.begin");
     } catch (err) {
       // The POST never answered (T12 re-review R2): nothing reached the
       // server, so this tab keeps its run. One that answered and then failed
@@ -278,6 +308,7 @@ export default function App({ story }) {
       // a room the next socket is not in. `controlsLive` is the one answer.
       if (!controlsLive(state) || !state.sessionId) return;
       const emit = (spoken, id, move) => {
+        turnSent();
         dispatch({ type: "SUBMIT", text: spoken, ...(move ? { move } : {}) });
         socketRef.current?.emit("player_choice", {
           // Read when SENT, not when pressed: a retry (Try again) after a
