@@ -128,9 +128,8 @@ def test_a_file_path_must_be_plain_portable_ogg(tmp_path, path) -> None:
 
 def test_a_story_reuses_an_engine_file_by_prefix(tmp_path) -> None:
     engine = sounds.load_engine()
-    files = [p for p in (engine["root"] / "files").rglob("*.ogg")] if (engine["root"] / "files").is_dir() else []
-    if not files:
-        pytest.skip("no engine file shipped yet (T7)")
+    files = sorted((engine["root"] / "files").rglob("*.ogg"))
+    assert files, "the engine ships its Kenney files since v0.24.0 T7"
     rel = files[0].relative_to(engine["root"]).as_posix()
     data = _story(events={"story.x": {"label": "x"}}, sounds={"story.x": _file_row(f"engine:{rel}")},
                   bind={"story.x": "story.x"})
