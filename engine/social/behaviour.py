@@ -21,12 +21,12 @@ another's. It writes that counter, so it is called only from inside a
 
 from __future__ import annotations
 
-import math
 import random
 from dataclasses import dataclass
 from typing import Any, Optional
 
 from engine import social
+from engine.game import detmath
 from engine.game.rng import stable_rng
 from engine.game.state import GameState
 from engine.social.kinds import stage_rank
@@ -385,5 +385,5 @@ def person_rng(state: GameState, stream: str, pid: str) -> random.Random:
 
 
 def lognormal_minutes(rng: random.Random, median: float, spread: float) -> float:
-    """A lognormal latency in minutes around `median`, floored at half a minute."""
-    return max(0.5, median * math.exp(spread * rng.gauss(0, 1)))
+    """A lognormal latency in minutes around `median`, floored at half a minute (platform-neutral: detmath)."""
+    return max(0.5, detmath.lognormal(rng, median, spread))

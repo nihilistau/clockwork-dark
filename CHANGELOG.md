@@ -14,6 +14,16 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.23.2] — 2026-10-23
+
+v0.23.1's CI run failed `tests/test_social_turn_cost.py::test_a_world_turn_at_day_60_costs_little_and_moves_nothing` on Linux ("the save after the turns moved") while its turn payloads matched the Windows-recorded fixture. Reproduced in `python:3.11-slim-bookworm` (pinned) on a fresh clone; the two day-60 saves, dumped as sorted JSON, differed in one value: p0387's `matched_at` (in `people` and in `apps.matchstick`), `170.38475129978946` on Windows and `170.38475129978943` on Linux. A repair release.
+
+### Fixed
+
+- **One seed, one save, on every platform (AGENTS.md rule 11).** `matched_at` is a like time plus a lognormal delay (`matching.see_like_hours` -> `behaviour.lognormal_minutes`), drawn through `random.gauss` (libm `log`, `cos`, `sin`) and `math.exp`; MSVC's and glibc's libm round the last bit differently. New `engine/game/detmath.py` computes `exp`, `log`, `pow`, `sin`/`cos`, `erf`, the normal CDF and its inverse (AS241, the stdlib's own fallback) in software through `decimal`, and `gauss` with `random.Random.gauss`'s own algorithm (the same two draws, the same spare on `gauss_next`). Routed through it: `behaviour.lognormal_minutes`, `growth._jitter` and the guarded halving (now an int power), `this_or_that.chance_of_a`, `population._age` (was `statistics.NormalDist`) and its selectivity draw, `scene`'s prior and moment draws, `foraging.depletion_multiplier` and `ledger.StoryLedger.decay` (were float `**`). The results are the correctly rounded value in all but vanishingly rare cases, and the same bits on both platforms.
+- `tests/test_detmath.py`: a scan of `engine/` for any libm transcendental, libm-backed `Random` distribution, `NormalDist` or float `**` outside `detmath` (failed on v0.23.1, naming every site above); every such engine draw re-run with `math`'s and `random`'s functions moved one ulp (another platform's libm) must give the same floats (failed on v0.23.1: `lognormal_minutes` first); and detmath's results pinned as hex floats recorded on Linux, passing on Windows.
+- Re-recorded on Windows: `tests/fixtures/social/turn_cost_replay.json`'s `save` digest only (`0966d3b9...` -> `6117b427...`); its 17 turn payload digests and `world_session_replay.json` are unchanged. The Linux fast tier (`run_tests.py fast`, 8136 passed) passed with every other fixture as recorded on Windows.
+
 ## [0.23.1] — 2026-10-23
 
 v0.23.0's CI run (39867929090) failed one test, `tests/test_social_turn_cost.py::test_a_world_turn_at_day_60_costs_little_and_moves_nothing`, and its log named no reason. A repair release.

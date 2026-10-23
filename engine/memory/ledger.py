@@ -33,6 +33,8 @@ from collections import deque
 from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Iterable, Optional
 
+from engine.game import detmath
+
 logger = logging.getLogger(__name__)
 
 # How much a fact's weight decays per in-game day. Facts fade rather than
@@ -250,7 +252,7 @@ class StoryLedger:
         """Age facts. Engine-sourced facts hold a floor; they are not opinions."""
         if days <= 0:
             return
-        factor = DECAY_PER_DAY ** days
+        factor = detmath.pow(DECAY_PER_DAY, days)      # not `**`: libm's pow differs by platform
         for fact in self.facts:
             if fact.source == SOURCE_ENGINE:
                 fact.weight = max(0.5, fact.weight * factor)

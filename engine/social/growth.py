@@ -34,6 +34,7 @@ import random
 from typing import Any, Optional
 
 from engine import social
+from engine.game import detmath
 from engine.game.effects import EffectContext, apply_effect, effect_kind
 from engine.game.rng import SOCIAL_GROWTH
 from engine.game.state import GameState
@@ -311,7 +312,7 @@ def _pace(state: GameState, pid: str, rng: random.Random) -> float:
 
 def _jitter(rng: random.Random) -> float:
     """growth.yaml `pace.jitter`, lognormal (split out so a test can force it: lesson 1)."""
-    return math.exp(float((_data().get("pace") or {}).get("jitter", 0.2)) * rng.gauss(0, 1))
+    return detmath.exp(float((_data().get("pace") or {}).get("jitter", 0.2)) * detmath.gauss(rng, 0, 1))
 
 
 @attrs.drawer("topics", SOCIAL_GROWTH)
@@ -383,7 +384,7 @@ def gain(state: GameState, pid: str, event: str, *, mode: str = "", band: str = 
     else:                                               # promise_kept, support: flat, not paced
         amount = float(g.get(event, 0))
     if rec["guarded_left"] > 0:
-        amount /= 2.0 ** int(rec["guarded"])
+        amount /= 2 ** int(rec["guarded"])          # an int power: exact, no libm pow
     if amount <= 0:
         return 0.0
     apply_effect(state, {"type": "social_growth", "op": "gain", "pid": pid, "amount": amount,

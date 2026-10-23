@@ -53,6 +53,7 @@ import yaml
 from engine import yamlio
 from engine.config import get_config
 from engine.game import checks as checks_module
+from engine.game import detmath
 from engine.game import effects as effects_module
 from engine.game import inventory as inventory_module
 from engine.game.locations import get_location
@@ -603,7 +604,7 @@ def depletion_multiplier(state: GameState, uses: int) -> float:
     depletion = _cfg().get("depletion") or {}
     step = float(depletion.get("yield_step", 0.65) or 0.65)
     floor = float(depletion.get("yield_floor", 0.25) or 0.0)
-    return max(floor, step ** max(0, int(uses)))
+    return max(floor, detmath.pow(step, max(0, int(uses))))   # not `**`: libm's pow differs by platform
 
 
 def season_yield(state: GameState) -> float:

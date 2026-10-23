@@ -35,6 +35,10 @@ DESIGN_REVIEW.md, then CLAUDE_CODE_BRIEF.md.
     supported: no code assumes a path separator, a drive letter, a
     case-insensitive filesystem or an `.exe`, and every script has a
     PowerShell and a POSIX way in (`scripts/start.ps1`, `scripts/start.sh`).
+    No value that reaches state comes from the platform's libm (`math.exp`,
+    `math.log`, `random.gauss`, `statistics.NormalDist`, a float `**`):
+    Windows and Linux round its last bit differently, so one seed gave two
+    saves. Use `engine/game/detmath.py` (`tests/test_detmath.py` scans for it).
     LM Studio at `http://localhost:1234/v1` is the default model server;
     vLLM, llama-server, Ollama and OpenAI-compatible servers are set by
     `llm.provider` (docs/MODEL_SERVERS.md). Local single-player is the

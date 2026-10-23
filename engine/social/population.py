@@ -23,12 +23,12 @@ from __future__ import annotations
 
 import string
 import threading
-from statistics import NormalDist
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any, Optional, Sequence
 
 from engine import social
+from engine.game import detmath
 from engine.game.rng import SOCIAL_POPULATION, stable_rng
 from engine.locks import renew_after_fork
 
@@ -250,10 +250,11 @@ def _age(rng: Any, data: dict[str, Any], app: str, player: dict[str, Any]) -> in
         hi = max(hi, lo)
     # A normal TRUNCATED to [lo, hi] by one uniform draw through its CDF: no
     # pile-up at the bounds, and always exactly one draw from the stream.
-    normal = NormalDist(float(dist["mean"]), max(0.1, float(dist["sd"])))
-    a, b = normal.cdf(lo - 0.5), normal.cdf(hi + 0.5)
+    # (statistics.NormalDist's own formulas, on detmath: its erf and log are the platform's libm.)
+    mu, sigma = float(dist["mean"]), max(0.1, float(dist["sd"]))
+    a, b = detmath.normal_cdf(lo - 0.5, mu, sigma), detmath.normal_cdf(hi + 0.5, mu, sigma)
     u = rng.uniform(a, b)
-    drawn = normal.inv_cdf(min(max(u, 1e-12), 1.0 - 1e-12)) if b > a else float(dist["mean"])
+    drawn = detmath.normal_inv_cdf(min(max(u, 1e-12), 1.0 - 1e-12), mu, sigma) if b > a else mu
     return max(lo, min(hi, int(round(drawn))))
 
 
@@ -317,7 +318,7 @@ def _preferences(rng: Any, data: dict[str, Any], age: int) -> tuple[tuple[str, A
     dealbreakers = tuple(sorted(rng.sample(pool_, min(rng.randint(int(low), int(high)), len(pool_)))))
     liked = tuple(str(row["id"]) for row in _sample(rng, data["hobbies"], rng.randint(1, 3)))
     sel = _require(data, "preferences", "selectivity")
-    selectivity = round(max(0.0, min(1.0, rng.gauss(float(sel["mean"]), float(sel["sd"])))), 3)
+    selectivity = round(max(0.0, min(1.0, detmath.gauss(rng, float(sel["mean"]), float(sel["sd"])))), 3)
     return (("age_max", age_max), ("age_min", age_min), ("dealbreakers", dealbreakers),
             ("liked_hobbies", liked), ("selectivity", selectivity))
 

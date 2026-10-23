@@ -10,7 +10,7 @@ release to release.
 
 ## Status
 
-**v0.23.1** (a repair of v0.23.0's CI run: the world-turn cost bound is local-only and `run_tests.py` names each failure's reason) is the current release, on **v0.23.0** (READ RECEIPTS' rework: growth, no set time on dating, phone numbers that follow the conversation, places and in-person scenes, living together and life events, and addendum 4's world interaction); v0.24.0 is next, and it carries v0.23.0's deferred tail (the owner moved T29b, T31, T32 and T33 to its end, 2026-10-23) (CHANGELOG.md has every release since 0.4.0;
+**v0.23.2** (a cross-platform repair: the engine's lognormal, normal and decay math runs in software, `engine/game/detmath.py`, so one seed gives one save on Windows and Linux) is the current release, after **v0.23.1** (the world-turn cost bound is local-only and `run_tests.py` names each failure's reason), on **v0.23.0** (READ RECEIPTS' rework: growth, no set time on dating, phone numbers that follow the conversation, places and in-person scenes, living together and life events, and addendum 4's world interaction); v0.24.0 is next, and it carries v0.23.0's deferred tail (the owner moved T29b, T31, T32 and T33 to its end, 2026-10-23) (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
 **Windows, v0.23.0 (`scripts/run_tests.py full`, measured 2026-10-23 at

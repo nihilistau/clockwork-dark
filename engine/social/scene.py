@@ -74,7 +74,7 @@ import logging
 from typing import Any, Optional, Sequence
 
 from engine import social
-from engine.game import clock
+from engine.game import clock, detmath
 from engine.game.effects import EffectContext, apply_effect, effect_kind
 from engine.game.intents import IntentVerb
 from engine.game.rng import SOCIAL_PACE, SOCIAL_SCENE
@@ -413,13 +413,13 @@ def _prior_terms(state: GameState, pid: str) -> float:
 def _prior_draw(state: GameState, pid: str) -> float:
     """The prior's one SOCIAL_SCENE draw, a centred spread (lesson 1: forceable). Inside a handler (rule 3)."""
     spread = float((_data().get("prior") or {}).get("spread", 0.18))
-    return behaviour.person_rng(state, SOCIAL_SCENE, pid).gauss(0.0, spread)
+    return detmath.gauss(behaviour.person_rng(state, SOCIAL_SCENE, pid), 0.0, spread)
 
 
 def _moment_draw(state: GameState, pid: str) -> float:
     """The moment's one SOCIAL_SCENE draw, a centred spread (lesson 1: forceable). Inside a handler (rule 3)."""
     spread = float((_data().get("moment") or {}).get("spread", 0.2))
-    return behaviour.person_rng(state, SOCIAL_SCENE, pid).gauss(0.0, spread)
+    return detmath.gauss(behaviour.person_rng(state, SOCIAL_SCENE, pid), 0.0, spread)
 
 
 def _band_of(score: float) -> str:

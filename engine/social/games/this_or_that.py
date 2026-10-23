@@ -35,11 +35,11 @@ handler only, rule 3) and `reveal`, which writes through `apply_effect`
 
 from __future__ import annotations
 
-import math
 import random
 from typing import Any, Optional, Sequence
 
 from engine import social
+from engine.game import detmath
 from engine.game.rng import SOCIAL_GAME, stable_rng
 
 #: The game's id in apps.yaml's `games.offers` and games.yaml.
@@ -225,7 +225,7 @@ def chance_of_a(person: Any, pair: dict[str, Any]) -> float:
     lean = spec()["lean"]
     diff = float(lean["sharpness"]) * (_pull(person, pair["a"]["tags"]) - _pull(person, pair["b"]["tags"]))
     noise = float(lean["noise"])
-    return noise / 2.0 + (1.0 - noise) / (1.0 + math.exp(-diff))
+    return noise / 2.0 + (1.0 - noise) / (1.0 + detmath.exp(-diff))
 
 
 def their_answers(person: Any, pairs: Sequence[dict[str, Any]], rng: random.Random) -> list[str]:
