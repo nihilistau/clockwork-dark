@@ -32,6 +32,16 @@ describe("installClickSounds", () => {
     expect(played()).toEqual(["alert.error"]);
   });
 
+  it("a handler whose own sound is dropped still owns the click: no ui.press (re-review R1)", () => {
+    off = installClickSounds(document);
+    act(() => root.render(<button id="b" onClick={() => playSound("alert.error", { key: "once" })}>go</button>));
+    click(host.querySelector("#b"));
+    act(() => { vi.runAllTimers(); });
+    click(host.querySelector("#b"));               // its sound is dropped as seen the second time
+    act(() => { vi.runAllTimers(); });
+    expect(played()).toEqual(["alert.error"]);
+  });
+
   it("a plain button gives ui.press", () => {
     off = installClickSounds(document);
     act(() => root.render(<button id="b">go</button>));

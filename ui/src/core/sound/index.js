@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import { ensure, installCatalog, limits, markSeen, noteSkip, play, playCount, resetEngine, setLevels, soundLog } from "./engine.js";
+import { callCount, ensure, installCatalog, limits, markSeen, noteSkip, play, playCount, resetEngine, setLevels, soundLog } from "./engine.js";
 import { inSentTurn, resetTurns, turnSent, turnSettled } from "./turns.js";
 
 export { installCatalog, markSeen, setLevels, soundLog, turnSent, turnSettled };
@@ -61,9 +61,9 @@ export function installClickSounds(root = typeof document !== "undefined" ? docu
     const named = el.closest("[data-sound]")?.getAttribute("data-sound");
     if (named === "none") return;
     const event = named || (el.type === "checkbox" ? "ui.toggle" : "ui.press");
-    const before = playCount();
+    const before = callCount();
     // A macrotask: it runs after the whole dispatch, React's delegated handlers included (a microtask would not).
-    setTimeout(() => { if (playCount() === before) play(event); }, 0);
+    setTimeout(() => { if (callCount() === before) play(event); }, 0);
   };
   root.addEventListener("click", onClick, true);
   return () => root.removeEventListener("click", onClick, true);

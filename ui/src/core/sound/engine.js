@@ -14,7 +14,7 @@ export function resetEngine({ logPlays = false } = {}) {
   if (S.ctx && typeof S.ctx.close === "function") { try { Promise.resolve(S.ctx.close()).catch(() => {}); } catch { /* already closed */ } }
   Object.assign(S, {
     ready: true, ctx: null, master: null, buses: {}, prefs: null, catalog: null, strict: false, oggOk: null,
-    buffers: new Map(), failed: new Set(), last: new Map(), voices: [], seen: new Set(), seenOrder: [], plays: 0,
+    buffers: new Map(), failed: new Set(), last: new Map(), voices: [], seen: new Set(), seenOrder: [], plays: 0, calls: 0, errorWarned: false,
     log: logPlays || (typeof location !== "undefined" && /[?&]soundlog=1/.test(location.search)) ? [] : null,
     listener: null,
   });
@@ -51,6 +51,8 @@ export function setLevels(prefs) { ensure(); S.prefs = prefs; applyLevels(); }
 export function installCatalog(catalog, { strict = false } = {}) { ensure(); S.catalog = catalog; S.strict = strict; }
 export const limits = () => (S.catalog && S.catalog.limits) || {};
 export const playCount = () => S.plays || 0;
+/** Every `play` call, played or dropped: a handler that asked for its own sound owns the click (re-review R1). */
+export const callCount = () => S.calls || 0;
 /** The Ogg probe's answer once a gesture has run it; null before (Audition's "fallback" mark, pre-flight F29). */
 export const oggSupported = () => S.oggOk;
 
@@ -80,6 +82,7 @@ export function resolve(event) {
 
 export function play(event, { key, delayMs = 0 } = {}) {
   ensure();
+  S.calls = (S.calls || 0) + 1;
   const base = { t: Date.now(), event, key };
   if (key != null && S.seen.has(String(key))) return note({ ...base, dropped: "seen" });
   const found = resolve(event);
