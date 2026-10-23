@@ -838,8 +838,8 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   re-measured on v0.23's episode model (the harness's `Phone.away` row can
   run it). `social.voice.max_per_pass` stays 3: passes run back to back and
   each reply commits as it lands (config/default.yaml's comment).
-- The player's life-event decks are two, `boiler` and `parcel`; the other
-  four (spec §12.2) are T25, moved to v0.24.0 at checkpoint C1.
+- The player's life-event decks are six since v0.24.0 T2: `boiler`, `parcel`,
+  `neighbour_party`, `lift_out`, `family_visit` and `wedding_invite`.
 - READ RECEIPTS' `meeting` stage gate was dead data (v0.23.0 T13: a scene's end
   moves a relationship from `numbers` to `meeting` whatever the band,
   `engine/social/scene.py::_end`) and v0.23.0 T18 REMOVED it: `relationships.yaml`'s

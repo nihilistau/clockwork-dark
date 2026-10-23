@@ -14,6 +14,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - The morning after a stay-over (`scenes.yaml` `morning:`): staying the night now wakes in a short morning scene, in your kitchen or at their home, with breakfast, getting ready and seeing them out. It offers quiet, telling them something, being playful and talking, and ends after two moments or when you see them to the door (`See them to the door`, or the same and say you'll do it again soon) or head home. It is the night's tail, not a second date: it counts no scene, swaps no numbers, moves no stage and queues no text of its own, and the night's text is held until you part. The companion card is headed "The morning after".
+- Four more life-event scenes, each a short roll-free card of ordinary domestic life that clears its event: your neighbour's party (`neighbour_party`, in the hall: ask them to keep it down, go round for one drink, or headphones on), the broken lift (`lift_out`, in the lift: take the stairs or report it at reception), your family visiting (`family_visit`, in the lounge: two cards, putting the kettle on or showing them round, then asking after everyone or telling them how you're getting on) and the wedding invitation (`wedding_invite`, in the hall: reply yes or pin it on the fridge). The events `wedding_invite`, `lift_out`, `neighbour_party` and `family_visit` now hold a `life_<id>` flag for their days.
+
+### Fixed
+
+- The broken lift adds its five minutes only when you go in or out of your building, not on every move (the engine's fix, root CHANGELOG).
+- Leaving the parcel at reception now clears it too (`parcel.yaml`'s second answer), as every other life-event answer does.
+
+### Changed
+
+- The wedding invitation (5 days) and your promotion (7 days) now run a window: for that long you can tell people the news, and then it is old news. Before they had no window and were never offered.
 
 ## [0.23.3] — 2026-10-23
 

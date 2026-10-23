@@ -2038,6 +2038,27 @@ class StoryValidator:
             parts = str(exc).split(": ", 3)
             self._add("social/life_events.yaml", parts[2] if len(parts) == 4 else "life_events",
                       parts[3] if len(parts) == 4 else str(exc))
+        decks_dir = self._file("decks")
+        for row in data.get("player") or ():
+            if not isinstance(row, dict):
+                continue
+            rid = str(row.get("id") or "")
+            if (row.get("flag") or row.get("news")) and "lasts_days" not in row:
+                self._add("social/life_events.yaml", f"player.{rid}.lasts_days",
+                          "a row with a flag or news needs lasts_days (news shows only while it runs)")
+            deck_id = row.get("scene")
+            if not deck_id:
+                continue
+            path = decks_dir / f"{deck_id}.yaml" if decks_dir else None
+            if path is None or not path.is_file():
+                self._add("social/life_events.yaml", f"player.{rid}.scene", f"no deck {deck_id!r} in paths.decks")
+                continue
+            deck = yamlio.safe_load(path.read_text(encoding="utf-8")) or {}
+            # The deck's `when:` must READ the flag (pre-flight F22): the beats' own clear-effects name it too,
+            # so a substring of the file could never fail.
+            if row.get("flag") and str(row["flag"]) not in flags_read(deck.get("when")):
+                self._add("social/life_events.yaml", f"player.{rid}.scene",
+                          f"deck {deck_id!r}'s when: does not read the row's flag {row.get('flag')!r}")
 
     def _check_promises(self, directory: Path) -> None:
         """promises.yaml (v0.23.0 spec §5): `promises.check_data` -- the check `load_all` runs."""

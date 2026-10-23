@@ -17,6 +17,15 @@ file is the authority from 0.4.0 on.
 ### Added
 
 - READ RECEIPTS' morning scene (v0.24.0 T1, spec 12.1): `scene.stay_the_night` opens a `morning` scene after a stay-over at the flat's kitchen or the host's home (`scenes.yaml` `morning:`, checked at load), with the closer `see_them_out`; `_end` skips a morning's scene bookkeeping. The phone payload's `scene` section gains `kind` and `id`. Other stories are unchanged.
+- READ RECEIPTS' four remaining life-event decks (v0.24.0 T2, spec 12.2) and the validation that holds them: `engine/games/validation.py::_check_life_events` now names a player row's `scene` that is no deck in `paths.decks`, a deck whose `when:` does not read the row's `flag`, and a row with a `flag` or `news` but no `lasts_days`.
+
+### Fixed
+
+- The broken lift's extra minutes (`engine/social/world.py::go`) were charged to EVERY move while the lift was out; they are now charged only to a move through the building (exactly one end in the player's flat and building, `places.is_flat`). Between two city places they are no longer added.
+
+### Changed
+
+- A deliberate behaviour change (READ RECEIPTS data): the `wedding_invite` and `promotion` player events now run a window (`lasts_days` 5 and 7), so their news is offered as a `tell_about` topic for that long and then not (before, with no window, it was never offered).
 
 ## [0.23.3] — 2026-10-23
 

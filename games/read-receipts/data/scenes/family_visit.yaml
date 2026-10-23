@@ -1,0 +1,88 @@
+# READ RECEIPTS -- family visit (v0.24.0 spec §12.2): a life event's world moment.
+# ==========================================================================
+#
+# Dealt in the apt_lounge while your family in the flat is going on (`life_family_visit`, set by the life event `family_visit` in
+# data/social/life_events.yaml and cleared when it has run its days, or by any answer here). Read by
+# engine/content/deck.py through `paths.decks`; THE FILENAME IS THE DECK ID.
+#
+# Ordinary domestic life and nothing more. Every answer is roll-free and clears the flag. REPEATABLE: the
+# event comes round again, the flag clears, the director re-arms the deck when its `when:` is seen false,
+# and it deals the next time. The director deals nothing over an open scene, so this waits for the room
+# to be the player's own again.
+#
+# Version: v0.1.0
+
+id: family_visit
+
+repeatable: true
+
+draw: 1
+
+when:
+  all:
+    - { flag: life_family_visit }
+    - { at_location: apt_lounge }
+
+cards:
+  - id: FV1_family_on_the_sofa
+    tags: [menu, gm]
+    title: "Family on the Sofa"
+    text: >-
+      INTENT: your family are settling onto the sofa with their coats still on, looking around the
+      flat. CONSTRAINTS: warm and ordinary; the player decides how to host. MENU -- resolve exactly
+      the beat the player chose.
+    beats:
+      - id: put_the_kettle_on
+        label: "Put the kettle on"
+        text: >-
+          Put the kettle on.
+        gate:
+          on_pass:
+            text: >-
+              The kettle rumbles, mugs come out, and the flat fills with the sound of everyone talking at
+              once.
+            effects:
+              - { type: flag, flag: life_family_visit, value: false }
+
+      - id: show_them_round
+        label: "Show them round the flat"
+        text: >-
+          Show them round the flat.
+        gate:
+          on_pass:
+            text: >-
+              You take them from room to room. They approve of the view, question the radiator and admire
+              the plants.
+            effects:
+              - { type: flag, flag: life_family_visit, value: false }
+
+  - id: FV2_news_from_home
+    tags: [menu, gm]
+    title: "News from Home"
+    text: >-
+      INTENT: tea is poured and the talk turns to home: who is doing what, who has moved, who has not
+      called. CONSTRAINTS: warm and ordinary; the player decides what to share. MENU -- resolve
+      exactly the beat the player chose.
+    beats:
+      - id: ask_after_everyone
+        label: "Ask after everyone"
+        text: >-
+          Ask after everyone back home.
+        gate:
+          on_pass:
+            text: >-
+              You ask after each of them in turn and the news comes in a long, happy tangle.
+            effects:
+              - { type: flag, flag: life_family_visit, value: false }
+
+      - id: tell_them_your_news
+        label: "Tell them how you're getting on"
+        text: >-
+          Tell them how you're getting on.
+        gate:
+          on_pass:
+            text: >-
+              You tell them about work and the flat and the city, and they listen, nodding, as if they had
+              been waiting to hear it.
+            effects:
+              - { type: flag, flag: life_family_visit, value: false }

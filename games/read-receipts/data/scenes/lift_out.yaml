@@ -1,0 +1,57 @@
+# READ RECEIPTS -- lift out (v0.24.0 spec §12.2): a life event's world moment.
+# ==========================================================================
+#
+# Dealt in the bldg_lift while the lift in the building is going on (`life_lift_out`, set by the life event `lift_out` in
+# data/social/life_events.yaml and cleared when it has run its days, or by any answer here). Read by
+# engine/content/deck.py through `paths.decks`; THE FILENAME IS THE DECK ID.
+#
+# Ordinary domestic life and nothing more. Every answer is roll-free and clears the flag. REPEATABLE: the
+# event comes round again, the flag clears, the director re-arms the deck when its `when:` is seen false,
+# and it deals the next time. The director deals nothing over an open scene, so this waits for the room
+# to be the player's own again.
+#
+# Version: v0.1.0
+
+id: lift_out
+
+repeatable: true
+
+draw: 1
+
+when:
+  all:
+    - { flag: life_lift_out }
+    - { at_location: bldg_lift }
+
+cards:
+  - id: LO1_out_of_order
+    tags: [menu, gm]
+    title: "Out of Order"
+    text: >-
+      INTENT: a handwritten OUT OF ORDER sign is taped across the lift doors, and the stairwell light
+      clicks on beyond them. CONSTRAINTS: it is a minor inconvenience; the player decides what to do
+      about it. MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: take_the_stairs
+        label: "Take the stairs"
+        text: >-
+          Take the stairs.
+        gate:
+          on_pass:
+            text: >-
+              You push the stairwell door open and go down, one landing at a time, your steps ringing off
+              the concrete.
+            effects:
+              - { type: flag, flag: life_lift_out, value: false }
+
+      - id: report_it
+        label: "Report it at reception"
+        text: >-
+          Report the lift at reception.
+        gate:
+          on_pass:
+            text: >-
+              The porter writes it in the book with a sigh. "Third time this month." Someone will be
+              along, eventually.
+            effects:
+              - { type: flag, flag: life_lift_out, value: false }

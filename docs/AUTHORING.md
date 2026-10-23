@@ -3260,12 +3260,13 @@ the partner who lives in the player's flat, T18) and `plan: wedding`
 `wedding_after_days` have passed since `engaged_since` and no wedding plan is open; it queues the
 registry office plan, `plans.make_wedding`; READ RECEIPTS draws it at odds 1 a day, `prob_per_week: 7`). A player
 row also has `label` (its `tell_about` topic: "your boiler"), `sign_off` (the reason the engine
-gives when YOU end a chat while it runs), `flag` (`life_<id>` held while it runs), `scene` (the deck
-dealt for it), `schedule` (`work_extra_hours` or `lift_extra_minutes`) and `effects`.
+gives when YOU end a chat while it runs), `flag` (`life_<id>` held while it runs; needs `lasts_days`), `scene` (the deck
+dealt for it, whose `when:` must read the row's `flag`; validation checks both, and that a row with `news` has `lasts_days`: news shows only while it runs), `schedule` (`work_extra_hours` or `lift_extra_minutes`) and `effects`.
 
 **The player's decks.** A world moment is an ordinary deck (§3.3) whose `when:` reads the event's
-flag and the room: `data/scenes/boiler.yaml` (`life_boiler`, `apt_kitchen`) and `parcel.yaml`
-(`life_parcel`, `bldg_reception`). Make it `repeatable: true` (the event comes round again) and let each
+flag and the room: `data/scenes/boiler.yaml` (`life_boiler`, `apt_kitchen`), `parcel.yaml`
+(`life_parcel`, `bldg_reception`), `neighbour_party.yaml` (`apt_hall`), `lift_out.yaml` (`bldg_lift`),
+`family_visit.yaml` (`apt_lounge`) and `wedding_invite.yaml` (`apt_hall`). Make it `repeatable: true` (the event comes round again) and let each
 beat's `gate.on_pass.effects` clear the flag (`{type: flag, flag: life_boiler, value: false}`); the
 event clears it itself when its days are out. A deck waits while a scene is open (the director deals
 nothing over one). A deck schedules on its own `when:`, not a card's. Telling people: the player's

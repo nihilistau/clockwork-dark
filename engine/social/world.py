@@ -568,7 +568,12 @@ def go(state: GameState, to: str, *, targets: Optional[list[tuple[str, str]]] = 
         apply_effect(state, {"type": "social_settings", "field": "resume", "value": None})
     from engine.social import life   # lazily: life imports this module's peers
 
-    minutes = places.travel_minutes(to if to != HOME else state.location_id) + life.extra_minutes(state)   # the lift (§11.2)
+    left = str(state.location_id or "")
+    minutes = places.travel_minutes(to if to != HOME else left)
+    # The lift's minutes (§11.2, v0.24.0 §12.2) only for a move THROUGH the building: exactly one end in the
+    # player's flat and building (ring 0, `places.is_flat`). The cast's homes are `residence`, never in it.
+    if places.is_flat(left) != places.is_flat(to):
+        minutes += life.extra_minutes(state)
     clock.advance_time(state, minutes / 60.0)
     apply_effect(state, {"type": "social_go", "op": "place", "to": to})
     result: dict[str, Any] = {"ok": True, "to": to, "label": legal[to], "minutes": minutes}
