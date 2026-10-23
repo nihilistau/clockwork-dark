@@ -161,8 +161,16 @@ def played(instance: HostingInstance) -> Iterator[dict[str, Any]]:
         finally:
             poll.close()
         # A resume (the session event `resumed`; the run it replaces `released`).
+        # The socket's turn has answered, but its run may still hold its turn lock a moment (its post-turn
+        # work): the resume is then answered busy (409, spec §5.4) and re-sent, as the client does, a bounded
+        # number of times (v0.23.3: seen on Linux, where the request arrives that much sooner).
         save_id = str(saved.json().get("save_id") or "")
-        resumed = player.post(f"/api/saves/{save_id}/load", json={})
+        settle = threading.Event()
+        for _attempt in range(40):
+            resumed = player.post(f"/api/saves/{save_id}/load", json={})
+            if resumed.status_code != 409:
+                break
+            settle.wait(0.15)
         assert resumed.status_code == 200, resumed.text[:300]
 
         assert choose(player, B).status_code == 303
@@ -182,7 +190,7 @@ def played(instance: HostingInstance) -> Iterator[dict[str, Any]]:
         turn = player.post("/api/game/choice", json={"session_id": session_b, "choice_id": "a"})
         assert turn.status_code == 200, turn.text[:300]
 
-        _play_the_phone(player)
+        _play_the_phone(player, instance)
         _the_match_answers(instance)
         _until_the_phone_save_holds_voiced_words(instance)
         _plant_play_text(instance, player)
@@ -219,7 +227,7 @@ def _phone(player: httpx.Client, sid: str, action: str, target: str = "", args: 
     return body
 
 
-def _play_the_phone(player: httpx.Client) -> None:
+def _play_the_phone(player: httpx.Client, instance: HostingInstance) -> None:
     """
     A phone save holding play text (spec §17.1): the sentinel as a bio and in
     every message the player sends, then time passed so the match's replies
@@ -258,10 +266,11 @@ def _play_the_phone(player: httpx.Client) -> None:
     porch = _front_porch_match(player, sid, phone)
     _phone(player, sid, "send", target=porch, args={"kind": "voice", "audio_transcript": f"{SENTINEL} hums"})
     _phone(player, sid, "ask", target=porch, args={"what": "voice"})   # their voice note: the scripted line
-    # Their voice note is a background media job (the speech worker's thread, its result delivered at a LATER
-    # action's drain), so the wait is in real time as well as game time: a batch run on a loaded machine fell
-    # through twelve instant polls (v0.23.0 T28). The draws themselves are forced (scripted.always_replies,
-    # scripted.media_yes).
+    # Their answer is decided at their read of the ask, even when their reply to the voice note above is still
+    # unvoiced (v0.23.3: on Linux the ask reached the worker before the voicing pass had worded that reply, and
+    # the ask was never answered). The voice note itself is a background media job (its result delivered at a
+    # LATER action's drain), so the wait is in real time as well as game time (v0.23.0 T28). The draws are
+    # forced (scripted.always_replies, scripted.media_yes).
     pause = threading.Event()
     for _ in range(60):
         opened = _phone(player, sid, "open_thread", target=porch)["state"]["phone"].get("open_thread") or {}
@@ -271,8 +280,33 @@ def _play_the_phone(player: httpx.Client) -> None:
         _phone(player, sid, "wait", args={"until": "next"})
         pause.wait(0.5)
     else:
-        raise AssertionError("their voice note never fell due")
+        raise AssertionError("their voice note never fell due: " + _porch_diagnosis(instance, porch, opened))
     _typed_world_turns(player, sid)
+
+
+def _porch_diagnosis(instance: HostingInstance, porch: str, opened: dict[str, Any]) -> str:
+    """
+    Why a voice note did not land, for the failure's own message: the thread's last messages as the payload
+    shows them (kind, sender, pending, a media row's status) and, from the run as last saved, the player's
+    asks of that person and the media rows of that thread (the job's state).
+    """
+    shown = [(m.get("id"), m.get("kind"), m.get("from"), "pending" if m.get("pending") else "voiced",
+              (m.get("media") or {}).get("status")) for m in (opened.get("messages") or [])[-8:]]
+    asks: list[Any] = []
+    media: list[Any] = []
+    for path in instance.data_dir.rglob("save.json"):
+        if C not in path.parts:
+            continue
+        try:
+            social = (json.loads(path.read_text(encoding="utf-8")).get("state") or {}).get("social") or {}
+        except (OSError, ValueError) as exc:
+            asks.append(f"unreadable save: {exc!r}")
+            continue
+        asks += [(r.get("id"), r.get("what"), r.get("status"), r.get("at")) for r in (social.get("requests") or {}).values()
+                 if r.get("thread_id") == porch]
+        media += [(r.get("mid"), r.get("kind"), r.get("status"), r.get("provider")) for r in (social.get("media") or {}).values()
+                  if r.get("thread_id") == porch]
+    return f"the thread's last messages {shown}; its asks as saved {asks}; its media rows as saved {media}"
 
 
 def _plant_play_text(instance: HostingInstance, player: httpx.Client) -> None:

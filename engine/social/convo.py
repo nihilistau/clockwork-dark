@@ -435,6 +435,17 @@ def _due_reply(state: GameState, thread_id: str) -> Optional[dict[str, Any]]:
     return None
 
 
+def _is_ask(message: dict[str, Any]) -> bool:
+    """A player's ask (`relationships.ask`'s `request` message): answered by their read, never by a reply."""
+    return message.get("from") == "player" and message.get("kind") == "request"
+
+
+def _asked_last(state: GameState, thread_id: str) -> bool:
+    """The thread's newest message is the player's ask (inside the send's handler: the one just sent)."""
+    messages = (messaging.thread(state, thread_id) or {}).get("messages") or []
+    return bool(messages) and _is_ask(messages[-1])
+
+
 def _read_pending(state: GameState, pid: str, thread_id: str) -> bool:
     """A `read` for that thread is already queued: the burst rule for someone not reading yet."""
     return any(e["pid"] == pid and e["kind"] == "read" and e.get("thread_id") == thread_id
@@ -537,10 +548,13 @@ def on_player_send(state: GameState, pid: str, thread_id: str, at: float, *, not
     - an episode is open and they are not away: their read lands NOW (`at`), so the reply is due
       at the same minute -- the send's own `advance_time` walks it (§4.3);
     - otherwise: the read is queued at `next_available` (they read it when they can, §3.5 item 3).
+    An ASK (a `request` message) is never folded into a due reply, marked or not: only a read answers
+    an ask (`_on_read`), so it takes the read branches whatever is due (v0.23.3: an ask sent while
+    their reply to the send before it was still unvoiced was never answered).
     """
     if note:
         _note_player_chars(state, pid, thread_id, at)
-    due = _due_reply(state, thread_id)
+    due = None if _asked_last(state, thread_id) else _due_reply(state, thread_id)
     if due is not None:
         if due["id"] not in MARKED.get():
             apply_effect(state, {"type": "social_episode", "op": "redecide", "pid": pid,
@@ -764,13 +778,14 @@ def after_commit(state: GameState, pid: str, thread_id: str, through_id: str, at
     the NEXT decision is made now, at the commit's minute, as a due message -- never discarded (I6).
     Returns True when one was queued (the pass then sets `rerun`). With the conversation over (lapsed,
     or signed off with no "one more thing" left) their read is queued instead, as for any cold message.
+    An ask is not "spoke after": its own read answers it (`on_player_send` queued that read, v0.23.3).
     """
     if not through_id:
         return False
     t = messaging.thread(state, thread_id) or {}
     after = False
     for m in t.get("messages") or []:
-        if after and m.get("from") == "player" and messaging.shown(m):
+        if after and m.get("from") == "player" and messaging.shown(m) and not _is_ask(m):
             if _due_reply(state, thread_id) is not None:
                 return False
             ep = episode(state, pid)

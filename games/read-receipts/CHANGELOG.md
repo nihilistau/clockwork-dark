@@ -11,6 +11,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.23.3] — 2026-10-23
+
+### Fixed
+
+- Asking someone for a voice note, a photo, their number or a meet-up a moment after a message of yours, while their reply to it was still being written, is answered: before, the ask waited for good (the engine's fix, root CHANGELOG [0.23.3]).
+
 ## [0.23.0] — 2026-10-23
 
 READ RECEIPTS, reworked (the engine side is in the [root CHANGELOG](../../CHANGELOG.md)). People open up at their own pace, a conversation is an episode with instant replies, "talk later" and plans are promises the engine keeps, there is no set time on dating, phone numbers follow the conversation, and the world outside the phone is played: your flat and 28 places (48 plates), meet-ups as scenes, chance meetings, homes and visits, living together, engagement and marriage as live stages (there is still no ending), and life events. A v0.22.0 save loads. T29b (the full balance pass), T31 (live play), T32 (the docs pass) and T33 (the whole-branch review) are deferred to the end of v0.24.0 by the owner, as are the morning scene (T24) and four more life-event decks (T25); the first values in `scenes.yaml` and `life_events.yaml` are unmeasured until that pass.

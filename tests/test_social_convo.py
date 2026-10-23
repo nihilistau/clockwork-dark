@@ -12,6 +12,7 @@ habits, patched. No test passes or fails by its seed.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 
 import pytest
@@ -143,6 +144,53 @@ def test_a_pass_commit_after_a_send_queues_the_next_decision(receipts_state, mat
     due = [m for m in _theirs(receipts_state, thread) if m["voiced"] is False]
     voiced = [m for m in _theirs(receipts_state, thread) if m["voiced"] is True]
     assert len(due) == 1 and len(voiced) == 2                  # the marked reply committed, the next one due
+
+
+def _media_yes(monkeypatch) -> None:
+    """Every media ask answerable and accepted: the stage, the budget and the accept odds forced (lesson 1)."""
+    from engine.social import media
+
+    monkeypatch.setattr(media, "unlocked", lambda *a, **k: True)
+    monkeypatch.setattr(media, "budget_of", lambda *a, **k: 2.0)
+    monkeypatch.setattr(media, "accept_p", lambda *a, **k: 1.0)
+
+
+@pytest.mark.parametrize("marked", [False, True], ids=["unmarked", "marked"])
+def test_an_ask_sent_while_their_reply_is_due_is_still_answered(receipts_state, matched, monkeypatch,
+                                                                marked: bool) -> None:
+    """
+    v0.23.3: the player asks (here, for a voice note) a moment after a send, while their reply to it is
+    still due -- unvoiced, and maybe marked by a pass wording it. The burst rule folds a SEND into that
+    reply, but an ask is no send: their read, at the ask's minute, answers it. Before, the reply was
+    re-decided as a plain reply (or, marked, nothing happened), no read was queued and the ask stayed
+    pending for good -- CI's "their voice note never fell due" (tests/test_admin_no_play_text.py) on
+    Linux, where the ask reached the worker before the voicing pass had committed the reply.
+    """
+    from engine.social import convo
+
+    thread = matched("front_porch")
+    pid = thread.split(":")[1]
+    _no_boundary(monkeypatch)
+    _media_yes(monkeypatch)
+    with _replies_forced():
+        _open_episode(receipts_state, pid, thread)
+        assert _act(receipts_state, "send", target=thread, args={"kind": "text"}, text="listen to this")["success"]
+        due = [m for m in _theirs(receipts_state, thread) if m["voiced"] is False]
+        assert len(due) == 1                                   # their reply to the send, not yet worded
+        held = convo.marking([due[0]["id"]]) if marked else contextlib.nullcontext()
+        with held:
+            asked = _act(receipts_state, "ask", target=thread, args={"what": "voice"})
+        assert asked["success"], asked
+    requests = [r for r in receipts_state.social["requests"].values() if r["pid"] == pid and r["what"] == "voice"]
+    assert len(requests) == 1 and requests[0]["status"] != "pending", requests
+    answers = [m for m in _theirs(receipts_state, thread)
+               if (m.get("decision") or {}).get("request_id") == requests[0]["id"]]
+    assert len(answers) == 1 and answers[0]["kind"] == "voice", _theirs(receipts_state, thread)
+    if marked:   # the pass commits the reply it held: the ask, answered by its read, asks no second reply
+        through = [m for m in receipts_state.social["threads"][thread]["messages"] if m["from"] == "player"][-2]["id"]
+        next(m for m in _theirs(receipts_state, thread) if m["id"] == due[0]["id"])["voiced"] = True
+        assert convo.after_commit(receipts_state, pid, thread, through, receipts_state.world_clock_hours) is False
+        assert [m["id"] for m in _theirs(receipts_state, thread) if m["voiced"] is False] == [answers[0]["id"]]
 
 
 def test_a_chatty_worker_at_the_end_of_their_shift_does_not_sign_off(receipts_state, matched, monkeypatch) -> None:

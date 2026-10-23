@@ -14,6 +14,15 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.23.3] — 2026-10-23
+
+v0.23.2's CI run errored all six tests of `tests/test_admin_no_play_text.py` in their shared setup on Linux, solo re-run included: "their voice note never fell due". Reproduced in `python:3.11-slim-bookworm` (pinned) on a fresh clone; the failing run's save held the player's voice-note ask `pending` seventeen game days on, no read queued for it and no media row. A repair release.
+
+### Fixed
+
+- **An ask sent while their reply is still due is answered** (READ RECEIPTS, `engine/social/convo.py`). The burst rule folds a player's send into a reply already due (re-decided in place, or, while a voicing pass holds it, left to the pass's commit), but an ask (`request` message) is answered only by the person's read, and neither path queued one: the ask stayed pending for good. On Linux the test's ask reached the worker 9 ms after its voice note, before the background voicing pass had worded the reply to it (on Windows the pass has, in practice, committed first). `on_player_send` now gives an ask the read branches whatever is due (their read at the ask's minute in an open conversation), and `after_commit` does not count an ask as the player speaking after the pass's snapshot, so the answer is not followed by a second, plain reply. `tests/test_social_convo.py::test_an_ask_sent_while_their_reply_is_due_is_still_answered` (unmarked and marked) failed before the fix.
+- `tests/test_admin_no_play_text.py`: a timeout of the voice-note wait names the porch thread's last messages and, as last saved, its asks and media rows; and the resume after the socket turn re-sends on a 409 busy answer (bounded), as the phone actions already did: in the container the run could still hold its turn lock a moment after the socket's turn answered.
+
 ## [0.23.2] — 2026-10-23
 
 v0.23.1's CI run failed `tests/test_social_turn_cost.py::test_a_world_turn_at_day_60_costs_little_and_moves_nothing` on Linux ("the save after the turns moved") while its turn payloads matched the Windows-recorded fixture. Reproduced in `python:3.11-slim-bookworm` (pinned) on a fresh clone; the two day-60 saves, dumped as sorted JSON, differed in one value: p0387's `matched_at` (in `people` and in `apps.matchstick`), `170.38475129978946` on Windows and `170.38475129978943` on Linux. A repair release.
