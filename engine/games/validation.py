@@ -729,10 +729,10 @@ class StoryValidator:
 
         try:
             sounds.load_story(self.manifest)
-        except (sounds.SoundError, OSError) as exc:
-            parts = str(exc).split(": ", 2)
-            self._add(parts[0] if len(parts) == 3 else "sounds.yaml", parts[1] if len(parts) == 3 else "sounds",
-                      parts[2] if len(parts) == 3 else str(exc))
+        except sounds.SoundError as exc:
+            self._add(exc.file, exc.key or "sounds", exc.message)
+        except OSError as exc:
+            self._add("sounds.yaml", "sounds", str(exc))
 
     def check_ui_panels(self) -> None:
         """``ui.panels`` (spec §2.2): its errors, and an advisory per panel whose system is undeclared."""

@@ -118,7 +118,7 @@ def test_a_wrong_case_file_name_is_refused(tmp_path) -> None:
         _check_story(data, tmp_path)
 
 
-@pytest.mark.parametrize("path", ["files/../x.ogg", "/abs.ogg", "files\\x.ogg", "files/x.wav", "files/CON.ogg"])
+@pytest.mark.parametrize("path", ["files/../x.ogg", "/abs.ogg", "files\\x.ogg", "files/x.wav", "files/con.ogg"])
 def test_a_file_path_must_be_plain_portable_ogg(tmp_path, path) -> None:
     data = _story(events={"story.x": {"label": "x"}}, sounds={"story.x": _file_row(path)}, bind={"story.x": "story.x"})
     with pytest.raises(sounds.SoundError, match="sounds.story.x.file"):
@@ -172,3 +172,99 @@ def test_the_cache_is_cleared_with_the_story_caches() -> None:
 
     assert ("engine.games.sounds", "_load_file") in caches.LRU_CACHES
     assert ("engine.games.sounds", "warm") in caches.WARMERS
+
+
+# -- fix round 1 (T3 review) -------------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("edit, key", [
+    (lambda d: d.update(sounds=["ui.click"]), "sounds"),
+    (lambda d: d.update(bind=["ui.press"]), "bind"),
+    (lambda d: d["bind"].update({"ui.press": {"default": ["x"], "choices": ["ui.click"]}}), "bind.ui.press"),
+    (lambda d: d["bind"].update({"ui.press": {"default": "ui.click", "choices": [["x"]]}}), "bind.ui.press"),
+    (lambda d: d["bind"].update({"ui.press": ["ui.click"]}), "bind.ui.press"),
+    (lambda d: d["bind"].update({"ui.press": {"default": {"a": 1}, "choices": []}}), "bind.ui.press"),
+])
+def test_a_malformed_shape_is_a_sound_error_not_a_type_error(tmp_path, edit, key) -> None:
+    data = _engine()
+    edit(data)
+    with pytest.raises(sounds.SoundError) as caught:
+        _check_engine(data, tmp_path)
+    assert caught.value.key == key and caught.value.file == "sounds.yaml"
+
+
+def test_a_story_events_that_is_a_list_is_a_sound_error(tmp_path) -> None:
+    with pytest.raises(sounds.SoundError) as caught:
+        _check_story(_story(events=[["a"]], bind={}), tmp_path)
+    assert caught.value.key == "events"
+
+
+def test_a_sound_error_keeps_its_parts() -> None:
+    err = sounds.SoundError("a.yaml", "bind.x", "is wrong")
+    assert (err.file, err.key, err.message) == ("a.yaml", "bind.x", "is wrong")
+    assert str(err) == "a.yaml: bind.x: is wrong"
+
+
+def _manifest(tmp_path: Path, text: str):
+    from types import SimpleNamespace
+
+    story = tmp_path / "story_sounds"
+    story.mkdir()
+    (story / "sounds.yaml").write_text(text, encoding="utf-8")
+    return SimpleNamespace(paths={"sounds": "story_sounds"}, slug="probe", resolve=lambda rel: tmp_path / rel)
+
+
+@pytest.mark.parametrize("text, key", [
+    ("version: [unclosed\n", "yaml"),
+    ("version: 1\nevents:\n  phone.ring: {label: r}\nbind: {}\n", "bind.phone.ring"),
+    ("version: 1\nbind:\n  ui.press: no.such\n", "bind.ui.press"),
+])
+def test_the_story_validator_reports_a_bad_sounds_file(tmp_path, text, key) -> None:
+    from engine.games.validation import StoryValidator
+
+    validator = StoryValidator(_manifest(tmp_path, text))
+    validator.check_sounds()
+    assert [(i.source, i.ref_id) for i in validator.issues] == [("story_sounds/sounds.yaml", key)]
+    assert validator.issues[0].severity == "error"
+
+
+def test_the_story_validator_passes_a_good_sounds_file(tmp_path) -> None:
+    from engine.games.validation import StoryValidator
+
+    validator = StoryValidator(_manifest(tmp_path, "version: 1\n"))
+    validator.check_sounds()
+    assert validator.issues == []
+
+
+def test_a_malformed_yaml_is_a_sound_error(tmp_path, monkeypatch) -> None:
+    (tmp_path / "sounds.yaml").write_text("sounds: [oops\n", encoding="utf-8")
+    monkeypatch.setattr(sounds, "engine_root", lambda: tmp_path)
+    with pytest.raises(sounds.SoundError):
+        sounds.load_engine()
+
+
+def test_a_file_is_checked_once_per_edit(monkeypatch) -> None:
+    from engine.games import registry
+
+    real = sounds.check
+    calls: list[str] = []
+    monkeypatch.setattr(sounds, "check", lambda *a, **k: (calls.append(k["where"]), real(*a, **k))[1])
+    sounds._load_file.cache_clear()
+    manifest = registry.get("dev-story")
+    for _ in range(3):
+        sounds.merged(manifest)
+    assert calls.count(f"{sounds._engine_rel()}/sounds.yaml") == 1
+
+
+def test_a_returned_dict_is_the_callers_own() -> None:
+    first = sounds.merged(None)
+    first["sounds"]["ui.click"]["label"] = "changed"
+    first["sounds"]["ui.click"]["synth"]["layers"][0]["freq"] = 1
+    first["bind"]["ui.press"] = "changed"
+    first["limits"]["voices"] = -1
+    loaded = sounds.load_engine()
+    loaded["data"]["sounds"]["ui.click"]["synth"]["layers"][0]["freq"] = 2
+    again = sounds.merged(None)
+    assert again["sounds"]["ui.click"]["label"] != "changed"
+    assert again["sounds"]["ui.click"]["synth"]["layers"][0]["freq"] not in (1, 2)
+    assert again["bind"]["ui.press"] != "changed" and again["limits"]["voices"] != -1
+    assert sounds.load_engine()["data"]["sounds"]["ui.click"]["synth"]["layers"][0]["freq"] != 2

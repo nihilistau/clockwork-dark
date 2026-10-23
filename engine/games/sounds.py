@@ -8,11 +8,14 @@ and the files.
 
 from __future__ import annotations
 
+import copy
 import os
 import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional
+
+import yaml
 
 from engine import yamlio
 from engine.config import get_config, project_root
@@ -49,11 +52,17 @@ EVENT_KEYS = frozenset({"label"})
 
 
 class SoundError(ValueError):
-    """A fault in a sounds.yaml: ``<file>: <key>: <message>``."""
+    """A fault in a sounds.yaml: ``<file>: <key>: <message>``, with the three parts kept as attributes."""
+
+    def __init__(self, file: str, key: str, message: str) -> None:
+        super().__init__(f"{file}: {key}: {message}")
+        self.file = file
+        self.key = key
+        self.message = message
 
 
 def _fault(where: str, key: str, message: str) -> SoundError:
-    return SoundError(f"{where}: {key}: {message}")
+    return SoundError(where, key, message)
 
 
 def _num(value: Any) -> bool:
@@ -79,7 +88,7 @@ def exists_exact(root: Path, rel: str) -> bool:
     `Path.exists()` is case-blind on Windows and would pass a name that 404s on Linux (rule 11)."""
     here = Path(root)
     parts = rel.split("/")
-    for i, part in enumerate(parts):
+    for part in parts:
         try:
             names = os.listdir(here)
         except OSError:
@@ -207,96 +216,133 @@ def check(data: Any, *, where: str, root: Path, story: bool, engine_sounds: Opti
     if not story:
         _keys(where, "limits", data.get("limits") or {}, LIMIT_KEYS)
     own = data.get("sounds") or {}
-    _keys(where, "sounds", own, frozenset(own))
+    if not isinstance(own, dict):
+        raise _fault(where, "sounds", "must be a mapping")
     for sid, row in own.items():
         _check_sound(where, str(sid), row, root, root if not story else engine_root)
     known = {**(engine_sounds or {}), **own}
     events = data.get("events") or {}
+    if not isinstance(events, dict):
+        raise _fault(where, "events", "must be a mapping")
     if story:
         for name, row in events.items():
             if not NAME.match(str(name)) or str(name).startswith(ENGINE_FAMILIES):
                 raise _fault(where, f"events.{name}", "must be a dotted id outside the engine's families")
             _keys(where, f"events.{name}", row, EVENT_KEYS)
     bind = data.get("bind") or {}
-    allowed = set(ENGINE_EVENTS) | set(events)
+    if not isinstance(bind, dict):
+        raise _fault(where, "bind", "must be a mapping")
+    allowed = set(ENGINE_EVENTS) | {str(e) for e in events}
     for event, value in bind.items():
-        if event not in allowed:
+        if str(event) not in allowed:
             raise _fault(where, f"bind.{event}", "is neither an engine event nor declared in events:")
         _check_binding(where, f"bind.{event}", value, known)
-    for event in (list(events) if story else ENGINE_EVENTS):
-        if event not in bind:
+    bound = {str(e) for e in bind}
+    for event in ([str(e) for e in events] if story else ENGINE_EVENTS):
+        if event not in bound:
             raise _fault(where, f"bind.{event}", "is declared and never bound")
+
+
+def _is_known(name: Any, known: dict[str, Any]) -> bool:
+    return isinstance(name, str) and name in known
 
 
 def _check_binding(where: str, key: str, value: Any, known: dict[str, Any]) -> None:
     if value is None:
         return
     if isinstance(value, str):
-        if value not in known:
+        if not _is_known(value, known):
             raise _fault(where, key, f"names no sound {value!r}")
         return
     row = _keys(where, key, value, frozenset({"default", "choices"}))
     choices = row.get("choices")
-    if row.get("default") not in known or not isinstance(choices, list) or row["default"] not in choices:
+    default = row.get("default")
+    if not _is_known(default, known) or not isinstance(choices, list) or default not in choices:
         raise _fault(where, key, "needs a known default listed in its choices")
     category = known[row["default"]].get("category")
     for choice in choices:
-        if choice not in known or known[choice].get("category") != category:
+        if not _is_known(choice, known) or known[choice].get("category") != category:
             raise _fault(where, f"{key}.choices", f"{choice!r} is unknown or of another category")
 
 
-@lru_cache(maxsize=32)
-def _load_file(path: str, mtime: float) -> dict[str, Any]:
-    """One sounds.yaml, parsed; keyed on (path, mtime) so an edit is seen (spec §3, review M1)."""
-    with open(path, encoding="utf-8") as handle:
-        return yamlio.safe_load(handle) or {}
-
-
-def _read(path: Path) -> dict[str, Any]:
-    return _load_file(str(path), path.stat().st_mtime)
+def _engine_rel() -> str:
+    """The engine's sounds directory as the config names it (`sound.root`): the label in every message."""
+    return str(get_config().get("sound.root")).strip("/")
 
 
 def engine_root() -> Path:
-    return project_root() / str(get_config().get("sound.root") or "content/sounds")
+    return project_root() / _engine_rel()
 
 
-def load_engine() -> dict[str, Any]:
-    root = engine_root()
-    data = _read(root / "sounds.yaml")
-    check(data, where="content/sounds/sounds.yaml", root=root, story=False)
-    return {"data": data, "root": root, "scope": ENGINE_SCOPE, "file": "content/sounds/sounds.yaml"}
+def _engine_label() -> str:
+    return f"{_engine_rel()}/sounds.yaml"
 
 
-def load_story(manifest: Any) -> Optional[dict[str, Any]]:
-    """The story's `paths.sounds`, checked against the engine's set; None when it declares none."""
+@lru_cache(maxsize=32)
+def _load_file(path: str, mtime: float, where: str, scope: str, engine_key: Optional[tuple[str, float]]) -> dict[str, Any]:
+    """One sounds.yaml, parsed AND checked once; keyed on (path, mtime) and, for a story, the engine file's, so an
+    edit is seen (spec §3, review M1). The result is shared: callers go through `load_engine` / `load_story`
+    (a deep copy) or `merge` (a fresh dict), and never mutate it."""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            data = yamlio.safe_load(handle) or {}
+    except yaml.YAMLError as exc:
+        raise _fault(where, "yaml", f"is not valid YAML: {exc}") from exc
+    root = Path(path).parent
+    if engine_key is None:
+        check(data, where=where, root=root, story=False)
+    else:
+        engine_dir = Path(engine_key[0])
+        engine = _load_file(str(engine_dir / "sounds.yaml"), engine_key[1], _engine_label(), ENGINE_SCOPE, None)
+        check(data, where=where, root=root, story=True, engine_sounds=engine["data"]["sounds"],
+              engine_root=engine_dir)
+    return {"data": data, "root": root, "scope": scope, "file": where}
+
+
+def _engine_entry() -> dict[str, Any]:
+    path = engine_root() / "sounds.yaml"
+    return _load_file(str(path), path.stat().st_mtime, _engine_label(), ENGINE_SCOPE, None)
+
+
+def _story_entry(manifest: Any) -> Optional[dict[str, Any]]:
     rel = (manifest.paths or {}).get("sounds") if manifest is not None else None
     if not rel:
         return None
-    root = manifest.resolve(rel)
-    data = _read(root / "sounds.yaml")
-    engine = load_engine()
-    shown = f"{str(rel).rstrip('/')}/sounds.yaml"
-    check(data, where=shown, root=root, story=True, engine_sounds=engine["data"]["sounds"], engine_root=engine["root"])
-    return {"data": data, "root": root, "scope": manifest.slug, "file": shown}
+    path = manifest.resolve(rel) / "sounds.yaml"
+    engine_path = engine_root() / "sounds.yaml"
+    return _load_file(str(path), path.stat().st_mtime, f"{str(rel).rstrip('/')}/sounds.yaml", manifest.slug,
+                      (str(engine_path.parent), engine_path.stat().st_mtime))
+
+
+def load_engine() -> dict[str, Any]:
+    """The engine's sounds.yaml, checked; a private copy the caller may change."""
+    return copy.deepcopy(_engine_entry())
+
+
+def load_story(manifest: Any) -> Optional[dict[str, Any]]:
+    """The story's `paths.sounds`, checked against the engine's set; None when it declares none. A private copy."""
+    return copy.deepcopy(_story_entry(manifest))
 
 
 def merge(engine: dict[str, Any], story: Optional[dict[str, Any]]) -> dict[str, Any]:
     """Engine sounds, then the story's by id; engine binds, then the story's (spec §4.3). Each row gains `scope`,
-    `key` (the audition page's data key) and `overrides`."""
+    `key` (the audition page's data key) and `overrides`. Everything returned is freshly built (deep-copied)."""
     out_sounds: dict[str, Any] = {}
     for src in (engine, story):
         if not src:
             continue
         for sid, row in (src["data"].get("sounds") or {}).items():
-            out_sounds[sid] = {**row, "scope": src["scope"], "key": f"{src['file']} › sounds › {sid}",
+            out_sounds[sid] = {**copy.deepcopy(row), "scope": src["scope"], "key": f"{src['file']} › sounds › {sid}",
                                "overrides": src is story and sid in (engine["data"].get("sounds") or {})}
-    bind = {**(engine["data"].get("bind") or {}), **((story or {}).get("data", {}).get("bind") or {})}
+    bind = copy.deepcopy({**(engine["data"].get("bind") or {}), **((story or {}).get("data", {}).get("bind") or {})})
     events = list(ENGINE_EVENTS) + [e for e in ((story or {}).get("data", {}).get("events") or {})]
-    return {"limits": dict(engine["data"].get("limits") or {}), "events": events, "sounds": out_sounds, "bind": bind}
+    return {"limits": copy.deepcopy(engine["data"].get("limits") or {}), "events": events, "sounds": out_sounds,
+            "bind": bind}
 
 
 def merged(manifest: Any) -> dict[str, Any]:
-    return merge(load_engine(), load_story(manifest))
+    """The merged set for the client: each file is checked once per edit, and the result is the caller's own."""
+    return merge(_engine_entry(), _story_entry(manifest))
 
 
 def warm() -> None:
