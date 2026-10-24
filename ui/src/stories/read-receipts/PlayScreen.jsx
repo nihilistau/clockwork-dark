@@ -114,11 +114,11 @@ export default function PlayScreen({ state, sessionId = "", onAct, onChoose = nu
   const upRef = useRef(phoneUp);
   upRef.current = phoneUp;
   const act = useCallback(
-    (intent) => {
+    (intent, { quiet = false } = {}) => {
       const wasUp = upRef.current;
       setRaised(intent.action !== "put_down");
       const took = rawAct(intent);
-      if (took !== false) {
+      if (took !== false && !quiet) {
         if (intent.action === "put_down") playSound("phone.down");
         else if (!wasUp) playSound("phone.up");
       }
@@ -231,11 +231,12 @@ export default function PlayScreen({ state, sessionId = "", onAct, onChoose = nu
   const openApp = (app) => setNav({ at: "app", app, thread: "" });
   const unlock = () => playSound("phone.unlock");
   const openThread = (threadId) => {
-    // A notification tapped on the lock screen is an unlock (F17).
-    if (nav.at === "lock") unlock();
+    // A notification tapped on the lock screen is an unlock (F17), and that is its one sound: not phone.up too.
+    const fromLock = nav.at === "lock";
+    if (fromLock) unlock();
     const row = threadOf(phone, threadId);
     setNav((n) => ({ at: "thread", app: row?.app || n.app, thread: threadId, from: n.at === "app" ? n.app : "" }));
-    act({ action: "open_thread", target: threadId, args: {}, text: "" });
+    act({ action: "open_thread", target: threadId, args: {}, text: "" }, { quiet: fromLock });
   };
   const goHome = () => setNav({ at: "home", app: "", thread: "" });
   const goBack = () => setNav((n) => n.back || { at: "home", app: "", thread: "" });

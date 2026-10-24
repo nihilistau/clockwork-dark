@@ -184,6 +184,13 @@ describe("the phone's own controls (pre-flight gap 1)", () => {
     expect(heard()).toEqual(["phone.unlock", "phone.lock", "phone.unlock"]);
   });
 
+  it("a notification tapped on the lock screen with the phone down is one sound, the unlock (T9 review M1)", async () => {
+    const down = phoneFixture({ phone: { world: { phone_up: false } } });
+    view.render(<Harness onAct={vi.fn()} phone={down} />);                     // the harness taps the notification
+    await flush();
+    expect(heard()).toEqual(["phone.unlock"]);
+  });
+
   it("putting the phone down and picking it up", async () => {
     const up = phoneFixture({ phone: { world: { phone_up: true } } });
     view.render(<Harness onAct={vi.fn()} phone={up} />);
