@@ -178,6 +178,7 @@ paths:
   # names its own prose file (`prose_source`) so this story could split the
   # cards per ending class later without an engine change.
   epilogues: "games/wicked-garden/data/epilogues"
+  sounds: "games/wicked-garden/data/sounds"   # the palette: glints and paper (spec §9.3)
 
 entry:
   # The mortal side of the threshold, not the Gate.

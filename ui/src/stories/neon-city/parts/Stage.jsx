@@ -30,6 +30,7 @@ import React from "react";
 
 import { matchApproaches } from "@core/panels/approaches.js";
 import { prettyPlace } from "@core/parts/Chrome.jsx";
+import { useSoundOnChange } from "@core/sound/index.js";
 
 /** The five districts that retone the canvas, keyed off location id. */
 const DISTRICT = {
@@ -142,6 +143,10 @@ function Plate({ src, caption }) {
 export default function Stage({ state, controlsOff, onChoose }) {
   const encounter = state.world?.encounter || {};
   const offered = matchApproaches(encounter, state.choices);
+  // Heard here, in the always-mounted Stage, not in the strip (which mounts with the encounter and so is silent
+  // on its first render): spec §6.3 rule 2, Plan decision 11.
+  const live = Object.keys(encounter).length > 0 && !encounter.resolved;
+  useSoundOnChange(live, "encounter.start", { when: (a, b) => !a && b });
   // The place's name, never its id (final review 4).
   const world = state.world || {};
   const place = world.location_name || (world.location_id ? prettyPlace(world.location_id) : "");

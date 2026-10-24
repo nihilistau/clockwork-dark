@@ -64,16 +64,4 @@ def test_every_shipped_file_is_bound_somewhere() -> None:
             if "file" in row:
                 used.add(row["file"][len("engine:"):] if row["file"].startswith("engine:") else row["file"])
     shipped = {p.relative_to(engine["root"]).as_posix() for p in engine["root"].rglob("*.ogg")}
-    assert shipped - used <= UNBOUND_UNTIL_T10, sorted(shipped - used - UNBOUND_UNTIL_T10)
-    assert UNBOUND_UNTIL_T10 <= shipped - used, "a path bound now must leave UNBOUND_UNTIL_T10"
-
-
-#: The engine files no sound binds until the palettes land (T9 removed its three: cloth1, cloth2, dooropen_1; T10 deletes this list).
-UNBOUND_UNTIL_T10: frozenset[str] = frozenset({
-    "files/kenney/casino-audio/card-slide-1.ogg", "files/kenney/casino-audio/card-place-1.ogg",
-    "files/kenney/casino-audio/chips-stack-1.ogg", "files/kenney/rpg-audio/metallatch.ogg",
-    "files/kenney/rpg-audio/handlecoins.ogg", "files/kenney/rpg-audio/bookflip1.ogg",
-    "files/kenney/rpg-audio/doorclose_1.ogg",
-    "files/kenney/impact-sounds/impactbell_heavy_000.ogg", "files/kenney/impact-sounds/impactwood_light_000.ogg",
-    "files/kenney/sci-fi-sounds/laserretro_000.ogg", "files/kenney/sci-fi-sounds/forcefield_000.ogg",
-})
+    assert shipped <= used, sorted(shipped - used)

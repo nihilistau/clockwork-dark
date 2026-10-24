@@ -31,6 +31,8 @@
  */
 import React, { useEffect, useRef, useState } from "react";
 
+import { useRollSounds } from "@core/sound/index.js";
+
 const SIDES = 20;
 
 /**
@@ -258,6 +260,9 @@ function RollCard({ dice, onDone, showBreakdown }) {
 }
 
 export default function DiceToast({ dice, showBreakdown = true }) {
+  // The engine's roll cue (spec §6.3, Plan decision 10): this toast owns the `rolls` panel, so core's RollCard
+  // stands down and the cast and its degree are heard from here.
+  useRollSounds(dice);
   const [cards, setCards] = useState([]);
   const seq = useRef(0);
 

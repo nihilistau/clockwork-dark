@@ -19,6 +19,7 @@
 import React from "react";
 
 import { Icon } from "@core/parts/Chrome.jsx";
+import { useSoundOnChange } from "@core/sound/index.js";
 
 /** The six the design system allows, named so nothing types a literal twice. */
 export const GEOM = {
@@ -40,6 +41,8 @@ export const GEOM = {
  * instead of a decoration.
  */
 export function HexMark({ watching = false }) {
+  // Being watched is heard once, when it turns true inside a turn you sent (spec §9.4); never on a load.
+  useSoundOnChange(Boolean(watching), "neon.watched", { when: (a, b) => !a && b });
   return (
     <span className={`nc-mark ${watching ? "is-watching" : ""}`} aria-hidden="true">
       <Icon size={22}>

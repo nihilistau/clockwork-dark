@@ -1,0 +1,16 @@
+# THE WICKED GARDEN's sounds (v0.24.0 spec §9.3): glints and paper.
+version: 1
+events:
+  garden.omen: {label: "An omen"}
+sounds:
+  garden.glint: {category: ui, label: "Glint", synth: {layers: [{wave: sine, freq: 2637, attack_ms: 1, decay_ms: 60, gain: 0.14}]}}
+  garden.pluck: {category: game, label: "Pluck", synth: {layers: [{wave: triangle, freq: 659.3, attack_ms: 1, decay_ms: 220, gain: 0.25}, {wave: triangle, freq: 987.8, start_ms: 40, attack_ms: 1, decay_ms: 240, gain: 0.2}]}}
+  garden.chime: {category: game, label: "Garden chime", synth: {sequence: {voice: {wave: sine, attack_ms: 3, decay_ms: 300, gain: 0.2}, notes: [[0, D6, 160], [150, A5, 160], [300, E6, 360]]}}}
+  garden.card:  {category: game, label: "A card slides", file: engine:files/kenney/casino-audio/card-slide-1.ogg, gain: 0.7, fallback: {layers: [{wave: noise, attack_ms: 5, decay_ms: 120, gain: 0.15, filter: {type: bandpass, freq: 3000, q: 1}}]}}
+  garden.hush:  {category: world, label: "A hush", synth: {layers: [{wave: noise, attack_ms: 400, decay_ms: 900, gain: 0.12, filter: {type: lowpass, freq: 700}}, {wave: sine, freq: 1174.7, start_ms: 200, attack_ms: 300, decay_ms: 900, gain: 0.06}]}}
+bind:
+  ui.press: garden.glint
+  choice.pick: garden.pluck
+  turn.arrive: garden.chime
+  roll.cast: garden.card
+  garden.omen: garden.hush

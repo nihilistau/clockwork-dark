@@ -95,6 +95,7 @@ paths:
   # shape of the thing: what the answer cost you to get.
   endings: "games/the-long-con/data/rules/endings.yaml"
   epilogues: "games/the-long-con/data/epilogues"
+  sounds: "games/the-long-con/data/sounds"   # the palette: cards, chips and coin (spec §9.5)
 
 entry:
   # Must exist in data/world/locations.yaml.

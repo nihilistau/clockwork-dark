@@ -85,6 +85,8 @@ const StartIntro = () => (
 export default {
   slug: "neon-city",
   title: "NEON CITY: THE CROSSING",
+  // The story's own sound event (v0.24.0 spec §5.2, §9.4); the palette is games/neon-city/data/sounds/sounds.yaml.
+  soundEvents: ["neon.watched"],
   documentTitle: "NEON CITY: THE CROSSING",
   beginLabel: "Take the shard",
 

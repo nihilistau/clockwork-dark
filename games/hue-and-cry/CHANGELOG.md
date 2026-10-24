@@ -18,6 +18,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Latches, coin and the watch sound palette (v0.24.0 T10, spec 9.6): the story declares `paths.sounds` (`games/hue-and-cry/data/sounds/sounds.yaml`), reusing the engine's CC0 Kenney files by `engine:` with a synthesised fallback for each; the palette is in the README's Sounds table. All of it rides engine events: its screens are engine panels, so it declares no event of its own.
+
 ## [0.21.0] — 2026-10-07
 
 - **Its own skin** (v0.21.0, `ui.plugin: hue-and-cry`): tallow and soot

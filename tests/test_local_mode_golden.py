@@ -548,9 +548,15 @@ SOUND_RULES_SANCTION: tuple[str, Callable[[str], str]] = ("app_shape.json", json
 
 #: S12 (v0.24.0 spec §10): `paths.sounds` in each declaring story's catalogue rows, filled by the task that
 #: makes the story declare it (T9 READ RECEIPTS, through READ_RECEIPTS_ROW, which carries its value since T9 and so
-#: is NOT in this table; T10 the other five). Empty until T10, so each of those tasks moves the golden by exactly its own rows; S12's `SANCTIONED` entries and its
-#: exactness test land with T10, when a sanction can change its fixture.
-EXPECTED_SOUNDS_ROWS: dict[str, str] = {}
+#: is NOT in this table -- listing it here would apply S12 twice; T10 the other five, below). dev-story declares
+#: nothing and is the byte-identity proof.
+EXPECTED_SOUNDS_ROWS: dict[str, str] = {
+    "clockwork-dark": "games/clockwork-dark/data/sounds",
+    "wicked-garden": "games/wicked-garden/data/sounds",
+    "neon-city": "games/neon-city/data/sounds",
+    "the-long-con": "games/the-long-con/data/sounds",
+    "hue-and-cry": "games/hue-and-cry/data/sounds",
+}
 
 
 def with_sounds_paths(expected: int) -> Callable[[str], str]:
@@ -590,7 +596,7 @@ SOUNDS_SANCTION: list[tuple[str, Callable[[str], str]]] = [
 #: makes it. S1 since v0.20.0 T2, S2 since T3, S3-S10 since v0.21.0
 #: (spec §1.2; S7 added in T3 fix round 1, S8 in fix round 2, S9 in the
 #: encounter-resume fix, S10 in T13 fix round 1, S5 in T14), S11 since
-#: v0.22.0 T2, S13 since v0.24.0 T4 (S12 joins at T10); there are no others.
+#: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10; there are no others.
 SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     BIND_SANCTION,
     *SAVES_SANCTION,
@@ -604,6 +610,7 @@ SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     *UI_SANCTION,
     RECEIPTS_SANCTION,
     SOUND_RULES_SANCTION,
+    *SOUNDS_SANCTION,
 ]
 
 
@@ -1028,3 +1035,20 @@ def test_the_sound_rules_sanction_is_exact() -> None:
     assert sorted(map(json.dumps, added)) == sorted(map(json.dumps, SOUND_RULES))
     with pytest.raises(AssertionError, match="S13 applied twice"):
         SOUND_RULES_SANCTION[1](after)
+
+
+def test_the_sounds_sanction_is_exact() -> None:
+    """S12 changes each of its four fixtures by `"sounds": "games/<slug>/data/sounds"` lines only, one per
+    declaring row (5/1/1/1), and dev-story's row never gains one (pre-flight F8, gap 3)."""
+    counts = {"games.json": 5, "games_active.json": 1, "games_clockwork-dark.json": 1, "games_hue-and-cry.json": 1}
+    allowed = {f'"sounds": "{path}"' for path in EXPECTED_SOUNDS_ROWS.values()}
+    recorded = _recorded()
+    for name, transform in SOUNDS_SANCTION:
+        before = recorded[name]
+        after = transform(before)
+        assert after != before, name
+        changed = [l for l in difflib.ndiff(before.splitlines(), after.splitlines()) if l.startswith(("- ", "+ "))]
+        assert changed and all(l.startswith("+ ") for l in changed), (name, changed)
+        assert all(l[2:].strip().rstrip(",") in allowed for l in changed), (name, changed)
+        assert len(changed) == counts[name], (name, len(changed))
+        assert "games/dev-story/data/sounds" not in after, name
