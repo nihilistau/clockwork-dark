@@ -715,7 +715,8 @@ def _bubbles(message: dict[str, Any]) -> int:
 class Phone:
     """One run: a session in a keeps-nothing store, its stub voice, and one action at a time."""
 
-    def __init__(self, seed: int, voice_policy: str, *, disk: Optional[Path] = None) -> None:
+    def __init__(self, seed: int, voice_policy: str, *, disk: Optional[Path] = None,
+                 looking_for: Optional[str] = None) -> None:
         from engine.scenes.default_state import SessionStore
 
         _private_storage()                         # first: never the owner's storage (T5 review C1)
@@ -724,7 +725,10 @@ class Phone:
         self.store = SessionStore(save_store=lambda: saves)
         #: The world turn's storyteller (``StubNarration``): the phone's actions never call it.
         self.narrator = StubNarration()
-        self.session = self.store.create(seed=seed, player_name="Sam", llm_fn=self.narrator)
+        # The player's creation form takes its defaults but for what the policy looks for (the devoted
+        # player's `long_term`, spec §17.1); None: the form's default, as before.
+        creation = {"looking_for": looking_for} if looking_for else None
+        self.session = self.store.create(seed=seed, player_name="Sam", llm_fn=self.narrator, creation=creation)
         self.state = self.session.engine.state
         self.narrator.state = self.state
         #: A run on disk spills its threads into the archive after every action, as play's saves do.
@@ -1165,8 +1169,13 @@ class Policy:
     break_share = 0.0
     #: Writes first to no new match while this many people are talking with it (None: no limit).
     max_live: Optional[int] = None
-    #: Talks only to the first person it talks with who reaches the `everyday` rung.
+    #: Talks only to the first person it talks with who reaches the `everyday` rung (one who wants what it
+    #: wants first, when there is one: their profile's "looking for").
     devoted = False
+    #: The creation form's `looking_for` (None: the form's default, `unsure`). The devoted player's is
+    #: `long_term`: `willing.exclusive` needs both sides to want it (growth.yaml), so with the default no run
+    #: could ever reach `exclusive` (T11's first measure: 0 of 10 devoted runs).
+    looking_for: Optional[str] = None
     #: It writes first only while the session has time left for this many exchanges (a send, the
     #: model's reply and its reading): no conversation started that the session's end would cut short.
     start_reserve_exchanges = 8
@@ -1304,11 +1313,15 @@ class Policy:
             if self.focus and (self._person(self.focus).get("ghosted") or apps.gone(self.phone.state, self.focus)):
                 self.focus = ""
             return
-        for t in sorted((self.social.get("threads") or {}).values(), key=lambda t: str(t["thread_id"])):
-            pid = str(t["pid"])
-            if growth.depth(self.phone.state, pid) >= 1 and not self._person(pid).get("ghosted"):
-                self.focus = pid
-                return
+        from engine.social import population
+
+        wants = str((self.social.get("player") or {}).get("looking_for") or "")
+        ready = [str(t["pid"]) for t in sorted((self.social.get("threads") or {}).values(),
+                                              key=lambda t: str(t["thread_id"]))
+                 if growth.depth(self.phone.state, str(t["pid"])) >= 1 and not self._person(str(t["pid"])).get("ghosted")]
+        same = [pid for pid in ready if population.profile(self.phone.state, pid).intent == wants]
+        if same or ready:
+            self.focus = (same or ready)[0]
 
     def deck(self) -> None:
         phone = self.phone
@@ -1810,6 +1823,7 @@ class Devoted(Policy):
     name = "devoted"
     devoted = True
     stays = True
+    looking_for = "long_term"
 
 
 class Bachelor(Policy):
@@ -2356,6 +2370,9 @@ class Session:
         try:
             while not world.stayed and (policy.awake() or social.scene_open(phone.state)) and not clock.over:
                 before = (phone.now, clock.spent)
+                # Its own promises open now first: the world's next step (a shift at the morning's start) may
+                # take it away until the window has closed (T11 round 1: 90.7-95% kept at 6-30 s without it).
+                policy.keep_due_promises()
                 if world.step() and (phone.now, clock.spent) != before:
                     continue
                 if world.stayed:
@@ -2493,7 +2510,9 @@ def _recording_world(rec: Recorder) -> Iterator[None]:
             rec.scenes.append({"pid": str(scn.get("pid") or ""), "kind": str(scn.get("kind") or ""),
                                "band": str(out.get("band") or ""), "opened_at": rec.scene_opened.get(key, float(at)),
                                "at": float(at), "reason": str(out.get("reason") or ""),
-                               "moments": int(scn.get("count", 0))})
+                               "moments": int(scn.get("count", 0)),
+                               "average": (round(float(scn.get("sum", 0.0)) / int(scn["count"]), 4)
+                                           if int(scn.get("count", 0)) else None)})
         return out
 
     def life_start(state, who, event_id, at):
@@ -2591,7 +2610,7 @@ def run(seed: int, sessions: int, policy: str, voice_policy: str = DEFAULT_VOICE
     started = time.perf_counter()
     rec = Recorder()
     with _quiet_summaries(), _recording(rec):
-        phone = Phone(seed, voice_policy, disk=disk)
+        phone = Phone(seed, voice_policy, disk=disk, looking_for=POLICIES[policy].looking_for)
         observer = Observer()
         phone.observers.append(observer)
         player = POLICIES[policy](phone, seed)
@@ -2620,7 +2639,7 @@ def write_day_save(seed: int, days: int, policy: str, out: Path, voice_policy: s
     from engine.social import archive
 
     with _quiet_summaries():
-        phone = Phone(seed, voice_policy, disk=Path(out))
+        phone = Phone(seed, voice_policy, disk=Path(out), looking_for=POLICIES[policy].looking_for)
         try:
             player = POLICIES[policy](phone, seed)
             for _ in range(int(days)):

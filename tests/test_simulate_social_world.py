@@ -419,3 +419,48 @@ def test_a_capped_phone_still_keeps_the_players_promise(phone) -> None:
 
     last = messaging.last_shown(messaging.thread(phone.state, tid))
     assert last is not None and last.get("from") == "player"
+
+
+# -- the devoted player (spec §17.1: it wants a long-term partner) ------------------------------------------------
+
+
+def test_the_devoted_player_looks_for_something_long_term(receipts_active) -> None:
+    with sim._quiet_summaries():
+        made = sim.Phone(3, "neutral_model", looking_for=sim.POLICIES["devoted"].looking_for)
+        try:
+            assert made.state.social["player"]["looking_for"] == "long_term"
+        finally:
+            made.close()
+    assert all(p.looking_for is None for name, p in sim.POLICIES.items() if name != "devoted")
+
+
+def test_the_devoted_player_focuses_on_someone_who_wants_the_same(phone, monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    from engine.social import growth, population
+
+    first = _matched_in(phone.session, "matchstick").split(":")[1]
+    second = _matched_in(phone.session, "matchstick").split(":")[1]
+    assert first != second
+    monkeypatch.setattr(growth, "depth", lambda state, pid: 1)
+    monkeypatch.setattr(population, "profile", lambda state, pid: SimpleNamespace(
+        intent="long_term" if pid == second else "short_term"))
+    phone.state.social["player"]["looking_for"] = "long_term"
+    player = sim.POLICIES["devoted"](phone, 3)
+    player.choose_focus()
+    assert player.focus == second
+
+
+def test_a_full_session_keeps_its_promises_before_the_worlds_next_step(phone, monkeypatch) -> None:
+    """The world may be due first (work at the morning's start): the player's own promise, open now, is kept
+    before it goes (T11 round 1: the attentive player kept 90.7-95% at 6-30 s, its morning promise lapsing
+    on the way to work)."""
+    player = sim.POLICIES["attentive"](phone, 3)
+    calls: list[str] = []
+    phone.act("wait", args={"until": "morning"})
+    monkeypatch.setattr(player, "keep_due_promises", lambda: calls.append("keep"))
+    monkeypatch.setattr(sim.World, "step", lambda self: calls.append("step") or False)
+    monkeypatch.setattr(player, "look", lambda: calls.append("look"))
+    sim.Session(phone, player, model_seconds=15, real_seconds_budget=60.0).play()
+    assert calls and calls[0] == "keep", calls
+    assert calls.index("keep") < calls.index("step")
