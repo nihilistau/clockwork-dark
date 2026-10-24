@@ -453,6 +453,18 @@ about a second and a half longer. (It is not loaded in the background when a
 game starts: a load still running when the story changes could leave one
 story's word list behind for the next.)
 
+## Sounds
+
+The phone is heard (v0.24.0, `data/sounds/sounds.yaml`; the sounds are the browser's, nothing goes to the server):
+a message pops in the thread you have open, chimes in another, buzzes while the phone is down and rings for a voice
+note or a video message wherever the phone is. One message makes one sound, and what is already on the phone when you
+resume or rejoin makes none. There is a tick when they start typing, a whoosh when you send, a click to unlock and to
+lock, cloth for picking the phone up and putting it down, a whoosh for a swipe, an arpeggio for a match and a door when
+someone arrives. **Settings > Sounds** picks the ringtone (Marimba, Classic or Pulse) and the notification tone (Chime,
+Ping or Knock), each with a play button; the choice is kept in the browser. Voice notes follow the master and Phone
+volumes. Every sound is on the audition page (`/?sounds=1`). The ringtone rings for an arriving voice note or video
+message: the story has no calls.
+
 ## Place art
 
 The story ships all 48 plates of its 28 places (spec §18.1) in `data/art/plates/scenes/`, rendered in v0.23.0

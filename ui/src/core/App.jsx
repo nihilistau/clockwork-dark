@@ -805,6 +805,10 @@ export default function App({ story }) {
           // True while core's menu, settings, an overlay or a cutscene is up:
           // the plugin's own window-level keys must stand down under them.
           blocked={blocked}
+          // The client preferences and their writer (v0.24.0 Plan decision 13): a story's own settings app
+          // keeps its sound choices here, and its voice notes take their volume from them.
+          prefs={prefs}
+          onPrefs={updatePrefs}
         />
         {chrome}
       </Wrap>

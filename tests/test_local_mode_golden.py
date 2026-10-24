@@ -474,7 +474,7 @@ READ_RECEIPTS_ROW: dict[str, Any] = {
     # every key the other rows carry with this story's values, plus the one
     # extra its manifest declares (`endless`). Reviewed against a live
     # registry.catalog() row once, by hand. Edited in place since: v0.23.0
-    # T10 (`entry_location`), T11 (`version`, the directives, `paths.decks`), T23F (`paths.npc_schedules`), T26 (the three `paths.art_*`).
+    # T10 (`entry_location`), T11 (`version`, the directives, `paths.decks`), T23F (`paths.npc_schedules`), T26 (the three `paths.art_*`), v0.24.0 T9 (`paths.sounds`).
     "active": False,
     "archetypes": [],
     "blurb": (
@@ -494,6 +494,7 @@ READ_RECEIPTS_ROW: dict[str, Any] = {
         "npc_schedules": "games/read-receipts/data/world/npc_schedules.yaml",
         "prompts": "games/read-receipts/prompts",
         "social": "games/read-receipts/data/social",
+        "sounds": "games/read-receipts/data/sounds",
     },
     "playable": True,
     "problems": [],
@@ -546,8 +547,8 @@ def with_sound_rules(value: Any) -> None:
 SOUND_RULES_SANCTION: tuple[str, Callable[[str], str]] = ("app_shape.json", json_sanction(with_sound_rules))
 
 #: S12 (v0.24.0 spec §10): `paths.sounds` in each declaring story's catalogue rows, filled by the task that
-#: makes the story declare it (T9 READ RECEIPTS, through READ_RECEIPTS_ROW; T10 the other five). Empty until
-#: then, so each of those tasks moves the golden by exactly its own rows; S12's `SANCTIONED` entries and its
+#: makes the story declare it (T9 READ RECEIPTS, through READ_RECEIPTS_ROW, which carries its value since T9 and so
+#: is NOT in this table; T10 the other five). Empty until T10, so each of those tasks moves the golden by exactly its own rows; S12's `SANCTIONED` entries and its
 #: exactness test land with T10, when a sanction can change its fixture.
 EXPECTED_SOUNDS_ROWS: dict[str, str] = {}
 

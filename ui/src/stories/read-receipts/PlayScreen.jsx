@@ -39,6 +39,10 @@ import TileTalk from "./games/TileTalk.jsx";
 import Photos from "./photos/Photos.jsx";
 import Settings from "./settings/Settings.jsx";
 import Places from "./apps/Places.jsx";
+import { playSound } from "@core/sound/index.js";
+
+import { PrefsContext } from "./prefs.js";
+import { hydrate, phoneSounds } from "./sounds.js";
 import { appOf, threadOf } from "./phone/apps.js";
 import Frame from "./phone/Frame.jsx";
 import Home from "./phone/Home.jsx";
@@ -97,7 +101,7 @@ function Refusal({ refusal, onDismiss }) {
   );
 }
 
-export default function PlayScreen({ state, sessionId = "", onAct, onChoose = null, onCustom = null, onOpenMenu, onOpenSaves, blocked = false }) {
+export default function PlayScreen({ state, sessionId = "", onAct, onChoose = null, onCustom = null, onOpenMenu, onOpenSaves, blocked = false, prefs = null, onPrefs = null }) {
   const story = state.story || initialState;
   const phone = currentPhone(state);
   const { act: rawAct, pending, notSent, clearNotSent, retry } = usePhoneAct(onAct, story);
@@ -105,10 +109,20 @@ export default function PlayScreen({ state, sessionId = "", onAct, onChoose = nu
   const hasWorld = Boolean(phone && phone.world);
   const phoneUp = phoneUpOf(phone) || raised;
   // Any act but putting it down picks the phone up (the server does the same); putting it down lowers it.
+  // The phone's cloth sounds (v0.24.0 spec §9.7) belong to the action that moves it: putting it down, or any
+  // action that picks it up. One owner per action, so the controls that call this are `data-sound="none"`.
+  const upRef = useRef(phoneUp);
+  upRef.current = phoneUp;
   const act = useCallback(
     (intent) => {
+      const wasUp = upRef.current;
       setRaised(intent.action !== "put_down");
-      return rawAct(intent);
+      const took = rawAct(intent);
+      if (took !== false) {
+        if (intent.action === "put_down") playSound("phone.down");
+        else if (!wasUp) playSound("phone.up");
+      }
+      return took;
     },
     [rawAct]
   );
@@ -116,6 +130,21 @@ export default function PlayScreen({ state, sessionId = "", onAct, onChoose = nu
   const serverUp = phoneUpOf(phone);
   useEffect(() => setRaised(false), [serverUp]);
   const [nav, setNav] = useState(LOCKED);
+  // Sounds (spec §9.7; Plan decisions 7, 14): every opening (a start, a resume, a rejoin) hydrates the seen-set from
+  // what the phone already holds and sounds nothing; afterwards one sound per new message, whichever carrier
+  // (a push or a turn_update) brings it first. The phone's actions never call `turnSent`, so these are all its own.
+  const soundPrev = useRef(null);
+  const soundOpen = useRef(null);
+  useEffect(() => {
+    if (!phone) return;
+    if (soundOpen.current !== story.openSeq || !soundPrev.current) {
+      soundOpen.current = story.openSeq;
+      hydrate(phone);
+    } else {
+      phoneSounds(soundPrev.current, phone, { openThread: nav.at === "thread" ? nav.thread : "", up: phoneUp });
+    }
+    soundPrev.current = phone;
+  }, [phone, story.openSeq]); // eslint-disable-line react-hooks/exhaustive-deps
   const [toast, setToast] = useState(null);
   const [sheet, setSheet] = useState(""); // the pid whose contact card is the side sheet (wide screens)
   const split = useMedia(SPLIT_QUERY);
@@ -200,7 +229,10 @@ export default function PlayScreen({ state, sessionId = "", onAct, onChoose = nu
   }
 
   const openApp = (app) => setNav({ at: "app", app, thread: "" });
+  const unlock = () => playSound("phone.unlock");
   const openThread = (threadId) => {
+    // A notification tapped on the lock screen is an unlock (F17).
+    if (nav.at === "lock") unlock();
     const row = threadOf(phone, threadId);
     setNav((n) => ({ at: "thread", app: row?.app || n.app, thread: threadId, from: n.at === "app" ? n.app : "" }));
     act({ action: "open_thread", target: threadId, args: {}, text: "" });
@@ -225,7 +257,7 @@ export default function PlayScreen({ state, sessionId = "", onAct, onChoose = nu
 
   let body;
   if (nav.at === "lock") {
-    body = <LockScreen phone={phone} lock={story.lock} act={act} pending={pending} onUnlock={goHome} onOpenThread={openThread} />;
+    body = <LockScreen phone={phone} lock={story.lock} act={act} pending={pending} onUnlock={() => { unlock(); goHome(); }} onOpenThread={openThread} />;
   } else if (nav.at === "home") {
     body = <Home phone={phone} onOpenApp={openApp} />;
   } else if (nav.at === "thread") {
@@ -271,7 +303,7 @@ export default function PlayScreen({ state, sessionId = "", onAct, onChoose = nu
     else if (kind === "calendar") body = <Calendar phone={phone} onOpenContact={openContact} />;
     else if (kind === "contacts") body = <Contacts phone={phone} onOpenContact={openContact} />;
     else if (kind === "settings")
-      body = <Settings phone={phone} act={act} pending={pending} />;
+      body = <Settings phone={phone} act={act} pending={pending} prefs={prefs} onPrefs={onPrefs} />;
     else if (kind === "places") body = <Places venues={(phone.places && phone.places.venues) || []} act={act} pending={pending} />;
     else body = <NotYet label={label} />;
   }
@@ -303,43 +335,49 @@ export default function PlayScreen({ state, sessionId = "", onAct, onChoose = nu
       phoneUp={phoneUp}
       onChoose={onChoose || (() => {})}
       onCustom={onCustom}
-      onPickUp={() => setRaised(true)}
+      onPickUp={() => {
+        if (!phoneUp) playSound("phone.up");
+        setRaised(true);
+      }}
       blocked={blocked}
     />
   ) : null;
 
   return (
-    <Frame title={TITLE} onOpenMenu={onOpenMenu} onOpenSaves={onOpenSaves} side={side} world={world} phoneUp={phoneUp} wide={wide}>
-      <StatusBar
-        now={phone.now}
-        onOpenMenu={onOpenMenu}
-        onPutDown={hasWorld && phoneUp ? () => act({ action: "put_down", target: "", args: {}, text: "" }) : null}
-        onLock={
-          nav.at === "lock"
-            ? null
-            : () => {
-                setNav(LOCKED);
-                setSheet("");
-              }
-        }
-        wall={nav.at === "lock" || nav.at === "home"}
-      />
-      <div className={`rr-view rr-view--${nav.at}`} ref={view} tabIndex={-1}>
-        {body}
-      </div>
-      {toast && <Refusal refusal={toast} onDismiss={() => setToast(null)} />}
-      {notSent && !keptHere && (
-        <button type="button" className="rr-notsent rr-notsent--float" onClick={retry}>
-          Not sent — tap to retry
-        </button>
-      )}
-      {nav.at !== "lock" && (
-        <nav className="rr-homebar">
-          <button type="button" className="rr-homebar__btn" aria-label="Home" onClick={goHome}>
-            <span aria-hidden="true" />
+    <PrefsContext.Provider value={prefs}>
+      <Frame title={TITLE} onOpenMenu={onOpenMenu} onOpenSaves={onOpenSaves} side={side} world={world} phoneUp={phoneUp} wide={wide}>
+        <StatusBar
+          now={phone.now}
+          onOpenMenu={onOpenMenu}
+          onPutDown={hasWorld && phoneUp ? () => act({ action: "put_down", target: "", args: {}, text: "" }) : null}
+          onLock={
+            nav.at === "lock"
+              ? null
+              : () => {
+                  playSound("phone.lock");
+                  setNav(LOCKED);
+                  setSheet("");
+                }
+          }
+          wall={nav.at === "lock" || nav.at === "home"}
+        />
+        <div className={`rr-view rr-view--${nav.at}`} ref={view} tabIndex={-1}>
+          {body}
+        </div>
+        {toast && <Refusal refusal={toast} onDismiss={() => setToast(null)} />}
+        {notSent && !keptHere && (
+          <button type="button" className="rr-notsent rr-notsent--float" onClick={retry}>
+            Not sent — tap to retry
           </button>
-        </nav>
-      )}
-    </Frame>
+        )}
+        {nav.at !== "lock" && (
+          <nav className="rr-homebar">
+            <button type="button" className="rr-homebar__btn" aria-label="Home" onClick={goHome}>
+              <span aria-hidden="true" />
+            </button>
+          </nav>
+        )}
+      </Frame>
+    </PrefsContext.Provider>
   );
 }

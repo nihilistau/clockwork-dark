@@ -15,7 +15,7 @@ export default function Buzz({ buzz, onPickUp }) {
         Your phone buzzed{count > 1 ? ` ${count} times` : ""}
         {who.length ? `: ${who.join(", ")}` : ""}
       </span>
-      <button type="button" className="rr-buzz__pick" onClick={onPickUp}>
+      <button type="button" className="rr-buzz__pick" data-sound="none" onClick={onPickUp}>
         Pick it up
       </button>
     </div>

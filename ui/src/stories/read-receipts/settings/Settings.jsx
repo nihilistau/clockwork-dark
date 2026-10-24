@@ -12,10 +12,16 @@
  *   message may wake the player from a sleep. The payload's
  *   `settings.wake_for_messages` is the engine's word on it; off by default.
  *
+ * - Sounds (v0.24.0 spec §9.7): the ringtone and the notification tone, each a list with a preview button, kept in the
+ *   client preference `soundChoices` (`onPrefs`): no phone action, no engine state. Shown when the play screen hands over
+ *   `onPrefs`.
+ *
  * (v0.23.0 removed "Let time pass": time passes by what the player does, and
  * the world's own turns, never by a timer on the page.)
  */
 import React, { useEffect, useState } from "react";
+
+import { playSound, setLevels } from "@core/sound/index.js";
 
 import { humanize } from "../phone/format.js";
 import { TEXT_MAX } from "../thread/ComposeBar.jsx";
@@ -58,7 +64,50 @@ function Switch({ label, on, onChange, disabled = false, testId }) {
   );
 }
 
-export default function Settings({ phone, act, pending = null }) {
+/** The two choosable events, each with its choices (ids the story's sounds.yaml binds; labels as the player reads them). */
+export const SOUND_CHOICES = [
+  { event: "phone.ring", heading: "Ringtone", note: "For a voice note or a video message.", options: [["ring.marimba", "Marimba"], ["ring.classic", "Classic"], ["ring.pulse", "Pulse"]] },
+  { event: "phone.notify", heading: "Notification tone", note: "For a message in a conversation you do not have open.", options: [["tone.chime", "Chime"], ["tone.ping", "Ping"], ["tone.knock", "Knock"]] },
+];
+
+function ToneList({ spec, prefs, onPrefs }) {
+  const choices = (prefs && prefs.soundChoices) || {};
+  const chosen = choices[spec.event] || spec.options[0][0];
+  // A preview plays the event with that choice in force for the one play, then the player's own levels return.
+  const preview = (id) => {
+    setLevels({ ...prefs, soundChoices: { ...choices, [spec.event]: id } });
+    try {
+      playSound(spec.event);
+    } finally {
+      setLevels(prefs || {});
+    }
+  };
+  return (
+    <fieldset className="rr-tones">
+      <legend className="rr-field__label">{spec.heading}</legend>
+      {spec.options.map(([id, label]) => (
+        <div className="rr-tones__row" key={id}>
+          <label className="rr-switch">
+            <span className="rr-switch__label">{label}</span>
+            <input
+              type="radio"
+              name={`tone-${spec.event}`}
+              checked={chosen === id}
+              data-sound="none"
+              onChange={() => onPrefs({ ...prefs, soundChoices: { ...choices, [spec.event]: id } })}
+            />
+          </label>
+          <button type="button" className="rr-btn rr-btn--small rr-btn--quiet" data-preview={id} data-sound="none" aria-label={`Play ${label}`} onClick={() => preview(id)}>
+            <span aria-hidden="true">▶</span>
+          </button>
+        </div>
+      ))}
+      <p className="rr-card__sub">{spec.note}</p>
+    </fieldset>
+  );
+}
+
+export default function Settings({ phone, act, pending = null, prefs = null, onPrefs = null }) {
   const player = phone.player || {};
   const bios = player.bios || {};
   const dating = (phone.apps || []).filter((a) => a.kind === "dating");
@@ -114,6 +163,15 @@ export default function Settings({ phone, act, pending = null }) {
         <p className="rr-card__sub">
           Off, you sleep through to the morning and what arrives is waiting when you wake. On, a message someone promised, or one from a person who's up late, can wake you.
         </p>
+
+        {typeof onPrefs === "function" && (
+          <>
+            <h3 className="rr-contact__head">Sounds</h3>
+            {SOUND_CHOICES.map((spec) => (
+              <ToneList key={spec.event} spec={spec} prefs={prefs || {}} onPrefs={onPrefs} />
+            ))}
+          </>
+        )}
       </div>
     </section>
   );

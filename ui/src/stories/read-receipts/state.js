@@ -20,6 +20,8 @@ export const initialState = Object.freeze({
   dropSeq: 0,
   dropped: [],
   lockSeq: 0,
+  // Bumped on EVERY game_started/game_resumed, a rejoin included: the sound hydration's cue (v0.24.0 F12).
+  openSeq: 0,
   lock: null,
   sessionId: "",
   // A world choice the server refused because the phone is up (409 `phone_up`): counted, with its words.
@@ -143,7 +145,7 @@ function mediaAhead(body, phone, keptIds) {
 function opened(s, event, payload) {
   const sessionId = String(payload.session_id || "");
   const fresh = event === "game_resumed" || (sessionId && sessionId !== s.sessionId);
-  if (!fresh) return s.pushes.length ? { ...s, pushes: [] } : s;
+  if (!fresh) return { ...s, openSeq: s.openSeq + 1, pushes: s.pushes.length ? [] : s.pushes };
   const opening = payload.opening || {};
   const lockScreen = opening.lock_screen || null;
   const text = (lockScreen && lockScreen.text) || (event === "game_started" ? String(opening.narration || "") : "");
@@ -151,6 +153,7 @@ function opened(s, event, payload) {
     ...s,
     pushes: [],
     sessionId,
+    openSeq: s.openSeq + 1,
     lockSeq: s.lockSeq + 1,
     lock: { text, lines: Array.isArray(lockScreen?.lines) ? lockScreen.lines : [] },
   };

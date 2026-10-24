@@ -28,6 +28,7 @@ export default function LockScreen({ phone, lock, act, pending, onUnlock, onOpen
             <button
               type="button"
               className="rr-notif"
+              data-sound="none"
               data-testid={`notif-${n.id}`}
               onClick={() => (n.thread_id ? onOpenThread(n.thread_id) : onUnlock())}
             >
@@ -42,7 +43,7 @@ export default function LockScreen({ phone, lock, act, pending, onUnlock, onOpen
         ))}
       </ol>
       <div className="rr-lock__actions">
-        <button type="button" className="rr-btn rr-lock__open" onClick={onUnlock}>
+        <button type="button" className="rr-btn rr-lock__open" data-sound="none" onClick={onUnlock}>
           Open phone
         </button>
       </div>

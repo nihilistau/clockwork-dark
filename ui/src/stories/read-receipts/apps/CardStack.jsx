@@ -12,6 +12,8 @@
  */
 import React, { useEffect, useRef, useState } from "react";
 
+import { playSound } from "@core/sound/index.js";
+
 import ProfileCard from "./ProfileCard.jsx";
 
 /** How far a drag must travel, in px, to count as a swipe. */
@@ -29,6 +31,7 @@ export default function CardStack({ deck, onSwipe, waiting = false, keys = true,
     if (dir === "super" && supers <= 0) return;
     if (dir !== "pass" && likes <= 0) return;
     onSwipe(card.pid, dir);
+    playSound("phone.swipe");
   };
   const swipeRef = useRef(swipe);
   swipeRef.current = swipe;
@@ -107,13 +110,14 @@ export default function CardStack({ deck, onSwipe, waiting = false, keys = true,
       <div className="rr-deck__bar">
         <p className="rr-deck__left">{likes > 0 ? `${likes} likes left today` : "No likes left today"}</p>
         <div className="rr-deck__buttons">
-          <button type="button" className="rr-round rr-round--pass" aria-label="Pass" disabled={waiting} onClick={() => swipe("pass")}>
+          <button type="button" className="rr-round rr-round--pass" data-sound="none" aria-label="Pass" disabled={waiting} onClick={() => swipe("pass")}>
             <span aria-hidden="true">✕</span>
           </button>
           {supers > 0 && likes > 0 && (
             <button
               type="button"
               className="rr-round rr-round--super"
+              data-sound="none"
               aria-label="Super like"
               disabled={waiting}
               onClick={() => swipe("super")}
@@ -122,7 +126,7 @@ export default function CardStack({ deck, onSwipe, waiting = false, keys = true,
             </button>
           )}
           {likes > 0 && (
-            <button type="button" className="rr-round rr-round--like" aria-label="Like" disabled={waiting} onClick={() => swipe("like")}>
+            <button type="button" className="rr-round rr-round--like" data-sound="none" aria-label="Like" disabled={waiting} onClick={() => swipe("like")}>
               <span aria-hidden="true">♥</span>
             </button>
           )}

@@ -68,13 +68,12 @@ def test_every_shipped_file_is_bound_somewhere() -> None:
     assert UNBOUND_UNTIL_T10 <= shipped - used, "a path bound now must leave UNBOUND_UNTIL_T10"
 
 
-#: The engine files no sound binds until the palettes land (T9 removes its three; T10 deletes this list).
+#: The engine files no sound binds until the palettes land (T9 removed its three: cloth1, cloth2, dooropen_1; T10 deletes this list).
 UNBOUND_UNTIL_T10: frozenset[str] = frozenset({
     "files/kenney/casino-audio/card-slide-1.ogg", "files/kenney/casino-audio/card-place-1.ogg",
     "files/kenney/casino-audio/chips-stack-1.ogg", "files/kenney/rpg-audio/metallatch.ogg",
     "files/kenney/rpg-audio/handlecoins.ogg", "files/kenney/rpg-audio/bookflip1.ogg",
-    "files/kenney/rpg-audio/dooropen_1.ogg", "files/kenney/rpg-audio/doorclose_1.ogg",
-    "files/kenney/rpg-audio/cloth1.ogg", "files/kenney/rpg-audio/cloth2.ogg",
+    "files/kenney/rpg-audio/doorclose_1.ogg",
     "files/kenney/impact-sounds/impactbell_heavy_000.ogg", "files/kenney/impact-sounds/impactwood_light_000.ogg",
     "files/kenney/sci-fi-sounds/laserretro_000.ogg", "files/kenney/sci-fi-sounds/forcefield_000.ogg",
 })
