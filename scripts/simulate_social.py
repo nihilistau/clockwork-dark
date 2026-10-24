@@ -73,6 +73,13 @@ A stay-over ends the session there: the next one opens on the morning scene,
 where the policy takes one ``quiet`` and sees them out (the flat) or heads home
 (theirs). The morning counts as no scene (v0.24.0 §12.1).
 
+THE PHONE'S SHARE (v0.24.0 T11, a harness shape, not a balance constant): in a
+full session the policy's phone actions stop at ``PHONE_SHARE`` (60%) of the
+session's real seconds, and the rest is the world day's; past it the policy
+only keeps its own promises as their windows open (one message each), and its
+"talk later" promises the next session. Without it a live policy spent all 40
+minutes on the phone in the morning and skipped work and dinner.
+
 THE GAME SESSION is built by ``SessionStore.create`` over a save store that keeps
 nothing (``_KeepsNothing``, ``keeps_nothing = True``; Plan decision 28), so a
 run writes no save, starts no DirtySaver thread, and the voicing pass's
@@ -208,6 +215,8 @@ Usage:
     python scripts/simulate_social.py --game read-receipts --first-seed 0 --seeds 5 --raw r0.json
     python scripts/simulate_social.py --game read-receipts --first-seed 5 --seeds 5 --raw r5.json
     python scripts/simulate_social.py --game read-receipts --fold r0.json r5.json
+    # the day-180 save the size bound pins, one policy (prints save.json's bytes):
+    python scripts/simulate_social.py --game read-receipts --day-save 180 --first-seed 7 --policy attentive --disk DIR
 """
 
 from __future__ import annotations
@@ -264,6 +273,12 @@ UNBANDED_ROWS: frozenset[str] = frozenset({"life_decks_met_per_week"})
 REAL_SECONDS: dict[str, float] = {"send": 30.0, "read_bubble": 3.0, "swipe": 4.0, "world": 35.0, "moment": 40.0}
 #: A session's real seconds: 40 real minutes (spec §3.2's 30-45).
 SESSION_REAL_SECONDS = 40 * 60
+#: A FULL session's phone share (v0.24.0 T11, the controller's ruling; a harness shape, not a balance
+#: constant): the policy's phone actions stop at this share of the session's real seconds, and the rest is the
+#: world day's (work, dinner, the plans). Without it a live policy spent the whole session on the phone in the
+#: morning and skipped its day (T11 phase 1: 2-4 work days and 1-4 dinners in 60 sessions). A phone-only
+#: session (T9's) has no cap.
+PHONE_SHARE = 0.6
 #: The model latencies a banded run is made at (spec §3.4, I8): the bands hold at 30, the worst case.
 MODEL_SECONDS: tuple[float, ...] = (6.0, 15.0, 30.0)
 DEFAULT_MODEL_SECONDS = 15.0
@@ -278,18 +293,30 @@ COMPANION_ROWS: dict[str, str] = {"player_promises_kept.flaky": "flaky"}
 class RealClock:
     """Real seconds spent by the policy's actions in one session (no wall clock is read: rule R-03)."""
 
-    def __init__(self, model_seconds: float, budget: float = SESSION_REAL_SECONDS) -> None:
+    def __init__(self, model_seconds: float, budget: float = SESSION_REAL_SECONDS,
+                 phone_budget: Optional[float] = None) -> None:
         self.model_seconds = float(model_seconds)
         self.budget = float(budget)
+        #: The phone's own share of ``budget`` (``PHONE_SHARE`` in a full session; None: all of it, T9's).
+        self.phone_budget = float(budget if phone_budget is None else phone_budget)
         self.spent = 0.0
+        #: The real seconds of the phone's actions alone (``charge``); a world turn adds to ``spent`` only.
+        self.phone_spent = 0.0
 
     def charge(self, action: str, *, bubbles: int = 0, replies: int = 0) -> None:
-        self.spent += REAL_SECONDS.get(action, 0.0) + REAL_SECONDS["read_bubble"] * bubbles
-        self.spent += self.model_seconds * replies
+        seconds = REAL_SECONDS.get(action, 0.0) + REAL_SECONDS["read_bubble"] * bubbles
+        seconds += self.model_seconds * replies
+        self.spent += seconds
+        self.phone_spent += seconds
 
     @property
     def over(self) -> bool:
         return self.spent >= self.budget
+
+    @property
+    def phone_over(self) -> bool:
+        """The phone's share is spent: no more phone actions this session (the world day goes on)."""
+        return self.phone_spent >= self.phone_budget
 
 
 #: ``Phone.away``'s absence in the replay script (spec §19.1): 72 hours.
@@ -1188,7 +1215,8 @@ class Policy:
         return HOUR_WAKE <= hour < HOUR_BED
 
     def over(self) -> bool:
-        return self.clock is not None and self.clock.over
+        """The session's time is spent, or the phone's share of it (a full session's ``PHONE_SHARE``)."""
+        return self.clock is not None and (self.clock.over or self.clock.phone_over)
 
     def has_time_to_start(self) -> bool:
         """Time left in the session for a conversation of ``start_reserve_exchanges`` (no clock: always)."""
@@ -1196,7 +1224,8 @@ class Policy:
         if clock is None:
             return True
         exchange = REAL_SECONDS["send"] + REAL_SECONDS["read_bubble"] + clock.model_seconds
-        return clock.budget - clock.spent >= self.start_reserve_exchanges * exchange
+        left = min(clock.budget - clock.spent, clock.phone_budget - clock.phone_spent)
+        return left >= self.start_reserve_exchanges * exchange
 
     @property
     def social(self) -> dict[str, Any]:
@@ -1343,6 +1372,10 @@ class Policy:
         from engine.social import promises
 
         now = self.phone.now
+        if not_before is None and self.in_world:
+            # A full session's phone stops at its share (``PHONE_SHARE``), so the player promises the NEXT session
+            # (its next waking morning or later), when it will be on the phone again (T11's session shape).
+            not_before = self._next_wake()
         earliest = max(now + PROMISE_LEAD_HOURS, float(not_before if not_before is not None else now))
         best: Optional[tuple[float, str]] = None
         for window in PLAYER_WINDOWS:
@@ -1403,6 +1436,28 @@ class Policy:
                 continue
             self._send(tid, str(row["pid"]), cold=self._is_cold(str(row["pid"])))
             self.chat(tid)
+
+    def keep_due_promises(self) -> None:
+        """Past the phone's share (``PHONE_SHARE``): each promise of its own open now still gets its one message
+        (a word it gave, not browsing); the conversation it opens waits for the next session. The cap stops the
+        looks; without this the attentive player kept 17.5% of its promises (T11's re-time)."""
+        from engine.social import messaging
+
+        if not self.promises:
+            return
+        now = self.phone.now
+        due = [r for r in (self.social.get("promises") or {}).values()
+               if r["by"] == "player" and r["status"] == "open" and not self._breaks(r["id"])
+               and float(r["opens_at"]) <= now <= float(r["closes_at"])]
+        for row in sorted(due, key=lambda r: (r["opens_at"], r["id"])):
+            pid = str(row["pid"])
+            tid = messaging.thread_for(self.phone.state, pid)
+            if tid is None or not messaging.is_open(messaging.thread(self.phone.state, tid)):
+                continue
+            last = self._last_shown(messaging.thread(self.phone.state, tid))
+            if last is not None and last.get("from") == "player" and float(last.get("at", -1e9)) >= float(row["opens_at"]):
+                continue                                   # already written to them in this window
+            self._send(tid, pid, cold=self._is_cold(pid))
 
     def _is_cold(self, pid: str) -> bool:
         from engine.social import convo
@@ -2065,6 +2120,8 @@ class World:
                 return
             if not self.policy.over():
                 self.policy.look()
+            else:
+                self.policy.keep_due_promises()
             if not self.state.social.get("at_work") or "carry_on_working" not in self.legal().get("do", []):
                 return
             self.turn("do", "carry_on_working")
@@ -2292,7 +2349,8 @@ class Session:
         world.stayed = False
         if not policy.awake() and not social.scene_open(phone.state):
             phone.act("wait", args={"until": "morning"})
-        clock = RealClock(self.model_seconds, budget=self.real_seconds_budget)
+        clock = RealClock(self.model_seconds, budget=self.real_seconds_budget,
+                          phone_budget=PHONE_SHARE * self.real_seconds_budget)
         phone.clock = policy.clock = clock
         start = phone.now
         try:
@@ -2302,7 +2360,10 @@ class Session:
                     continue
                 if world.stayed:
                     break
-                self._look()
+                if clock.phone_over:
+                    policy.keep_due_promises()
+                else:
+                    self._look()
                 if clock.over or not policy.awake():
                     break
                 if not policy.wait_for_more(world.next_at()):
@@ -3140,6 +3201,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--disk", metavar="DIR", default="",
                         help="play on disk under DIR, spilling into the archive as play does (one folder per run)")
     parser.add_argument("--json", metavar="OUT", default="", help="also write the reports to this JSON file")
+    parser.add_argument("--day-save", metavar="DAYS", type=int, default=0,
+                        help="write_day_save: play --first-seed's run of --policy for DAYS sessions on disk under "
+                             "--disk (romantic voice, as the save-size test) and print save.json's bytes")
     args = parser.parse_args(argv)
     if args.game != SLUG:
         parser.error(f"argument --game: this harness plays {SLUG!r} only (scripts/simulate.py plays the others)")
@@ -3165,6 +3229,20 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 def _main(args: argparse.Namespace) -> int:
     reports: dict[str, dict[str, Any]] = {}
+    if args.day_save:
+        if not args.disk or args.policy == "all":
+            raise SystemExit("simulate_social: --day-save needs --disk DIR and one --policy")
+        logging.disable(logging.WARNING)
+        _ensure_active()
+        began = time.perf_counter()
+        path = write_day_save(args.first_seed, args.day_save, args.policy, Path(args.disk),
+                              model_seconds=args.model_seconds, world=not args.phone_only)
+        size = (path / "save.json").stat().st_size
+        spilled = (path / "phone_archive.jsonl")
+        print(f"day-save {args.policy} seed {args.first_seed} day {args.day_save}: save.json {size} bytes, "
+              f"phone_archive.jsonl {spilled.stat().st_size if spilled.exists() else 0} bytes "
+              f"(wall time {time.perf_counter() - began:.0f} s)", flush=True)
+        return 0
     if args.fold:
         # Runs made side by side (each its own --first-seed range and --raw file), folded as one.
         raw: dict[str, list[dict[str, Any]]] = {}

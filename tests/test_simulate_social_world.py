@@ -271,6 +271,69 @@ def test_a_phone_only_session_is_t9s(phone) -> None:
     assert phone.world_actions == 0 and not phone.world_charges
 
 
+# -- the session's shape (v0.24.0 T11: the phone's share of a session) ---------------------------------------
+
+
+def test_the_real_clock_caps_the_phone_and_not_the_world() -> None:
+    clock = sim.RealClock(15, budget=100.0, phone_budget=60.0)
+    clock.charge("send")                                         # 30 s on the phone
+    assert clock.phone_spent == 30.0 and not clock.phone_over
+    clock.spent += 35.0                                          # a world turn: the session's, not the phone's
+    assert clock.phone_spent == 30.0 and clock.spent == 65.0 and not clock.over
+    clock.charge("send")
+    assert clock.phone_over and not clock.over
+    uncapped = sim.RealClock(15, budget=100.0)                   # no phone budget: the session's (T9's)
+    assert uncapped.phone_budget == 100.0
+
+
+def test_a_full_sessions_phone_is_capped_and_its_day_goes_on(phone, monkeypatch) -> None:
+    player = sim.POLICIES["attentive"](phone, 3)
+
+    def hungry_look() -> None:                                   # a phone that would take the whole session
+        while not player.over():
+            phone.clock.charge("send")
+            phone.charges.append(("", phone.now, sim.REAL_SECONDS["send"], 0.0, False))
+
+    monkeypatch.setattr(player, "look", hungry_look)
+    phone.act("wait", args={"until": "morning"})                 # a whole day ahead (a run opens at 20:00)
+    clocks: list[Any] = []
+    real = sim.RealClock
+
+    def recording(*args: Any, **kwargs: Any) -> Any:
+        clocks.append(real(*args, **kwargs))
+        return clocks[-1]
+
+    sim.RealClock = recording                                    # type: ignore[misc]
+    try:
+        sim.Session(phone, player, model_seconds=15).play()
+    finally:
+        sim.RealClock = real                                     # type: ignore[misc]
+    clock = clocks[0]
+    assert clock.phone_budget == pytest.approx(sim.PHONE_SHARE * sim.SESSION_REAL_SECONDS)
+    phone_seconds = sum(seconds for _pid, _at, seconds, _m, _e in phone.charges)
+    # The cap stops the phone at the action that reaches it; only the wind-down's "talk later"s come after.
+    assert phone_seconds <= clock.phone_budget + 600.0
+    assert player.world.counts["dinners"] == 1, player.world.counts    # the day went on to dinner
+    assert phone.world_refused == 0, phone.refusals
+
+
+def test_a_phone_only_session_has_no_phone_cap(phone) -> None:
+    player = sim.POLICIES["attentive"](phone, 3)
+    clocks: list[Any] = []
+    real = sim.RealClock
+
+    def recording(*args: Any, **kwargs: Any) -> Any:
+        clocks.append(real(*args, **kwargs))
+        return clocks[-1]
+
+    sim.RealClock = recording                                    # type: ignore[misc]
+    try:
+        sim.Session(phone, player, model_seconds=15, world=False).play()
+    finally:
+        sim.RealClock = real                                     # type: ignore[misc]
+    assert clocks[0].phone_budget == clocks[0].budget
+
+
 # -- the report --------------------------------------------------------------------------------------------------
 
 
@@ -334,3 +397,25 @@ def test_a_run_folded_from_before_the_world_reports_none_for_its_rows() -> None:
         old.pop(key)
     rep = sim.fold([old])
     assert rep["scene_band.great"] is None and rep["life_decks_met_per_week"] is None and rep["ratio.world"] is None
+
+
+def test_a_capped_phone_still_keeps_the_players_promise(phone) -> None:
+    """Past the phone's share the player still keeps a promise whose window is open (one message): the cap
+    stops browsing and chatting, never a word the player gave (T11's re-time: 17.5% kept without this)."""
+    tid = _matched_in(phone.session, "matchstick")
+    pid = tid.split(":")[1]
+    player = sim.POLICIES["attentive"](phone, 3)
+    now = phone.now
+    phone.state.social.setdefault("promises", {})["p_test"] = {
+        "id": "p_test", "pid": pid, "by": "player", "status": "open", "window": "tonight",
+        "opens_at": now - 0.1, "closes_at": now + 2.0}
+    phone.clock = player.clock = sim.RealClock(15, budget=2400.0, phone_budget=0.0)
+    try:
+        assert player.over()
+        player.keep_due_promises()
+    finally:
+        phone.clock = player.clock = None
+    from engine.social import messaging
+
+    last = messaging.last_shown(messaging.thread(phone.state, tid))
+    assert last is not None and last.get("from") == "player"
