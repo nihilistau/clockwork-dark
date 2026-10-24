@@ -329,7 +329,7 @@ npm run build --prefix ui                               # rebuild the COMMITTED 
 .\.venv\Scripts\python.exe launcher.py --check          # local services and what each outage costs
 .\.venv\Scripts\python.exe scripts\simulate.py --policy all --turns 200
 .\.venv\Scripts\python.exe scripts\simulate.py --game hue-and-cry     # HUE & CRY's thief, over its own harnesses
-.\.venv\Scripts\python.exe scripts\simulate_social.py --game read-receipts --sessions 6 --seeds 10 --policy attentive --model-seconds 30   # READ RECEIPTS' phone: phone-only sessions, stub voice
+.\.venv\Scripts\python.exe scripts\simulate_social.py --game read-receipts --sessions 6 --seeds 10 --policy attentive --model-seconds 30   # READ RECEIPTS' phone: full sessions (phone and world), stub voice and narrator
 docker build -t clockwork-dark .                         # the hosted image (Docker; docs/HOSTING.md § Docker)
 ```
 

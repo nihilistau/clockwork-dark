@@ -107,7 +107,9 @@ ASSERTED = ("person_promises_kept",)
 
 
 def test_every_report_row_is_banded_or_deferred_exactly_once() -> None:      # v0.22's test, extended in place (F25)
-    assert set(BANDS) | set(DEFERRED_ROWS) | set(sim.DERIVED_ROWS) | set(ASSERTED) == set(sim.REPORT_ROWS)
+    assert (set(BANDS) | set(DEFERRED_ROWS) | set(sim.DERIVED_ROWS) | set(ASSERTED) | set(sim.UNBANDED_ROWS)
+            == set(sim.REPORT_ROWS))
+    assert not set(sim.UNBANDED_ROWS) & (set(BANDS) | set(DEFERRED_ROWS) | set(sim.DERIVED_ROWS) | set(ASSERTED))
     assert not set(BANDS) & set(DEFERRED_ROWS)
     assert not (set(BANDS) | set(DEFERRED_ROWS)) & set(sim.DERIVED_ROWS)     # a derived row is never banded (§3.4)
     assert not set(ASSERTED) & (set(BANDS) | set(DEFERRED_ROWS) | set(sim.DERIVED_ROWS))
