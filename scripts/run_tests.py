@@ -88,8 +88,10 @@ from tests.tiers import FAST_MARKS, phase_marks  # noqa: E402  (the hybrid's -m 
 EXIT_LIMIT = 124  # what `timeout(1)` returns: the run hit its wall-clock limit
 _SEQ = itertools.count()  # two calls in one microsecond still differ
 
-#: minutes; the bare-hang limit for a whole run (the per-test limit is pytest-timeout's)
-DEFAULT_LIMITS = {"fast": 45, "full": 120, "files": 60, "changed": 45}
+#: minutes; the bare-hang limit for a whole run (the per-test limit is pytest-timeout's). `full` is 240 since
+#: v0.24.0 T14: READ RECEIPTS' slow pins alone measured about 120 minutes at v0.24.0 T11 (the save-size file
+#: about 100), more than the 120 it was.
+DEFAULT_LIMITS = {"fast": 45, "full": 240, "files": 60, "changed": 45}
 
 #: pytest-xdist workers for ``fast``/``full`` (v0.21.1 T5, measured in its
 #: soak: CHANGELOG). ``files`` runs serially unless asked; ``--workers 0`` is

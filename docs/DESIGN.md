@@ -427,12 +427,15 @@ person's energy and their next schedule boundary, never by a fixed gap.
 Time moves only by what the player does (`wait`, and the world's actions).
 **Matching** (`apps.py`, `matching.py`) is a deterministic compatibility
 and one like-back draw per pair. **Relationships** (`relationships.py`) are
-stages behind gates of warmth, trust, exchanges, days and good meet-ups,
+stages behind gates of willingness (`growth.yaml` `willing:`, which reads
+depth, warmth and trust), exchanges and good meet-ups (no gate reads days),
 closeness bands, interest, mood, cold spells, fading and arcs; the model
 moves warmth and trust only within `regard.per_reply` and a day's cap, and
 asks for anything else only as a **proposal** the engine re-checks.
-**Media** (`media.py`), **meet-ups** (`meets.py`) and **the games**
-(`games/`) are decided by the engine from budgets, the stage and a draw;
+**Media** (`media.py`), **plans and in-person scenes** (`plans.py`,
+`scene.py`; v0.22's `meets.py` is gone since v0.23.0) and **the games**
+(`games/`) are decided by the engine from budgets, the stage, willingness
+and a draw;
 the model words the message that carries them, and ComfyUI or a TTS server
 renders them only if the owner turns one on (docs/MEDIA_SERVERS.md). Every
 write is a `social_*` effect (rule 3), every draw a named `SOCIAL_*` stream

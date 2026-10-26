@@ -36,7 +36,7 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same ref cancels the run still going: with a 150-minute
+# A newer push to the same ref cancels the run still going: with a 270-minute
 # budget, repeated pushes would otherwise queue whole runs.
 concurrency:
   group: ci-${{ github.ref }}
@@ -46,9 +46,14 @@ jobs:
   suite:
     name: pytest (Python 3.11)
     runs-on: ubuntu-latest
-    # Budgeted for a 2-vCPU runner: the owner's 12-thread desktop takes about
-    # 41 minutes, a Linux container about 26.
-    timeout-minutes: 150
+    # Budgeted for a 2-vCPU runner (v0.24.0 T14): READ RECEIPTS' slow pins
+    # alone measured about 120 minutes on the owner's desktop at v0.24.0 T11
+    # (tests/test_social_save_size.py, three 180-day full-session saves, about
+    # 100; tests/test_simulate_social.py 16; tests/test_social_commit_scope.py
+    # 4), before the rest of the suite. The run's own wall limit is 240
+    # (--limit-minutes below), and the job's 30 more let run_tests.py stop
+    # its tree and print its summary before GitHub cancels the job.
+    timeout-minutes: 270
     steps:
       - uses: actions/checkout@v7
         with:
@@ -78,8 +83,9 @@ jobs:
         # those serially, then a solo re-run of the serial phase's failures
         # (reported as FLAKY, never hidden). Every tier, bounded.
         # pytest-xdist and pytest-timeout come from requirements.txt under
-        # constraints.txt, installed above.
-        run: python scripts/run_tests.py full --workers 2
+        # constraints.txt, installed above. The wall limit is said outright,
+        # under the job's timeout (tests/test_ci_workflow.py holds the pair).
+        run: python scripts/run_tests.py full --workers 2 --limit-minutes 240
 
   client:
     name: client (Node 24)

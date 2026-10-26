@@ -86,6 +86,13 @@ FULL_MEASURED: dict[str, dict[str, float]] = {
     "devoted.married_40h": {_D15: 0.3},
     "events_per_jump_morning_day60": {_A6: 26, _A15: 25, _A30: 14},
 }
+#: The balance files `FULL_MEASURED` was measured on (v0.24.0 T11; each carries a "Measured T11" header), and a
+#: sha256 of their PARSED content (comments and layout do not move it; any value does). A change fails
+#: `tests/test_social_balance_pin.py` until the 160 runs are re-measured (rule 10) and `FULL_MEASURED`, the
+#: CLAUDE.md rows and this digest are updated together (v0.24.0 T14).
+FULL_MEASURED_DATA = ("behaviours", "conversation", "growth", "life_events", "plans", "promises", "relationships",
+                      "scenes")
+FULL_MEASURED_DATA_SHA256 = "9107cac84f1505d45c22d7f7200e9bd268cc93a6ad1d0e9bab3722c5705d652a"
 BANDS = {**PHONE_BANDS, **FULL_BANDS}
 #: Pinned by `tests/test_social_save_size.py` (`SAVE_SIZE_MEASURED`, under 1 MB per policy), not by a report.
 SAVE_ROWS = ("save_bytes_day180.attentive", "save_bytes_day180.bachelor", "save_bytes_day180.devoted")

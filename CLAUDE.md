@@ -30,7 +30,10 @@ names the configured model server); the ten tests of `tests/test_docker_smoke.py
 soft-lock test's stories with no rest verb; THE LONG CON's word-limit
 check; `tests/test_constraints.py`'s installed-version check for
 `faster-whisper` and `gunicorn` (neither installed on Windows); the
-POSIX-only tests; and one bus test skipped by design. Plus **731 client
+POSIX-only tests; one bus test skipped by design; and, since v0.23.0,
+`tests/test_media_xai.py::test_the_suite_never_resolves_the_repositorys_key_file`
+(it needs the owner's gitignored `xai_api_key.txt` in the repository root, so it
+runs on the owner's machine only, never on CI or a fresh clone). Plus **731 client
 tests** in 36 files under `ui/tests/` (`npm test --prefix ui`; `vitest` is a
 devDependency, so `npm install --prefix ui` once first). `fast` was not
 re-measured (v0.21.1: about 5.8 min). Not run for this release, by the owner's
@@ -184,7 +187,7 @@ only once the last of them lands:
 | v0.21.1 | Patch: test speed -- tiers, pytest-xdist hybrid runs, bounded runs (`scripts/run_tests.py`), libyaml, a shared HTTP client | **shipped** |
 | v0.22.0 | A new story: a dating simulation played through a phone of apps (dating apps, texts, instant messages, voice and video messages, two-player games), a populated cast the engine runs, no endgame (owner's brief: docs/superpowers/briefs/2026-09-30-dating-sim-brief.md) | **shipped** |
 | v0.23.0 | READ RECEIPTS rework: growth (people who change at their own pace, conversations and willingness that ramp up), no set time on dating, phone numbers that work, places (the player's apartment and its rooms, 3-4 homes for the cast) with their art, and real-life events and meet-ups happening outside the phone; slice of life, no ending (owner's brief, with its addendum: docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md). **Addendum 4 (2026-10-22, after the owner's playtest; docs/superpowers/specs/2026-10-22-v0.23.0-addendum4-world-interaction.md)** is part of it: the world's choices survive phone actions, a plan is kept where you stand (they arrive, the scene opens, `Wait for {name}`), the person is somewhere, a quiet phone while together, typing in the world (a typed line runs ONE offered choice or a scene move, or is narrated only), background people at venues and chance meetings with live contacts, T23A-T23H; replayed end to end in `tests/test_rr_playtest_replay.py` and `ui/tests/rr-playtest.test.jsx`, with the browser-pane walk (A4 §7.5, T31) deferred, and still not done (below) | **shipped** (its tail moved into v0.24.0: T29b ran as v0.24.0 T11, T32 as T13, T33 is T14; T31 was deferred again by the owner, 2026-10-26) |
-| v0.24.0 | Sound effects for the engine and every story (owner's brief: docs/superpowers/briefs/2026-10-13-sound-effects-brief.md): sound as client-side data (`content/sounds/sounds.yaml` and a story's `paths.sounds`; twenty-five engine events; synth sounds, fifteen CC0 Kenney `.ogg` files with synth fallbacks, 216,524 of a 1 MiB budget), the server's two routes and file route, the client sound engine and triggers, the settings, the audition page (`/?sounds=1`) and a palette for each of the seven stories; READ RECEIPTS' morning scene after a stay-over, four more life-event decks (`lift_out`, `family_visit`, `wedding_invite`, `neighbour_party`), the lift fix and the news windows (moved from v0.23.0 at its checkpoint C1); and v0.23.0's deferred tail: the full balance pass (T11: 19 rows banded, 19 deferred by data, one data change), the docs pass (T13) and the whole-branch review (T14). **T12, live play with a model (the addendum-4 meet-up walk, listening to the sounds), was DEFERRED by the owner on 2026-10-26** (Deliberately deferred) | **next** (T14 review and T15 release remain) |
+| v0.24.0 | Sound effects for the engine and every story (owner's brief: docs/superpowers/briefs/2026-10-13-sound-effects-brief.md): sound as client-side data (`content/sounds/sounds.yaml` and a story's `paths.sounds`; twenty-five engine events; synth sounds, fifteen CC0 Kenney `.ogg` files with synth fallbacks, 216,524 of a 1 MiB budget), the server's two routes and file route, the client sound engine and triggers, the settings, the audition page (`/?sounds=1`) and a palette for each of the six played stories (dev-story hears the engine's set); READ RECEIPTS' morning scene after a stay-over, four more life-event decks (`lift_out`, `family_visit`, `wedding_invite`, `neighbour_party`), the lift fix and the news windows (moved from v0.23.0 at its checkpoint C1); and v0.23.0's deferred tail: the full balance pass (T11: 19 rows banded, 19 deferred by data, one data change), the docs pass (T13) and the whole-branch review (T14). **T12, live play with a model (the addendum-4 meet-up walk, listening to the sounds), was DEFERRED by the owner on 2026-10-26** (Deliberately deferred) | **next** (T14 review and T15 release remain) |
 | v0.25.0 | The Clockwork Dark overhaul | queued |
 | v0.26.0 | The Wicked Garden overhaul | queued |
 | v0.27.0 | NEON CITY overhaul | queued |
@@ -607,8 +610,17 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   sets its own: same-origin, or `[hosting.public_origin]`). The guard
   compares hosts, not ports, so a page on loopback at another port counts as
   the same site (documented in the module).
-- CI runs the suite as ONE job, `run_tests.py full --workers 2` (the hybrid,
-  every tier; budget 150 minutes). Its first run, on the v0.21.1 push (run
+- CI runs the suite as ONE job, `run_tests.py full --workers 2 --limit-minutes
+  240` (the hybrid, every tier), in a 270-minute job (v0.24.0 T14; it was the
+  default 120-minute limit in a 150-minute job). READ RECEIPTS' slow pins alone
+  measured about 120 minutes on the owner's desktop at v0.24.0 T11
+  (`tests/test_social_save_size.py`'s three day-180 full-session saves about 100,
+  `tests/test_simulate_social.py` 16, `tests/test_social_commit_scope.py` 4), so
+  the old budget could not hold the release's run; `run_tests.py`'s own `full`
+  default is 240 too (`tests/test_ci_workflow.py` holds the pair). Not yet
+  measured on CI: v0.24.0's first push is the measurement, and its time belongs
+  in Status. Each save-size param still has its own 3600 s pytest limit, which a
+  slow runner could reach. The suite's first run, on the v0.21.1 push (run
   37657972199, 2026-10-07), was green in 10m29s (the serial-run suite took
   40 min on v0.20.2); `image` 32 s, `client` 25 s.
 - Locally the suite is xdist-safe since v0.21.1: `run_tests.py full` and
@@ -943,15 +955,22 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   model server's loaded models: `engine/memory/context.py::default_budget` calls
   `Budget.for_profile("big")`, which asks the server even when the turn's `llm_fn`
   is a stub (found in v0.24.0 T11 phase 1, its concern 6). The balance harness
-  blocks it (`scripts/simulate_social.py::_quiet_summaries`); recorded for the
-  final review, not fixed.
+  blocks it (`scripts/simulate_social.py::_quiet_summaries`). Deferred (v0.24.0
+  T14: the review left it; play always has a server or none, and the probe's
+  answer only sizes the context).
 - READ RECEIPTS' world and scene choice row overflows horizontally with 13 or more
   choices (scrollable; `npm run layout-check --prefix ui` passes). Found in
-  v0.23.0 T30, left (v0.24.0 did not take it up).
-- `engine/social/turnstile.py::report_share` swallows an exception silently
-  rather than logging it (v0.23.0 T28 review, parked), and
-  `scripts/generate_art.py --promote` writes a plate's time only, so the
-  manifest's base rows were added by hand in T27 (parked for the final review).
+  v0.23.0 T30; deferred (v0.24.0 T14 ruling: a layout change for the READ
+  RECEIPTS overhaul, not this release).
+- `scripts/generate_art.py --promote` writes a plate's time only, so READ
+  RECEIPTS' art manifest's base rows were added by hand in v0.23.0 T27. Deferred
+  (v0.24.0 T14 ruling: not this release). (`turnstile.report_share`'s silent
+  swallow, parked beside it, is fixed: it logs at warning since v0.24.0 T14.)
+- A room-by-room walk through READ RECEIPTS' `bldg_lift` with core `travel`
+  pays none of the lift-out minutes; only the world verb `go` does, for a move
+  between the flat upstairs and anywhere else (v0.24.0 T14). Charging the walk
+  would put a social hook in `Engine.move_to`, every story's walk; a
+  docs/GOVERNANCE.md NOT WIRED row.
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 

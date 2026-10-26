@@ -117,7 +117,7 @@ long `pytest` line:
   failures. A hosted test that passes on that re-run is reported as FLAKY,
   never hidden; an unmarked test is never re-run. No repeated full runs to
   "soak" a flake.
-- CI runs `full` (`--workers 2`) on every push.
+- CI runs `full` (`--workers 2 --limit-minutes 240`, in a 270-minute job) on every push.
 - Tiers and markers: `slow` (balance measurement), `process` (starts an
   interpreter, gunicorn or a hosted supervisor), `mcp_server` (a real skills
   server) and `loopback` (binds an in-process server on loopback). `slow`

@@ -2647,8 +2647,8 @@ archetypes:
     games: {skill: 0.55, invite_prob_per_day: 0.04}
     arc: null                       # or an `arcs:` id
     growth: {pace: 1.0, cap: 4, cap_in_person: 4, decay_mult: 1}   # v0.23.0, below
-    promise_prob: 0.85              # v0.23.0: a sign-off carries a promise (drawn from T4)
-    offer_number_prob: 0.8          # v0.23.0: they offer their number at depth 1 (drawn from T5)
+    promise_prob: 0.85              # v0.23.0: the chance a sign-off carries a promise
+    offer_number_prob: 0.8          # v0.23.0: the chance they offer their number at depth 1
 ```
 
 `growth` (v0.23.0, every key required, `behaviour.GROWTH_KEYS`): `pace`
@@ -2657,9 +2657,9 @@ disclosure rung (0-4) they reach on the phone and `cap_in_person` in a
 scene; `decay_mult` scales every openness loss (a ghoster's 2: their
 openness "decays twice as fast"). See `growth.yaml` below.
 
-`promise_prob` and `offer_number_prob` (v0.23.0, 0-1, required) are read
-by nothing yet: the person's sign-off promise is drawn from T4 and the
-number offer from T5 (docs/GOVERNANCE.md NOT WIRED).
+`promise_prob` and `offer_number_prob` (v0.23.0, 0-1, required): the
+chance their sign-off carries a promise, and the chance they offer their
+number once they are willing to give it (depth 1).
 
 An initiation (v0.23.0) names a `window` -- resolved against the person's
 own schedule (`engine/social/windows.py`: `waking` their first waking
@@ -2742,7 +2742,7 @@ NEXT decision, queued when that reply commits (`convo.after_commit`).
 | Key | What it holds |
 |---|---|
 | `costs` | in-game minutes a message costs the player: `text`, `voice`, `photo`, `video` (required), `reply` (0: a reply costs nothing) |
-| `clock` | `wait`'s targets, whole hours: `evening`, `morning`; `min_sleep_hours` (sleep's floor, read from T11); `work_lead_hours` (optional, default 2: how long before the player's work band "Go to work" is offered) |
+| `clock` | `wait`'s targets, whole hours: `evening`, `morning`; `min_sleep_hours` (sleep's floor); `work_lead_hours` (optional, default 2: how long before the player's work band "Go to work" is offered) |
 | `episode_gap_minutes` | above 0: no message either way for this long and a chat episode lapses |
 | `together` (optional) | `{hold_retry_minutes}`, 1 or more (v0.23.0 W5): while a person is with the player their due texts are held and tried again this many minutes on; they land once the two are apart |
 | `habits` | `weights` per archetype (`default` required) of each phone habit's options -- `at_work` `never`/`glances`/`chatty`, `late_night` `no`/`sometimes`/`night_owl` (quote `"no"`: YAML reads a bare `no` as false), `in_company` `rude_not_to`/`glances` -- drawn once per person (a counterless key); `night_owl_shift_hours` |
@@ -2770,7 +2770,7 @@ off with the term's `reasons:` line. The decision's **mode** (`quick`
 until `chatting_after` exchanges, and whenever capped; `deep` with energy,
 depth 2+, long player messages and one of their rung's topics named) sets
 its bubbles; a burst of three raises the minimum to two. The voice reads
-the mode, the end and the reason from T7.
+the mode, the end and the reason.
 
 **What a person remembers** (v0.23.0, `engine/social/memory.py`, spec §7):
 one memory per PERSON, `people[pid]["memory"]`, whatever app the two of you
@@ -2820,9 +2820,11 @@ model's free text:
 - **a model's proposal**, `relationships.yaml` `proposals: promise` (its
   `window:` lists the windows it may name), legal only while the
   conversation is winding down or signed off;
-- **with no model**, a `phrases:` row stated (not asked, not negated) in
+- **a phrase**, a `phrases:` row stated (not asked, not negated) in
   the player's own message: a pending request the person's next reply
-  accepts.
+  accepts. It is read whether or not a model is loaded: with no model it is
+  the only route from the player's words, and with one a model's proposal for
+  the same window is the same promise, never a second.
 
 **Whose day the window is.** The sender's -- whoever will write in it --
 except `at_work`, which is the receiver's: "message me at work" lands in the
@@ -2984,7 +2986,7 @@ never to state or memory. Keys:
 - `closers` -- the closers offered, from `another_round, go_somewhere_else,
   walk_them_home, back_to_yours, back_to_theirs, stay_the_night,
   call_it_a_night, propose` (`call_it_a_night` is required: the way home has no gate;
-  `propose` is v0.23.0 T18's, below with `wedding`).
+  `propose` is below, with `wedding`).
   `call_it_a_night` may add `:promise:morning` (a promise of the player's),
   `:plan:soon` (a plan) or `:stay` (stay where you are; otherwise home, the
   travel charged). `back_to_yours` and `back_to_theirs` are offered only when
@@ -3201,10 +3203,10 @@ every reply decided is an `exchange` (by its mode; a burst answered once is
 one), an episode that closes after a sign-off with warmth risen across it is
 a `good_end`, every closed episode ticks `guarded` down, and the first
 charge of a spell left on read (`relationships.settle_left_on_read`) is a
-`left_on_read` loss. Promises (T4), scenes (T13) and life events (T17) call
-the rest: `moment`, `promise_kept` and `support` (a reply of yours or a scene with them while a hard event of
-theirs runs, once per event, `life.support`) all gain now, and `growth._STUBBED` is empty. A queued reveal is voiced from T7 (situation
-`opens_up`): until then `reveal_due` waits.
+`left_on_read` loss. Promises, scenes and life events call the rest:
+`moment`, `promise_kept` and `support` (a reply of yours or a scene with them while a hard event of
+theirs runs, once per event, `life.support`) all gain, and `growth._STUBBED` is empty. A queued reveal is
+voiced in a reply of situation `opens_up`; until one, `reveal_due` waits.
 
 `topics.yaml`: `{id, kind, label, when?, follows_up?}` rows. Each person
 draws `topics_per_kind` per kind, once (a counterless key), among the rows
@@ -3386,7 +3388,7 @@ Read by `engine/social/relationships.py`, `agreement.py`, `media.py` and
   warming to `recover_above` for `recover_days` mornings goes back to the
   stage it left), `fade_days` (no contact for that long: faded; 21
   shipped) and `wedding_after_days` (R15: the wedding follows the
-  engagement by days; 14 shipped, read from T18).
+  engagement by days; 14 shipped).
 - **No gate or cap reads days** (`tests/test_social_no_days.py` walks
   `growth`, `relationships` and `media.yaml`): a key naming days, hours or
   a per-day cap fails unless it is one of the test's named exemptions,
@@ -3711,7 +3713,7 @@ and again at commit. No line in any of these files may rate content (rule
 ### 3.16 Sounds — `paths.sounds` (v0.24.0)
 
 A story hears the engine's set (`content/sounds/sounds.yaml`) unless it declares `paths.sounds: <dir>`; the
-directory holds its own `sounds.yaml` (and, from T7, `files/` and a provenance file). Sound is data: the
+directory holds its own `sounds.yaml` (and, when it ships its own audio, `files/` and a `PROVENANCE.yaml`). Sound is data: the
 browser plays it, the engine only loads, checks and serves it. A story with no `paths.sounds` is unchanged.
 
 - `version: 1`, then `events:` (story only), `sounds:` and `bind:`. An engine file also has `limits:`.
@@ -4062,8 +4064,11 @@ report is the v0.23.0 spec's §17.2 rows (`REPORT_ROWS`): conversations'
 length and ends, cold messages unanswered, ghosting, the real minutes from a
 match to a number, promises kept, fuller replies, the in-game minutes a real
 minute buys (`DERIVED_ROWS`, never banded), and the days and real hours to
-each closeness band per archetype. A row its sessions cannot reach (a scene,
-a life event, the long-term stages; T9's sessions are phone only) is `None`.
+each closeness band per archetype; and, from the world day of a full
+session (the default: the phone takes at most 60% of the 40 minutes, then
+work, dinner, plans, scenes and sleep), scenes, life events, the long-term
+stages, active relationships and the day-180 save. A row its sessions cannot
+reach (a scene or a life event, under `--phone-only`) is `None`.
 Seed ranges run side by side (`--first-seed N --seeds 2 --raw OUT`) and
 fold (`--fold OUT...`). READ RECEIPTS' README has the commands and where
 its measured tables live. The harness is READ RECEIPTS' only (`--game`
