@@ -368,7 +368,7 @@ def test_the_scene_section_carries_words_and_no_numbers(in_a_scene) -> None:
     scene, session, state, pid = in_a_scene
     _set_person(state, pid, warmth=61.987654, trust=48.123457)
     block = payload.phone_block(state)
-    assert set(block["scene"]) == {"pid", "name", "stage_words", "closeness_words", "portrait"}
+    assert set(block["scene"]) == {"pid", "name", "stage_words", "closeness_words", "portrait", "kind", "id"}
     assert block["scene"]["pid"] == pid
     text = json.dumps(block["scene"], default=str)
     for sentinel in ("61.987654", "48.123457"):
@@ -639,7 +639,7 @@ def test_staying_over_is_logistics_and_a_no_is_a_plain_answer(in_a_scene, monkey
     monkeypatch.setattr(social_scene, "_stay_drawn", lambda s, p: True)
     result = social_scene.stay_the_night(state)
     assert result["stayed"] is True and state.world_clock_hours % 24 < 12
-    assert not state.social["scene"]
+    assert not state.social["scene"] and "morning" not in result        # a venue opens no morning (F6)
     from engine.social import memory
 
     rows = memory.part(state.social["people"][pid], "history")
@@ -678,7 +678,7 @@ def test_stay_the_night_is_offered_at_a_home_only_and_closes_the_clock_on_the_mo
     monkeypatch.setattr(social_scene, "_stay_drawn", lambda s, p: True)
     done = social_scene.close(state, "stay_the_night")
     assert done["ok"] and done["stayed"] is True
-    assert state.location_id == "apt_lounge" and not state.social["scene"]
+    assert state.location_id == "apt_kitchen" and state.social["scene"]["kind"] == "morning"   # the morning (T1)
     assert 5 <= state.world_clock_hours % 24 < 12
     morning = state.world_clock_hours
     queued = [r for r in (state.social.get("queue") or ()) if r.get("pid") == pid]
@@ -737,3 +737,240 @@ def test_a_not_tonight_holds_for_the_rest_of_the_scene(in_a_scene, monkeypatch) 
     assert "stay_the_night" not in dict(social_scene._close_options(state, state.social["scene"]))
     assert social_scene.close(state, "stay_the_night")["ok"] is False
     assert state.social["scene"]["stay_asked"] is True
+
+
+# -- the morning after (v0.24.0 T1; spec §12.1) ---------------------------------------------------------
+
+
+def _stayed(in_a_scene, monkeypatch, *, where: str):
+    """A stay-over that is accepted: from a `back_to_yours` scene in the lounge (`where="yours"`) or a
+    `back_to_theirs` scene at their home (`where="theirs"`). Every draw forced (F16)."""
+    from engine.social import growth, scene as social_scene
+
+    _, session, state, pid = in_a_scene
+    real = growth.willing
+    monkeypatch.setattr(growth, "willing", lambda s, p, c: (True, "") if c in (
+        "stay_over", "meet", "come_over", "go_to_theirs") else real(s, p, c))
+    social_scene.close(state, "back_to_yours" if where == "yours" else "back_to_theirs")
+    monkeypatch.setattr(social_scene, "stay_offered", lambda s: True)
+    monkeypatch.setattr(social_scene, "_stay_drawn", lambda s, p: True)
+    done = social_scene.stay_the_night(state)
+    assert done["ok"] and done["stayed"] is True
+    return state, pid
+
+
+def test_morning_scene_after_stay_over(in_a_scene, monkeypatch) -> None:
+    """Pre-flight F32: a night at the flat wakes in the kitchen, a morning scene open there."""
+    state, pid = _stayed(in_a_scene, monkeypatch, where="yours")
+    scn = state.social["scene"]
+    assert scn["pid"] == pid and scn["kind"] == "morning"
+    assert state.location_id == "apt_kitchen" and scn["location"] == "apt_kitchen"
+    assert 5 <= state.world_clock_hours % 24 < 12
+
+
+def test_a_morning_at_theirs_is_in_their_home(in_a_scene, monkeypatch) -> None:
+    """Pre-flight F32: a `home_*` host's home is a single location, so the morning scene is there."""
+    from engine.social import places
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="theirs")
+    home = places.home_of(state, pid)
+    assert state.location_id == home
+    assert state.social["scene"]["kind"] == "morning" and state.social["scene"]["location"] == home
+
+
+def test_the_morning_offers_only_its_moves_and_closers(in_a_scene, monkeypatch) -> None:
+    from engine.social import scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="yours")
+    allowed = set(social_scene._data()["morning"]["moves"])
+    moves = [t.split(":")[0] for t, _ in social_scene._move_options(state, pid)]
+    assert moves and set(moves) <= allowed and "talk" in moves
+    closers = [t for t, _ in social_scene._close_options(state, state.social["scene"])]
+    assert closers == ["see_them_out", "see_them_out:plan:soon"]
+
+
+def test_the_morning_ends_after_its_moments(in_a_scene, monkeypatch) -> None:
+    """It ends after its moments (spec §12.1); energy is forced high so no ordinary close ends it first (F18)."""
+    from engine.social import scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="yours")
+    _moments(monkeypatch, "fine")
+    state.social["scene"]["energy"] = 100.0
+    for _ in range(int(social_scene._data()["morning"]["moments"])):
+        assert state.social["scene"]
+        social_scene.move(state, "quiet")
+    assert not state.social["scene"]
+
+
+def test_the_morning_is_not_a_second_scene(in_a_scene, monkeypatch) -> None:
+    """The night's tail: no `scenes_done`, no `meets_good`, no second `post_meet`, no history row."""
+    from engine.social import memory, scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="yours")
+    person = state.social["people"][pid]
+    done, good = int(person.get("scenes_done", 0)), int(person.get("meets_good", 0))
+    history = len(memory.part(person, "history") or [])
+    queued = len(_post_meets(state))
+    _moments(monkeypatch, "lands")
+    social_scene.close(state, "see_them_out")
+    assert not state.social["scene"]
+    assert int(person.get("scenes_done", 0)) == done and int(person.get("meets_good", 0)) == good
+    assert len(memory.part(person, "history") or []) == history
+    assert len(_post_meets(state)) == queued
+
+
+def test_no_text_lands_during_the_morning(in_a_scene, monkeypatch) -> None:
+    """The night's post_meet, due during the morning, is HELD while they are together (addendum 4 W5) and is
+    landed when they part (`end_scene` -> `messaging.release_held`). Pre-flight F30: every draw forced, the due
+    time set through the scene's own seam (no queue row mutated), and the landing asserted."""
+    from engine.social import messaging, scene as social_scene
+
+    monkeypatch.setattr(social_scene, "_post_meet_at", lambda s, p, at: at)   # due at the morning hour itself
+    state, pid = _stayed(in_a_scene, monkeypatch, where="yours")
+    _moments(monkeypatch, "fine")
+    state.social["scene"]["energy"] = 100.0
+    tid = messaging.thread_for(state, pid)
+    shown = len((messaging.thread(state, tid) or {}).get("messages") or [])
+    assert _post_meets(state)
+    social_scene.move(state, "quiet")                          # time passes; the text is due and held
+    assert messaging.held(state, pid)
+    assert len((messaging.thread(state, tid) or {}).get("messages") or []) == shown
+    social_scene.close(state, "see_them_out")
+    assert not state.social["scene"] and not messaging.held(state, pid)
+    assert not [e for e in _post_meets(state) if e.get("held")]          # released: none still held
+    assert len((messaging.thread(state, tid) or {}).get("messages") or []) > shown
+
+
+def test_see_them_out_leaves_the_player_in_the_kitchen(in_a_scene, monkeypatch) -> None:
+    from engine.social import scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="yours")
+    done = social_scene.close(state, "see_them_out:plan:soon")
+    assert done["ok"] and done.get("plan_id")
+    assert state.location_id == "apt_kitchen" and not state.social["scene"]
+
+
+def test_the_scene_section_names_the_morning(in_a_scene, monkeypatch) -> None:
+    from engine.social import scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="yours")
+    section = social_scene._scene_section(state, None)
+    started = state.social["scene"]["started_at"]
+    assert section["kind"] == "morning" and section["id"] == f"{pid}@{started}"
+
+
+@pytest.mark.parametrize("morning, key", [
+    ({"moments": 0, "moves": ["talk"]}, "morning.moments"),
+    ({"moments": 2, "moves": ["quiet"]}, "morning.moves"),
+    ({"moments": 2, "moves": ["talk", "phone"]}, "morning.moves"),
+    ({"moments": 2, "moves": ["talk"], "prior_bias": 0.5}, "morning.prior_bias"),
+    ({"moments": 2, "moves": ["talk"], "floor": 1}, "morning.floor"),
+])
+def test_the_morning_block_is_checked(receipts_active, morning, key) -> None:
+    import copy
+
+    from engine.social import scene as social_scene
+
+    data = copy.deepcopy(social_scene._data())
+    data["morning"] = morning
+    with pytest.raises(ValueError, match=key.replace(".", r"\.")):
+        social_scene.check_data(data)
+
+
+def test_a_morning_that_ends_by_itself_is_reported_as_the_morning(in_a_scene, monkeypatch) -> None:
+    """Review finding 1: the receipt said "They call it a night" over a morning that ran out of moments."""
+    from engine.social import scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="yours")
+    _moments(monkeypatch, "fine")
+    state.social["scene"]["energy"] = 100.0
+    result = {}
+    for _ in range(int(social_scene._data()["morning"]["moments"])):
+        result = social_scene.move(state, "quiet")
+    assert result["closed_by_them"] == "morning" and not state.social["scene"]
+    text = social_scene.receipt_lines(state, [{"skill": "social_scene", "result": result}])
+    assert "They have to get on with the day." in text and "call it a night" not in text
+
+
+def test_a_morning_at_theirs_that_ends_by_itself_sends_the_player_home(in_a_scene, monkeypatch) -> None:
+    """(v0.24.0 T14 a2) A morning at THEIR home that runs out of moments ends as "Head home" does: the player
+    goes home to the flat (the travel charged), and the receipt says so. Before, they were left in the other
+    person's home."""
+    from engine.social import places, scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="theirs")
+    assert state.location_id == places.home_of(state, pid)
+    _moments(monkeypatch, "fine")
+    state.social["scene"]["energy"] = 100.0
+    before = state.world_clock_hours
+    result = {}
+    for _ in range(int(social_scene._data()["morning"]["moments"])):
+        result = social_scene.move(state, "quiet")
+    assert result["closed_by_them"] == "morning" and not state.social["scene"]
+    assert places.is_flat(state.location_id) and state.location_id == social_scene.HOME
+    assert state.world_clock_hours > before
+    text = social_scene.receipt_lines(state, [{"skill": "social_scene", "result": result}])
+    assert "They have to get on with the day. You head home." in text
+
+
+@pytest.mark.parametrize("where, target, words", [
+    ("theirs", "call_it_a_night:plan:soon", "You head home, and say you'd like to do it again."),
+    ("yours", "see_them_out:plan:soon", "You see them to the door, and say you'd like to do it again."),
+])
+def test_a_soon_closer_claims_no_plan_the_engine_did_not_make(in_a_scene, monkeypatch, where, target, words) -> None:
+    """(v0.24.0 T14 a5) "...and say you'll do it again soon" goes through `plans.make(when="soon")`, which can
+    refuse; the receipt is worded from the result, so a refused plan is never claimed (rule 1)."""
+    from engine.social import plans, scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where=where)
+    monkeypatch.setattr(plans, "make", lambda *a, **k: None)          # the refused case, forced
+    result = social_scene.close(state, target)
+    assert result["ok"] and not result.get("plan_id")
+    text = social_scene.receipt_lines(state, [{"skill": "social_close", "result": result,
+                                               "intent": {"action": "close", "target": target}}])
+    assert words in text and "They don't commit to anything yet." in text
+    assert "do it again soon" not in text
+
+
+@pytest.mark.parametrize("target, words", [
+    ("call_it_a_night", "You head home."),
+    ("call_it_a_night:plan:soon", "You head home, and say you'll do it again soon."),
+])
+def test_the_morning_at_theirs_closes_in_the_morning_words(in_a_scene, monkeypatch, target, words) -> None:
+    from engine.social import scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="theirs")
+    closers = dict(social_scene._close_options(state, state.social["scene"]))
+    assert closers[target].startswith("Head home")
+    result = social_scene.close(state, target)
+    assert result["ok"]
+    text = social_scene.receipt_lines(state, [{"skill": "social_close", "result": result,
+                                               "intent": {"action": "close", "target": target}}])
+    assert words in text and "call it a night" not in text.lower()
+
+
+def test_the_morning_is_worded_in_a_line_in_lower_case(in_a_scene, monkeypatch) -> None:
+    from engine.social import scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="yours")
+    assert social_scene._where_words(state, state.social["scene"]) == "The morning after, at yours"
+    assert social_scene._where_in_a_line(state, state.social["scene"]) == "the morning after, at yours"
+    assert "in person: the morning after, at yours." in social_scene.narration_line(state)
+
+
+def test_the_morning_opens_with_its_prior_bias(in_a_scene, monkeypatch) -> None:
+    """`morning.prior_bias` is added to the prior at the opening; another kind gets none of it."""
+    from engine.social import scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="yours")
+    social_scene.end_scene(state, "test")
+    monkeypatch.setattr(social_scene, "_prior_terms", lambda s, p: 0.0)
+    monkeypatch.setattr(social_scene, "_prior_draw", lambda s, p: 0.0)
+    bias = float(social_scene._data()["morning"]["prior_bias"])
+    assert bias != 0.0
+    for kind, want in (("morning", bias), ("date", 0.0)):
+        opened = social_scene.apply_effect(state, {"type": "social_scene", "op": "open", "pid": pid, "kind": kind,
+                                                    "location": "apt_kitchen"})
+        assert opened.get("ok")
+        assert abs(float(social_scene.current(state)["prior"]) - want) < 1e-6
+        state.social["scene"] = {}

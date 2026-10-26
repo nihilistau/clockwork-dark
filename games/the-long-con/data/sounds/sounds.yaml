@@ -1,0 +1,12 @@
+# THE LONG CON's sounds (v0.24.0 spec §9.5): cards, chips and coin. No story event (its overhaul adds them).
+version: 1
+sounds:
+  con.chip:    {category: ui, label: "Chip", file: engine:files/kenney/casino-audio/chips-stack-1.ogg, gain: 0.4, rate: 1.3, fallback: {layers: [{wave: triangle, freq: 2200, attack_ms: 1, decay_ms: 30, gain: 0.12}]}}
+  con.card:    {category: game, label: "A card placed", file: engine:files/kenney/casino-audio/card-place-1.ogg, gain: 0.7, fallback: {layers: [{wave: noise, attack_ms: 2, decay_ms: 70, gain: 0.15, filter: {type: bandpass, freq: 2500, q: 1}}]}}
+  con.shuffle: {category: game, label: "Shuffle", file: engine:files/kenney/casino-audio/card-slide-1.ogg, gain: 0.6, fallback: {layers: [{wave: noise, attack_ms: 5, decay_ms: 160, gain: 0.15, filter: {type: bandpass, freq: 3000, q: 1}}]}}
+  con.coins:   {category: game, label: "Coins", file: engine:files/kenney/rpg-audio/handlecoins.ogg, gain: 0.7, fallback: {layers: [{wave: triangle, freq: 3100, attack_ms: 1, decay_ms: 50, gain: 0.1}, {wave: triangle, freq: 3500, start_ms: 70, attack_ms: 1, decay_ms: 50, gain: 0.1}]}}
+bind:
+  ui.press: con.chip
+  choice.pick: con.card
+  turn.arrive: con.shuffle
+  roll.cast: con.coins

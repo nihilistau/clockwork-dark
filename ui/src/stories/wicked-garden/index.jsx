@@ -31,6 +31,7 @@ import React, { useCallback, useState } from "react";
 import Meters from "@core/parts/Meters.jsx";
 import PaintFrame from "@core/parts/PaintFrame.jsx";
 import { prettyPlace } from "@core/parts/Chrome.jsx";
+import { useSoundOnChange } from "@core/sound/index.js";
 import {
   AnalystContext,
   AnalystSetContext,
@@ -57,6 +58,17 @@ const HOURGLASS = "time_debt_mortal_days";
  * because `Play.jsx` hands its slots no `dispatch`. It is a player preference
  * held in `Wrap` and persisted to localStorage; see ./analyst.js.
  */
+/** The Toast slot: the omen sting, and its sound once per NEW omen id in a sent turn (spec §9.3, gap 2). */
+function OmenToast({ state }) {
+  useSoundOnChange(state.story.omen?.id || null, "garden.omen", { when: (a, b) => Boolean(b) && a !== b });
+  return (
+    <OmenSting
+      omen={state.story.omen}
+      suppressed={document.documentElement.dataset.reduceMotion === "true"}
+    />
+  );
+}
+
 const initialState = { bands: {}, decade: 0, omen: null, seen: false };
 
 /**
@@ -308,6 +320,8 @@ function EndingScreen({ ending, story, onNewRun, onOpenSaves }) {
 export default {
   slug: "wicked-garden",
   title: "The Wicked Garden",
+  // The story's own sound event (v0.24.0 spec §5.2, §9.3); the palette is games/wicked-garden/data/sounds/sounds.yaml.
+  soundEvents: ["garden.omen"],
   documentTitle: "The Wicked Garden",
   beginLabel: "Step through the hedge",
   // The Companion tab's label. "The court" moved to the overlay it now names;
@@ -344,12 +358,7 @@ export default {
    * own accessibility list says "disable pollen storms / flash omens", and a
    * full-screen flash is exactly the thing that hurts people.
    */
-  Toast: ({ state }) => (
-    <OmenSting
-      omen={state.story.omen}
-      suppressed={document.documentElement.dataset.reduceMotion === "true"}
-    />
-  ),
+  Toast: OmenToast,
 
   /**
    * Analyst mode, and the only thing in this story that holds client state.

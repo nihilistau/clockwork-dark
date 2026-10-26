@@ -27,8 +27,8 @@
 # narrated turn (the storyteller, the world verbs `do` and `go` from
 # data/world/activities.yaml and the places, the evaluator), refused only
 # while the phone is up ("Put the phone down first."). `paths.decks` is
-# declared for the player's life-event moments (spec §11.2); its directory is
-# empty until T17 writes them.
+# declared for the player's life-event moments (spec §11.2): six decks, one
+# per player life event that has a moment (data/scenes/).
 #
 # Version: v0.2.0
 
@@ -64,10 +64,11 @@ paths:
   prompts: "games/read-receipts/prompts"
   npc_schedules: "games/read-receipts/data/world/npc_schedules.yaml"   # seven background people, no home (W8)
   social: "games/read-receipts/data/social"
-  decks: "games/read-receipts/data/scenes"                     # the life-event moments' decks (§11.2): empty until T17
+  decks: "games/read-receipts/data/scenes"                     # the life-event moments' decks (§11.2): six
   art_subjects: "games/read-receipts/data/art/subjects.yaml"   # the 28 places, 48 plates (§18.1); T27 renders them
   art_manifest: "games/read-receipts/data/art/manifest.yaml"
   art_root: "games/read-receipts/data/art/plates"              # empty until T27: the story plays on silhouettes
+  sounds: "games/read-receipts/data/sounds"                      # the phone's palette (v0.24.0 spec §9.7): message pops, tones, ringtones, lock and unlock
 entry:
   location_id: apt_lounge
   # No character classes: the player is a person with a phone, made by the

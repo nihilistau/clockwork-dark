@@ -20,6 +20,8 @@ export const initialState = Object.freeze({
   dropSeq: 0,
   dropped: [],
   lockSeq: 0,
+  // Bumped on EVERY game_started/game_resumed, a rejoin included: the sound hydration's cue (v0.24.0 F12).
+  openSeq: 0,
   lock: null,
   sessionId: "",
   // A world choice the server refused because the phone is up (409 `phone_up`): counted, with its words.
@@ -44,7 +46,7 @@ const MAX_NOTIFICATIONS = 30;
  * store itself -- each one is FINAL: core's sender already re-sent the action
  * once and swallowed the first busy (core/socket.js, spec §18.2).
  */
-export function reduce(slice, action) {
+export function reduce(slice, action, next) {
   const s = slice || initialState;
   if (!action) return s;
   if (action.type === "RESET") return initialState;
@@ -79,6 +81,10 @@ export function reduce(slice, action) {
       return payload.busy ? { ...s, busySeq: s.busySeq + 1 } : { ...s, turnSeq: s.turnSeq + 1 };
     case "game_started":
     case "game_resumed":
+      // A late answer for the run on screen is a no-op in core (it keeps its world); the phone's slice
+      // mirrors it, so the pushes kept since the last turn_update are not thrown away for nothing (T14 b4).
+      if (action.event === "game_started" && next && payload.state && next.world !== payload.state
+        && payload.session_id && String(payload.session_id) === s.sessionId) return s;
       return opened(s, action.event, payload);
     default:
       return s;
@@ -143,7 +149,7 @@ function mediaAhead(body, phone, keptIds) {
 function opened(s, event, payload) {
   const sessionId = String(payload.session_id || "");
   const fresh = event === "game_resumed" || (sessionId && sessionId !== s.sessionId);
-  if (!fresh) return s.pushes.length ? { ...s, pushes: [] } : s;
+  if (!fresh) return { ...s, openSeq: s.openSeq + 1, pushes: s.pushes.length ? [] : s.pushes };
   const opening = payload.opening || {};
   const lockScreen = opening.lock_screen || null;
   const text = (lockScreen && lockScreen.text) || (event === "game_started" ? String(opening.narration || "") : "");
@@ -151,6 +157,7 @@ function opened(s, event, payload) {
     ...s,
     pushes: [],
     sessionId,
+    openSeq: s.openSeq + 1,
     lockSeq: s.lockSeq + 1,
     lock: { text, lines: Array.isArray(lockScreen?.lines) ? lockScreen.lines : [] },
   };
@@ -185,6 +192,7 @@ export function applyPush(phone, push) {
   }
   if (push.via === "message") {
     if (body.badges && typeof body.badges === "object") next = withBadges(next, body.badges);
+    if (body.notification && body.notification.id) next = withBuzz(next, body.notification);
     if (body.notification && body.notification.id) next = withNotification(next, body.notification);
     const list = Array.isArray(body.messages) && body.messages.length ? body.messages : body.message ? [body.message] : [];
     if (body.thread && body.thread.thread_id) next = withMessages(next, body.thread, list);
@@ -213,6 +221,24 @@ function withThreadRow(phone, row) {
 function withBadges(phone, badges) {
   const apps = Array.isArray(phone.apps) ? phone.apps : [];
   return { ...phone, apps: apps.map((a) => ({ ...a, badge: Number(badges[a.id] || 0) })) };
+}
+
+/**
+ * The buzz banner, from the push (T14 d1): a voiced message that lands while the phone is down raises the
+ * count and adds the name -- once per notification (the payload may already hold it, as "New message", and
+ * its own count with it). Names only, as the engine's `buzz` sends them.
+ */
+function withBuzz(phone, row) {
+  const world = phone.world;
+  if (!world || world.phone_up !== false) return phone;
+  if ((phone.notifications || []).some((n) => n.id === row.id)) return phone;
+  const buzz = world.buzz && typeof world.buzz === "object" ? world.buzz : { count: 0, who: [] };
+  const who = Array.isArray(buzz.who) ? buzz.who : [];
+  const name = typeof row.name === "string" ? row.name : "";
+  return {
+    ...phone,
+    world: { ...world, buzz: { ...buzz, count: (Number(buzz.count) || 0) + 1, who: name && !who.includes(name) ? [...who, name] : who } },
+  };
 }
 
 function withNotification(phone, row) {

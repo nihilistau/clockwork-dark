@@ -1,0 +1,205 @@
+# Every shipped sound file (v0.24.0 spec §8.2). Written by scripts/import_sounds.py; do not hand-edit.
+files:
+- path: files/kenney/casino-audio/card-place-1.ogg
+  sha256: d8f26c33a665dcbdcc6f632f6050bc9dd548feb0d4942d4547615926d3926810
+  bytes: 9624
+  author: Kenney (www.kenney.nl)
+  pack: Casino Audio
+  source_url: https://kenney.nl/assets/casino-audio
+  archive: kenney_casino-audio.zip
+  archive_sha256: f36250766ac5bc378c13708ddf12a23a8e54a3251f8d482c7536e51b5dbafa18
+  member: Audio/card-place-1.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-casino-audio.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+  pack_version: '1.1'
+- path: files/kenney/casino-audio/card-slide-1.ogg
+  sha256: 006cf9822d15d7063f8899e56041f41646df30adb6fbd8b974ee5d5420012690
+  bytes: 8833
+  author: Kenney (www.kenney.nl)
+  pack: Casino Audio
+  source_url: https://kenney.nl/assets/casino-audio
+  archive: kenney_casino-audio.zip
+  archive_sha256: f36250766ac5bc378c13708ddf12a23a8e54a3251f8d482c7536e51b5dbafa18
+  member: Audio/card-slide-1.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-casino-audio.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+  pack_version: '1.1'
+- path: files/kenney/casino-audio/chips-stack-1.ogg
+  sha256: 12bf175b9afcea112175b241ad3336c6244ac5fdcdff8b5942ecc03f2225e0c4
+  bytes: 6469
+  author: Kenney (www.kenney.nl)
+  pack: Casino Audio
+  source_url: https://kenney.nl/assets/casino-audio
+  archive: kenney_casino-audio.zip
+  archive_sha256: f36250766ac5bc378c13708ddf12a23a8e54a3251f8d482c7536e51b5dbafa18
+  member: Audio/chips-stack-1.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-casino-audio.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+  pack_version: '1.1'
+- path: files/kenney/casino-audio/dice-throw-1.ogg
+  sha256: 4e6581c73465cdd7ec32e86a709b4ea5c682e819c9bdb7989d1df1880ba67886
+  bytes: 9523
+  author: Kenney (www.kenney.nl)
+  pack: Casino Audio
+  source_url: https://kenney.nl/assets/casino-audio
+  archive: kenney_casino-audio.zip
+  archive_sha256: f36250766ac5bc378c13708ddf12a23a8e54a3251f8d482c7536e51b5dbafa18
+  member: Audio/dice-throw-1.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-casino-audio.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+  pack_version: '1.1'
+- path: files/kenney/impact-sounds/impactbell_heavy_000.ogg
+  sha256: 94b8bb5f2d43ab65e4bcc32b28562416e9bc2c51d9fd4be1e333660ee52f977f
+  bytes: 13915
+  author: Kenney (www.kenney.nl)
+  pack: Impact Sounds
+  source_url: https://kenney.nl/assets/impact-sounds
+  archive: kenney_impact-sounds.zip
+  archive_sha256: 029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8
+  member: Audio/impactBell_heavy_000.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-impact-sounds.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+  pack_version: '1.0'
+- path: files/kenney/impact-sounds/impactwood_light_000.ogg
+  sha256: eb45e35b4bed784d3f120de4afec4b0d6ac09d9e143cce8cfcb7d739e1b1f3c3
+  bytes: 6343
+  author: Kenney (www.kenney.nl)
+  pack: Impact Sounds
+  source_url: https://kenney.nl/assets/impact-sounds
+  archive: kenney_impact-sounds.zip
+  archive_sha256: 029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8
+  member: Audio/impactWood_light_000.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-impact-sounds.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+  pack_version: '1.0'
+- path: files/kenney/rpg-audio/bookflip1.ogg
+  sha256: fa81ac2fedc8c641661b87e349630a36c9800e795e0c800e029214efdbe26a7d
+  bytes: 18248
+  author: Kenney (www.kenney.nl)
+  pack: RPG Audio
+  source_url: https://kenney.nl/assets/rpg-audio
+  archive: kenney_rpg-audio.zip
+  archive_sha256: 6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b
+  member: Audio/bookFlip1.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-rpg-audio.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+- path: files/kenney/rpg-audio/cloth1.ogg
+  sha256: ddb93a3671233f95da0e0b10367f082f7eb42fa6caaddcf776410aa8833c747d
+  bytes: 16508
+  author: Kenney (www.kenney.nl)
+  pack: RPG Audio
+  source_url: https://kenney.nl/assets/rpg-audio
+  archive: kenney_rpg-audio.zip
+  archive_sha256: 6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b
+  member: Audio/cloth1.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-rpg-audio.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+- path: files/kenney/rpg-audio/cloth2.ogg
+  sha256: 8a7451193c38bc05483aec25dd193e163a15d44cf7fff04ac7912573231b0201
+  bytes: 11787
+  author: Kenney (www.kenney.nl)
+  pack: RPG Audio
+  source_url: https://kenney.nl/assets/rpg-audio
+  archive: kenney_rpg-audio.zip
+  archive_sha256: 6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b
+  member: Audio/cloth2.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-rpg-audio.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+- path: files/kenney/rpg-audio/doorclose_1.ogg
+  sha256: 834d29c60a8a8bfb50b158cdb6b7dfa8f02812a408a1ee9703d038dfab0b1aeb
+  bytes: 18564
+  author: Kenney (www.kenney.nl)
+  pack: RPG Audio
+  source_url: https://kenney.nl/assets/rpg-audio
+  archive: kenney_rpg-audio.zip
+  archive_sha256: 6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b
+  member: Audio/doorClose_1.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-rpg-audio.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+- path: files/kenney/rpg-audio/dooropen_1.ogg
+  sha256: 4ab93bab96522d8eb109ff96dc57cb6765deb02448fe14c10472084be5bb2a0b
+  bytes: 22848
+  author: Kenney (www.kenney.nl)
+  pack: RPG Audio
+  source_url: https://kenney.nl/assets/rpg-audio
+  archive: kenney_rpg-audio.zip
+  archive_sha256: 6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b
+  member: Audio/doorOpen_1.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-rpg-audio.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+- path: files/kenney/rpg-audio/handlecoins.ogg
+  sha256: 8a91f969e932df709df80ee124d86a51389eed9b67f22e5e716bc2bbf60d8dab
+  bytes: 25394
+  author: Kenney (www.kenney.nl)
+  pack: RPG Audio
+  source_url: https://kenney.nl/assets/rpg-audio
+  archive: kenney_rpg-audio.zip
+  archive_sha256: 6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b
+  member: Audio/handleCoins.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-rpg-audio.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+- path: files/kenney/rpg-audio/metallatch.ogg
+  sha256: ba9ba60b172b3ebc131a940f25793cd2e207aca7af73dc80d637277f060f1708
+  bytes: 10208
+  author: Kenney (www.kenney.nl)
+  pack: RPG Audio
+  source_url: https://kenney.nl/assets/rpg-audio
+  archive: kenney_rpg-audio.zip
+  archive_sha256: 6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b
+  member: Audio/metalLatch.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-rpg-audio.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+- path: files/kenney/sci-fi-sounds/forcefield_000.ogg
+  sha256: c2916f2a062c8ddd1aca2826d134fe90847037db31342726ffb0f9097afe339c
+  bytes: 25672
+  author: Kenney (www.kenney.nl)
+  pack: Sci-fi Sounds
+  source_url: https://kenney.nl/assets/sci-fi-sounds
+  archive: kenney_sci-fi-sounds.zip
+  archive_sha256: 119340f351a5098ad814f78719438c0da355a9ce8a4c8a3af6a8d48aa3d49e04
+  member: Audio/forceField_000.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-sci-fi-sounds.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+  pack_version: '1.0'
+- path: files/kenney/sci-fi-sounds/laserretro_000.ogg
+  sha256: 2a203a007d24cc7e607eb8bec1d86bedba7f551911217ce2c4c1f31393aed32c
+  bytes: 12588
+  author: Kenney (www.kenney.nl)
+  pack: Sci-fi Sounds
+  source_url: https://kenney.nl/assets/sci-fi-sounds
+  archive: kenney_sci-fi-sounds.zip
+  archive_sha256: 119340f351a5098ad814f78719438c0da355a9ce8a4c8a3af6a8d48aa3d49e04
+  member: Audio/laserRetro_000.ogg
+  licence: CC0-1.0
+  licence_file: LICENSES/kenney-sci-fi-sounds.txt
+  downloaded: '2026-10-24'
+  imported: '2026-10-24'
+  pack_version: '1.0'

@@ -1,0 +1,69 @@
+# READ RECEIPTS -- neighbour party (v0.24.0 spec §12.2): a life event's world moment.
+# ==========================================================================
+#
+# Dealt in the flat's hall while a neighbour's party is on across the landing (`life_neighbour_party`, set by the life event `neighbour_party` in
+# data/social/life_events.yaml and cleared when it has run its days, or by any answer here). Read by
+# engine/content/deck.py through `paths.decks`; THE FILENAME IS THE DECK ID.
+#
+# Ordinary domestic life and nothing more. Every answer is roll-free and clears the flag. REPEATABLE: the
+# event comes round again, the flag clears, the director re-arms the deck when its `when:` is seen false,
+# and it deals the next time. The director deals nothing over an open scene, so this waits for the room
+# to be the player's own again.
+#
+# Version: v0.1.0
+
+id: neighbour_party
+
+repeatable: true
+
+draw: 1
+
+when:
+  all:
+    - { flag: life_neighbour_party }
+    - { at_location: apt_hall }
+
+cards:
+  - id: NP1_music_through_the_wall
+    tags: [menu, gm]
+    title: "Music Through the Wall"
+    text: >-
+      INTENT: bass comes through the wall of the hall and a burst of laughter from the neighbour's
+      door across the landing. CONSTRAINTS: it is an ordinary party, loud and good-natured; the player
+      decides how to meet it. MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: ask_them_to_keep_it_down
+        label: "Knock and ask them to keep it down"
+        text: >-
+          Knock on the neighbour's door and ask them, politely, to keep it down.
+        gate:
+          on_pass:
+            text: >-
+              The music dips as the door opens on a flushed, apologetic face. "Sorry! Ten minutes, and it
+              goes quiet." It does, more or less.
+            effects:
+              - { type: flag, flag: life_neighbour_party, value: false }
+
+      - id: go_round_for_one
+        label: "Go round for one drink"
+        text: >-
+          Go round to the party for one drink.
+        gate:
+          on_pass:
+            text: >-
+              A paper cup is in your hand before you have said hello. You stay for one drink, and a few
+              names you will forget by morning.
+            effects:
+              - { type: flag, flag: life_neighbour_party, value: false }
+
+      - id: headphones_on
+        label: "Put your headphones on"
+        text: >-
+          Put your headphones on and let the party be someone else's.
+        gate:
+          on_pass:
+            text: >-
+              The headphones close over the noise and the wall becomes a soft thump. You carry on with
+              your evening.
+            effects:
+              - { type: flag, flag: life_neighbour_party, value: false }

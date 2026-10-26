@@ -427,12 +427,15 @@ person's energy and their next schedule boundary, never by a fixed gap.
 Time moves only by what the player does (`wait`, and the world's actions).
 **Matching** (`apps.py`, `matching.py`) is a deterministic compatibility
 and one like-back draw per pair. **Relationships** (`relationships.py`) are
-stages behind gates of warmth, trust, exchanges, days and good meet-ups,
+stages behind gates of willingness (`growth.yaml` `willing:`, which reads
+depth, warmth and trust), exchanges and good meet-ups (no gate reads days),
 closeness bands, interest, mood, cold spells, fading and arcs; the model
 moves warmth and trust only within `regard.per_reply` and a day's cap, and
 asks for anything else only as a **proposal** the engine re-checks.
-**Media** (`media.py`), **meet-ups** (`meets.py`) and **the games**
-(`games/`) are decided by the engine from budgets, the stage and a draw;
+**Media** (`media.py`), **plans and in-person scenes** (`plans.py`,
+`scene.py`; v0.22's `meets.py` is gone since v0.23.0) and **the games**
+(`games/`) are decided by the engine from budgets, the stage, willingness
+and a draw;
 the model words the message that carries them, and ComfyUI or a TTS server
 renders them only if the owner turns one on (docs/MEDIA_SERVERS.md). Every
 write is a `social_*` effect (rule 3), every draw a named `SOCIAL_*` stream
@@ -1060,6 +1063,10 @@ one — no bar width, no percentage, no tooltip with the integer in it. The band
 is the whole truth the player is allowed, and the shape of the payload row is
 the permission. Enforced by `tests/test_ui_contract.py` and by `ui/tests/`.
 
+### Sound (v0.24.0)
+
+Sound is client-side data. The engine's `content/sounds/sounds.yaml` and a story's optional `paths.sounds` name events, sounds (a synth parameter set, or an `.ogg` file with a synth fallback) and which sound each event plays (`engine/games/sounds.py`; AUTHORING 3.16). The server only loads, checks and serves that data and its files; the browser plays it, and no game state or rule depends on a sound.
+
 ---
 
 ## Technical Architecture
@@ -1484,6 +1491,11 @@ evil progress, awareness and trust to defaults.
 | Skill enforcement | Agent allowlist in the dispatcher + engine-owned DCs + Evaluator receipt check, plus `SceneRulesEngine` R001–R005 run post-turn by `RulesGovernor` (`engine/agents/governance.py`) |
 | Lore | `LoreInject` is a no-op when the DB is empty; seed with `scripts/seed_lore.py` |
 | Frontend | Vite + React in `ui/`, built into a **committed** `content/scenes/clockwork/static/dist` so the game runs without Node |
+
+### The client sound module (v0.24.0)
+
+`ui/src/core/sound/` plays the catalogue `GET /api/sounds` serves (engine/games/sounds.py merges it). It has no side effect at import, so the node-environment panel tests can import every panel; the engine installs lazily on the first API call. Sound parameters are data (rule 5): a sound is a synth description, or an `.ogg` with a synth `fallback`, never a number in code. Web Audio unlocks on the first gesture; a play before it is dropped, never queued; a file is fetched only after it. Three firing rules keep one action to one sound: (1) a `key` plays once, and `markSeen` hydrates keys that must not play (512 newest kept); (2) `useSoundOnChange` plays a changed value only while a turn THIS page sent is in flight (`turnSent`/`turnSettled`), so a reconnect or a resume is silent; (3) one capturing click listener (`installClickSounds`) gives `ui.press`/`ui.toggle`, deferred and skipped when anything else sounded in that click. `soundLog()` (and `?soundlog=1`) records every play and drop for tests. The triggers (v0.24.0 T6) are App's: `useTurnSounds` settles a sent turn in App's effect, which React runs AFTER its children's, so a panel's `useSoundOnChange` has already seen the turn as in flight; the narration `<audio>` volume is `narrationVolume(prefs)` (master x narration, 0 when muted). Sound settings are `clockwork_prefs` (`soundMaster`, `soundUi|Game|Alert|Phone|World`, `quietInterface`, `soundChoices`); nothing about sound is sent to the server.
+
 
 ---
 

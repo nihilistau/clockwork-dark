@@ -15,6 +15,7 @@ import { SHORT_QUERY, useMedia } from "../hooks/useMedia.js";
 import Marks from "./Marks.jsx";
 import Panel from "./Panel.jsx";
 import { scaleIndex } from "./scale.js";
+import { useSoundOnChange } from "../sound/index.js";
 
 export default function JobPanel({ state, narrow = false }) {
   // Collapsed by default on a phone AND on a short window (final review
@@ -23,6 +24,7 @@ export default function JobPanel({ state, narrow = false }) {
   const short = useMedia(SHORT_QUERY);
   const job = state?.world?.job;
   const active = job?.active;
+  useSoundOnChange(active?.stage_label || "", "panel.job", { when: (a, b) => Boolean(b) && a !== b });
   if (!active) return null;
   const scales = job.scales || {};
   const alarmScale = scales.alarm || [];

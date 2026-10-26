@@ -1,0 +1,16 @@
+# THE CLOCKWORK DARK's sounds (v0.24.0 spec §9.2): brass and gears. The files are the engine's (`engine:`).
+version: 1
+events:
+  clockwork.phase: {label: "The pattern deepens (an evil phase advances)"}
+sounds:
+  clockwork.tick:    {category: ui, label: "Gear tick", synth: {jitter_cents: 30, layers: [{wave: square, freq: 2600, attack_ms: 1, decay_ms: 18, gain: 0.16, filter: {type: bandpass, freq: 2600, q: 6}}]}}
+  clockwork.ratchet: {category: game, label: "Ratchet", synth: {layers: [{wave: square, freq: 2400, attack_ms: 1, decay_ms: 15, gain: 0.15, filter: {type: bandpass, freq: 2400, q: 5}}, {wave: square, freq: 2100, start_ms: 45, attack_ms: 1, decay_ms: 15, gain: 0.14, filter: {type: bandpass, freq: 2100, q: 5}}, {wave: square, freq: 1800, start_ms: 90, attack_ms: 1, decay_ms: 15, gain: 0.13, filter: {type: bandpass, freq: 1800, q: 5}}]}}
+  clockwork.chime:   {category: game, label: "Clock chime", synth: {layers: [{wave: sine, freq: 784, attack_ms: 3, decay_ms: 1100, gain: 0.2}, {wave: sine, freq: 2163.8, attack_ms: 3, decay_ms: 600, gain: 0.07}]}}
+  clockwork.toll:    {category: world, label: "A bell tolls", file: engine:files/kenney/impact-sounds/impactbell_heavy_000.ogg, rate: 0.8, gain: 0.7, fallback: {layers: [{wave: sine, freq: 196, attack_ms: 4, decay_ms: 1500, gain: 0.25}, {wave: sine, freq: 541, attack_ms: 4, decay_ms: 800, gain: 0.08}]}}
+  clockwork.toll_low: {category: world, label: "A low bell (the phase)", file: engine:files/kenney/impact-sounds/impactbell_heavy_000.ogg, rate: 0.6, gain: 0.7, fallback: {layers: [{wave: sine, freq: 147, attack_ms: 4, decay_ms: 1800, gain: 0.25}]}}
+bind:
+  ui.press: clockwork.tick
+  choice.pick: clockwork.ratchet
+  turn.arrive: clockwork.chime
+  game.ending: clockwork.toll
+  clockwork.phase: clockwork.toll_low

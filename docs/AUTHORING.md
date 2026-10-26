@@ -2647,8 +2647,8 @@ archetypes:
     games: {skill: 0.55, invite_prob_per_day: 0.04}
     arc: null                       # or an `arcs:` id
     growth: {pace: 1.0, cap: 4, cap_in_person: 4, decay_mult: 1}   # v0.23.0, below
-    promise_prob: 0.85              # v0.23.0: a sign-off carries a promise (drawn from T4)
-    offer_number_prob: 0.8          # v0.23.0: they offer their number at depth 1 (drawn from T5)
+    promise_prob: 0.85              # v0.23.0: the chance a sign-off carries a promise
+    offer_number_prob: 0.8          # v0.23.0: the chance they offer their number at depth 1
 ```
 
 `growth` (v0.23.0, every key required, `behaviour.GROWTH_KEYS`): `pace`
@@ -2657,9 +2657,9 @@ disclosure rung (0-4) they reach on the phone and `cap_in_person` in a
 scene; `decay_mult` scales every openness loss (a ghoster's 2: their
 openness "decays twice as fast"). See `growth.yaml` below.
 
-`promise_prob` and `offer_number_prob` (v0.23.0, 0-1, required) are read
-by nothing yet: the person's sign-off promise is drawn from T4 and the
-number offer from T5 (docs/GOVERNANCE.md NOT WIRED).
+`promise_prob` and `offer_number_prob` (v0.23.0, 0-1, required): the
+chance their sign-off carries a promise, and the chance they offer their
+number once they are willing to give it (depth 1).
 
 An initiation (v0.23.0) names a `window` -- resolved against the person's
 own schedule (`engine/social/windows.py`: `waking` their first waking
@@ -2742,7 +2742,7 @@ NEXT decision, queued when that reply commits (`convo.after_commit`).
 | Key | What it holds |
 |---|---|
 | `costs` | in-game minutes a message costs the player: `text`, `voice`, `photo`, `video` (required), `reply` (0: a reply costs nothing) |
-| `clock` | `wait`'s targets, whole hours: `evening`, `morning`; `min_sleep_hours` (sleep's floor, read from T11); `work_lead_hours` (optional, default 2: how long before the player's work band "Go to work" is offered) |
+| `clock` | `wait`'s targets, whole hours: `evening`, `morning`; `min_sleep_hours` (sleep's floor); `work_lead_hours` (optional, default 2: how long before the player's work band "Go to work" is offered) |
 | `episode_gap_minutes` | above 0: no message either way for this long and a chat episode lapses |
 | `together` (optional) | `{hold_retry_minutes}`, 1 or more (v0.23.0 W5): while a person is with the player their due texts are held and tried again this many minutes on; they land once the two are apart |
 | `habits` | `weights` per archetype (`default` required) of each phone habit's options -- `at_work` `never`/`glances`/`chatty`, `late_night` `no`/`sometimes`/`night_owl` (quote `"no"`: YAML reads a bare `no` as false), `in_company` `rude_not_to`/`glances` -- drawn once per person (a counterless key); `night_owl_shift_hours` |
@@ -2770,7 +2770,7 @@ off with the term's `reasons:` line. The decision's **mode** (`quick`
 until `chatting_after` exchanges, and whenever capped; `deep` with energy,
 depth 2+, long player messages and one of their rung's topics named) sets
 its bubbles; a burst of three raises the minimum to two. The voice reads
-the mode, the end and the reason from T7.
+the mode, the end and the reason.
 
 **What a person remembers** (v0.23.0, `engine/social/memory.py`, spec §7):
 one memory per PERSON, `people[pid]["memory"]`, whatever app the two of you
@@ -2820,9 +2820,11 @@ model's free text:
 - **a model's proposal**, `relationships.yaml` `proposals: promise` (its
   `window:` lists the windows it may name), legal only while the
   conversation is winding down or signed off;
-- **with no model**, a `phrases:` row stated (not asked, not negated) in
+- **a phrase**, a `phrases:` row stated (not asked, not negated) in
   the player's own message: a pending request the person's next reply
-  accepts.
+  accepts. It is read whether or not a model is loaded: with no model it is
+  the only route from the player's words, and with one a model's proposal for
+  the same window is the same promise, never a second.
 
 **Whose day the window is.** The sender's -- whoever will write in it --
 except `at_work`, which is the receiver's: "message me at work" lands in the
@@ -2984,7 +2986,7 @@ never to state or memory. Keys:
 - `closers` -- the closers offered, from `another_round, go_somewhere_else,
   walk_them_home, back_to_yours, back_to_theirs, stay_the_night,
   call_it_a_night, propose` (`call_it_a_night` is required: the way home has no gate;
-  `propose` is v0.23.0 T18's, below with `wedding`).
+  `propose` is below, with `wedding`).
   `call_it_a_night` may add `:promise:morning` (a promise of the player's),
   `:plan:soon` (a plan) or `:stay` (stay where you are; otherwise home, the
   travel charged). `back_to_yours` and `back_to_theirs` are offered only when
@@ -3011,8 +3013,19 @@ never to state or memory. Keys:
   archetype alone (`default` otherwise): there is no intent term. A yes ends
   the scene, takes the clock to the player's morning and writes a "Stayed
   over" history row; a no is a plain answer whose reason is only their
-  energy or the home's `homes.yaml` `stay_reasons`. The morning scene is
-  v0.24.0's.
+  energy or the home's `homes.yaml` `stay_reasons`. A yes at the flat or at a
+  home then opens the morning scene (below).
+- `morning` -- `{moments, moves, prior_bias}` (v0.24.0 §12.1, optional): the
+  morning after a stay-over, a scene of `kind: morning` at `apt_kitchen` (the
+  flat) or the host's home. `moments` (1-4) is how many moments it lasts, else it
+  ends as any scene ends; `moves` the only moves offered (rows of `moves:`,
+  never `phone`, always `talk`); `prior_bias` (-0.2 to 0.2) is added to its
+  prior. The closer `see_them_out` (and `see_them_out:plan:soon`; list it in
+  `closers`) ends it at the flat with the player staying where they are; at their
+  home "Head home" is `call_it_a_night`. It is the night's tail: its end counts no
+  `scenes_done` or `meets_good`, swaps no numbers, moves no stage, writes no
+  history row and queues no `post_meet`. The phone payload's `scene` section
+  carries `kind` (a word) and `id` (opaque, `<pid>@<started_at>`).
 - `wedding` -- `{moments, moves}` (§12.2, T18): the wedding is a scene at
   the registry office, opened by arriving on its plan (a `wedding` plan, the
   engine's own: it stands in no other plan's way and never lapses) while
@@ -3064,7 +3077,7 @@ never to state or memory. Keys:
   plan (`back_to_yours`, `back_to_theirs`, `go_somewhere_else` and
   `call_it_a_night:plan:soon`) are offered only while `willing.meet` holds.
   Absent, nobody is anywhere by chance. Every value is a first value,
-  unmeasured until T29.
+  measured only through the harness's full sessions (v0.24.0 T11) and no live player.
 
 Everything here is conversation, an activity, a mood or something shared
 about yourself. What two adults do on an evening is the narration's, in the
@@ -3190,10 +3203,10 @@ every reply decided is an `exchange` (by its mode; a burst answered once is
 one), an episode that closes after a sign-off with warmth risen across it is
 a `good_end`, every closed episode ticks `guarded` down, and the first
 charge of a spell left on read (`relationships.settle_left_on_read`) is a
-`left_on_read` loss. Promises (T4), scenes (T13) and life events (T17) call
-the rest: `moment`, `promise_kept` and `support` (a reply of yours or a scene with them while a hard event of
-theirs runs, once per event, `life.support`) all gain now, and `growth._STUBBED` is empty. A queued reveal is voiced from T7 (situation
-`opens_up`): until then `reveal_due` waits.
+`left_on_read` loss. Promises, scenes and life events call the rest:
+`moment`, `promise_kept` and `support` (a reply of yours or a scene with them while a hard event of
+theirs runs, once per event, `life.support`) all gain, and `growth._STUBBED` is empty. A queued reveal is
+voiced in a reply of situation `opens_up`; until one, `reveal_due` waits.
 
 `topics.yaml`: `{id, kind, label, when?, follows_up?}` rows. Each person
 draws `topics_per_kind` per kind, once (a counterless key), among the rows
@@ -3249,12 +3262,13 @@ the partner who lives in the player's flat, T18) and `plan: wedding`
 `wedding_after_days` have passed since `engaged_since` and no wedding plan is open; it queues the
 registry office plan, `plans.make_wedding`; READ RECEIPTS draws it at odds 1 a day, `prob_per_week: 7`). A player
 row also has `label` (its `tell_about` topic: "your boiler"), `sign_off` (the reason the engine
-gives when YOU end a chat while it runs), `flag` (`life_<id>` held while it runs), `scene` (the deck
-dealt for it), `schedule` (`work_extra_hours` or `lift_extra_minutes`) and `effects`.
+gives when YOU end a chat while it runs), `flag` (`life_<id>` held while it runs; needs `lasts_days`), `scene` (the deck
+dealt for it, whose `when:` must read the row's `flag`; validation checks both, and that a row with `news` has `lasts_days`: news shows only while it runs), `schedule` (`work_extra_hours` or `lift_extra_minutes`) and `effects`.
 
 **The player's decks.** A world moment is an ordinary deck (§3.3) whose `when:` reads the event's
-flag and the room: `data/scenes/boiler.yaml` (`life_boiler`, `apt_kitchen`) and `parcel.yaml`
-(`life_parcel`, `bldg_reception`). Make it `repeatable: true` (the event comes round again) and let each
+flag and the room: `data/scenes/boiler.yaml` (`life_boiler`, `apt_kitchen`), `parcel.yaml`
+(`life_parcel`, `bldg_reception`), `neighbour_party.yaml` (`apt_hall`), `lift_out.yaml` (`bldg_lift`),
+`family_visit.yaml` (`apt_lounge`) and `wedding_invite.yaml` (`apt_hall`). Make it `repeatable: true` (the event comes round again) and let each
 beat's `gate.on_pass.effects` clear the flag (`{type: flag, flag: life_boiler, value: false}`); the
 event clears it itself when its days are out. A deck waits while a scene is open (the director deals
 nothing over one). A deck schedules on its own `when:`, not a card's. Telling people: the player's
@@ -3374,7 +3388,7 @@ Read by `engine/social/relationships.py`, `agreement.py`, `media.py` and
   warming to `recover_above` for `recover_days` mornings goes back to the
   stage it left), `fade_days` (no contact for that long: faded; 21
   shipped) and `wedding_after_days` (R15: the wedding follows the
-  engagement by days; 14 shipped, read from T18).
+  engagement by days; 14 shipped).
 - **No gate or cap reads days** (`tests/test_social_no_days.py` walks
   `growth`, `relationships` and `media.yaml`): a key naming days, hours or
   a per-day cap fails unless it is one of the test's named exemptions,
@@ -3696,6 +3710,43 @@ resolves for them), checked against what the engine holds before it lands
 and again at commit. No line in any of these files may rate content (rule
 12).
 
+### 3.16 Sounds — `paths.sounds` (v0.24.0)
+
+A story hears the engine's set (`content/sounds/sounds.yaml`) unless it declares `paths.sounds: <dir>`; the
+directory holds its own `sounds.yaml` (and, when it ships its own audio, `files/` and a `PROVENANCE.yaml`). Sound is data: the
+browser plays it, the engine only loads, checks and serves it. A story with no `paths.sounds` is unchanged.
+
+- `version: 1`, then `events:` (story only), `sounds:` and `bind:`. An engine file also has `limits:`.
+- **A sound** is `category` (`ui game alert phone world`), a `label` (the audition page's words) and exactly one
+  of `synth:` (a parameter set: `layers` of oscillator or noise with `freq`/`to`/`glide_ms`, an envelope in
+  `attack_ms decay_ms sustain hold_ms release_ms`, `gain`, a `filter` and a `tremolo`; or a `sequence` of
+  `[at_ms, Hz or note name, length_ms]` notes on one `voice`; with `repeat` and `jitter_cents`) or `file:` (a
+  lower-case, portable `.ogg` path inside the directory, or `engine:<path>` to reuse an engine file). Every
+  file sound needs a `fallback:` synth. Optional: `gain throttle_ms essential rate start_ms`. No sound lasts
+  over 4000 ms.
+- **Events** are the things that happen. The engine's twenty-five are fixed (`ENGINE_EVENTS`); a story declares
+  its own under `events:` with a dotted id outside the engine's families (`ui. choice. turn. roll. alert. link.
+  game. cutscene. encounter. panel. plate.`).
+- **`bind:`** maps an event to a sound id, to `null` (silent on purpose) or, for a story's own event, to
+  `{default, choices}` (the player may pick among sounds of one category). A story's `bind:` overrides the
+  engine's per event; a story `sounds:` row with an engine id overrides that sound. Every declared event must be
+  bound.
+- **Checked** (`engine/games/sounds.py::check`, run by `validate_content` and `doctor.py`): an unknown key, a
+  value out of range, a missing label or category, both or neither of `synth`/`file`, a file with the wrong
+  case (rule 11: the check lists the directory, since `Path.exists()` is case-blind on Windows), a missing
+  fallback, an unbound event, a binding to an unknown sound, and a choice of another category. Each error
+  names the file and the key.
+- **Where the engine events fire** (v0.24.0 T6; the client only plays, nothing is sent to the server):
+  `ui.press`/`ui.toggle` on a button or checkbox click (unless the control, or an ancestor, says `data-sound`),
+  `choice.pick`/`choice.send`, `ui.open`/`ui.close` (a Modal's mount and unmount), `turn.arrive`/`alert.error`
+  (a turn this page sent ends), `roll.cast` and `roll.<degree>`, `link.lost`/`link.back`, `game.begin`,
+  `game.save`, `game.ending`, `cutscene.start`, `encounter.start`, `panel.wanted|job|casing` (a rise or a
+  new stage, inside a turn this page sent) and `plate.reveal`. A plugin that fires its own story events lists
+  them in `soundEvents` (read by `tests/test_sound_events.py`).
+- **Files, provenance and the budget** (v0.24.0 T7): the engine ships fifteen CC0 `.ogg` files from Kenney's packs under `content/sounds/files/kenney/<pack>/`, and every story reuses them as `engine:files/kenney/...`; a story ships a `files/` directory only for audio of its own. A directory with files keeps a `PROVENANCE.yaml` (one row per file: path, sha256, bytes, author, pack, source URL, archive and its sha256, member, `licence: CC0-1.0`, licence file) and each pack's `License.txt` under `LICENSES/`; `tests/test_sound_provenance.py` holds one row per file, the bytes, the licence and the author. The budget (spec 8.3) is 1 MiB for all shipped audio, 48 KiB a file, Ogg Vorbis of at most 2 channels at 48 kHz or less (`tests/test_sound_budget.py`). Add a file with `python -I scripts/import_sounds.py --archive <zip> --pack "RPG Audio" --page <asset page> --member Audio/<name>.ogg --licence-member License.txt --downloaded <date> --to <sounds dir>`: it reads only the named members from the zip, never extracts or runs anything else, lower-cases the name (rule 11) and writes the provenance row. Download the zip into a fresh directory outside the repository.
+- **A story's own events, and the plugin that fires them** (v0.24.0 T9, READ RECEIPTS is the example): declare the events and their sounds in `sounds.yaml`, list the same ids in the plugin's `soundEvents` and call `playSound(event, {key})` at the place that knows (a handler, an always-mounted component). A `key` makes an event sound once (the seen-set, 512 keys): call `markSeen(keys)` for everything already on screen when a run opens, so a resume or a rejoin is silent. A panel that mounts only while its state exists never hears `useSoundOnChange` (the first render is silent), so put a cue in a handler or an always-mounted component. A control whose handler plays its own event carries `data-sound="none"`, so one action is one sound. A choosable event is bound `{default, choices}`; the player's pick is `prefs.soundChoices[event]`, which a story's PlayScreen receives as `prefs` and writes through `onPrefs`. `file: engine:files/kenney/...` reuses an engine file with no copy.
+- **Hearing it and asking for a change** (v0.24.0 T8): open `/?sounds=1` on a running game. It lists the engine's sounds and each story's own, plays any of them (a button per row, or "Play each" for a section), and shows every row's `key` -- the file, section and id, such as `games/<slug>/data/sounds/sounds.yaml › sounds › <id>` -- with its events, source and, for a file, its pack, author and licence. The page plays and edits nothing: to ask for a change, name the sound by that key (Copy key on the row) and say what should differ. A file row reads "fallback" on a browser that cannot play Ogg Vorbis, and a story whose `sounds.yaml` is broken shows its error in its own section.
+
 ---
 
 ## 3.9 The studio — the same job, in a browser
@@ -4013,8 +4064,11 @@ report is the v0.23.0 spec's §17.2 rows (`REPORT_ROWS`): conversations'
 length and ends, cold messages unanswered, ghosting, the real minutes from a
 match to a number, promises kept, fuller replies, the in-game minutes a real
 minute buys (`DERIVED_ROWS`, never banded), and the days and real hours to
-each closeness band per archetype. A row its sessions cannot reach (a scene,
-a life event, the long-term stages; T9's sessions are phone only) is `None`.
+each closeness band per archetype; and, from the world day of a full
+session (the default: the phone takes at most 60% of the 40 minutes, then
+work, dinner, plans, scenes and sleep), scenes, life events, the long-term
+stages, active relationships and the day-180 save. A row its sessions cannot
+reach (a scene or a life event, under `--phone-only`) is `None`.
 Seed ranges run side by side (`--first-seed N --seeds 2 --raw OUT`) and
 fold (`--fold OUT...`). READ RECEIPTS' README has the commands and where
 its measured tables live. The harness is READ RECEIPTS' only (`--game`

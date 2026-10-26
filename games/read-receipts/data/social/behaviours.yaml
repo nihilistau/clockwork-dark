@@ -74,6 +74,13 @@
 # (10 seeds x 6 sessions, attentive, neutral model) measured ghosting per
 # conversation start at depth 0 5.6-6.4% (band 5-15%, banded) and 0.013-0.015 window
 # initiations a day per person talking; none of them retuned.
+# Measured T11 (v0.24.0, 2026-10-26) on FULL sessions (phone capped at 60%, then the world day):
+#   python scripts/simulate_social.py --game read-receipts --sessions 60 --seeds 1 --first-seed N
+#     --no-companion --policy P --model-seconds S --raw r.json   (N = 0..9), then --fold
+#   (neutral model; attentive at 6 / 15 / 30 s, every other policy at 15 s ONLY: the owner's
+#   10-seed scale). Banded or DEFERRED (CLAUDE.md), never widened:
+#   ghosted per conversation start at depth 0 6.2 / 6.8 / 6.6% (5-15) and at
+#   depth 2+ 1.5 / 0.5 / 0.8% (3% or less), both banded; none retuned.
 # Measured 2026-10-13 (v0.22.0 T26, fix round 1): `python scripts/simulate_social.py --game
 # read-receipts --days 60 --first-seed N --seeds 1 --policy attentive --raw r-N.json`
 # for N = 0..19, then `--fold r-*.json` (the attentive player, the default

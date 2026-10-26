@@ -71,6 +71,22 @@ and `scripts/generate_art.py` (the default plan is this story's) fills it.
 
 Run it before changing a balance constant (AGENTS.md rule 10).
 
+## Sounds
+
+Heard in the browser (v0.24.0, `data/sounds/sounds.yaml`; brass and gears). The files are the engine's; each sound has a synthesised fallback. One action makes one sound.
+
+| When | Sound | What |
+|---|---|---|
+| Press | Gear tick | a short bandpassed click |
+| Choice | Ratchet | three falling clicks |
+| Turn arrives | Clock chime | two sine partials, a long tail |
+| Ending | A bell tolls | engine bell file at 0.8 rate |
+| Evil phase advances (`clockwork.phase`) | A low bell | the same file at 0.6 rate; tolls on an advance only, never a retreat or a load |
+| Roll cast / degree | engine's | the DiceToast (which owns the `rolls` panel) calls the roll cue |
+| Encounter starts | engine's | heard from the Stage, which is always mounted |
+
+The phase badge, the Stage and the DiceToast fire the cues in `ui/src/stories/clockwork-dark/`. Every sound is on the audition page (`/?sounds=1`).
+
 ## Tests
 
 The flagship has a row in every per-story test (`tests/test_finales.py`

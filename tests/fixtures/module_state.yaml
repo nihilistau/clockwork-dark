@@ -85,6 +85,7 @@ sites:
 
   # -- engine.content -----------------------------------------------------
   engine.content.deck._read_deck(): {verdict: warmed, loader: engine.games.caches._warm_decks}
+  engine.games.sounds._load_file(): {verdict: warmed, loader: engine.games.sounds.warm}
   engine.content.director._WARNED_FORCED: {verdict: log_once}
 
   # -- engine.game --------------------------------------------------------

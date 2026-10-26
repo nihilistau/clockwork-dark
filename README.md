@@ -33,7 +33,7 @@ settles the result, and a model on your own machine writes the prose.
   shipped art packs mean scenes have pictures without any of them. Serving
   it to other people, with accounts, is opt-in (hosted mode).
 
-**Status:** **v0.23.0** is the current release: READ RECEIPTS, the dating story played on a phone (new in v0.22.0), reworked -- people who grow closer at their own pace, no set time on dating, phone numbers that work, a world outside the phone (your flat and 28 places with 48 plates, meet-ups played in person) and life events. Its balance pass, live play and whole-branch review were deferred by the owner to the end of v0.24.0. Seven stories ship. Six
+**Status:** **v0.24.0** is the current release: **sound effects** for the engine and every story (button presses, choices, rolls, alerts, ringtones, each from data and played in the browser, with a Sound fieldset in Settings and an audition page), plus READ RECEIPTS' morning after a stay-over and four more life-event decks. READ RECEIPTS is the dating story played on a phone (new in v0.22.0, reworked in v0.23.0) -- people who grow closer at their own pace, no set time on dating, phone numbers that work, a world outside the phone (your flat and 28 places with 48 plates, meet-ups played in person) and life events. Its full balance pass ran in v0.24.0 at 10 seeds (not the 40 the v0.23.0 plan named; the owner chose the scale); live play with a model has not been done (the owner deferred it again on 2026-10-26). Seven stories ship. Six
 can be played to an ending (HUE & CRY eight ways); READ RECEIPTS is endless
 (`endless: true`, no ending, by the owner's brief). The engine
 is model-server agnostic: LM Studio stays the default, and llama-server,
@@ -45,8 +45,8 @@ your stories to a small group with accounts, an admin panel and a Docker
 image ([docs/HOSTING.md](docs/HOSTING.md)). Since v0.21.0 the play screen is
 built from shared engine panels (wanted poster, job panel, casing board,
 people, encounter, rolls), holds its layout from a phone to a desktop, and
-reconnects by itself. At v0.22.0 the full suite stood at 7386 passing, 32 skipped
-on Windows (two failures at the release, recorded in CLAUDE.md), plus 684
+reconnects by itself. At v0.24.0 the full suite stood at 8609 passing, 28 skipped
+on Windows (four failures in the run itself, fixed and re-run green; recorded in CLAUDE.md), plus 850
 client tests. Those numbers are re-measured each
 release in [CLAUDE.md](CLAUDE.md), and [CHANGELOG.md](CHANGELOG.md) records
 every change from 0.4.0 on.
@@ -478,6 +478,23 @@ declared meters and clocks.
   non-root user with its data on a `/data` volume and no secret baked in;
   Compose publishes it on the host's loopback for a TLS proxy to front, and
   can run a vLLM server beside it.
+
+</details>
+
+<details>
+<summary><b>Sound</b></summary>
+
+- **Sound effects, played in the browser.** Button presses, choices, rolls,
+  alerts, panels rising and the link dropping each sound once, from data
+  (`content/sounds/sounds.yaml`, a story's own `paths.sounds`). Settings has a
+  Sound fieldset: a master, Interface, Game, Alerts, Phone, World and
+  Narration levels, "Mute all sound" and "Quiet interface" (only alerts and
+  messages), and a link to audition every sound (`/?sounds=1`). Nothing about
+  sound reaches the server.
+- **The audition page** (`/?sounds=1`, a separate chunk a player never loads) lists the
+  engine's sounds and every story's, plays each one (or a whole section), and shows the
+  key to ask for a change by, the events, the source and a file's licence. It plays; it
+  edits nothing.
 
 </details>
 
@@ -921,9 +938,9 @@ fixed; details may change as each release lands.
 | v0.21.0 | **UI/UX overhaul**, together with HUE & CRY's screens: engine panels (wanted poster, job panel, casing board, people, encounter, rolls), a layout that holds, a connection that recovers, HUE & CRY's skin; the legacy aliases removed | **shipped** |
 | v0.21.1 | **Test speed** (patch): tiers, parallel hybrid runs, bounded runs, `scripts/run_tests.py` | **shipped** |
 | v0.22.0 | **A new story: READ RECEIPTS**, a dating simulation played through a phone of apps -- two dating apps, texts and a messenger, photos, voice notes and videos, meet-ups, two two-player games -- with a cast the engine runs and no endgame | **shipped** |
-| v0.23.0 | **READ RECEIPTS rework**: people who grow closer at their own pace, no set time on dating, phone numbers that work, places (the player's apartment, the cast's homes) with art, and real-life events and meet-ups outside the phone -- and, after the owner's first playtest, a world you can type into and people who turn up where you wait for them (staff at venues, a contact you run into; no strangers yet) | **shipped** (its full balance pass, live play and whole-branch review moved to the end of v0.24.0) |
-| v0.24.0 | **Sound effects** for the engine and every story: alerts, ringtones, button presses -- with READ RECEIPTS' morning scene, four more life-event decks, and the v0.23.0 tail (the full balance pass, live play, the docs pass and the whole-branch review) | **next** |
-| v0.25.0 | **The Clockwork Dark overhaul** | planned |
+| v0.23.0 | **READ RECEIPTS rework**: people who grow closer at their own pace, no set time on dating, phone numbers that work, places (the player's apartment, the cast's homes) with art, and real-life events and meet-ups outside the phone -- and, after the owner's first playtest, a world you can type into and people who turn up where you wait for them (staff at venues, a contact you run into; no strangers yet) | **shipped** (its balance pass and docs pass ran in v0.24.0; live play with a model was deferred by the owner and has not been done) |
+| v0.24.0 | **Sound effects** for the engine and every story: alerts, ringtones, button presses -- with READ RECEIPTS' morning scene, four more life-event decks, and the v0.23.0 tail (the full balance pass, the docs pass and the whole-branch review; live play with a model was deferred by the owner, 2026-10-26) | **shipped** (live play with a model was deferred by the owner, 2026-10-26) |
+| v0.25.0 | **The Clockwork Dark overhaul** | **next** |
 | v0.26.0 | **The Wicked Garden overhaul** | planned |
 | v0.27.0 | **NEON CITY overhaul** | planned |
 | v0.28.0 | **THE LONG CON overhaul** | planned |
@@ -975,6 +992,10 @@ Each story has its own README and CHANGELOG:
 | Dev Story | [games/dev-story/README.md](games/dev-story/README.md) | [CHANGELOG](games/dev-story/CHANGELOG.md) |
 
 When documents disagree, the code wins, then DESIGN.md.
+
+## Credits
+
+The engine's sound files are CC0 1.0 (public domain) recordings by Kenney (www.kenney.nl), from his Casino Audio, RPG Audio, Impact Sounds and Sci-fi Sounds packs. Each file's pack, archive hash and licence text are recorded in [content/sounds/PROVENANCE.yaml](content/sounds/PROVENANCE.yaml) and [content/sounds/LICENSES/](content/sounds/LICENSES/).
 
 ## Parent projects
 

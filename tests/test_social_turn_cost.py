@@ -70,7 +70,7 @@ def _day_save(tmp_path: Path) -> Path:
     if found:
         return found[0].parent
     root.mkdir(parents=True, exist_ok=True)
-    return sim.write_day_save(SEED, DAYS, POLICY, root)
+    return sim.write_day_save(SEED, DAYS, POLICY, root, world=False)   # phone-only, as recorded (T29a)
 
 
 def _resumed(tmp_path: Path):

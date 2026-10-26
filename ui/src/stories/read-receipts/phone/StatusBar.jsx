@@ -20,12 +20,12 @@ export default function StatusBar({ now, onOpenMenu, onLock = null, onPutDown = 
           ""
         )}</span>
       {onPutDown && (
-        <button type="button" className="rr-status__down" onClick={onPutDown}>
+        <button type="button" className="rr-status__down" data-sound="none" onClick={onPutDown}>
           Put the phone down
         </button>
       )}
       {onLock && (
-        <button type="button" className="rr-status__lock" aria-label="Lock" onClick={onLock}>
+        <button type="button" className="rr-status__lock" data-sound="none" aria-label="Lock" onClick={onLock}>
           <span aria-hidden="true">⏻</span>
         </button>
       )}

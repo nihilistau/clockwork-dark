@@ -5,7 +5,7 @@ The CI workflow's shape (v0.20.0 T5; spec §3.8).
 pushed without the owner's word, so this file is what holds it to the spec in
 the meantime: parsed as YAML, never run here. Two jobs on ``ubuntu-latest``
 -- ``suite`` (Python 3.11, installed under ``constraints.txt``, full history
-for the dist-freshness test, 150 minutes) and ``client`` (Node 24: install,
+for the dist-freshness test, 270 minutes, its run's own wall limit 240) and ``client`` (Node 24: install,
 test, build, and a diff against the committed build) -- on pushes to
 ``main`` and ``release/**`` and on pull requests. No secret, no model server,
 and no image pushed anywhere: the ``image`` job (v0.20.0 T18) builds the
@@ -99,7 +99,7 @@ def test_the_actions_are_on_their_node24_majors() -> None:
 def test_the_suite_job() -> None:
     doc = _workflow()
     suite = doc["jobs"]["suite"]
-    assert suite["timeout-minutes"] == 150
+    assert suite["timeout-minutes"] == 270
     assert _uses(doc, "suite", "actions/checkout")["fetch-depth"] == 0
     assert str(_uses(doc, "suite", "actions/setup-python")["python-version"]) == "3.11"
     runs = _runs(doc, "suite")
@@ -110,6 +110,27 @@ def test_the_suite_job() -> None:
     assert "python scripts/run_tests.py full --workers 2" in runs
     reqs = (REPO / "requirements.txt").read_text(encoding="utf-8")
     assert "pytest-xdist" in reqs and "pytest-timeout" in reqs  # installed above
+
+
+def test_the_suite_job_has_room_for_the_slow_pins() -> None:
+    """(v0.24.0 T14) The run's wall limit is said outright and covers READ RECEIPTS' slow pins (about 120
+    minutes on the owner's desktop at v0.24.0 T11, before the rest of the suite), and the job's timeout sits
+    above it, so run_tests.py stops its own tree and prints its summary before GitHub cancels the job. Before,
+    CI ran under the default 120 and a 150-minute job."""
+    import ast
+    import re
+
+    source = (REPO / "scripts" / "run_tests.py").read_text(encoding="utf-8")
+    limits = next(ast.literal_eval(node.value) for node in ast.parse(source).body
+                  if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "DEFAULT_LIMITS")
+    doc = _workflow()
+    runs = _runs(doc, "suite")
+    found = re.search(r"run_tests\.py full --workers 2 --limit-minutes (\d+)", runs)
+    assert found, runs
+    limit = int(found.group(1))
+    assert limit >= 2 * 120, limit                                    # twice the slow pins' measured time
+    assert doc["jobs"]["suite"]["timeout-minutes"] >= limit + 15
+    assert limits["full"] >= limit                  # a local `full` has the same room
 
 
 def test_the_suite_job_installs_the_server_requirements_so_gunicorn_serves_its_hosted_tests() -> None:

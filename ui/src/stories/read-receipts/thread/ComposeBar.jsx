@@ -33,6 +33,8 @@
  */
 import React, { useEffect, useRef, useState } from "react";
 
+import { playSound } from "@core/sound/index.js";
+
 import MicButton from "../../../core/parts/MicButton.jsx";
 import PlanSheet from "../contact/PlanSheet.jsx";
 import { ASK_MENU, SIGN_OFF_WINDOWS, STAGE_ASKS } from "./media.js";
@@ -65,6 +67,7 @@ export default function ComposeBar({
   readyAsks = null,
   pid = "",
   venues = [],
+  kinds = undefined,
   canSignOff = false,
 }) {
   const caps = (app && Array.isArray(app.capabilities) ? app.capabilities : ["text"]).map(String);
@@ -109,7 +112,8 @@ export default function ComposeBar({
     setAttachment(null);
     setVoice(false);
     setMenu(null);
-    onSend(intent);
+    // `phone.send` alone (spec §9.7): the button is `data-sound="none"`; a send the sender refused is silent.
+    if (onSend(intent) !== false) playSound("phone.send");
     focusBox();
   };
 
@@ -180,7 +184,7 @@ export default function ComposeBar({
           }
         >
           {menu === "plan" && (
-            <PlanSheet pid={pid} threadId={threadId} venues={venues} act={act} busy={sending} onDone={() => setMenu(null)} />
+            <PlanSheet pid={pid} threadId={threadId} venues={venues} kinds={kinds} act={act} busy={sending} onDone={() => setMenu(null)} />
           )}
           {menu === "later" &&
             [["you", "Message me"], ["me", "I'll message you"]].flatMap(([who, lead]) =>
@@ -295,7 +299,7 @@ export default function ComposeBar({
             }
           }}
         />
-        <button type="submit" className="rr-btn rr-compose__send" disabled={!ready}>
+        <button type="submit" className="rr-btn rr-compose__send" data-sound="none" disabled={!ready}>
           Send
         </button>
       </div>

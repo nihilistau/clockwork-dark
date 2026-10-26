@@ -21,3 +21,6 @@ content/scenes/clockwork/static/dist/index.html text eol=lf
 games/read-receipts/data/social/words.txt text eol=lf
 # The build's source-hash marker (ui/tools/build-source-hash.mjs) is LF everywhere.
 content/scenes/clockwork/static/dist/build-source.txt text eol=lf
+# Sound files (v0.24.0 T7) are recorded by their SHA-256 in content/sounds/PROVENANCE.yaml: never
+# normalised, whatever autocrlf says.
+*.ogg binary

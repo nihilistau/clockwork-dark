@@ -101,6 +101,19 @@ and buy from Edgewood's vendors — so **no balance claim here has been
 simulated**. The numbers on the edges and the clock thresholds are authored
 judgement, not measurement. Say so before trusting them.
 
+## Sounds
+
+Heard in the browser (v0.24.0, `data/sounds/sounds.yaml`; cards, chips and coin). The files are the engine's; each sound has a synthesised fallback. One action makes one sound.
+
+| When | Sound | What |
+|---|---|---|
+| Press | Chip | engine chip file, pitched up |
+| Choice | A card placed | engine card file |
+| Turn arrives | Shuffle | engine card-slide file |
+| Roll cast | Coins | engine coin file |
+
+It declares no story event of its own; its overhaul adds them. Every sound is on the audition page (`/?sounds=1`).
+
 ## Tests
 
 The story has no test file of its own; it has a row in the per-story tests,

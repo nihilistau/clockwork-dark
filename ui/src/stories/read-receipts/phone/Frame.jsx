@@ -32,13 +32,20 @@ export default function Frame({ title, onOpenMenu, onOpenSaves, side = null, wor
       </header>
       <div className="rr-stage" data-layers={world ? "two" : "one"}>
         {world && (
-          <div className={`rr-world-layer${!wide && phoneUp ? " dimmed" : ""}`} data-testid="rr-world-layer">
+          // The layer behind a raised phone is dimmed and not there to reach (T14 b2): inert, so neither Tab
+          // nor a screen reader gets into it.
+          <div
+            className={`rr-world-layer${!wide && phoneUp ? " dimmed" : ""}`}
+            data-testid="rr-world-layer"
+            {...(!wide && phoneUp ? { inert: "", "aria-hidden": "true" } : {})}
+          >
             {world}
           </div>
         )}
         <div
           className={`rr-phone-layer ${wide ? "beside" : "over"} ${phoneUp ? "up" : "down"}`}
           data-testid="rr-phone-layer"
+          {...(!wide && !phoneUp && world ? { inert: "", "aria-hidden": "true" } : {})}
         >
           <div className="rr-frame">
             <div className="rr-screen">{children}</div>

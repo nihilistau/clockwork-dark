@@ -76,6 +76,8 @@
  *                 twice. The flagship owns ["rolls", "encounter"], NEON CITY
  *                 ["encounter"]. A visual slot: KEPT when borrowed (the
  *                 borrower inherits the drawing, so it inherits the claim).
+ *   soundEvents   Story sound events this plugin fires (v0.24.0 spec §5.2); declared by its
+ *                 story's sounds.yaml; read by tests/test_sound_events.py. Kept when borrowed.
  *
  *   panelDeclaration  NOT a plugin field. Core sets it from the catalogue's
  *                 `ui.panels` (the story's manifest); `loadStory` writes it
@@ -150,8 +152,9 @@
  *      showDiceBreakdown}
  *
  * A story-owned `PlayScreen` (not a slot) takes `{state, sessionId, busy, onAct, onChoose, onCustom, onOpenMenu,
- * onOpenSaves, blocked}`; `onCustom(text)` sends typed words as core's own compose box does (READ RECEIPTS'
- * world compose box, v0.23.0).
+ * onOpenSaves, blocked, prefs, onPrefs}`; `onCustom(text)` sends typed words as core's own compose box does (READ RECEIPTS'
+ * world compose box, v0.23.0). `prefs` is the client preferences object and `onPrefs(next)` writes it (v0.24.0 Plan decision 13):
+ * READ RECEIPTS' Settings app keeps the ringtone choice in `prefs.soundChoices` and its voice notes take their volume from `prefs`.
  *
  * An overlay's Component is NOT a slot and takes its own set:
  *

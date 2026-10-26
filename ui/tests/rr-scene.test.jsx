@@ -15,6 +15,13 @@ afterEach(() => { view.unmount(); });
 const SCENE = { pid: "p0007", name: "Kai", stage_words: "Dating", closeness_words: "Close", portrait: "" };
 
 describe("scene UI", () => {
+  it("heads the companion card 'The morning after' for a morning scene, and only then", () => {
+    view.render(<Companion person={{ ...SCENE, kind: "morning", id: "p0007@31.5" }} />);
+    expect(byTestId(view.host, "rr-companion").textContent).toContain("The morning after");
+    view.render(<Companion person={{ ...SCENE, kind: "your_place", id: "p0007@31.5" }} />);
+    expect(byTestId(view.host, "rr-companion").textContent).not.toContain("The morning after");
+  });
+
   it("draws the companion card with words, never a number (a planted sentinel absent)", () => {
     const person = { pid: "p0007", name: "Kai", stage_words: "Seeing each other", closeness_words: "Close",
                      portrait: "", warmth: 61.987654, trust: 7.7654321 };

@@ -587,12 +587,15 @@ SHIPPED_REPEATABLE = {("hue-and-cry", "interrogation"), ("hue-and-cry", "lantern
                       # v0.17 T8 fix round 1: Partners' door after the fair.
                       ("hue-and-cry", "the_last_job"),
                       # v0.23.0 T17: READ RECEIPTS' life-event moments come round again (a boiler goes more than once).
-                      ("read-receipts", "boiler"), ("read-receipts", "parcel")}
+                      ("read-receipts", "boiler"), ("read-receipts", "parcel"),
+                      # v0.24.0 T2: the four remaining life-event decks.
+                      ("read-receipts", "neighbour_party"), ("read-receipts", "lift_out"),
+                      ("read-receipts", "family_visit"), ("read-receipts", "wedding_invite")}
 
 
 def test_only_hue_and_crys_six_decks_opt_in() -> None:
     """Byte-identical by construction for every other story: nothing else
-    shipped declares either key (HUE & CRY's six, and since v0.23.0 T17 READ RECEIPTS' two life-event moments,
+    shipped declares either key (HUE & CRY's six, and READ RECEIPTS' six life-event moments: two since v0.23.0 T17, four since v0.24.0 T2,
     which only a story with `paths.social` can ever deal)."""
     root = Path(__file__).resolve().parents[1] / "games"
     opted: set[tuple[str, str]] = set()

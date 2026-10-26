@@ -1,0 +1,57 @@
+# The engine's sounds (v0.24.0 spec §4, §5.1). Every story hears these unless its own paths.sounds rebinds
+# an event. A change after the audition is a data edit HERE (spec §11). Read by engine/games/sounds.py,
+# checked by `check` (an unknown key or a value out of range is an error naming this file and the key).
+version: 1
+limits: {voices: 8, throttle_ms: 60, roll_degree_delay_ms: 450}
+sounds:
+  ui.click:   {category: ui, label: "Button press", synth: {jitter_cents: 20, layers: [{wave: square, freq: 2200, to: 1400, glide_ms: 18, attack_ms: 1, decay_ms: 28, gain: 0.18, filter: {type: lowpass, freq: 5000}}]}}
+  ui.toggle:  {category: ui, label: "Toggle", synth: {layers: [{wave: sine, freq: 1300, attack_ms: 1, decay_ms: 30, gain: 0.2}, {wave: sine, freq: 1750, start_ms: 45, attack_ms: 1, decay_ms: 30, gain: 0.2}]}}
+  ui.open:    {category: ui, label: "A panel opens", synth: {layers: [{wave: triangle, freq: 520, to: 880, glide_ms: 90, attack_ms: 4, decay_ms: 110, gain: 0.18}]}}
+  ui.close:   {category: ui, label: "A panel closes", synth: {layers: [{wave: triangle, freq: 880, to: 520, glide_ms: 90, attack_ms: 4, decay_ms: 110, gain: 0.16}]}}
+  ui.choice:  {category: game, label: "A choice is made", synth: {layers: [{wave: triangle, freq: 660, attack_ms: 2, decay_ms: 90, gain: 0.3}, {wave: triangle, freq: 990, start_ms: 45, attack_ms: 2, decay_ms: 110, gain: 0.22}]}}
+  ui.send:    {category: game, label: "Typed words sent", synth: {layers: [{wave: noise, attack_ms: 10, decay_ms: 160, gain: 0.25, filter: {type: bandpass, freq: 900, to: 3200, glide_ms: 160, q: 1.2}}]}}
+  game.turn:  {category: game, label: "The turn arrives", synth: {layers: [{wave: sine, freq: 1046.5, attack_ms: 3, decay_ms: 700, gain: 0.22}, {wave: sine, freq: 2093, attack_ms: 3, decay_ms: 350, gain: 0.08}]}}
+  roll.dice:  {category: game, label: "Dice thrown", file: files/kenney/casino-audio/dice-throw-1.ogg, gain: 0.7,
+               fallback: {layers: [{wave: noise, attack_ms: 2, decay_ms: 60, gain: 0.3, filter: {type: bandpass, freq: 2400, q: 3}}, {wave: noise, start_ms: 90, attack_ms: 2, decay_ms: 50, gain: 0.25, filter: {type: bandpass, freq: 2800, q: 3}}, {wave: noise, start_ms: 170, attack_ms: 2, decay_ms: 40, gain: 0.2, filter: {type: bandpass, freq: 3100, q: 3}}]}}
+  roll.crit_success: {category: game, label: "Critical success", synth: {sequence: {voice: {wave: triangle, attack_ms: 3, decay_ms: 160, gain: 0.25}, notes: [[0, C5, 90], [80, E5, 90], [160, G5, 90], [240, C6, 220]]}}}
+  roll.success: {category: game, label: "Success", synth: {sequence: {voice: {wave: triangle, attack_ms: 3, decay_ms: 200, gain: 0.25}, notes: [[0, C5, 120], [110, E5, 220]]}}}
+  roll.partial: {category: game, label: "Partial success", synth: {layers: [{wave: triangle, freq: 587.3, attack_ms: 3, decay_ms: 260, gain: 0.22}]}}
+  roll.failure: {category: game, label: "Failure", synth: {sequence: {voice: {wave: triangle, attack_ms: 3, decay_ms: 220, gain: 0.22}, notes: [[0, E4, 120], [120, C4, 260]]}}}
+  roll.crit_failure: {category: game, label: "Critical failure", synth: {layers: [{wave: sine, freq: 110, to: 55, glide_ms: 300, attack_ms: 2, decay_ms: 380, gain: 0.4}, {wave: noise, attack_ms: 1, decay_ms: 120, gain: 0.15, filter: {type: lowpass, freq: 600}}]}}
+  alert.error: {category: alert, label: "Something went wrong", essential: true, synth: {repeat: {times: 2, gap_ms: 70}, layers: [{wave: square, freq: 220, attack_ms: 2, decay_ms: 90, gain: 0.18, filter: {type: lowpass, freq: 1800}}]}}
+  link.lost:  {category: alert, label: "Connection lost", essential: true, synth: {sequence: {voice: {wave: sine, attack_ms: 4, decay_ms: 180, gain: 0.22}, notes: [[0, G4, 150], [160, D4, 260]]}}}
+  link.back:  {category: alert, label: "Connection back", essential: true, synth: {sequence: {voice: {wave: sine, attack_ms: 4, decay_ms: 180, gain: 0.22}, notes: [[0, D4, 150], [160, G4, 260]]}}}
+  game.begin: {category: game, label: "A new run begins", synth: {layers: [{wave: triangle, freq: 261.6, attack_ms: 80, decay_ms: 900, gain: 0.18}, {wave: triangle, freq: 329.6, start_ms: 60, attack_ms: 80, decay_ms: 900, gain: 0.14}, {wave: triangle, freq: 392, start_ms: 120, attack_ms: 80, decay_ms: 900, gain: 0.12}]}}
+  game.save:  {category: game, label: "Saved", synth: {layers: [{wave: sine, freq: 880, attack_ms: 2, decay_ms: 120, gain: 0.2}, {wave: sine, freq: 1318.5, start_ms: 70, attack_ms: 2, decay_ms: 160, gain: 0.18}]}}
+  game.ending: {category: game, label: "An ending", synth: {sequence: {voice: {wave: triangle, attack_ms: 20, decay_ms: 500, gain: 0.2}, notes: [[0, G4, 350], [350, E4, 350], [700, C4, 800]]}}}
+  game.swell: {category: game, label: "A cutscene opens", synth: {layers: [{wave: sine, freq: 196, attack_ms: 600, decay_ms: 900, gain: 0.18}, {wave: sine, freq: 293.7, attack_ms: 600, decay_ms: 900, gain: 0.12}]}}
+  game.encounter: {category: game, label: "An encounter begins", synth: {layers: [{wave: sawtooth, freq: 98, attack_ms: 300, decay_ms: 700, gain: 0.12, filter: {type: lowpass, freq: 500}}]}}
+  game.warning: {category: game, label: "The watch takes notice", synth: {repeat: {times: 3, gap_ms: 60}, layers: [{wave: square, freq: 740, attack_ms: 2, decay_ms: 140, gain: 0.14, filter: {type: lowpass, freq: 2500}}]}}
+  game.tick:  {category: game, label: "A stage advances", synth: {layers: [{wave: square, freq: 1600, attack_ms: 1, decay_ms: 20, gain: 0.15, filter: {type: bandpass, freq: 1600, q: 4}}]}}
+  game.note:  {category: game, label: "Something noted", synth: {layers: [{wave: noise, attack_ms: 5, decay_ms: 90, gain: 0.15, filter: {type: highpass, freq: 2500}}]}}
+bind:
+  ui.press: ui.click
+  ui.toggle: ui.toggle
+  ui.open: ui.open
+  ui.close: ui.close
+  choice.pick: ui.choice
+  choice.send: ui.send
+  turn.arrive: game.turn
+  roll.cast: roll.dice
+  roll.crit_success: roll.crit_success
+  roll.success: roll.success
+  roll.partial: roll.partial
+  roll.failure: roll.failure
+  roll.crit_failure: roll.crit_failure
+  alert.error: alert.error
+  link.lost: link.lost
+  link.back: link.back
+  game.begin: game.begin
+  game.save: game.save
+  game.ending: game.ending
+  cutscene.start: game.swell
+  encounter.start: game.encounter
+  panel.wanted: game.warning
+  panel.job: game.tick
+  panel.casing: game.note
+  plate.reveal: null           # silent on purpose

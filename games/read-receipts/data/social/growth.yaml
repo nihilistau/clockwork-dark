@@ -60,6 +60,20 @@
 # session they talked in 13.8 / 8.7 / 6.8% (40-70). The rest DEFERRED to T29
 # (CLAUDE.md); nothing here retuned. No phone-only run reaches depth 2 (it
 # needs a scene).
+#
+# Measured T11 (v0.24.0, 2026-10-26) on FULL sessions (phone capped at 60%, then the world day):
+#   python scripts/simulate_social.py --game read-receipts --sessions 60 --seeds 1 --first-seed N
+#     --no-companion --policy P --model-seconds S --raw r.json   (N = 0..9), then --fold
+#   (neutral model; attentive at 6 / 15 / 30 s, every other policy at 15 s ONLY: the owner's
+#   10-seed scale). Banded or DEFERRED (CLAUDE.md), never widened:
+#   real minutes match to number, fast 11.0 / 11.93 / 16.42 (6-15, deferred
+#   at 30 s), mid 12.62 / 14.75 / 19.77 (12-30, banded), slow 18.08 / 19.8 /
+#   25.35 (25-60, deferred); numbers within the session 0.7 / 1.1 / 0.8%
+#   (40-70, deferred); sessions to the first scene 15 / 14.5 / 16.5 (1-3,
+#   deferred). The devoted player's real hours to depth 2 / 3 / 4: fast 1.94
+#   / 3.06 / 5.23 (1-2 / 3-5 / 6-10: 2 and 3 banded, 4 deferred), slow 2.39 /
+#   3.78 / 5.47 (3-6 / 7-12 / 14-24, all deferred: too fast). Nothing here
+#   retuned.
 
 kinds: [places, hobbies, work_outline, the_apps, daily_life, work, friends, plans, opinions,
         upbringing, family_outline, past, travel, proud_of, hopes, worries, regrets, values,

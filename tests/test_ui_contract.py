@@ -665,7 +665,16 @@ PANELS_SRC = UI_SRC / "core" / "panels"
 
 
 def _reads(text: str, name: str) -> set[str]:
-    return set(re.findall(rf"\b{name}\.([a-z_]+)", text))
+    # A property read, not the head of a quoted sound-event id ("encounter.start", v0.24.0).
+    return set(re.findall(rf"(?<![\"'`])\b{name}\.([a-z_]+)", text))
+
+
+def test_reads_skips_a_quoted_event_id_but_not_a_property_read():
+    """`_reads`' lookbehind: a quoted sound-event id is not a key read; a real read still is."""
+    text = """play("encounter.start"); const n = payload.encounter; use('encounter.end'); `encounter.x`"""
+    assert _reads(text, "encounter") == set()
+    assert _reads(text, "payload") == {"encounter"}
+    assert _reads("if (encounter.approaches) go(encounter.kind)", "encounter") == {"approaches", "kind"}
 
 
 def test_the_poster_reads_only_keys_the_law_block_sends(tmp_path: Path) -> None:

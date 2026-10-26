@@ -17,6 +17,7 @@ import React, { useMemo } from "react";
 
 import { useDigitKeys } from "../hooks/useDigitKeys.js";
 import Panel from "./Panel.jsx";
+import { useSoundOnChange } from "../sound/index.js";
 import { matchApproaches } from "./approaches.js";
 
 function terms(encounter, threat) {
@@ -43,6 +44,7 @@ export default function EncounterPanel({ state, onChoose, controlsOff = false, b
     [live, encounter, matched]
   );
   const off = controlsOff || Boolean(state?.busy);
+  useSoundOnChange(live, "encounter.start", { when: (a, b) => !a && b });
   useDigitKeys(pressable, onChoose, live && bindDigits && !off && !blocked);
 
   if (!live) return null;

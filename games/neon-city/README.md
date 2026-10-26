@@ -73,6 +73,21 @@ and the lift's keys-and-crew interlock are quest preconditions, encounter
 pressure, ending gates and the narrator's standing law
 (`prompts/storyteller.md`) — not a wall the travel system itself raises.
 
+## Sounds
+
+Heard in the browser (v0.24.0, `data/sounds/sounds.yaml`; data and glitch). The files are the engine's; each sound has a synthesised fallback. One action makes one sound.
+
+| When | Sound | What |
+|---|---|---|
+| Press | Blip | a square blip |
+| Choice | Chirp | a rising glide |
+| Turn arrives | Data | engine laser file |
+| Error | Glitch | tremolo square and hiss; essential, so it speaks even when the alert bus is low |
+| Encounter starts | A field hums up | engine force-field file; heard from the Stage |
+| Watched (`neon.watched`) | Scan | a rising sawtooth sweep; when watching turns true in a turn you sent |
+
+The hex mark and the Stage fire the cues in `ui/src/stories/neon-city/`. Every sound is on the audition page (`/?sounds=1`).
+
 ## Tests
 
 The story has no test file of its own; it has a row in the per-story tests,

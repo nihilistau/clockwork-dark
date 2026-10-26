@@ -14,6 +14,7 @@
 import React from "react";
 
 import { matchApproaches, matchedChoiceIds } from "@core/panels/approaches.js";
+import { useSoundOnChange } from "@core/sound/index.js";
 
 import AssistantColumn from "./parts/AssistantColumn.jsx";
 import DiceToast from "./parts/DiceToast.jsx";
@@ -91,6 +92,50 @@ function reduce(slice, action, next) {
 // v0.21.0 -- it used to print "the pattern is …" on every story's saves, F7).
 const PHASE_WORD = { dormant: "quiet", stirring: "stirring", spreading: "spreading", consuming: "consuming" };
 
+// The pattern only deepens (spec §9.2): the phase's toll sounds on an advance, never on a retreat or a load.
+const PHASE_ORDER = ["dormant", "stirring", "spreading", "consuming"];
+
+function PhaseBadge({ state, onOpenMenu }) {
+  useSoundOnChange(state.story.phase, "clockwork.phase", {
+    when: (a, b) => PHASE_ORDER.indexOf(b) > PHASE_ORDER.indexOf(a),
+  });
+  return <PhasePill phase={state.story.phase} onOpenMenu={onOpenMenu} />;
+}
+
+/**
+ * The top of the centre column. The encounter's start sound is heard HERE, not in EncounterPanel: the panel
+ * mounts only while an encounter exists, and a hook is silent on its first render (spec §6.3 rule 2), so a cue
+ * inside it would never play. The Stage is always mounted.
+ */
+function FlagshipStage({ state, onChoose, controlsOff }) {
+  const encounter = state.world?.encounter || {};
+  const live = Object.keys(encounter).length > 0 && !encounter.resolved;
+  useSoundOnChange(live, "encounter.start", { when: (a, b) => !a && b });
+  if (Object.keys(encounter).length > 0) {
+    const offered = matchApproaches(encounter, state.choices);
+    return (
+      <EncounterPanel
+        encounter={encounter}
+        world={state.world}
+        phase={state.story.phase}
+        sceneImage={state.sceneImage}
+        // The link's answer as well as the turn's (spec §6.3, T13): a press
+        // while offline would reach nothing.
+        busy={controlsOff}
+        offered={offered}
+        // An approach is pressed as the narrator's intent-bearing choice
+        // (spec §2.3, rule 1): the engine runs encounter_approach before
+        // narration. One the narrator did not offer is not pressable.
+        onTake={(approach) => {
+          const choice = offered.get(approach.id);
+          if (choice) onChoose(choice);
+        }}
+      />
+    );
+  }
+  return <SceneVisual world={state.world} imageUrl={state.sceneImage} phase={state.story.phase} />;
+}
+
 const Wordmark = () => (
   <h1 className="start__wordmark">
     The Clockwork <span>Dark</span>
@@ -114,6 +159,8 @@ export default {
   asideLabel: "Companion",
   onboardingTitle: "Before you begin",
   onboardingFinishLabel: "Step into the trees",
+  // The story's own sound event (v0.24.0 spec §5.2, §9.2); the palette is games/clockwork-dark/data/sounds/sounds.yaml.
+  soundEvents: ["clockwork.phase"],
   saveMeta: (save) => (save.evil_phase ? `the pattern is ${PHASE_WORD[save.evil_phase] || save.evil_phase}` : null),
 
   // Vite turns this into its own CSS chunk, fetched only when this story is the
@@ -133,9 +180,7 @@ export default {
   // The gear only turns once the world has started to go wrong -- it is a
   // diegetic tell, not a decoration.
   Mark: ({ state }) => <GearMark discovered={state.story.phase !== "dormant"} />,
-  HeaderBadge: ({ state, onOpenMenu }) => (
-    <PhasePill phase={state.story.phase} onOpenMenu={onOpenMenu} />
-  ),
+  HeaderBadge: PhaseBadge,
   MenuBanner: ({ state }) => <PhaseBand phase={state.story.phase} />,
 
   Wordmark,
@@ -158,34 +203,7 @@ export default {
    * place. Each approach button presses the narrator's choice that carries its
    * `encounter` intent (see `hideChoices`, which hides exactly those choices).
    */
-  Stage: ({ state, onChoose, controlsOff }) => {
-    const encounter = state.world?.encounter || {};
-    if (Object.keys(encounter).length > 0) {
-      const offered = matchApproaches(encounter, state.choices);
-      return (
-        <EncounterPanel
-          encounter={encounter}
-          world={state.world}
-          phase={state.story.phase}
-          sceneImage={state.sceneImage}
-          // The link's answer as well as the turn's (spec §6.3, T13): a press
-          // while offline would reach nothing.
-          busy={controlsOff}
-          offered={offered}
-          // An approach is pressed as the narrator's intent-bearing choice
-          // (spec §2.3, rule 1): the engine runs encounter_approach before
-          // narration. One the narrator did not offer is not pressable.
-          onTake={(approach) => {
-            const choice = offered.get(approach.id);
-            if (choice) onChoose(choice);
-          }}
-        />
-      );
-    }
-    return (
-      <SceneVisual world={state.world} imageUrl={state.sceneImage} phase={state.story.phase} />
-    );
-  },
+  Stage: FlagshipStage,
 
   Ledger: ({ state, onOpenOverlay }) => (
     <Sheet

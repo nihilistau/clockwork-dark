@@ -58,6 +58,20 @@ courtiers, 22 item plates and a still. `data/art/MISSING-PLATES.md` lists
 what is missing, with prompts (`scripts/art_missing.py --game wicked-garden`
 regenerates it).
 
+## Sounds
+
+Heard in the browser (v0.24.0, `data/sounds/sounds.yaml`; glints and paper). The files are the engine's; each sound has a synthesised fallback. One action makes one sound.
+
+| When | Sound | What |
+|---|---|---|
+| Press | Glint | a high sine |
+| Choice | Pluck | two triangle notes |
+| Turn arrives | Garden chime | D6, A5, E6 |
+| Roll cast | A card slides | engine card-slide file |
+| Omen (`garden.omen`) | A hush | low-passed noise and a quiet sine; once per new omen id in a turn you sent |
+
+The Toast slot fires the omen cue in `ui/src/stories/wicked-garden/index.jsx`. Every sound is on the audition page (`/?sounds=1`).
+
 ## Balance and tests
 
 `scripts/simulate_decks.py` walks the deck shape headless, with no model:

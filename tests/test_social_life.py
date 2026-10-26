@@ -478,3 +478,151 @@ def test_the_shipped_table_is_checked_and_its_scenes_exist(receipts_active) -> N
             assert deck.load_deck(row["scene"]).id == row["scene"]
     assert not {r["id"] for r in data["person"] if r.get("proposal")} - {"job_offer_elsewhere"}
     life.check_data(data)
+
+
+# -- v0.24.0 T2: four more decks, the lift, the news windows (spec §12.2) -------------------------------
+
+DECKS = [("neighbour_party", "apt_hall"), ("lift_out", "bldg_lift"),
+         ("family_visit", "apt_lounge"), ("wedding_invite", "apt_hall")]
+
+
+@pytest.mark.parametrize("deck, room", DECKS)
+def test_each_life_deck_deals_in_its_room(receipts_state, monkeypatch, deck, room) -> None:
+    from engine.content import director
+    from engine.game import clock
+
+    _only(monkeypatch, deck)
+    clock.advance_time(receipts_state, 24)
+    assert receipts_state.flags.get(f"life_{deck}")
+    receipts_state.location_id = room
+    receipts = director.ensure_scene(receipts_state)
+    assert receipts and receipts[0]["args"]["deck_id"] == deck
+
+
+@pytest.mark.parametrize("deck, room", DECKS)
+def test_no_life_deck_deals_over_a_scene(receipts_state, monkeypatch, deck, room) -> None:
+    from engine.content import director
+    from engine.game import clock
+
+    _only(monkeypatch, deck)
+    clock.advance_time(receipts_state, 24)
+    receipts_state.location_id = room
+    receipts_state.social["scene"] = {"pid": "p0001", "location": room}
+    assert director.ensure_scene(receipts_state) == []
+
+
+# A beat that puts the event off keeps its flag: leaving the parcel at reception keeps `collect_parcel` offered.
+DEFERRING_BEATS = {("parcel", "leave_it_for_now")}
+
+
+@pytest.mark.parametrize("deck", ["boiler", "parcel", "neighbour_party", "lift_out", "family_visit", "wedding_invite"])
+def test_every_life_beat_clears_its_flag(receipts_active, deck) -> None:
+    from engine.content import deck as decks
+
+    for card in decks.load_deck(deck).cards:
+        for beat in card.beats:
+            if (deck, beat.get("id")) in DEFERRING_BEATS:
+                continue
+            effects = ((beat.get("gate") or {}).get("on_pass") or {}).get("effects") or []
+            assert {"type": "flag", "flag": f"life_{deck}", "value": False} in effects, (deck, card.id, beat.get("id"))
+
+
+def _lift_out(state) -> None:
+    from engine.game.effects import apply_effect
+
+    apply_effect(state, {"type": "social_life", "op": "start", "who": "player", "id": "lift_out",
+                         "at": state.world_clock_hours})
+
+
+@pytest.mark.parametrize("here, to, pays", [
+    ("the_anchor", "home_quays_loft", False),       # between two city places: never through the building
+    ("apt_lounge", "merrow_street", True),          # out of the building
+    ("merrow_street", "apt_lounge", True),          # home, through it
+    ("apt_lounge", "apt_kitchen", False),           # room to room in the flat: never through the lift
+    ("bldg_reception", "merrow_street", False),     # (T14 a4) already downstairs: the lift is behind them
+    ("bldg_lift", "the_anchor", False),             # (T14 a4) standing at the lift: down the stairs is free
+    ("the_anchor", "apt_hall", True),               # (T14 a4) back up to the flat: past the lift
+])
+def test_the_lift_minutes_only_through_the_building(receipts_state, here, to, pays) -> None:
+    """FAILS before the fix: `go` added the lift's minutes to EVERY move; then (v0.24.0 T14 a4) to a move from
+    the ground floor too. The minutes are paid only by a move whose path passes the lift: one end in the
+    flat upstairs (`home`-tagged), the other not."""
+    from engine.social import life, places, world
+
+    state = receipts_state
+    state.social["phone_up"] = False
+    state.location_id = here
+    _lift_out(state)
+    assert life.extra_minutes(state) == 5
+    done = world.go(state, to, targets=[(to, places.label(to))])
+    assert done["ok"], done
+    base = places.travel_minutes(to if to != world.HOME else here)
+    assert done["minutes"] == base + (5 if pays else 0)
+
+
+@pytest.mark.parametrize("event, days", [("wedding_invite", 5), ("promotion", 7)])
+def test_the_news_runs_its_window(receipts_state, monkeypatch, event, days) -> None:
+    """A deliberate change (spec §12.2): each now offers its news for `lasts_days`, then not."""
+    from engine.game import clock
+    from engine.social import life
+
+    _only(monkeypatch, event)
+    clock.advance_time(receipts_state, 24)
+    assert f"life_{event}" in [n["topic"] for n in life.player_news(receipts_state)]
+    _none(monkeypatch)
+    clock.advance_time(receipts_state, 24 * days)
+    assert f"life_{event}" not in [n["topic"] for n in life.player_news(receipts_state)]
+
+
+def _life_validator(tmp_path, edit_rows=None, edit_deck=None):
+    """A StoryValidator over a COPY of the story's social data and decks, with the copy's decks dir in force."""
+    import shutil
+    from pathlib import Path
+
+    import yaml
+
+    from engine.games import registry
+    from engine.games.validation import StoryValidator
+
+    root = Path(__file__).resolve().parents[1] / "games" / "read-receipts" / "data"
+    here = tmp_path / "social"
+    decks = tmp_path / "scenes"
+    shutil.copytree(root / "social", here)
+    shutil.copytree(root / "scenes", decks)
+    if edit_rows:
+        data = yaml.safe_load((here / "life_events.yaml").read_text(encoding="utf-8"))
+        edit_rows({r["id"]: r for r in data["player"]})
+        (here / "life_events.yaml").write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    if edit_deck:
+        edit_deck(decks)
+    validator = StoryValidator(registry.get("read-receipts"))
+    real = validator._file
+    validator._file = lambda key: decks if key == "decks" else real(key)
+    validator._check_life_events(here)
+    return {(i.source, i.ref_id) for i in validator.issues if i.severity == "error"}
+
+
+def _drop_flag_from_when(decks) -> None:
+    import yaml
+
+    path = decks / "neighbour_party.yaml"
+    deck = yaml.safe_load(path.read_text(encoding="utf-8"))
+    deck["when"] = {"all": [{"at_location": "apt_hall"}]}
+    path.write_text(yaml.safe_dump(deck, sort_keys=False), encoding="utf-8")
+
+
+def test_the_shipped_life_rows_pass(tmp_path) -> None:
+    assert not {k for k in _life_validator(tmp_path) if k[0] == "social/life_events.yaml"}
+
+
+@pytest.mark.parametrize("edit_rows, edit_deck, key", [
+    (lambda rows: rows["neighbour_party"].update(scene="no_such_deck"), None, "player.neighbour_party.scene"),
+    (None, _drop_flag_from_when, "player.neighbour_party.scene"),
+    (lambda rows: rows["neighbour_party"].pop("lasts_days"), None, "player.neighbour_party.lasts_days"),
+    (lambda rows: rows["promotion"].pop("lasts_days"), None, "player.promotion.lasts_days"),
+    (lambda rows: (rows["neighbour_party"].pop("flag"), rows["neighbour_party"].pop("news", None)), None,
+     "player.neighbour_party.scene"),
+])
+def test_each_life_check_names_its_row(tmp_path, edit_rows, edit_deck, key) -> None:
+    """Each validation fault, canary-checked by breaking exactly what it guards (pre-flight F21, F22)."""
+    assert ("social/life_events.yaml", key) in _life_validator(tmp_path, edit_rows, edit_deck)

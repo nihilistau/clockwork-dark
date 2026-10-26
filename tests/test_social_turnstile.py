@@ -466,3 +466,22 @@ def test_the_deadline_fallbacks_run_even_when_the_recap_step_defers(receipts_act
         pid = thread.split(":")[1]
         theirs = [m for m in session.engine.state.social["threads"][thread]["messages"] if m["from"] == pid]
         assert theirs[-1]["voiced"] == "fallback", thread
+
+
+def test_a_failed_share_report_is_logged_not_swallowed(monkeypatch, caplog) -> None:
+    """(v0.24.0 T14 c11) `report_share` never raises (a metric must not fail a turn), but a failure is logged at
+    warning with its exception; before, `except Exception: pass` hid it."""
+    import logging
+    from types import SimpleNamespace
+
+    from engine.social import turnstile
+
+    class Broken:
+        def take_share(self, interval):
+            raise RuntimeError("share-sentinel-7f3a")
+
+    session = SimpleNamespace(narration_turnstile=Broken())
+    with caplog.at_level(logging.WARNING, logger="engine.social.turnstile"):
+        turnstile.report_share(session)                      # does not raise
+    logged = [r for r in caplog.records if r.name == "engine.social.turnstile" and r.levelno == logging.WARNING]
+    assert logged and logged[0].exc_info and "share-sentinel-7f3a" in str(logged[0].exc_info[1])

@@ -10,12 +10,12 @@ export default function Buzz({ buzz, onPickUp }) {
   if (count <= 0) return null;
   const who = Array.isArray(buzz.who) ? buzz.who.filter((n) => typeof n === "string" && n) : [];
   return (
-    <div className="rr-buzz" role="status" data-testid="rr-buzz">
-      <span className="rr-buzz__text">
+    <div className="rr-buzz" data-testid="rr-buzz">
+      <span className="rr-buzz__text" role="status">
         Your phone buzzed{count > 1 ? ` ${count} times` : ""}
         {who.length ? `: ${who.join(", ")}` : ""}
       </span>
-      <button type="button" className="rr-buzz__pick" onClick={onPickUp}>
+      <button type="button" className="rr-buzz__pick" data-sound="none" onClick={onPickUp}>
         Pick it up
       </button>
     </div>

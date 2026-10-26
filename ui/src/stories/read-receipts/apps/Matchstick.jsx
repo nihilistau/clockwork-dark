@@ -11,7 +11,7 @@ import Tabs, { panelProps } from "./Tabs.jsx";
 
 export const APP = "matchstick";
 
-export default function Matchstick({ phone, act, pending = null, blocked = false, onOpenThread = () => {} }) {
+export default function Matchstick({ phone, act, pending = null, blocked = false, deckKeys = true, onOpenThread = () => {} }) {
   const [tab, setTab] = useState("deck");
   const deck = (phone.deck || {})[APP] || null;
   const rows = threadsOf(phone, APP);
@@ -38,6 +38,7 @@ export default function Matchstick({ phone, act, pending = null, blocked = false
             deck={deck}
             waiting={waiting}
             blocked={blocked}
+            keys={deckKeys}
             onSwipe={(pid, dir) => act({ action: "swipe", target: pid, args: { dir }, text: "" })}
           />
         )}

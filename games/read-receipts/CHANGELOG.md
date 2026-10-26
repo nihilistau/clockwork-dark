@@ -11,6 +11,95 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-10-27
+
+### Added
+
+- The phone sounds like a phone (v0.24.0 T9, spec 9.7): `paths.sounds` and `data/sounds/sounds.yaml`. A new message pops in the open thread, chimes (or pings, or knocks: your choice) in another, buzzes while the phone is down, and rings for a voice note or a video message, wherever the phone is; one message makes one sound, and what a resume or a rejoin brings back makes none. They start typing with a quiet tick, your send has a whoosh, the phone clicks as it unlocks and locks and rustles as it is picked up and put down, a swipe whooshes, a new match plays a rising arpeggio, someone arriving at a scene opens a door. Settings has a Sounds section with a ringtone choice (Marimba, Classic, Pulse) and a notification tone (Chime, Ping, Knock), each with a preview; voice notes follow the phone and master volume. Sound is the browser's: nothing is sent to the server and no phone action is added. The plugin fires thirteen events (`ui/src/stories/read-receipts/sounds.js`), and the cloth and door sounds reuse the engine's CC0 files.
+- The morning after a stay-over (`scenes.yaml` `morning:`): staying the night now wakes in a short morning scene, in your kitchen or at their home, with breakfast, getting ready and seeing them out. It offers quiet, telling them something, being playful and talking, and ends after two moments or when you see them to the door (`See them to the door`, or the same and say you'll do it again soon) or head home. It is the night's tail, not a second date: it counts no scene, swaps no numbers, moves no stage and queues no text of its own, and the night's text is held until you part. The companion card is headed "The morning after".
+- Four more life-event scenes, each a short roll-free card of ordinary domestic life that clears its event: your neighbour's party (`neighbour_party`, in the hall: ask them to keep it down, go round for one drink, or headphones on), the broken lift (`lift_out`, in the lift: take the stairs or report it at reception), your family visiting (`family_visit`, in the lounge: two cards, putting the kettle on or showing them round, then asking after everyone or telling them how you're getting on) and the wedding invitation (`wedding_invite`, in the hall: reply yes or pin it on the fridge). The events `wedding_invite`, `lift_out`, `neighbour_party` and `family_visit` now hold a `life_<id>` flag for their days.
+
+### Fixed
+
+- The day-60 turn-cost replay pin (`tests/fixtures/social/turn_cost_replay.json`, `tests/test_social_turn_cost.py`) was re-recorded twice (`CLOCKWORK_TURN_COST_RECORD=1`). At v0.24.0 T11 its 17 turn payloads were unchanged and only the save moved, two keys alone, `flags.life_family_visit` and `flags.life_neighbour_party` (both `false`), the flags v0.24.0 T2 gave those life events for their days. At the release (T15) every turn payload and the save moved again: the whole-branch review's `waking` window fix (a night-shift or student person's morning, `engine/social/windows.py`) changes when people write first, which a day-60 run carries into every later turn (the wedding test's timing moved with it, and it was made independent of when a stranger first writes). The cause is inferred from that, not diffed key by key. The pin keeps T29a's phone-only day-60 run (`write_day_save(..., world=False)`), not the harness's new full-session default.
+- The broken lift adds its five minutes only when you go between your flat upstairs and anywhere else, not on every move, and not from the lobby or the lift itself (the engine's fix, root CHANGELOG). Walking room by room down through the lift still costs nothing extra (NOT WIRED, docs/GOVERNANCE.md).
+- If you work nights (bartender, chef, musician, dock worker, security guard) or study, Sleep wakes you in your own morning: before, the tail of last night's shift or night out counted as your waking hour, so a bartender home at 02:30 slept to the next midnight and a student a whole day on. The morning after a stay-over wakes the same way, and a person of those shapes texts on waking in their real morning.
+- A morning after at their place that ends by itself now sends you home, as "Head home" does, instead of leaving you standing in their home.
+- "...and say you'll do it again soon" no longer claims a plan they did not agree to: when none is made the receipt says "They don't commit to anything yet."
+- The "message me in the morning" phrases are read whether or not a model is loaded (as they always were); the data's comments now say so.
+- Every phone sound now has something on screen with it (spec 7): a message arriving with the phone down raises the buzz banner at once; a message in another thread shows a small notice on the phone (name and preview, tap to open it, gone after six seconds); a new match shows "It's a match".
+- The engine's own lines (a plan made, a match expired) no longer ring as incoming messages; the first match of a run chimes; any dating app is recognised by its kind, not a fixed list.
+- One sound per arrival: a scene opening, else the phone's cue, else the turn's bell, never two at once; Begin on the new-run screen plays one sound.
+- The arrow keys no longer swipe a dating card you cannot see once the phone is down. Putting the phone down moves focus to the world and picking it up moves it back; under 1200px the layer behind is inert to the keyboard and screen readers.
+- The thread's plan sheet offers the engine's plan kinds; a resume clears a pick-up the server never saw; a late opening no longer drops messages that had already arrived.
+
+### Changed
+
+- The balance pass over full sessions (v0.24.0 T11, the v0.23.0 T29b deferred to it): the scenes'
+  end bands (`scenes.yaml` `end_bands`) are now 0.92 / 0.70 / 0.55 / 0.40, from 0.72 / 0.56 / 0.42 /
+  0.3, so a date goes great about one time in six rather than one in two. Measured by
+  `scripts/simulate_social.py` at the owner's scale: 10 seeds x 60 sessions of 40 real minutes (the
+  phone at most 60% of each, then the world day), `--no-companion`, the neutral model. Round 1 (the
+  old end bands) put `scene_band.great` at 45-48% and `fine` at 13-15%; the new cuts are the 85th,
+  50th, 28th and 12th percentiles of 1,338 attentive scene averages, and round 2 measured them
+  (every config re-run: two harness fixes, the devoted player wanting something long-term and the
+  promises kept before the day, changed every attentive and devoted run). Nothing else was retuned;
+  a row that misses is deferred by data (CLAUDE.md), its band unwidened.
+
+  The attentive player, at 6 / 15 / 30 model seconds a reply (banded only if it holds at all three):
+
+  | Row (band) | 6 s | 15 s | 30 s | |
+  |---|---|---|---|---|
+  | `exchanges_per_episode.d0` (6-14) | 7 | 6 | 5 | deferred |
+  | `exchanges_per_episode.d2plus` (12-30) | 10 | 9 | 5 | deferred |
+  | `end_reason.schedule` (30-55%) | 14.4% | 13.6% | 15.1% | deferred |
+  | `end_reason.energy` (25-50%) | 16.9% | 14.4% | 11.2% | deferred |
+  | `end_reason.player` (10-30%) | 14.1% | 15.9% | 14.6% | banded |
+  | `cold_unanswered_1h.d0` (15-35%) | 68.7% | 67.2% | 73.6% | deferred |
+  | `ghosted_per_episode.d0` (5-15%) | 6.2% | 6.8% | 6.6% | banded |
+  | `ghosted_per_episode.d2plus` (3% or less) | 1.5% | 0.5% | 0.8% | banded |
+  | `chat_minutes_to_numbers.fast` (6-15) | 11.0 | 11.93 | 16.42 | deferred |
+  | `chat_minutes_to_numbers.mid` (12-30) | 12.62 | 14.75 | 19.77 | banded |
+  | `chat_minutes_to_numbers.slow` (25-60) | 18.08 | 19.8 | 25.35 | deferred |
+  | `numbers_within_session` (40-70%) | 0.7% | 1.1% | 0.8% | deferred |
+  | `sessions_to_first_scene` (1-3) | 15 | 14.5 | 16.5 | deferred |
+  | `scene_band.great` (10-20%) | 16.2% | 16.2% | 13.6% | banded (end bands changed) |
+  | `scene_band.good` (25-40%) | 31.0% | 34.0% | 35.4% | banded (end bands changed) |
+  | `scene_band.fine` (20-30%) | 21.5% | 23.4% | 22.6% | banded (end bands changed) |
+  | `scene_band.awkward` (10-20%) | 21.2% | 15.4% | 15.1% | deferred (end bands changed) |
+  | `scene_band.bad` (5-15%) | 10.1% | 11.1% | 13.4% | banded (end bands changed) |
+  | `person_promises_kept` (100%) | 1.0 | 1.0 | 1.0 | asserted |
+  | `player_promises_kept.attentive` (95%+) | 99.5% | 100% | 99.7% | banded |
+  | `full_replies_in_long_episodes` (60%+) | 59.9% | 57.9% | 57.9% | deferred |
+  | `life_events.player_per_week` (1-3) | 0.90 | 0.92 | 0.93 | deferred |
+  | `life_events.person_per_month_d2plus` (0.5-1.5) | 1.10 | 1.27 | 1.23 | banded |
+  | `active_relationships_20h.attentive` (3-8) | 12 | 10.5 | 9 | deferred |
+  | `events_per_jump_morning_day60` (1500 or less) | 26 | 25 | 14 | banded |
+  | `life_decks_met_per_week` (unbanded) | 0.14 | 0.14 | 0.14 | reported |
+  | `ratio.chat` / `ratio.world` (derived) | 1.56 / 109 | 1.27 / 117 | 0.97 / 123 | derived |
+
+  The other policies' rows, at 15 s only (banded at 15 s only):
+
+  | Row (band) | Policy | 15 s | |
+  |---|---|---|---|
+  | `real_hours_to_depth.fast.2` / `.3` / `.4` (1-2 / 3-5 / 6-10) | devoted | 1.94 / 3.06 / 5.23 | banded / banded / deferred |
+  | `real_hours_to_depth.slow.2` / `.3` / `.4` (3-6 / 7-12 / 14-24) | devoted | 2.39 / 3.78 / 5.47 | deferred (too fast) |
+  | `devoted.together_10h` (40-70%) | devoted | 10% | deferred |
+  | `devoted.living_together_20h` (20-50%) | devoted | 20% | banded (at its floor) |
+  | `devoted.married_40h` (10-30%) | devoted | 30% | banded (at its ceiling) |
+  | `active_relationships_20h.bachelor` (3-8) | bachelor | 10 | deferred |
+  | `player_promises_kept.flaky` (55-75%) | flaky | 69.9% | banded |
+
+  The other voices (attentive, 15 s; reported, not banded): `romantic_model` puts 42.7% of scenes
+  at great; `cold_model` and `zero` never reach a number, so no scene; `no_model` (the fallback)
+  measures as the neutral model does. The day-180 save on full sessions (seed 7): attentive
+  843,415, bachelor 809,272, devoted 304,829 bytes, under the 1 MB budget and pinned at x1.25.
+  The broken lift's fix and the two news windows (this release) moved neither
+  `numbers_within_session` nor `end_reason.player` in the phone-only sessions T9 measured them in:
+  11.0 / 10.5 / 8.3% (T9: 13.8 / 8.7 / 6.8%) and 28.6 / 32.0 / 35.5% (T9: 26.5 / 32.3 / 35.4%).
+
+- The wedding invitation (5 days) and your promotion (7 days) now run a window: for that long you can tell people the news, and then it is old news. Before they had no window and were never offered.
+
 ## [0.23.3] — 2026-10-23
 
 ### Fixed

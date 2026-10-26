@@ -357,6 +357,21 @@ redirects to `/login` and every other route answers `401 {"error": "login
 required"}`; only `/api/health`, `/login`, `/logout` and `/static/*` are
 open, and the media, art and audio routes are not.
 
+The sound routes (v0.24.0) are behind the same gate: `GET /api/sounds`,
+`GET /api/sounds/catalog` and `GET /sound/<scope>/<path>` answer `401`
+without a login, and their files carry `Cache-Control: private,
+max-age=<sound.cache_seconds>` (3600), so a shared cache never keeps them. In
+hosted mode a story outside `hosting.stories` is not listed by the catalogue
+and its `/sound/<slug>/...` files answer `404`. The server only serves the
+data and the `.ogg` files; the browser makes the sound. `sound.enabled: false`
+governs play, not serving (a v0.24.0 T14 ruling): `/api/sounds` answers
+`{enabled: false}` and the client makes no effect sound, but the catalogue
+(`/api/sounds/catalog`), the audition page and the `/sound/...` files are
+still served behind the gate. An operator who wants the routes gone takes them
+off at the proxy. A story that declares `paths.sounds` with no `sounds.yaml`
+in it fails `validate_content.py`; at run time `/api/sounds` logs a warning and
+serves the engine's set alone, and the catalogue shows that story's error row.
+
 The login is Flask's signed cookie, `clockwork_session` (`HttpOnly`,
 `SameSite=Lax`, `Secure` unless `hosting.cookie_secure: false`), valid for
 `hosting.session_days` (14) after the last login or password change. It is

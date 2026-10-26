@@ -1,0 +1,18 @@
+# NEON CITY: THE CROSSING's sounds (v0.24.0 spec §9.4): data and glitch.
+version: 1
+events:
+  neon.watched: {label: "You are being watched"}
+sounds:
+  neon.blip:   {category: ui, label: "Blip", synth: {layers: [{wave: square, freq: 1600, attack_ms: 1, decay_ms: 25, gain: 0.12}]}}
+  neon.chirp:  {category: game, label: "Chirp", synth: {layers: [{wave: square, freq: 900, to: 2400, glide_ms: 60, attack_ms: 1, decay_ms: 70, gain: 0.12, filter: {type: lowpass, freq: 4000}}]}}
+  neon.data:   {category: game, label: "Data", file: engine:files/kenney/sci-fi-sounds/laserretro_000.ogg, gain: 0.5, fallback: {layers: [{wave: square, freq: 2000, attack_ms: 1, decay_ms: 40, gain: 0.1}, {wave: square, freq: 3000, start_ms: 60, attack_ms: 1, decay_ms: 40, gain: 0.1}]}}
+  neon.glitch: {category: alert, label: "Glitch", essential: true, synth: {layers: [{wave: square, freq: 180, attack_ms: 1, decay_ms: 220, gain: 0.15, tremolo: {rate_hz: 40, depth: 0.9}}, {wave: noise, attack_ms: 1, decay_ms: 160, gain: 0.08, filter: {type: highpass, freq: 3000}}]}}
+  neon.field:  {category: game, label: "A field hums up", file: engine:files/kenney/sci-fi-sounds/forcefield_000.ogg, gain: 0.6, fallback: {layers: [{wave: sawtooth, freq: 110, attack_ms: 200, decay_ms: 500, gain: 0.1, filter: {type: lowpass, freq: 800}}]}}
+  neon.scan:   {category: world, label: "Scan", synth: {layers: [{wave: sawtooth, freq: 300, to: 1200, glide_ms: 700, attack_ms: 50, decay_ms: 700, gain: 0.08, filter: {type: bandpass, freq: 1000, q: 2}}]}}
+bind:
+  ui.press: neon.blip
+  choice.pick: neon.chirp
+  turn.arrive: neon.data
+  alert.error: neon.glitch
+  encounter.start: neon.field
+  neon.watched: neon.scan

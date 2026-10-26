@@ -12,6 +12,8 @@
  */
 import React, { useEffect, useRef, useState } from "react";
 
+import { playSound } from "@core/sound/index.js";
+
 import MicButton from "../../../core/parts/MicButton.jsx";
 import ChoiceRow from "../../../core/parts/ChoiceRow.jsx";
 import NarrativeLog from "../../../core/parts/NarrativeLog.jsx";
@@ -64,11 +66,12 @@ export default function World({ state, phone = null, onChoose, onCustom = null, 
     if (!value || greyed || !onCustom) return;
     setText("");
     onCustom(value);
+    playSound("choice.send");
   }
   // The plate already names the place it has a name for; the label is for a plate that has none.
   const where = state.world && (state.world.location_name || state.world.location_id) ? "" : world.location || "";
   return (
-    <section className="rr-world" aria-label="Where you are">
+    <section className="rr-world" aria-label="Where you are" tabIndex={-1}>
       <div className="rr-world__plate">
         <ScenePlate state={state} />
         {where && <p className="rr-world__where">{where}</p>}
@@ -78,7 +81,7 @@ export default function World({ state, phone = null, onChoose, onCustom = null, 
       </div>
       {!phoneUp && <Buzz buzz={world.buzz} onPickUp={onPickUp} />}
       {!phoneUp && (
-        <button type="button" className="rr-world__pickup" onClick={onPickUp}>
+        <button type="button" className="rr-world__pickup" data-sound="none" onClick={onPickUp}>
           Pick up the phone
         </button>
       )}
@@ -115,7 +118,7 @@ export default function World({ state, phone = null, onChoose, onCustom = null, 
             disabled={greyed || !state.sessionId}
             onTranscript={(said) => setText((t) => (t ? `${t} ${said}` : said))}
           />
-          <button type="submit" className="btn" disabled={greyed || !text.trim()}>
+          <button type="submit" className="btn" data-sound="none" disabled={greyed || !text.trim()}>
             Send
           </button>
         </form>

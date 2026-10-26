@@ -180,6 +180,23 @@ the investigator's, and every ending's reach by a policy that plays for it;
 `--game hue-and-cry` runs this story's harnesses instead, through the last
 row above.
 
+## Sounds
+
+Heard in the browser (v0.24.0, `data/sounds/sounds.yaml`; latches, coin and the watch). The files are the engine's; each sound has a synthesised fallback. One action makes one sound.
+
+| When | Sound | What |
+|---|---|---|
+| Press | Wood | engine wood file |
+| Choice | A latch | engine latch file |
+| Turn arrives | Hand-bell | two sine partials |
+| Roll cast | Coin purse | engine coin file |
+| Wanted poster worsens | The watchman's rattle | tremolo noise |
+| Job stage changes | A latch | engine latch file |
+| Casing advances | A page turns | engine book file |
+| Encounter starts | A door shuts | engine door file |
+
+All of it rides engine events: its screens are engine panels, so it declares no event of its own. Every sound is on the audition page (`/?sounds=1`).
+
 ## Tests
 
 ```powershell

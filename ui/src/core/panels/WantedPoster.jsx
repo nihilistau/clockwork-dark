@@ -22,6 +22,7 @@ import React from "react";
 import Marks from "./Marks.jsx";
 import Panel from "./Panel.jsx";
 import { scaleIndex } from "./scale.js";
+import { useSoundOnChange } from "../sound/index.js";
 
 const DAY_WORDS = ["no days", "one day", "two days", "three days", "four days", "five days", "six days",
   "seven days", "eight days", "nine days", "ten days", "eleven days", "twelve days"];
@@ -71,6 +72,8 @@ function Sketch({ layers, label }) {
 
 export default function WantedPoster({ state }) {
   const law = state?.world?.law;
+  // The worst band's place on the wanted scale: a rise sounds, a fall does not.
+  useSoundOnChange(worstBand(law).index, "panel.wanted", { when: (a, b) => b > a });
   if (!law) return null;
   const scales = law.scales || {};
   const wantedScale = scales.wanted || [];

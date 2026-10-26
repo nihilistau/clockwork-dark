@@ -16,6 +16,7 @@ import React, { useEffect, useState } from "react";
 import Modal from "../parts/Modal.jsx";
 import { prettyPlace } from "../parts/Chrome.jsx";
 import { fetchGames } from "../api.js";
+import { playSound } from "../sound/index.js";
 import { clearOnboarded } from "../parts/Onboarding.jsx";
 
 // The keys core itself binds. Anything a story adds arrives as an overlay with
@@ -93,6 +94,7 @@ export default function Menu({
     setSaved("saving…");
     try {
       await onSaveNow(slot.trim());
+      playSound("game.save");
       setSaved("written");
     } catch (err) {
       setSaved(`could not save: ${err.message}`);
@@ -170,7 +172,7 @@ export default function Menu({
               placeholder="name this save (optional)"
               aria-label="Save slot name"
             />
-            <button type="button" className="btn btn--sm" onClick={saveNow} disabled={!saveId}>
+            <button type="button" className="btn btn--sm" onClick={saveNow} disabled={!saveId} data-sound="none">
               Write
             </button>
           </div>
@@ -183,7 +185,7 @@ export default function Menu({
             <span className="setting__body">
               <span className="setting__label">Volume</span>
               <span className="setting__hint">
-                {prefs.muted ? "muted" : `${Math.round(prefs.volume * 100)}%`}
+                {prefs.muted ? "muted" : `${Math.round((prefs.soundMaster ?? 0.8) * 100)}%`}
               </span>
             </span>
             <input
@@ -191,12 +193,13 @@ export default function Menu({
               min="0"
               max="1"
               step="0.05"
-              value={prefs.volume}
+              value={prefs.soundMaster ?? 0.8}
               disabled={prefs.muted}
+              data-sound="none"
               onChange={(e) =>
-                onChangePrefs({ ...prefs, volume: Number(e.target.value) })
+                onChangePrefs({ ...prefs, soundMaster: Number(e.target.value) })
               }
-              aria-label="Narration volume"
+              aria-label="Master volume"
             />
           </label>
           <label className="setting">
@@ -209,6 +212,9 @@ export default function Menu({
               <span className="setting__label">Mute entirely</span>
             </span>
           </label>
+          <a href="/?sounds=1" target="_blank" rel="noopener">
+            Listen to every sound
+          </a>
 
           <h3 className="menu__head">Keys</h3>
           <dl className="keymap">

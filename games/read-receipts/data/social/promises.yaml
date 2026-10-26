@@ -26,7 +26,7 @@
 #   broken            trust and warmth a broken player promise costs (exact)
 #   broken_reason     the engine's words the person's next reply carries once
 #                     after a broken promise ({window}: its window's words)
-#   phrases           with no model (§5.2): a whole phrase, case-folded, not in a
+#   phrases           read with or without a model (§5.2): a whole phrase, case-folded, not in a
 #                     question, matched in the player's message. `you`: "message
 #                     me ..." (the PERSON promises to write); `me`: "I'll message
 #                     you ..." (the PLAYER promises). Keyed by window.
@@ -44,6 +44,15 @@
 #   choice) 74.5 / 75.9 / 74.4% (55-75: DEFERRED to T29, CLAUDE.md). Nothing
 #   here retuned; `closed_kept` (T9 fix round 1) bounds the save, a count, not
 #   a balance constant.
+#
+# Measured T11 (v0.24.0, 2026-10-26) on FULL sessions (phone capped at 60%, then the world day):
+#   python scripts/simulate_social.py --game read-receipts --sessions 60 --seeds 1 --first-seed N
+#     --no-companion --policy P --model-seconds S --raw r.json   (N = 0..9), then --fold
+#   (neutral model; attentive at 6 / 15 / 30 s, every other policy at 15 s ONLY: the owner's
+#   10-seed scale). Banded or DEFERRED (CLAUDE.md), never widened:
+#   person_promises_kept 1.0 in every config (asserted); the attentive
+#   player's own 99.5 / 100 / 99.7% (95%+, banded); the flaky player's 69.9%
+#   at 15 s (55-75, banded at 15 s only). Nothing here retuned.
 
 later_min_hours: 2
 max_ahead_hours: 48
@@ -52,7 +61,7 @@ closed_kept: 3                   # closed promises kept per person at save compa
 kept_trust: 1
 broken: {trust: -3, warmth: -2}
 broken_reason: "they said they'd message you {window} and didn't"
-phrases:                         # with no model (§5.2): whole phrase, case-folded, not in a question
+phrases:                         # with or without a model (§5.2): whole phrase, case-folded, not in a question
   you:                           # "message me ..." -> the PERSON promises to write
     morning: ["message me in the morning", "text me in the morning", "message me tomorrow morning"]
     at_work: ["message me at work", "text me at work"]

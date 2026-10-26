@@ -110,6 +110,7 @@ paths:
   # data/rules/endings.yaml for the shape.
   endings: "games/clockwork-dark/data/rules/endings.yaml"
   epilogues: "games/clockwork-dark/data/epilogues"
+  sounds: "games/clockwork-dark/data/sounds"   # the palette: brass and gears (v0.24.0 spec §9.2)
 
 entry:
   # AGENTS.md pins this id as canon. Do not rename it.

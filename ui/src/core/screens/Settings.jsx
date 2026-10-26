@@ -33,7 +33,27 @@ export const DEFAULTS = {
   // The thinking panel is the most interesting thing on screen during a slow
   // local turn, but it is also a model talking to itself. Opt out here.
   showReasoning: true,
+  // Sound (v0.24.0): the master and the five categories (spec §7). `volume` stays the narration's own level.
+  soundMaster: 0.8,
+  soundUi: 0.6,
+  soundGame: 0.8,
+  soundAlert: 0.9,
+  soundPhone: 0.9,
+  soundWorld: 0.8,
+  quietInterface: false,
+  soundChoices: {},
 };
+
+/** The Sound fieldset's sliders: [pref key, label]. */
+const SOUND_LEVELS = [
+  ["soundMaster", "Master"],
+  ["soundUi", "Interface"],
+  ["soundGame", "Game"],
+  ["soundAlert", "Alerts"],
+  ["soundPhone", "Phone"],
+  ["soundWorld", "World"],
+  ["volume", "Narration"],
+];
 
 export function loadPrefs() {
   try {
@@ -49,6 +69,27 @@ export function savePrefs(prefs) {
   } catch {
     /* private browsing — settings just will not persist */
   }
+}
+
+function Level({ label, value, onChange }) {
+  return (
+    <label className="setting">
+      <span className="setting__body">
+        <span className="setting__label">{label}</span>
+        <span className="setting__hint">{Math.round(value * 100)}%</span>
+      </span>
+      <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        aria-label={`${label} volume`}
+        data-sound="none"
+      />
+    </label>
+  );
 }
 
 function Toggle({ label, hint, checked, onChange }) {
@@ -281,11 +322,23 @@ export default function Settings({ prefs, onChange, onClose }) {
           checked={prefs.showReasoning}
           onChange={set("showReasoning")}
         />
+      </fieldset>
+
+      <fieldset className="settings__group">
+        <legend className="field__label">Sound</legend>
+        {SOUND_LEVELS.map(([key, label]) => (
+          <Level key={key} label={label} value={prefs[key] ?? DEFAULTS[key] ?? 0.8} onChange={set(key)} />
+        ))}
+        <Toggle label="Mute all sound" hint="Silences every effect and the narration." checked={prefs.muted} onChange={set("muted")} />
         <Toggle
-          label="Mute narration audio"
-          checked={prefs.muted}
-          onChange={set("muted")}
+          label="Quiet interface"
+          hint="Only alerts and messages make a sound."
+          checked={Boolean(prefs.quietInterface)}
+          onChange={set("quietInterface")}
         />
+        <a href="/?sounds=1" target="_blank" rel="noopener">
+          Listen to every sound
+        </a>
       </fieldset>
 
       {failed && <p className="overlay__error">{failed}</p>}

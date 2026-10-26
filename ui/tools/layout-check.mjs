@@ -181,10 +181,38 @@ async function probe(browser, opts, tag, player, size) {
     const ledger = await ledgerPanels(page, opts, tag, size);
     if (ledger.missing.length) result.failures.push(`ledger panels not reachable: ${ledger.missing.join(", ")}`);
     if (ledger.clipped?.length) result.failures.push(`ledger controls cut off unreachably: ${ledger.clipped.join("; ")}`);
-    return { ...result, shelf, roll, ledger, png: file, override: opts.panels ? { panels: opts.panels } : null };
+    const sound = await soundSettings(page);
+    for (const failure of sound.failures) result.failures.push(`settings: ${failure}`);
+    return { ...result, shelf, roll, ledger, sound, png: file, override: opts.panels ? { panels: opts.panels } : null };
   } finally {
     await context.close();
   }
+}
+
+/**
+ * The Settings Sound fieldset (v0.24.0 T6): opened from the header, every one of its controls (the seven sliders,
+ * the two toggles, the audition link) must scroll into the window and lie wholly inside it. Escape closes it.
+ */
+async function soundSettings(page) {
+  const failures = [];
+  await page.getByRole("button", { name: "Settings", exact: true }).first().click();
+  await page.waitForSelector('[role="dialog"][aria-label="Settings"]', { timeout: 10000 });
+  const unreachable = await page.evaluate(() => {
+    const group = [...document.querySelectorAll(".settings__group")].find((g) => g.querySelector("legend")?.textContent.trim() === "Sound");
+    if (!group) return ["the Sound fieldset is missing"];
+    const bad = [];
+    for (const el of group.querySelectorAll("input, a")) {
+      el.scrollIntoView({ block: "nearest" });
+      const b = el.getBoundingClientRect();
+      const name = el.getAttribute("aria-label") || el.closest("label")?.textContent.trim() || el.textContent.trim() || el.type;
+      if (b.width <= 0 || b.height <= 0 || b.left < -0.5 || b.right > innerWidth + 0.5 || b.top < -0.5 || b.bottom > innerHeight + 0.5) bad.push(name);
+    }
+    return bad;
+  });
+  for (const name of unreachable) failures.push(`Sound control not reachable: ${name}`);
+  await page.keyboard.press("Escape");
+  await page.waitForSelector('[role="dialog"][aria-label="Settings"]', { state: "detached", timeout: 10000 });
+  return { failures };
 }
 
 /**
@@ -572,6 +600,50 @@ async function startScreen(browser, opts, size) {
   }
 }
 
+/**
+ * The sound audition page (?sounds=1, v0.24.0 T8): no horizontal page scroll, the filter focusable, and every
+ * play button reachable by scrolling it into view (the page scrolls; each button must then lie inside the window).
+ */
+async function auditionScreen(browser, opts, size) {
+  const context = await browser.newContext({
+    viewport: { width: size.width, height: size.height },
+    deviceScaleFactor: 1,
+    isMobile: size.phone,
+    hasTouch: size.phone,
+  });
+  try {
+    const page = await context.newPage();
+    await page.goto(new URL("/?sounds=1", opts.url).href, { waitUntil: "networkidle" });
+    await page.waitForSelector("section[data-scope]", { timeout: 30000 });
+    await page.evaluate(async () => { await document.fonts.ready; });
+    const failures = await page.evaluate(() => {
+      const bad = [];
+      const wide = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+      if (wide > 1) bad.push(`the page scrolls sideways by ${wide}px`);
+      const filter = document.querySelector("input.audition__filter");
+      if (!filter) bad.push("the filter is missing");
+      else {
+        filter.focus();
+        if (document.activeElement !== filter) bad.push("the filter cannot take focus");
+      }
+      const buttons = [...document.querySelectorAll("button.audition__play")];
+      if (!buttons.length) bad.push("no play button on the page");
+      let unreachable = 0;
+      for (const b of buttons) {
+        b.scrollIntoView({ block: "center" });
+        const r = b.getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0 || r.left < -0.5 || r.right > innerWidth + 0.5 || r.top < -0.5 || r.bottom > innerHeight + 0.5) unreachable += 1;
+      }
+      if (unreachable) bad.push(`${unreachable} of ${buttons.length} play buttons cannot be reached`);
+      return bad;
+    });
+    await page.screenshot({ path: join(opts.out, `sounds-${size.name}.png`), animations: "disabled" });
+    return { failures };
+  } finally {
+    await context.close();
+  }
+}
+
 async function main() {
   const opts = args(process.argv.slice(2));
   opts.out = resolve(opts.out);
@@ -594,6 +666,13 @@ async function main() {
       if (start.failures.length) failed += 1;
       console.log(`${start.failures.length ? "FAIL" : "ok  "} ${opts.story}/start ${size.name}  [begin bottom ${start.bottom}px]` +
         (start.failures.length ? `  ${start.failures.join(" | ")}` : ""));
+    }
+    for (const size of SIZES) {
+      const audition = await auditionScreen(browser, opts, size);
+      results[`sounds/${size.name}`] = audition;
+      if (audition.failures.length) failed += 1;
+      console.log(`${audition.failures.length ? "FAIL" : "ok  "} sounds ${size.name}` +
+        (audition.failures.length ? `  ${audition.failures.join(" | ")}` : ""));
     }
     for (const tag of tags) {
       const player = runs[tag]?.player;

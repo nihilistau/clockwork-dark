@@ -19,7 +19,10 @@ manifests), and v0.21.0 adds S3 (the poster's and job panel's scales), S4
 (``/api/people``), S5 (HUE & CRY's ``ui`` block), S6 (``turn_running`` on
 a rejoin), S7 and S8 (the codex's souls and vendors), S9 (a resume in an open
 encounter) and S10 (the pace slider's range, marks and hint), and v0.22.0
-adds S11 (READ RECEIPTS's row in the catalogue). There are no others.
+adds S11 (READ RECEIPTS's row in the catalogue), and v0.24.0 adds S13 (the
+sound blueprint's three URL rules) and S12 (``paths.sounds`` in the catalogue rows
+of the stories that declare sounds: five rows, ``EXPECTED_SOUNDS_ROWS``). There
+are no others.
 
 The capture opens no socket (Flask's and Socket.IO's test clients), writes
 nothing outside the test's temp directory (asserted, by an audit hook), and
@@ -471,7 +474,7 @@ READ_RECEIPTS_ROW: dict[str, Any] = {
     # every key the other rows carry with this story's values, plus the one
     # extra its manifest declares (`endless`). Reviewed against a live
     # registry.catalog() row once, by hand. Edited in place since: v0.23.0
-    # T10 (`entry_location`), T11 (`version`, the directives, `paths.decks`), T23F (`paths.npc_schedules`), T26 (the three `paths.art_*`).
+    # T10 (`entry_location`), T11 (`version`, the directives, `paths.decks`), T23F (`paths.npc_schedules`), T26 (the three `paths.art_*`), v0.24.0 T9 (`paths.sounds`).
     "active": False,
     "archetypes": [],
     "blurb": (
@@ -491,6 +494,7 @@ READ_RECEIPTS_ROW: dict[str, Any] = {
         "npc_schedules": "games/read-receipts/data/world/npc_schedules.yaml",
         "prompts": "games/read-receipts/prompts",
         "social": "games/read-receipts/data/social",
+        "sounds": "games/read-receipts/data/sounds",
     },
     "playable": True,
     "problems": [],
@@ -525,11 +529,74 @@ def with_read_receipts(value: Any) -> None:
 RECEIPTS_SANCTION: tuple[str, Callable[[str], str]] = ("games.json", json_sanction(with_read_receipts))
 
 
+#: S13 (v0.24.0 spec §10): the sound blueprint's three URL rules, and nothing else in the app's shape.
+SOUND_RULES: list[list[Any]] = [
+    ["/api/sounds", ["GET", "HEAD", "OPTIONS"], "sounds.api_sounds"],
+    ["/api/sounds/catalog", ["GET", "HEAD", "OPTIONS"], "sounds.api_catalog"],
+    ["/sound/<scope>/<path:name>", ["GET", "HEAD", "OPTIONS"], "sounds.sound_file"],
+]
+
+
+def with_sound_rules(value: Any) -> None:
+    rules = value["url_map"]
+    assert not any(r[0].startswith(("/api/sounds", "/sound/")) for r in rules), "S13 applied twice"
+    rules.extend(copy.deepcopy(SOUND_RULES))
+    rules.sort()  # the recorder's own order (capture: `sorted([rule, sorted(methods), endpoint] ...)`)
+
+
+SOUND_RULES_SANCTION: tuple[str, Callable[[str], str]] = ("app_shape.json", json_sanction(with_sound_rules))
+
+#: S12 (v0.24.0 spec §10): `paths.sounds` in each declaring story's catalogue rows, filled by the task that
+#: makes the story declare it (T9 READ RECEIPTS, through READ_RECEIPTS_ROW, which carries its value since T9 and so
+#: is NOT in this table -- listing it here would apply S12 twice; T10 the other five, below). dev-story declares
+#: nothing and is the byte-identity proof.
+EXPECTED_SOUNDS_ROWS: dict[str, str] = {
+    "clockwork-dark": "games/clockwork-dark/data/sounds",
+    "wicked-garden": "games/wicked-garden/data/sounds",
+    "neon-city": "games/neon-city/data/sounds",
+    "the-long-con": "games/the-long-con/data/sounds",
+    "hue-and-cry": "games/hue-and-cry/data/sounds",
+}
+
+
+def with_sounds_paths(expected: int) -> Callable[[str], str]:
+    """S12: `paths.sounds` gains its value in each declaring story's game row (`/api/games`) or manifest
+    (`/api/games/active`, `/api/games/<slug>`), and nowhere else; exactly `expected` rows."""
+
+    def transform(value: Any) -> None:
+        body = value["json"]
+        if "games" in body:
+            rows = body["games"]
+        elif "manifest" in body:
+            rows = [body["manifest"]]
+        else:
+            rows = [body]
+        touched = 0
+        for row in rows:
+            slug = row.get("slug")
+            if slug in EXPECTED_SOUNDS_ROWS:
+                assert "sounds" not in row["paths"], "S12 applied twice"
+                row["paths"]["sounds"] = EXPECTED_SOUNDS_ROWS[slug]
+                touched += 1
+        assert touched == expected, f"S12 touched {touched}, not {expected}"
+
+    return json_sanction(transform)
+
+
+#: S12's fixtures and counts: READ RECEIPTS' row is S11's constant, edited in place by T9.
+SOUNDS_SANCTION: list[tuple[str, Callable[[str], str]]] = [
+    ("games.json", with_sounds_paths(5)),
+    ("games_active.json", with_sounds_paths(1)),
+    ("games_clockwork-dark.json", with_sounds_paths(1)),
+    ("games_hue-and-cry.json", with_sounds_paths(1)),
+]
+
+
 #: ``(fixture name, transform)``: the recording, as the sanctioned change
 #: makes it. S1 since v0.20.0 T2, S2 since T3, S3-S10 since v0.21.0
 #: (spec §1.2; S7 added in T3 fix round 1, S8 in fix round 2, S9 in the
 #: encounter-resume fix, S10 in T13 fix round 1, S5 in T14), S11 since
-#: v0.22.0 T2; there are no others.
+#: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10; there are no others.
 SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     BIND_SANCTION,
     *SAVES_SANCTION,
@@ -542,6 +609,8 @@ SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     SLIDER_SANCTION,
     *UI_SANCTION,
     RECEIPTS_SANCTION,
+    SOUND_RULES_SANCTION,
+    *SOUNDS_SANCTION,
 ]
 
 
@@ -951,3 +1020,35 @@ def test_hue_scales_reads_the_shipped_bands() -> None:
             "alarm": ["quiet", "uneasy", "stirring", "restless", "roused", "raised"],
         },
     }
+
+
+def test_the_sound_rules_sanction_is_exact() -> None:
+    """S13 adds exactly the three sound rules to app_shape.json's url_map, and nothing else in the file moves."""
+    before = _recorded()["app_shape.json"]
+    after = SOUND_RULES_SANCTION[1](before)
+    assert after != before
+    changed = [l for l in difflib.ndiff(before.splitlines(), after.splitlines()) if l.startswith(("- ", "+ "))]
+    assert changed and all(l.startswith("+ ") for l in changed), changed
+    old, new = json.loads(before), json.loads(after)
+    assert {k: v for k, v in new.items() if k != "url_map"} == {k: v for k, v in old.items() if k != "url_map"}
+    added = [r for r in new["url_map"] if r not in old["url_map"]]
+    assert sorted(map(json.dumps, added)) == sorted(map(json.dumps, SOUND_RULES))
+    with pytest.raises(AssertionError, match="S13 applied twice"):
+        SOUND_RULES_SANCTION[1](after)
+
+
+def test_the_sounds_sanction_is_exact() -> None:
+    """S12 changes each of its four fixtures by `"sounds": "games/<slug>/data/sounds"` lines only, one per
+    declaring row (5/1/1/1), and dev-story's row never gains one (pre-flight F8, gap 3)."""
+    counts = {"games.json": 5, "games_active.json": 1, "games_clockwork-dark.json": 1, "games_hue-and-cry.json": 1}
+    allowed = {f'"sounds": "{path}"' for path in EXPECTED_SOUNDS_ROWS.values()}
+    recorded = _recorded()
+    for name, transform in SOUNDS_SANCTION:
+        before = recorded[name]
+        after = transform(before)
+        assert after != before, name
+        changed = [l for l in difflib.ndiff(before.splitlines(), after.splitlines()) if l.startswith(("- ", "+ "))]
+        assert changed and all(l.startswith("+ ") for l in changed), (name, changed)
+        assert all(l[2:].strip().rstrip(",") in allowed for l in changed), (name, changed)
+        assert len(changed) == counts[name], (name, len(changed))
+        assert "games/dev-story/data/sounds" not in after, name

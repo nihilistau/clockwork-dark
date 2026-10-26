@@ -33,8 +33,10 @@ seconds -- a send (and a "talk later") 30, a swipe, like or pass 4 (an ask
 or an answer is priced as a tap, a swipe's 4), each bubble of theirs the player
 reads 3, and the model's seconds (``--model-seconds``: 6, 15 or 30, the
 latency of §20.2) for each reply a send got; a ``wait`` costs nothing. The
-world's two (``world`` 35, ``moment`` 40) are T29's: no phone-only session
-spends them.
+world's two (T29): a world turn (``World.turn``: a walk to a room, an activity,
+going out, waiting for someone) ``world`` 35, and a scene's move or closer
+``moment`` 40 -- still spec §3.4's first estimates (T29 Step 1's pane
+measurement has not replaced them; T31 re-checks all of them live).
 
   Calibration (T9, against v0.22.0 T30's measured cadence: an agent driving
   the pane did p95 32 and at most 36 actions a minute, its dedicated swipe
@@ -45,13 +47,38 @@ spends them.
   stand (reported per run: ``also.actions_per_real_minute_max``). T29
   calibrates ``world`` and ``moment``; T31 re-checks all of them live.
 
-A SESSION (T9, PHONE ONLY; ``Session``) is ``SESSION_REAL_SECONDS`` (40 real
-minutes) of the policy's actions from its waking hour: it looks at the phone
-and waits for more (a wait is free) until the session's real seconds are
-spent or its bedtime comes, then winds down -- says "talk later" in any
-conversation it was still in, and keeps any promise of its own that opens
-before the morning -- and "goes to bed" with ``wait {until: morning}``. T29
-swaps in the world's sleep, work and scenes.
+A SESSION (``Session``) is ``SESSION_REAL_SECONDS`` (40 real minutes) of the
+policy's actions from its waking hour: it looks at the phone and waits for more
+(a wait is free) until the session's real seconds are spent or its bedtime
+comes, then winds down -- says "talk later" in any conversation it was still
+in, and keeps any promise of its own that opens before the morning. PHONE ONLY
+(``world=False``, ``--phone-only``; T9's) it then "goes to bed" with ``wait
+{until: morning}``. FULL (the default since T29 Step 2, v0.24.0 §13) the world
+runs between its looks (``World.step``), each step a world turn through the
+engine's own narrated turn (``default_scene.run_guarded``, narrated by
+``StubNarration``, the phone put down first): a shift on a work day (from the
+hall; each buzz that stops it, the policy looks, then carries on), the plans it
+made or said yes to (to the place, "Wait for {name}", the evening's scene:
+``ask_about`` at their depth, ``playful``, then its closer -- "Call it a night"
+with a promise half the time, or, for the attentive and devoted players, back to
+theirs or the flat and staying the night when offered), dinner, the four life
+decks of v0.24.0 §12.2 (on a day one runs the policy walks once to its room and
+takes the deck's first beat; any dealt card is answered with its first beat
+wherever it is met), an evening with a partner who lives with it, and the way
+home. The phone's waits go no further than an hour toward the world's next
+step (``World.next_at``). A plan still due that evening is kept after the
+session's time is spent; then the policy's bed: the bedroom and ``sleep`` from
+20:00 (an earlier end passes the day on the phone's ``wait {until: morning}``).
+A stay-over ends the session there: the next one opens on the morning scene,
+where the policy takes one ``quiet`` and sees them out (the flat) or heads home
+(theirs). The morning counts as no scene (v0.24.0 §12.1).
+
+THE PHONE'S SHARE (v0.24.0 T11, a harness shape, not a balance constant): in a
+full session the policy's phone actions stop at ``PHONE_SHARE`` (60%) of the
+session's real seconds, and the rest is the world day's; past it the policy
+only keeps its own promises as their windows open (one message each), and its
+"talk later" promises the next session. Without it a live policy spent all 40
+minutes on the phone in the morning and skipped work and dinner.
 
 THE GAME SESSION is built by ``SessionStore.create`` over a save store that keeps
 nothing (``_KeepsNothing``, ``keeps_nothing = True``; Plan decision 28), so a
@@ -81,12 +108,14 @@ is talking with that it has not talked to that day, and to every new match.
   pushy       Sends two messages each time; asks for a number at every look
               once a person is talking.
   devoted     Once someone it talks to reaches the `everyday` rung, talks to
-              them alone (spec §17.1; plans, scenes and the long-term asks are
-              T29's).
+              them alone (spec §17.1); asks each long-term step (exclusive,
+              moving in, marrying) as soon as their thread offers it, proposes
+              in a scene when offered, and goes to the wedding.
   bachelor    Keeps 3-6 relationships going: writes first to no new match
               while six people are talking with it.
   flaky       The attentive player who breaks a third of its own promises
-              (it does not write in their window); standing up a plan is T29's.
+              (it does not write in their window) and stands up one plan in
+              five (it never sets out for it).
   chatty      The attentive player whose messages are long (90-160
               characters): the player text lengths that drive `deep`.
 
@@ -134,6 +163,32 @@ The rows T9 measures:
   full_replies_in_long_episodes   of the replies decided in episodes of six or
                         more exchanges, the share `chatting` or `deep`
 
+The rows the world adds (T29; full sessions only, else ``None``):
+
+  ratio.world           in-game minutes per real minute over the world turns
+                        (derived)
+  sessions_to_first_scene   per person who had one, the sessions from their
+                        match's to their first scene's (median)
+  real_hours_to_depth.<fast|slow>.<2|3|4>   per person, the run's real hours
+                        (phone and world) from their match to that depth, by
+                        pace tercile (median)
+  scene_band.<band>     of the scenes that ended, the share by end band; the
+                        morning after is no scene (v0.24.0 §12.1)
+  life_events.player_per_week / .person_per_month_d2plus   the player's events
+                        a week; a person's, started at depth 2 or more, per
+                        month they were at depth 2 or more
+  devoted.together_10h / .living_together_20h / .married_40h   of the devoted
+                        runs, the share that reached the stage within those
+                        real hours
+  active_relationships_20h.<bachelor|attentive>   the people with an episode in
+                        the 7 in-game days before 20 real hours (median)
+  events_per_jump_morning_day60   the social events the night's sleep into
+                        day 60 applied (the most of any run)
+  life_decks_met_per_week   the four life decks met (their first beat taken)
+                        a week: reported, unbanded (``UNBANDED_ROWS``)
+  save_bytes_day180.*   ``write_day_save``'s, measured by the save-size test
+                        (``None`` here)
+
 Also reported (``also.*``, never banded): ``chat_minutes_to_depth1.<tercile>``
 (real minutes from match to the `everyday` rung), every end reason's share,
 the episodes the player never wrote in,
@@ -160,6 +215,8 @@ Usage:
     python scripts/simulate_social.py --game read-receipts --first-seed 0 --seeds 5 --raw r0.json
     python scripts/simulate_social.py --game read-receipts --first-seed 5 --seeds 5 --raw r5.json
     python scripts/simulate_social.py --game read-receipts --fold r0.json r5.json
+    # the day-180 save the size bound pins, one policy (prints save.json's bytes):
+    python scripts/simulate_social.py --game read-receipts --day-save 180 --first-seed 7 --policy attentive --disk DIR
 """
 
 from __future__ import annotations
@@ -203,15 +260,25 @@ REPORT_ROWS: tuple[str, ...] = (
     "active_relationships_20h.bachelor", "active_relationships_20h.attentive",
     "save_bytes_day180.attentive", "save_bytes_day180.bachelor", "save_bytes_day180.devoted",
     "events_per_jump_morning_day60",
+    "life_decks_met_per_week",                                        # v0.24.0 §13 (T11): reported, unbanded
 )
 #: Rows that follow arithmetically from ``REAL_SECONDS``: reported, never banded (spec §3.4).
 DERIVED_ROWS: frozenset[str] = frozenset({"ratio.chat", "ratio.world", "ratio.overall"})
+#: Rows reported with no band to hold (v0.24.0 §13): how often the four life decks of v0.24.0 §12.2 are met
+#: (their room walked to on a day they run and the first beat taken), per in-game week.
+UNBANDED_ROWS: frozenset[str] = frozenset({"life_decks_met_per_week"})
 
 #: Each policy action's real seconds (spec §3.4), the first estimates from v0.22.0 T30's cadence
 #: (the module docstring's calibration). `world` and `moment` are T29's.
 REAL_SECONDS: dict[str, float] = {"send": 30.0, "read_bubble": 3.0, "swipe": 4.0, "world": 35.0, "moment": 40.0}
 #: A session's real seconds: 40 real minutes (spec §3.2's 30-45).
 SESSION_REAL_SECONDS = 40 * 60
+#: A FULL session's phone share (v0.24.0 T11, the controller's ruling; a harness shape, not a balance
+#: constant): the policy's phone actions stop at this share of the session's real seconds, and the rest is the
+#: world day's (work, dinner, the plans). Without it a live policy spent the whole session on the phone in the
+#: morning and skipped its day (T11 phase 1: 2-4 work days and 1-4 dinners in 60 sessions). A phone-only
+#: session (T9's) has no cap.
+PHONE_SHARE = 0.6
 #: The model latencies a banded run is made at (spec §3.4, I8): the bands hold at 30, the worst case.
 MODEL_SECONDS: tuple[float, ...] = (6.0, 15.0, 30.0)
 DEFAULT_MODEL_SECONDS = 15.0
@@ -226,18 +293,30 @@ COMPANION_ROWS: dict[str, str] = {"player_promises_kept.flaky": "flaky"}
 class RealClock:
     """Real seconds spent by the policy's actions in one session (no wall clock is read: rule R-03)."""
 
-    def __init__(self, model_seconds: float, budget: float = SESSION_REAL_SECONDS) -> None:
+    def __init__(self, model_seconds: float, budget: float = SESSION_REAL_SECONDS,
+                 phone_budget: Optional[float] = None) -> None:
         self.model_seconds = float(model_seconds)
         self.budget = float(budget)
+        #: The phone's own share of ``budget`` (``PHONE_SHARE`` in a full session; None: all of it, T9's).
+        self.phone_budget = float(budget if phone_budget is None else phone_budget)
         self.spent = 0.0
+        #: The real seconds of the phone's actions alone (``charge``); a world turn adds to ``spent`` only.
+        self.phone_spent = 0.0
 
     def charge(self, action: str, *, bubbles: int = 0, replies: int = 0) -> None:
-        self.spent += REAL_SECONDS.get(action, 0.0) + REAL_SECONDS["read_bubble"] * bubbles
-        self.spent += self.model_seconds * replies
+        seconds = REAL_SECONDS.get(action, 0.0) + REAL_SECONDS["read_bubble"] * bubbles
+        seconds += self.model_seconds * replies
+        self.spent += seconds
+        self.phone_spent += seconds
 
     @property
     def over(self) -> bool:
         return self.spent >= self.budget
+
+    @property
+    def phone_over(self) -> bool:
+        """The phone's share is spent: no more phone actions this session (the world day goes on)."""
+        return self.phone_spent >= self.phone_budget
 
 
 #: ``Phone.away``'s absence in the replay script (spec §19.1): 72 hours.
@@ -287,6 +366,111 @@ LIKE_ACTIONS: frozenset[str] = frozenset({"swipe", "like", "like_back"})
 #: (7) -- so a policy that sleeps "until morning" wakes inside its own day.
 HOUR_WAKE = 7.0
 HOUR_BED = 23.0
+
+# -- the world half of a full session (T29 Step 2; v0.24.0 §13) ---------------------------------------------
+
+#: The four life decks met by walking to their room (v0.24.0 §12.2, §13): the policies `go` straight to
+#: venues, so on a day one runs the policy walks once to its room, where the director deals it, and takes
+#: the deck's first beat.
+DECK_ROOMS: dict[str, str] = {"neighbour_party": "apt_hall", "lift_out": "bldg_lift", "family_visit": "apt_lounge",
+                              "wedding_invite": "apt_hall"}
+#: The policy cooks and eats once an evening from this hour, unless a plan is due soon.
+DINNER_HOUR = 18.0
+#: It sets out for a `now` / `tonight` plan this long before the plan is due (and waits there: "Wait for").
+PLAN_LEAD_HOURS = 1.0
+#: It skips its own dinner when a plan of the evening is due within this many hours (it eats out).
+DINNER_PLAN_HOURS = 3.0
+#: It goes to work this long before its work band starts ("Go to work" is offered earlier, from the hall).
+WORK_LEAD_HOURS = 0.5
+#: It asks someone to meet `tonight` before this hour, and `now` before WORK_NOW_BEFORE; later, not at all.
+MEET_TONIGHT_BEFORE = 17.0
+MEET_NOW_BEFORE = 21.0
+#: A session that ends before this hour does not walk to bed: the rest of the day passes on the phone's
+#: `wait {until: morning}`, as T9's sessions did (a nap at noon would wake the player at four).
+BED_FROM_HOUR = 20.0
+#: A sleep that ends before this hour, after the waking hour, woke the player into the next morning.
+MORNING_ENDS = 12.0
+#: Bounds on the world's loops (each step is a priced world turn, so none spins: these only cap a stuck run).
+SCENE_STEPS_MAX = 24
+WORK_STOPS_MAX = 60
+SLEEP_STOPS_MAX = 6
+#: The two moves a policy takes in an evening before its closer (T29 Step 2: `ask_about` at their depth,
+#: then `playful`); the morning after takes one `quiet` (v0.24.0 §13).
+DATE_MOVES: tuple[str, ...] = ("ask_about", "playful")
+#: The closers that move an evening on to another place: a policy takes one at most once an evening, so the
+#: evening never goes back and forth between the two homes.
+MOVING_ON: frozenset[str] = frozenset({"back_to_yours", "back_to_theirs", "go_somewhere_else"})
+MORNING_MOVE = "quiet"
+#: The stages that count as "together" for `devoted.together_10h` (spec §17.2).
+TOGETHER_STAGES: frozenset[str] = frozenset({"exclusive", "living_together", "engaged", "married"})
+#: The real-hour marks of the long-term and active-relationship rows (spec §17.2).
+TOGETHER_REAL_HOURS = 10.0
+LIVING_REAL_HOURS = 20.0
+MARRIED_REAL_HOURS = 40.0
+ACTIVE_REAL_HOURS = 20.0
+#: "Active": an episode with them in the last this-many in-game days before the mark (spec §17.2).
+ACTIVE_DAYS = 7.0
+#: The in-game day the jump-to-morning event count is taken at (spec §17.2).
+JUMP_DAY = 60
+#: The depths `real_hours_to_depth.*` reports (spec §17.2).
+DEPTH_ROWS: tuple[int, ...] = (2, 3, 4)
+#: A scene's end bands, best first (scenes.yaml `end_bands` and below).
+SCENE_BANDS: tuple[str, ...] = ("great", "good", "fine", "awkward", "bad")
+
+#: The narration the harness's storyteller writes for a world turn (no model is ever called).
+_NARRATION = ("The day goes on around you in its ordinary way: the light shifting on the walls, the street "
+              "carrying on below, the small sounds of the building settling. Nothing asks anything of you for "
+              "a moment, and you take it as it comes.")
+
+
+class StubNarration:
+    """
+    The world turn's storyteller, with no model (T29 Step 2; the tests' ``StubNarrator`` shape): for a
+    Storyteller call, a turn valid under the live grammar -- the narration above and the first three legal
+    verbs as choices, each with an intent on its first target; any other agent's call gets a short line.
+    The policy does not pick from these choices: it hands the turn its own intent, which the engine
+    re-checks against what is legal now (``tool_dispatcher.execute_intent``), as every choice is.
+    """
+
+    def __init__(self) -> None:
+        self.calls = 0
+        #: The run's state (``Phone`` sets it): the turn's verbs are read off it.
+        self.state: Any = None
+
+    def __call__(self, messages: list[dict[str, Any]], **_: Any) -> str:
+        from engine.agents.prompts import storyteller_persona
+
+        persona = storyteller_persona().strip().splitlines()[0]
+        if not any(persona in str(m.get("content", "")) for m in messages):
+            return "Nothing is said, at length."
+        self.calls += 1
+        return json.dumps(self.turn())
+
+    def turn(self) -> dict[str, Any]:
+        from engine.game.intents import legal_intents
+
+        state = self.state
+        if state is None:
+            from engine.game.engine import get_active_engine
+
+            state = get_active_engine().state
+        verbs = legal_intents(state)
+        choices: list[dict[str, Any]] = []
+        for verb in verbs:
+            if len(choices) == 3:
+                break
+            if verb.extra:
+                continue
+            row: dict[str, Any] = {"id": "abcd"[len(choices)], "text": f"{verb.action} {len(choices)}"[:100]}
+            if verb.targets:
+                row["text"] = verb.label_for(verb.targets[0])[:100]
+                row["intent"] = {"action": verb.action, "target": verb.targets[0]}
+            else:
+                row["intent"] = {"action": verb.action}
+            choices.append(row)
+        while len(choices) < 2:
+            choices.append({"id": "abcd"[len(choices)], "text": "Stay where you are"})
+        return {"narration": _NARRATION, "choices": choices}
 
 
 # ---------------------------------------------------------------------------
@@ -403,6 +587,9 @@ class _KeepsNothing:
     def save(self, state: Any, **_: Any) -> str:
         return ""
 
+    def append_transcript(self, save_id: str, record: dict[str, Any]) -> None:
+        """A world turn's narration line (``default_state._autosave``): kept nowhere."""
+
 
 _KEEPS_NOTHING = _KeepsNothing()
 
@@ -465,20 +652,54 @@ DEFERRAL_RETRIES = 3
 def _quiet_summaries() -> Iterator[None]:
     """
     For the run: the thread summary's deterministic fallback (never a model),
-    and the pass deadline pinned past reach (``PASS_DEADLINE_SECONDS``); both
+    the pass deadline pinned past reach (``PASS_DEADLINE_SECONDS``), and no
+    model server (profiles resolve offline; no backend is built); all
     restored after.
     """
+    from engine.llm import backend, profiles
     from engine.social import voicer
 
     before = voicer._summary_fn
     deadline = voicer._deadline_seconds
+    bind, get_backend = profiles._bind, backend.get_backend
     voicer.set_summary_fn(lambda messages: "")
     voicer._deadline_seconds = lambda: PASS_DEADLINE_SECONDS   # type: ignore[assignment]
+    # No model server, ever (T29: a world turn reads the narration budget off the bound model, which asks the
+    # server what is loaded): every profile resolves as the engine does offline, from config, and anything
+    # that would build a backend to talk to one is refused here, before it connects.
+    profiles._bind = lambda profile, settings: None             # type: ignore[assignment]
+    backend.get_backend = _no_backend                          # type: ignore[assignment]
+    profiles._cache.clear()
     try:
         yield
     finally:
+        profiles._cache.clear()
+        profiles._bind, backend.get_backend = bind, get_backend  # type: ignore[assignment]
         voicer._deadline_seconds = deadline                    # type: ignore[assignment]
         voicer.set_summary_fn(before)
+
+
+def _no_backend(*_: Any, **__: Any) -> Any:
+    raise RuntimeError("simulate_social: a harness run reaches no model server (its voices and narrator are stubs)")
+
+
+@contextmanager
+def _scheduler_paused() -> Iterator[None]:
+    """
+    The voicing scheduler paused for the run (a world turn requests a pass, `voicer.request(now=True)`, as the
+    route does): the harness voices on its own thread after every action (``Phone.voice``), so no background
+    pass ever races it. Resumed after only if it was running before.
+    """
+    from engine.social import voicer
+
+    scheduler = voicer.get_scheduler()
+    was = bool(getattr(scheduler, "_paused", False))
+    scheduler.pause()
+    try:
+        yield
+    finally:
+        if not was:
+            scheduler.resume()
 
 
 def _landed(message: dict[str, Any]) -> bool:
@@ -494,15 +715,22 @@ def _bubbles(message: dict[str, Any]) -> int:
 class Phone:
     """One run: a session in a keeps-nothing store, its stub voice, and one action at a time."""
 
-    def __init__(self, seed: int, voice_policy: str, *, disk: Optional[Path] = None) -> None:
+    def __init__(self, seed: int, voice_policy: str, *, disk: Optional[Path] = None,
+                 looking_for: Optional[str] = None) -> None:
         from engine.scenes.default_state import SessionStore
 
         _private_storage()                         # first: never the owner's storage (T5 review C1)
         _ensure_active()
         saves = _disk_store(Path(disk)) if disk is not None else _KEEPS_NOTHING
         self.store = SessionStore(save_store=lambda: saves)
-        self.session = self.store.create(seed=seed, player_name="Sam", llm_fn=lambda m, **k: "{}")
+        #: The world turn's storyteller (``StubNarration``): the phone's actions never call it.
+        self.narrator = StubNarration()
+        # The player's creation form takes its defaults but for what the policy looks for (the devoted
+        # player's `long_term`, spec §17.1); None: the form's default, as before.
+        creation = {"looking_for": looking_for} if looking_for else None
+        self.session = self.store.create(seed=seed, player_name="Sam", llm_fn=self.narrator, creation=creation)
         self.state = self.session.engine.state
+        self.narrator.state = self.state
         #: A run on disk spills its threads into the archive after every action, as play's saves do.
         self.disk = disk is not None
         if self.disk and not self.session.save_id:   # the store's create saved the opening already
@@ -525,6 +753,13 @@ class Phone:
         self._read: set[str] = set()
         #: Actions after whose voicing something was still due (``voice``).
         self.unquiet = 0
+        #: Every priced world turn (``World.turn``): (in-game hour after it, real seconds, in-game minutes,
+        #: kind -- ``world`` or ``moment``). Kept apart from ``charges``, whose rows are the phone's chat.
+        self.world_charges: list[tuple[float, float, float, str]] = []
+        self.world_actions = 0
+        self.world_refused = 0
+        #: The social events applied by the sleep that jumps to the morning of day ``JUMP_DAY`` (``World.bed``).
+        self.jump_events: Optional[int] = None
         self.act("wait", args={"until": "1h"})   # a first payload to read (and the queue's first events)
 
     @property
@@ -934,12 +1169,25 @@ class Policy:
     break_share = 0.0
     #: Writes first to no new match while this many people are talking with it (None: no limit).
     max_live: Optional[int] = None
-    #: Talks only to the first person it talks with who reaches the `everyday` rung.
+    #: Talks only to the first person it talks with who reaches the `everyday` rung (one who wants what it
+    #: wants first, when there is one: their profile's "looking for").
     devoted = False
+    #: The creation form's `looking_for` (None: the form's default, `unsure`). The devoted player's is
+    #: `long_term`: `willing.exclusive` needs both sides to want it (growth.yaml), so with the default no run
+    #: could ever reach `exclusive` (T11's first measure: 0 of 10 devoted runs).
+    looking_for: Optional[str] = None
     #: It writes first only while the session has time left for this many exchanges (a send, the
     #: model's reply and its reading): no conversation started that the session's end would cut short.
     start_reserve_exchanges = 8
     texts: tuple[str, ...] = TEXTS
+    # -- the world (full sessions only: ``in_world``, set by ``Session(world=True)``) --
+    #: It asks people to meet (`ask {what: meet}`) and keeps its plans.
+    meets = True
+    #: It asks them back to its flat or goes back to theirs, and to stay the night, when offered (v0.24.0 §13:
+    #: the devoted and attentive players reach the morning after).
+    stays = False
+    #: The share of its plans it stands up (never goes to), spec §17.1's flaky player.
+    stand_up_share = 0.0
 
     def __init__(self, phone: Phone, seed: int) -> None:
         from engine.game.rng import stable_rng
@@ -957,6 +1205,13 @@ class Policy:
         self._said = 0
         #: The cold messages it sent: (pid, thread id, in-game hour, depth).
         self.cold: list[tuple[str, str, float, int]] = []
+        #: A full session's world (``Session(world=True)`` sets it): the asks to meet and the long-term asks
+        #: are made only then, so a phone-only run is T9's.
+        self.in_world = False
+        self.meet_asked: dict[str, float] = {}
+        self.long_asked: dict[str, float] = {}
+        #: Its world driver, kept across the run's sessions (``Session`` makes it).
+        self.world: Optional["World"] = None
 
     # -- small reads ---------------------------------------------------------
 
@@ -969,7 +1224,8 @@ class Policy:
         return HOUR_WAKE <= hour < HOUR_BED
 
     def over(self) -> bool:
-        return self.clock is not None and self.clock.over
+        """The session's time is spent, or the phone's share of it (a full session's ``PHONE_SHARE``)."""
+        return self.clock is not None and (self.clock.over or self.clock.phone_over)
 
     def has_time_to_start(self) -> bool:
         """Time left in the session for a conversation of ``start_reserve_exchanges`` (no clock: always)."""
@@ -977,7 +1233,8 @@ class Policy:
         if clock is None:
             return True
         exchange = REAL_SECONDS["send"] + REAL_SECONDS["read_bubble"] + clock.model_seconds
-        return clock.budget - clock.spent >= self.start_reserve_exchanges * exchange
+        left = min(clock.budget - clock.spent, clock.phone_budget - clock.phone_spent)
+        return left >= self.start_reserve_exchanges * exchange
 
     @property
     def social(self) -> dict[str, Any]:
@@ -1045,6 +1302,9 @@ class Policy:
         self.cold_starts()
         self.conversations()
         self.asks_for_numbers()
+        if self.in_world:
+            self.asks_to_meet()
+            self.asks_long_term()
 
     def choose_focus(self) -> None:
         from engine.social import apps, growth
@@ -1053,11 +1313,15 @@ class Policy:
             if self.focus and (self._person(self.focus).get("ghosted") or apps.gone(self.phone.state, self.focus)):
                 self.focus = ""
             return
-        for t in sorted((self.social.get("threads") or {}).values(), key=lambda t: str(t["thread_id"])):
-            pid = str(t["pid"])
-            if growth.depth(self.phone.state, pid) >= 1 and not self._person(pid).get("ghosted"):
-                self.focus = pid
-                return
+        from engine.social import population
+
+        wants = str((self.social.get("player") or {}).get("looking_for") or "")
+        ready = [str(t["pid"]) for t in sorted((self.social.get("threads") or {}).values(),
+                                              key=lambda t: str(t["thread_id"]))
+                 if growth.depth(self.phone.state, str(t["pid"])) >= 1 and not self._person(str(t["pid"])).get("ghosted")]
+        same = [pid for pid in ready if population.profile(self.phone.state, pid).intent == wants]
+        if same or ready:
+            self.focus = (same or ready)[0]
 
     def deck(self) -> None:
         phone = self.phone
@@ -1121,6 +1385,10 @@ class Policy:
         from engine.social import promises
 
         now = self.phone.now
+        if not_before is None and self.in_world:
+            # A full session's phone stops at its share (``PHONE_SHARE``), so the player promises the NEXT session
+            # (its next waking morning or later), when it will be on the phone again (T11's session shape).
+            not_before = self._next_wake()
         earliest = max(now + PROMISE_LEAD_HOURS, float(not_before if not_before is not None else now))
         best: Optional[tuple[float, str]] = None
         for window in PLAYER_WINDOWS:
@@ -1181,6 +1449,28 @@ class Policy:
                 continue
             self._send(tid, str(row["pid"]), cold=self._is_cold(str(row["pid"])))
             self.chat(tid)
+
+    def keep_due_promises(self) -> None:
+        """Past the phone's share (``PHONE_SHARE``): each promise of its own open now still gets its one message
+        (a word it gave, not browsing); the conversation it opens waits for the next session. The cap stops the
+        looks; without this the attentive player kept 17.5% of its promises (T11's re-time)."""
+        from engine.social import messaging
+
+        if not self.promises:
+            return
+        now = self.phone.now
+        due = [r for r in (self.social.get("promises") or {}).values()
+               if r["by"] == "player" and r["status"] == "open" and not self._breaks(r["id"])
+               and float(r["opens_at"]) <= now <= float(r["closes_at"])]
+        for row in sorted(due, key=lambda r: (r["opens_at"], r["id"])):
+            pid = str(row["pid"])
+            tid = messaging.thread_for(self.phone.state, pid)
+            if tid is None or not messaging.is_open(messaging.thread(self.phone.state, tid)):
+                continue
+            last = self._last_shown(messaging.thread(self.phone.state, tid))
+            if last is not None and last.get("from") == "player" and float(last.get("at", -1e9)) >= float(row["opens_at"]):
+                continue                                   # already written to them in this window
+            self._send(tid, pid, cold=self._is_cold(pid))
 
     def _is_cold(self, pid: str) -> bool:
         from engine.social import convo
@@ -1266,6 +1556,118 @@ class Policy:
             self.asked_at[pid] = self.phone.now
             self.phone.act("ask", str(t["thread_id"]), {"what": "number"})
 
+    # -- the world's asks (full sessions) ---------------------------------------
+
+    def _evening_plan_open(self) -> bool:
+        from engine.social import plans
+
+        return any(r.get("when") != "soon" and r.get("kind") != plans.WEDDING for r in plans.open_for(self.phone.state))
+
+    def asks_to_meet(self) -> None:
+        """
+        One ask to meet a look (`ask {what: meet}`, the engine picking the place by shared hobbies), to someone
+        the band shows warming or closer whose thread offers it now (`messaging.ready_asks`), at most every
+        ``ask_every_days`` a person, and only while it has no evening plan open: `tonight` before
+        ``MEET_TONIGHT_BEFORE``, `now` before ``MEET_NOW_BEFORE``. They decide at their read.
+        """
+        from engine.social import messaging, relationships
+
+        if not self.meets or self._evening_plan_open():
+            return
+        hour = self.phone.now % 24
+        when = "tonight" if hour < MEET_TONIGHT_BEFORE else ("now" if hour < MEET_NOW_BEFORE else "")
+        if not when:
+            return
+        for t in sorted((self.social.get("threads") or {}).values(), key=lambda t: str(t["thread_id"])):
+            if self.over():
+                return
+            pid = str(t["pid"])
+            person = self._person(pid)
+            if not self._allowed(pid) or person.get("ghosted") or self._avoids(pid):
+                continue
+            if relationships.band(person) in ("", "new"):
+                continue
+            if self.phone.now - self.meet_asked.get(pid, -1e9) < self.ask_every_days * 24:
+                continue
+            if messaging.MEET_ASK not in messaging.ready_asks(self.phone.state, t):
+                continue
+            self.meet_asked[pid] = self.phone.now
+            self.phone.act("ask", str(t["thread_id"]), {"what": messaging.MEET_ASK, "when": when})
+            return
+
+    def asks_long_term(self) -> None:
+        """The devoted player asks each long-term step (`exclusive`, `move_in`, `propose`) of the one it is devoted
+        to as soon as its thread offers it (spec §17.1: once the stage's gate holds), at most every
+        ``ask_every_days`` a step."""
+        from engine.social import messaging
+
+        if not self.devoted or not self.focus:
+            return
+        tid = messaging.thread_for(self.phone.state, self.focus)
+        t = messaging.thread(self.phone.state, tid) if tid else None
+        if t is None:
+            return
+        ready = messaging.ready_asks(self.phone.state, t)
+        for what in ("exclusive", "move_in", "propose"):
+            if self.over():
+                return
+            if what not in ready or self.phone.now - self.long_asked.get(what, -1e9) < self.ask_every_days * 24:
+                continue
+            if any(r.get("pid") == self.focus and r.get("what") == what and r.get("status") in ("pending", "later")
+                   for r in (self.social.get("requests") or {}).values()):
+                continue
+            self.long_asked[what] = self.phone.now
+            self.phone.act("ask", str(tid), {"what": what})
+            return
+
+    def stands_up(self, plan_id: str) -> bool:
+        """It means to stand this plan up (spec §17.1: the flaky player, one in five)."""
+        return self.stand_up_share > 0 and self._wants(f"stand_up:{plan_id}", self.stand_up_share)
+
+    def scene_choice(self, scn: dict[str, Any], moves_taken: int, moves: list[str],
+                     closers: list[str]) -> tuple[str, str]:
+        """
+        Its next step in a scene, as (action, target): the morning after takes one `quiet` and then sees them
+        out (at the flat) or heads home (at theirs) (v0.24.0 §13); the wedding, which has no closer, takes its
+        moments; any other scene takes ``DATE_MOVES`` -- `ask_about` at their depth (the first offered: their
+        rung first), then `playful` -- then its closer (``closer``). ("", "") when nothing is offered.
+        """
+        kind = str(scn.get("kind") or "")
+        if kind == "morning":
+            if moves_taken == 0 and MORNING_MOVE in moves:
+                return "scene", MORNING_MOVE
+            for name in ("see_them_out", "call_it_a_night"):
+                if name in closers:
+                    return "close", name
+        elif closers and moves_taken < len(DATE_MOVES):
+            want = DATE_MOVES[moves_taken]
+            pick = next((m for m in moves if m == want or m.startswith(f"{want}:")), "")
+            if pick:
+                return "scene", pick
+        if closers:
+            return "close", self.closer(scn, closers)
+        order = ("quiet", "playful", "talk")                     # the wedding: its moments, in this order
+        pick = next((m for m in order if m in moves), moves[0] if moves else "")
+        return ("scene", pick) if pick else ("", "")
+
+    def closer(self, scn: dict[str, Any], closers: list[str]) -> str:
+        """How it ends an evening: the devoted player proposes when offered (the evening goes on); a player who
+        ``stays`` asks them to stay the night, else back to its flat or theirs; else "Call it a night", with a
+        promise to text in the morning half the time (T29 Step 2) when it makes promises."""
+        if self.devoted and "propose" in closers:
+            return "propose"
+        if self.stays:
+            for name in ("stay_the_night", "back_to_yours", "back_to_theirs"):
+                if name in closers:
+                    return name
+        from engine.social import scene as social_scene
+
+        promise = f"call_it_a_night:promise:{social_scene.PROMISE_WINDOW}"
+        if (self.promises and promise in closers
+                and self._wants(f"promise:{scn.get('pid')}:{scn.get('started_at')}", 0.5)):
+            return promise
+        return "call_it_a_night" if "call_it_a_night" in closers else closers[0]
+
     # -- between looks, and the end of a session ------------------------------
 
     def _next_own_promise(self, before: float) -> Optional[dict[str, Any]]:
@@ -1280,21 +1682,29 @@ class Policy:
         now = self.phone.now
         return now - (now % 24) + HOUR_BED
 
-    def wait_for_more(self) -> bool:
+    def wait_for_more(self, stop_at: Optional[float] = None) -> bool:
         """Live: until the phone buzzes, or one of its own promises opens if that is sooner; else an hour.
-        False, waiting nothing, when nothing comes before its bedtime: the session's day is over."""
+        False, waiting nothing, when nothing comes before its bedtime: the session's day is over. ``stop_at``
+        (a full session's next world step, ``World.next_at``): the wait goes no further than an hour toward it,
+        and waits nothing once it is due; None is T9's wait, unchanged."""
         from engine.social import turn
 
         phone = self.phone
+        if stop_at is not None and stop_at <= phone.now + 1e-9:
+            return True                                    # the world is due now: the session's loop does it
         if self.looks != "live":
-            if phone.now + 1.0 >= self._bedtime():
+            if phone.now + 1.0 >= self._bedtime() and (stop_at is None or stop_at >= self._bedtime()):
                 return False
             phone.act("wait", args={"until": "1h"})
             return True
         due = turn._next_notifying_at(phone.state)
-        mine = self._next_own_promise(due if due is not None else self._bedtime())
+        soonest = min((t for t in (due, stop_at) if t is not None), default=None)
+        mine = self._next_own_promise(soonest if soonest is not None else self._bedtime())
         if mine is not None:
             phone.act("wait", args={"until": f"{turn.PROMISE_TARGET}{mine['id']}"})
+            return True
+        if stop_at is not None and (due is None or stop_at < due) and stop_at < self._bedtime():
+            phone.act("wait", args={"until": "1h"})          # toward the world's next step, an hour at a time
             return True
         if due is None or due >= self._bedtime():
             return False
@@ -1369,6 +1779,7 @@ class Policy:
 
 class Attentive(Policy):
     name = "attentive"
+    stays = True
 
 
 class Swiper(Policy):
@@ -1399,6 +1810,7 @@ class Neglectful(Policy):
     asks = "never"
     promises = False
     patience = (3, 8)
+    meets = False
 
 
 class Pushy(Policy):
@@ -1410,6 +1822,8 @@ class Pushy(Policy):
 class Devoted(Policy):
     name = "devoted"
     devoted = True
+    stays = True
+    looking_for = "long_term"
 
 
 class Bachelor(Policy):
@@ -1420,6 +1834,7 @@ class Bachelor(Policy):
 class Flaky(Policy):
     name = "flaky"
     break_share = 1.0 / 3.0
+    stand_up_share = 0.2
 
 
 class Chatty(Policy):
@@ -1432,25 +1847,482 @@ POLICIES: dict[str, type[Policy]] = {p.name: p for p in (Attentive, Swiper, Pick
 
 
 # ---------------------------------------------------------------------------
-# A session (T9: phone only)
+# The world (T29 Step 2; v0.24.0 §13): what a full session does with the phone down
+# ---------------------------------------------------------------------------
+
+
+def _day_of(hours: float) -> int:
+    """The in-game day an hour falls on, as ``GameState.world_day`` counts it (1-based)."""
+    return 1 + int(float(hours) // 24)
+
+
+class World:
+    """
+    The world half of a full session, one run's (``Session(world=True)``). Every step is a WORLD TURN
+    (``turn``): the phone put down (``put_down``, a phone action), then the engine's own narrated turn
+    (``default_scene.run_guarded``, the route's call, narrated by ``StubNarration``) with the policy's intent,
+    re-checked by the engine against what is legal now -- so legality, the travel, the plans' arrivals, the
+    director's decks and every draw are the engine's. Each is priced ``REAL_SECONDS["world"]``, or
+    ``["moment"]`` for a scene's move or closer, on the session's clock (``Phone.world_charges``).
+
+    ``step`` does at most one thing due now, in this order: an open scene (``scene``), a shift in progress
+    (``work_on``), the wedding, a plan to keep, going to work, one of the four life decks (``deck``), dinner,
+    an evening with the household partner, and the way home from a place the policy has no reason to be.
+    A dealt card owns the turn wherever it is met (``_cards``): the policy takes its first beat.
+    """
+
+    def __init__(self, phone: Phone, policy: Policy) -> None:
+        self.phone = phone
+        self.policy = policy
+        self.worked = -1
+        self.dined = -1
+        self.home_evening = -1
+        #: (deck, in-game day) the policy has walked to; plans it has set out for, or stood up.
+        self.decks_tried: set[tuple[str, int]] = set()
+        self.plans_done: set[str] = set()
+        #: A stay-over this session: the night is over and the morning scene waits for the next session.
+        self.stayed = False
+        self.counts: dict[str, Any] = {"work_days": 0, "dinners": 0, "at_home": 0, "stay_overs": 0,
+                                       "stood_up_by_player": 0, "decks": {}}
+
+    @property
+    def state(self) -> Any:
+        return self.phone.state
+
+    @property
+    def day(self) -> int:
+        return int(self.state.world_day)
+
+    def legal(self) -> dict[str, list[str]]:
+        """Every world verb legal now -> its targets (``intents.legal_intents``, the engine's catalogue)."""
+        from engine.game.intents import legal_intents
+
+        return {v.action: [str(t) for t in v.targets] for v in legal_intents(self.state)}
+
+    # -- one world turn ---------------------------------------------------------------------------------
+
+    def turn(self, action: str = "", target: str = "", *, price: str = "world") -> dict[str, Any]:
+        """One world turn with this intent (none: a look), then any dealt card's first beat. Its receipt."""
+        receipt = self._run(action, target, price)
+        self._cards()
+        return receipt
+
+    def _run(self, action: str, target: str, price: str) -> dict[str, Any]:
+        from engine import social
+        from engine.game import intents as game_intents
+        from engine.scenes.default_scene import run_guarded
+
+        phone = self.phone
+        state = self.state
+        if state.social.get("phone_up"):
+            phone.act("put_down")
+            if social.scene_open(state) and action not in ("scene", "close"):
+                return {}                                   # someone arrived as the phone went down: the scene first
+        intent = {"action": action, "target": target} if action else None
+        words = (game_intents.player_label(state, action, target) or target) if action else "Look around"
+        began = phone.now
+        payload, error, _busy = run_guarded(phone.session, f"The player chooses: {words}", intent)
+        if payload is None:
+            raise RuntimeError(f"simulate_social: a world turn failed ({action or 'look'} {target}): {error}")
+        phone.voice()
+        phone.spill()
+        phone._rebuild({})
+        receipts = payload.get("tool_receipts") or []
+        receipt = next((r for r in receipts if (r.get("intent") or {}).get("action") == action), {}) if action else {}
+        phone.world_actions += 1
+        if receipt.get("refused"):
+            phone.world_refused += 1
+            reason = str((receipt.get("result") or {}).get("error") or "")
+            key = f"world {action}: {phone._unnamed(reason, '')}"
+            phone.refusals[key] = phone.refusals.get(key, 0) + 1
+        if phone.clock is not None:
+            seconds = REAL_SECONDS[price]
+            phone.clock.spent += seconds
+            phone.world_charges.append((phone.now, seconds, (phone.now - began) * 60.0, price))
+        for observe in phone.observers:
+            observe(phone)
+        return receipt
+
+    def _cards(self) -> None:
+        """A dealt card owns the turn (a life deck where the policy stands): its first beat, until none is dealt."""
+        for _ in range(4):
+            targets = self.legal().get("card") or []
+            if not targets:
+                return
+            deck = str((self.state.scene or {}).get("deck_id") or "")
+            self._run("card", targets[0], "world")
+            decks = self.counts["decks"]
+            decks[deck] = decks.get(deck, 0) + 1
+
+    # -- getting about ------------------------------------------------------------------------------------
+
+    @staticmethod
+    def _path(here: str, to: str) -> list[str]:
+        """The rooms from ``here`` to ``to`` through the flat and building's edges (breadth first), ``to`` last."""
+        from engine.game.locations import LOCATIONS
+
+        seen = {here: ""}
+        frontier = [here]
+        while frontier:
+            nxt: list[str] = []
+            for room in frontier:
+                for edge in sorted(((LOCATIONS.get(room) or {}).get("connections") or {})):
+                    if edge in seen:
+                        continue
+                    seen[edge] = room
+                    if edge == to:
+                        path = [edge]
+                        while seen[path[-1]] != here:
+                            path.append(seen[path[-1]])
+                        return list(reversed(path))
+                    nxt.append(edge)
+            frontier = nxt
+        return []
+
+    def walk_to(self, room: str) -> bool:
+        """To ``room`` in the flat or building: "Head home" first from outside, then one `travel` a room."""
+        from engine import social
+        from engine.social import places, world
+
+        for _ in range(12):
+            here = str(self.state.location_id or "")
+            if here == room:
+                return True
+            if social.scene_open(self.state) or self.state.social.get("at_work"):
+                return False
+            legal = self.legal()
+            if not places.is_flat(here):
+                if world.HOME not in legal.get("go", []):
+                    return False
+                self.turn("go", world.HOME)
+                continue
+            path = self._path(here, room)
+            if not path or path[0] not in legal.get("travel", []):
+                return False
+            self.turn("travel", path[0])
+        return str(self.state.location_id or "") == room
+
+    # -- the steps --------------------------------------------------------------------------------------------
+
+    def step(self) -> bool:
+        """At most one world thing due now, done (see the class docstring). True when one was."""
+        from engine import social
+
+        if social.scene_open(self.state):
+            self.scene()
+            return True
+        if self.state.social.get("at_work"):
+            self.work_on()
+            return True
+        for one in (self.wedding, self.plan, self.work, self.deck, self.dinner, self.at_home, self.head_home):
+            if one():
+                return True
+        return False
+
+    def next_at(self) -> Optional[float]:
+        """When the next world step falls due (an in-game hour), for the phone's wait (``wait_for_more``)."""
+        now = self.phone.now
+        times = [self._leave_at(r) for r in self._evening_plans()]
+        band = self._work_band()
+        if band is not None and self.worked != self.day and _day_of(band[0]) == self.day:
+            times.append(band[0] - WORK_LEAD_HOURS)
+        if self.dined != self.day and now % 24 < DINNER_HOUR:
+            times.append(now - now % 24 + DINNER_HOUR)
+        return min(times) if times else None
+
+    def _work_band(self) -> Optional[tuple[float, float]]:
+        from engine.social import world
+
+        band = world._player_work_band(self.state, self.phone.now)
+        return (float(band[0]), float(band[1])) if band else None
+
+    def _evening_plans(self) -> list[dict[str, Any]]:
+        """The open `now` / `tonight` plans it has not yet set out for, soonest due first."""
+        from engine.social import plans
+
+        rows = [r for r in plans.open_for(self.state) if r.get("when") != "soon" and r.get("kind") != plans.WEDDING
+                and str(r["id"]) not in self.plans_done and r.get("due_at") is not None]
+        return sorted(rows, key=lambda r: (float(r["due_at"]), str(r["id"])))
+
+    @staticmethod
+    def _leave_at(row: dict[str, Any]) -> float:
+        return float(row["due_at"]) - PLAN_LEAD_HOURS
+
+    def plan(self) -> bool:
+        """A plan due: it goes to the plan's place (a `your_place` plan waits in the lounge), waits for them if
+        they are on their way ("Wait for {name}"), and spends the evening (``scene``); a flaky player stands one
+        in five up. Then home, if nothing is going on where it is."""
+        from engine import social
+        from engine.social import plans, places
+
+        now = self.phone.now
+        due = [r for r in self._evening_plans() if now >= self._leave_at(r) - 1e-9]
+        if not due:
+            return False
+        row = due[0]
+        plan_id = str(row["id"])
+        self.plans_done.add(plan_id)
+        if self.policy.stands_up(plan_id):
+            self.counts["stood_up_by_player"] += 1
+            return True
+        if plans.arrives_at(row) + float(row.get("patience_hours") or 0.0) < now:
+            return True                                       # long gone: nothing to go to
+        place = plans.place_of(self.state, row)
+        if row.get("kind") == "your_place":
+            self.walk_to("apt_lounge")
+        elif str(self.state.location_id or "") != place:
+            if place not in self.legal().get("go", []):
+                self.walk_to("apt_lounge")                    # from a place that offers only the way home
+            if place in self.legal().get("go", []):
+                self.turn("go", place)
+        for _ in range(3):
+            if social.scene_open(self.state):
+                self.scene()
+                break
+            wait = f"plan:{plan_id}"
+            if wait not in self.legal().get("scene", []):
+                break
+            self.turn("scene", wait)
+        if not social.scene_open(self.state) and not self.stayed and not places.is_flat(str(self.state.location_id)):
+            self.head_home()
+        return True
+
+    def wedding(self) -> bool:
+        """An open wedding (life_events.yaml's `wedding`, for an engaged couple): to the registry office."""
+        from engine import social
+        from engine.social import plans
+
+        rows = [r for r in plans.open_for(self.state) if r.get("kind") == plans.WEDDING
+                and f"{r['id']}@{self.day}" not in self.plans_done]
+        if not rows:
+            return False
+        row = rows[0]
+        self.plans_done.add(f"{row['id']}@{self.day}")
+        place = plans.place_of(self.state, row)
+        if place not in self.legal().get("go", []):
+            self.walk_to("apt_lounge")
+        if place in self.legal().get("go", []):
+            self.turn("go", place)
+        if social.scene_open(self.state):
+            self.scene()
+        self.head_home()
+        return True
+
+    def work(self) -> bool:
+        """A work day: from the hall, "Go to work" (interruptible), once a day, from ``WORK_LEAD_HOURS`` before
+        its band; then ``work_on``."""
+        band = self._work_band()
+        if self.worked == self.day or band is None or _day_of(band[0]) != self.day:
+            return False
+        if self.phone.now < band[0] - WORK_LEAD_HOURS - 1e-9:
+            return False
+        self.worked = self.day
+        if self.phone.now >= band[1] or not self.walk_to("apt_hall"):
+            return True
+        if "go_to_work" not in self.legal().get("do", []):
+            return True
+        self.counts["work_days"] += 1
+        self.turn("do", "go_to_work")
+        self.work_on()
+        return True
+
+    def work_on(self) -> None:
+        """At work: each buzz that stops the shift, the policy picks the phone up and looks (unless its session's
+        time is spent), then carries on (`carry_on_working`), until the shift is over."""
+        for _ in range(WORK_STOPS_MAX):
+            if not self.state.social.get("at_work"):
+                return
+            if not self.policy.over():
+                self.policy.look()
+            else:
+                self.policy.keep_due_promises()
+            if not self.state.social.get("at_work") or "carry_on_working" not in self.legal().get("do", []):
+                return
+            self.turn("do", "carry_on_working")
+
+    def deck(self) -> bool:
+        """One of the four life decks running today (its flag): the policy walks once to its room; the director
+        deals it there and the policy takes its first beat (``_cards``); a look deals it if the walk did not."""
+        for deck, room in DECK_ROOMS.items():
+            key = (deck, self.day)
+            if not self.state.flags.get(f"life_{deck}") or key in self.decks_tried:
+                continue
+            self.decks_tried.add(key)
+            if self.walk_to(room) and self.state.flags.get(f"life_{deck}"):
+                self.turn()
+            return True
+        return False
+
+    def dinner(self) -> bool:
+        """Once an evening from ``DINNER_HOUR``: to the kitchen, "Make dinner", "Eat" -- unless a plan is due
+        within ``DINNER_PLAN_HOURS`` (it eats out)."""
+        hour = self.phone.now % 24
+        if self.dined == self.day or not DINNER_HOUR <= hour < HOUR_BED - 1:
+            return False
+        self.dined = self.day
+        if any(float(r["due_at"]) - self.phone.now < DINNER_PLAN_HOURS for r in self._evening_plans()):
+            return False
+        if not self.walk_to("apt_kitchen"):
+            return True
+        for activity in ("make_dinner", "eat"):
+            if activity in self.legal().get("do", []):
+                self.turn("do", activity)
+        self.counts["dinners"] += 1
+        return True
+
+    def at_home(self) -> bool:
+        """An evening with the household partner, home and free (a player who ``stays``), once an evening."""
+        from engine.social import scene as social_scene
+
+        if not self.policy.stays or self.home_evening == self.day or self.phone.now % 24 < DINNER_HOUR:
+            return False
+        target = next((t for t in self.legal().get("scene", []) if t.startswith(f"{social_scene.AT_HOME_TARGET}:")), "")
+        if not target:
+            return False
+        self.home_evening = self.day
+        self.counts["at_home"] += 1
+        self.turn("scene", target)
+        self.scene()
+        return True
+
+    def head_home(self) -> bool:
+        """Outside the flat with nothing to wait for there: "Head home"."""
+        from engine import social
+        from engine.social import places, plans, world
+
+        here = str(self.state.location_id or "")
+        if places.is_flat(here) or social.scene_open(self.state) or plans.waiting_here(self.state):
+            return False
+        if world.HOME not in self.legal().get("go", []):
+            return False
+        self.turn("go", world.HOME)
+        return True
+
+    def scene(self) -> None:
+        """While a scene is open: the policy's moves and closer (``Policy.scene_choice``), each a priced moment.
+        A stay-over ends the session (``stayed``): the morning scene opens at the player's morning and is the
+        next session's first step."""
+        from engine.social import scene as social_scene
+
+        taken: dict[str, int] = {}
+        moved_on = False                          # the evening has gone on somewhere once (back to yours or theirs)
+        for _ in range(SCENE_STEPS_MAX):
+            scn = social_scene.current(self.state)
+            if not scn.get("pid"):
+                return
+            key = f"{scn['pid']}@{scn.get('started_at')}"
+            legal = self.legal()
+            closers = [c for c in legal.get("close") or []
+                       if not (moved_on and c.split(":")[0] in MOVING_ON)]
+            action, target = self.policy.scene_choice(scn, taken.get(key, 0), legal.get("scene") or [], closers)
+            moved_on = moved_on or (action == "close" and target.split(":")[0] in MOVING_ON)
+            if not action:
+                return
+            self.turn(action, target, price="moment")
+            if action == "scene":
+                taken[key] = taken.get(key, 0) + 1
+            after = social_scene.current(self.state)
+            if target == "stay_the_night" and after.get("kind") == social_scene.MORNING:
+                self.stayed = True
+                self.counts["stay_overs"] += 1
+                return
+
+    # -- the session's end ---------------------------------------------------------------------------------
+
+    def keep_tonight(self) -> None:
+        """The session's time is spent, but a plan of this evening is still to come: the phone waits toward it
+        (free) and the policy keeps it, as a player with a date would."""
+        bedtime = self.phone.now - self.phone.now % 24 + HOUR_BED
+        for _ in range(24):
+            rows = [r for r in self._evening_plans() if self._leave_at(r) < bedtime]
+            if not rows or self.stayed:
+                return
+            if self.phone.now >= self._leave_at(rows[0]) - 1e-9:
+                self.plan()
+                continue
+            self.phone.act("wait", args={"until": "1h"})
+
+    def bed(self) -> None:
+        """The policy's bed: a shift still going is finished; from ``BED_FROM_HOUR`` it walks to the bedroom and
+        sleeps (`sleep`, again if a wake stopped it); then, if the morning has not come (an early end, or no bed
+        to reach), the phone's `wait {until: morning}`. The sleep into day ``JUMP_DAY`` counts its events."""
+        from engine import social
+        from engine.social import events
+
+        self.work_on()
+        if social.scene_open(self.state):
+            self.scene()
+        if self.stayed:
+            return
+        went_to_bed = self.phone.now
+        hour = self.phone.now % 24
+        if (hour >= BED_FROM_HOUR or hour < HOUR_WAKE) and self.walk_to("apt_bedroom"):
+            counting = self.day + (1 if hour >= HOUR_WAKE else 0) >= JUMP_DAY and self.phone.jump_events is None
+            real = events.advance
+            applied = [0]
+
+            def advance(state: Any, from_hours: float, to_hours: float) -> list[dict[str, Any]]:
+                out = real(state, from_hours, to_hours)
+                applied[0] += len(out)
+                return out
+
+            events.advance = advance              # type: ignore[assignment]
+            try:
+                for _ in range(SLEEP_STOPS_MAX):
+                    if "sleep" not in self.legal().get("do", []):
+                        break
+                    done = self.turn("do", "sleep")
+                    if not (done.get("result") or {}).get("stopped") or social.scene_open(self.state):
+                        break
+            finally:
+                events.advance = real             # type: ignore[assignment]
+            if counting and self.day >= JUMP_DAY:
+                self.phone.jump_events = applied[0]
+            if social.scene_open(self.state):
+                self.scene()
+        woke = self.phone.now > went_to_bed + 1.0 and HOUR_WAKE - 1e-6 <= self.phone.now % 24 < MORNING_ENDS
+        if not woke and not self.stayed:
+            self.phone.act("wait", args={"until": "morning"})
+
+
+# ---------------------------------------------------------------------------
+# A session (T9: phone only; T29: full)
 # ---------------------------------------------------------------------------
 
 
 class Session:
     """
-    One phone-only session (spec §3.4): the policy looks and waits for more until ``real_seconds_budget``
-    real seconds are spent (``RealClock``) or its bedtime comes, winds down, and goes to bed (``wait
-    {until: morning}``). ``play`` returns the session's span.
+    One session (spec §3.4). PHONE ONLY (``world=False``, T9's): the policy looks and waits for more until
+    ``real_seconds_budget`` real seconds are spent (``RealClock``) or its bedtime comes, winds down, and goes to
+    bed (``wait {until: morning}``). FULL (``world=True``, the default since T29): the same phone, with the
+    world between its looks (``World.step``: work, the plans and their scenes, the life decks, dinner), the
+    phone's waits going no further than the world's next step, and the policy's bed (``World.bed``); a session
+    that wakes to a morning scene (a stay-over) takes it first, and one that ends in a stay-over ends there.
+    ``play`` returns the session's span.
     """
 
     def __init__(self, phone: Phone, policy: Policy, *, model_seconds: float = DEFAULT_MODEL_SECONDS,
-                 real_seconds_budget: float = SESSION_REAL_SECONDS) -> None:
+                 real_seconds_budget: float = SESSION_REAL_SECONDS, world: bool = True) -> None:
         self.phone = phone
         self.policy = policy
         self.model_seconds = float(model_seconds)
         self.real_seconds_budget = float(real_seconds_budget)
+        self.world = bool(world)
 
     def play(self) -> dict[str, Any]:
+        if not self.world:
+            return self._play_phone()
+        return self._play_full()
+
+    def _look(self) -> None:
+        phone, policy = self.phone, self.policy
+        hour = int(phone.now % 24)
+        if policy.looks == "live" or (hour in policy.looks
+                                      and getattr(policy, "_looked", None) != (phone.state.world_day, hour)):
+            policy._looked = (phone.state.world_day, hour)
+            policy.look()
+
+    def _play_phone(self) -> dict[str, Any]:
         phone, policy = self.phone, self.policy
         if not policy.awake():
             phone.act("wait", args={"until": "morning"})
@@ -1460,11 +2332,7 @@ class Session:
         try:
             while policy.awake() and not clock.over:
                 before = (phone.now, clock.spent)
-                hour = int(phone.now % 24)
-                if policy.looks == "live" or (hour in policy.looks
-                                              and getattr(policy, "_looked", None) != (phone.state.world_day, hour)):
-                    policy._looked = (phone.state.world_day, hour)
-                    policy.look()
+                self._look()
                 if clock.over or not policy.awake():
                     break
                 if not policy.wait_for_more():
@@ -1476,6 +2344,57 @@ class Session:
         finally:
             phone.clock = policy.clock = None
         phone.act("wait", args={"until": "morning"})
+        return {"start": start, "end": end, "real_seconds": round(clock.spent, 1)}
+
+    def _play_full(self) -> dict[str, Any]:
+        from engine import social
+
+        with _scheduler_paused():
+            return self._play_world()
+
+    def _play_world(self) -> dict[str, Any]:
+        from engine import social
+
+        phone, policy = self.phone, self.policy
+        policy.in_world = True
+        world = policy.world
+        if world is None:
+            world = policy.world = World(phone, policy)
+        world.stayed = False
+        if not policy.awake() and not social.scene_open(phone.state):
+            phone.act("wait", args={"until": "morning"})
+        clock = RealClock(self.model_seconds, budget=self.real_seconds_budget,
+                          phone_budget=PHONE_SHARE * self.real_seconds_budget)
+        phone.clock = policy.clock = clock
+        start = phone.now
+        try:
+            while not world.stayed and (policy.awake() or social.scene_open(phone.state)) and not clock.over:
+                before = (phone.now, clock.spent)
+                # Its own promises open now first: the world's next step (a shift at the morning's start) may
+                # take it away until the window has closed (T11 round 1: 90.7-95% kept at 6-30 s without it).
+                policy.keep_due_promises()
+                if world.step() and (phone.now, clock.spent) != before:
+                    continue
+                if world.stayed:
+                    break
+                if clock.phone_over:
+                    policy.keep_due_promises()
+                else:
+                    self._look()
+                if clock.over or not policy.awake():
+                    break
+                if not policy.wait_for_more(world.next_at()):
+                    break
+                if (phone.now, clock.spent) == before:
+                    phone.act("wait", args={"until": "1h"})
+            if not world.stayed and not social.scene_open(phone.state):
+                policy.wind_down()
+                world.keep_tonight()
+            end = phone.now
+            if not world.stayed:
+                world.bed()
+        finally:
+            phone.clock = policy.clock = None
         return {"start": start, "end": end, "real_seconds": round(clock.spent, 1)}
 
 
@@ -1502,6 +2421,14 @@ class Recorder:
         #: Chatting or deep decisions for a `short` texter below depth 2 (T7 review M1), and all such.
         self.short_full = 0
         self.full = 0
+        #: The world (T29): each scene as it ends (who, its kind, its band, when it opened and ended, why),
+        #: each life event as it starts (whose, which, when, their depth then), each plan as it is made and
+        #: closed.
+        self.scene_opened: dict[str, float] = {}
+        self.scenes: list[dict[str, Any]] = []
+        self.life: list[dict[str, Any]] = []
+        self.plans_made: list[dict[str, Any]] = []
+        self.plans_closed: list[str] = []
 
 
 @contextmanager
@@ -1553,10 +2480,68 @@ def _recording(rec: Recorder) -> Iterator[None]:
                      ("on_player_send", on_player_send)):
         setattr(convo, name, fn)
     try:
-        yield
+        with _recording_world(rec):
+            yield
     finally:
         for name, fn in real.items():
             setattr(convo, name, fn)
+
+
+@contextmanager
+def _recording_world(rec: Recorder) -> Iterator[None]:
+    """`scene._open` / `_end`, `life._start` and `plans._make` / `_close_row` wrapped for ``rec`` (each is called
+    by its effect handler by name, so the wrapper sees every one), restored after."""
+    from engine.social import growth, life, plans, scene
+
+    real = {"scene._open": scene._open, "scene._end": scene._end, "life._start": life._start,
+            "plans._make": plans._make, "plans._close_row": plans._close_row}
+
+    def scene_open(state, effect, at):
+        out = real["scene._open"](state, effect, at)
+        if out.get("ok"):
+            scn = state.social.get("scene") or {}
+            rec.scene_opened[f"{scn.get('pid')}@{scn.get('started_at')}"] = float(at)
+        return out
+
+    def scene_end(state, scn, effect, at):
+        key = f"{scn.get('pid')}@{scn.get('started_at')}"
+        out = real["scene._end"](state, scn, effect, at)
+        if out.get("ok"):
+            rec.scenes.append({"pid": str(scn.get("pid") or ""), "kind": str(scn.get("kind") or ""),
+                               "band": str(out.get("band") or ""), "opened_at": rec.scene_opened.get(key, float(at)),
+                               "at": float(at), "reason": str(out.get("reason") or ""),
+                               "moments": int(scn.get("count", 0)),
+                               "average": (round(float(scn.get("sum", 0.0)) / int(scn["count"]), 4)
+                                           if int(scn.get("count", 0)) else None)})
+        return out
+
+    def life_start(state, who, event_id, at):
+        out = real["life._start"](state, who, event_id, at)
+        if out.get("ok", True):
+            rec.life.append({"who": "player" if who == "player" else "person", "pid": "" if who == "player" else who,
+                             "id": event_id, "at": float(at),
+                             "depth": 0 if who == "player" else growth.depth(state, who)})
+        return out
+
+    def plan_make(state, effect, at):
+        out = real["plans._make"](state, effect, at)
+        if out.get("ok"):
+            row = out.get("plan") or {}
+            rec.plans_made.append({"when": str(row.get("when") or ""), "kind": str(row.get("kind") or ""),
+                                   "by": str(effect.get("by") or ""), "at": float(at)})
+        return out
+
+    def plan_close(row, status, at):
+        rec.plans_closed.append(str(status))
+        return real["plans._close_row"](row, status, at)
+
+    scene._open, scene._end, life._start = scene_open, scene_end, life_start
+    plans._make, plans._close_row = plan_make, plan_close
+    try:
+        yield
+    finally:
+        scene._open, scene._end, life._start = real["scene._open"], real["scene._end"], real["life._start"]
+        plans._make, plans._close_row = real["plans._make"], real["plans._close_row"]
 
 
 class Observer:
@@ -1571,6 +2556,11 @@ class Observer:
         self.band_at: dict[str, dict[str, float]] = {}
         self.depth1_at: dict[str, float] = {}
         self.left_at: dict[str, float] = {}
+        #: Per person, when each depth of ``DEPTH_ROWS`` was first seen; the first time any person was seen
+        #: together (``TOGETHER_STAGES``), living with the player (`living_together`, or the household) and
+        #: married (T29's long-term rows).
+        self.depth_at: dict[str, dict[int, float]] = {}
+        self.stage_at: dict[str, float] = {}
 
     def __call__(self, phone: Phone) -> None:
         from engine.social import apps, growth, relationships
@@ -1586,8 +2576,21 @@ class Observer:
             if pid not in self.left_at and person.get("stage") and (
                     not relationships.live(person) or person.get("ghosted") or apps.gone(state, pid)):
                 self.left_at[pid] = now
-            if pid not in self.depth1_at and person.get("stage") and growth.depth(state, pid) >= 1:
+            depth = growth.depth(state, pid) if person.get("stage") else 0
+            if pid not in self.depth1_at and depth >= 1:
                 self.depth1_at[pid] = now
+            if depth >= DEPTH_ROWS[0]:
+                seen_depth = self.depth_at.setdefault(pid, {})
+                for n in DEPTH_ROWS:
+                    if depth >= n:
+                        seen_depth.setdefault(n, now)
+            stage = str(person.get("stage") or "")
+            if stage in TOGETHER_STAGES:
+                self.stage_at.setdefault("together", now)
+            if stage == "living_together" or (stage and relationships.household(state) == pid):
+                self.stage_at.setdefault("living_together", now)
+            if stage == "married":
+                self.stage_at.setdefault("married", now)
             if person.get("stage"):
                 seen = self.band_at.setdefault(pid, {})
                 for name in names[:names.index(relationships.band(person)) + 1]:
@@ -1595,24 +2598,25 @@ class Observer:
 
 
 def run(seed: int, sessions: int, policy: str, voice_policy: str = DEFAULT_VOICE, *,
-        model_seconds: float = DEFAULT_MODEL_SECONDS, disk: Optional[Path] = None) -> dict[str, Any]:
+        model_seconds: float = DEFAULT_MODEL_SECONDS, disk: Optional[Path] = None, world: bool = True) -> dict[str, Any]:
     """
-    One run of ``sessions`` phone-only sessions (``Session``) at ``model_seconds`` a reply: its raw
-    measurements (``report`` folds many). ``disk``: a directory the run saves under, spilling its
-    threads into the archive after every action as play does (``Phone.spill``); the measurements read
-    the archive too, so they are the same either way.
+    One run of ``sessions`` sessions (``Session``: full, or phone-only with ``world=False``) at
+    ``model_seconds`` a reply: its raw measurements (``report`` folds many). ``disk``: a directory the run
+    saves under, spilling its threads into the archive after every action as play does (``Phone.spill``);
+    the measurements read the archive too, so they are the same either way.
     """
     if policy not in POLICIES:
         raise ValueError(f"simulate_social: no policy {policy!r} ({', '.join(POLICIES)})")
     started = time.perf_counter()
     rec = Recorder()
     with _quiet_summaries(), _recording(rec):
-        phone = Phone(seed, voice_policy, disk=disk)
+        phone = Phone(seed, voice_policy, disk=disk, looking_for=POLICIES[policy].looking_for)
         observer = Observer()
         phone.observers.append(observer)
         player = POLICIES[policy](phone, seed)
         try:
-            spans = [Session(phone, player, model_seconds=model_seconds).play() for _ in range(int(sessions))]
+            spans = [Session(phone, player, model_seconds=model_seconds, world=world).play()
+                     for _ in range(int(sessions))]
             return _measure(phone, player, observer, rec, spans, seed, policy, voice_policy, float(model_seconds),
                             time.perf_counter() - started)
         finally:
@@ -1620,11 +2624,12 @@ def run(seed: int, sessions: int, policy: str, voice_policy: str = DEFAULT_VOICE
 
 
 def write_day_save(seed: int, days: int, policy: str, out: Path, voice_policy: str = "romantic_model", *,
-                   model_seconds: float = DEFAULT_MODEL_SECONDS) -> Path:
+                   model_seconds: float = DEFAULT_MODEL_SECONDS, world: bool = True) -> Path:
     """
     A day-``days`` run of ``policy`` saved under ``out`` (spec §17.2's size
-    bound): played on disk as ``days`` phone-only sessions (``Session``, one
-    an in-game day, each from waking to the next morning), its threads
+    bound): played on disk as ``days`` sessions (``Session``, full since T29,
+    phone-only with ``world=False``; one an in-game day, each from waking to
+    the next morning), its threads
     spilled into the archive after every action as play's saves do, then the
     archive spilled once more and ``save.json`` written through the store, as
     ``saves.save_now`` writes it. The save's directory (``save.json``,
@@ -1634,11 +2639,11 @@ def write_day_save(seed: int, days: int, policy: str, out: Path, voice_policy: s
     from engine.social import archive
 
     with _quiet_summaries():
-        phone = Phone(seed, voice_policy, disk=Path(out))
+        phone = Phone(seed, voice_policy, disk=Path(out), looking_for=POLICIES[policy].looking_for)
         try:
             player = POLICIES[policy](phone, seed)
             for _ in range(int(days)):
-                Session(phone, player, model_seconds=model_seconds).play()
+                Session(phone, player, model_seconds=model_seconds, world=world).play()
             session = phone.session
             if not session.lock.acquire(blocking=False):
                 raise RuntimeError("simulate_social: the run's turn lock is held")
@@ -1650,6 +2655,69 @@ def write_day_save(seed: int, days: int, policy: str, out: Path, voice_policy: s
             return Path(session.saves.path_for(session.save_id))
         finally:
             phone.close()
+
+
+def _real_timeline(phone: Phone) -> tuple[list[float], list[float]]:
+    """The run's real clock: every priced action, phone and world, by in-game hour, and the real seconds spent
+    up to and including it (each in-game hour is after its action, so the list is in time order)."""
+    priced = sorted([(float(at), float(sec)) for _p, at, sec, _m, _e in phone.charges]
+                    + [(float(at), float(sec)) for at, sec, _m, _k in phone.world_charges], key=lambda r: r[0])
+    ats: list[float] = []
+    cum: list[float] = []
+    total = 0.0
+    for at, sec in priced:
+        total += sec
+        ats.append(at)
+        cum.append(total)
+    return ats, cum
+
+
+def _real_hours_at(ats: list[float], cum: list[float], at: float) -> float:
+    """The real hours the run had spent by in-game hour ``at``."""
+    import bisect
+
+    i = bisect.bisect_right(ats, float(at) + 1e-9)
+    return (cum[i - 1] if i else 0.0) / 3600.0
+
+
+def _ingame_at_real(ats: list[float], cum: list[float], hours: float) -> Optional[float]:
+    """The in-game hour at which the run had spent ``hours`` real hours; None when it never did."""
+    import bisect
+
+    i = bisect.bisect_left(cum, float(hours) * 3600.0)
+    return ats[i] if i < len(ats) else None
+
+
+def _measure_world(phone: Phone, world: Optional["World"], observer: "Observer", rec: "Recorder",
+                   ats: list[float], cum: list[float], mark: Optional[float]) -> dict[str, Any]:
+    """A run's world measurements (T29): its scenes, life events, plans, world turns and counts, the real hours
+    at which the long-term stages were first reached, the people active at ``ACTIVE_REAL_HOURS`` real hours
+    (an episode with them in the ``ACTIVE_DAYS`` in-game days before), and the events of the jump to morning
+    on day ``JUMP_DAY``."""
+    active = None
+    if mark is not None:
+        since = mark - ACTIVE_DAYS * 24.0
+        who = {e["pid"] for e in rec.episodes if float(e["started_at"]) <= mark and float(e["closed_at"]) >= since
+               and (e.get("kind") != "chat" or (int(e["exchanges"]) >= 1 and e.get("joined")))}
+        who |= {s["pid"] for s in rec.scenes if float(s["opened_at"]) <= mark and float(s["at"]) >= since}
+        active = len(who)
+    plans_closed: dict[str, int] = {}
+    for status in rec.plans_closed:
+        plans_closed[status] = plans_closed.get(status, 0) + 1
+    return {
+        "scenes": list(rec.scenes),
+        "life": list(rec.life),
+        "plans_made": list(rec.plans_made),
+        "plans_closed": plans_closed,
+        "world_charges": [[round(sec, 3), round(minutes, 4), kind] for _at, sec, minutes, kind in phone.world_charges],
+        "world_actions": phone.world_actions,
+        "world_refused": phone.world_refused,
+        "world_counts": dict(world.counts) if world is not None else {},
+        "jump_events": phone.jump_events,
+        "active_20h": active,
+        "stage_real": {k: round(_real_hours_at(ats, cum, at), 4) for k, at in sorted(observer.stage_at.items())},
+        "real_total": round((cum[-1] if cum else 0.0) / 3600.0, 4),
+    }
 
 
 def _first(history: list[dict[str, Any]], kind: str) -> Optional[float]:
@@ -1694,6 +2762,7 @@ def _measure(phone: Phone, player: Policy, observer: Observer, rec: Recorder, sp
     for pid, at, seconds, _minutes, _ep in phone.charges:
         if pid:
             seconds_by.setdefault(pid, []).append((at, seconds))
+    ats, cum = _real_timeline(phone)
     rows: list[dict[str, Any]] = []
     for pid in sorted({t["pid"] for t in threads.values()}):
         person = people.get(pid) or {}
@@ -1719,6 +2788,11 @@ def _measure(phone: Phone, player: Policy, observer: Observer, rec: Recorder, sp
             "theirs": theirs,
             "charges": seconds_by.get(pid, []),
             "initiations": sum(1 for _at, _k, s in theirs if s in initiations),
+            # T29: when each depth was first seen, and the run's real hours then and at the match.
+            "depth_at": {str(n): at for n, at in sorted(observer.depth_at.get(pid, {}).items())},
+            "depth_real": {str(n): round(_real_hours_at(ats, cum, at), 4)
+                           for n, at in sorted(observer.depth_at.get(pid, {}).items())},
+            "matched_real": None if matched_at is None else round(_real_hours_at(ats, cum, float(matched_at)), 4),
         })
     cold = []
     for pid, tid, at, depth in player.cold:
@@ -1739,7 +2813,10 @@ def _measure(phone: Phone, player: Policy, observer: Observer, rec: Recorder, sp
                 promises += [{"by": by, "status": status, "closes_at": -1.0}] * int(n)
     promises.sort(key=lambda r: (r["by"], r["status"], r["closes_at"]))
     stub = phone.llm
+    world = player.world
+    mark = _ingame_at_real(ats, cum, ACTIVE_REAL_HOURS)
     return {
+        **_measure_world(phone, world, observer, rec, ats, cum, mark),
         "seed": seed, "sessions": len(spans), "policy": policy, "voice": voice_policy,
         "model_seconds": model_seconds, "end": end, "spans": spans,
         "people": rows, "episodes": [e for e in rec.episodes if e.get("kind") == "chat"],
@@ -1874,6 +2951,7 @@ def fold(runs: list[dict[str, Any]]) -> dict[str, Any]:
     long_modes = [m for e in episodes if int(e["exchanges"]) >= 6 for m in e["modes"]]
     out["full_replies_in_long_episodes"] = _share(sum(1 for m in long_modes if m in ("chatting", "deep")),
                                                   len(long_modes))
+    _fold_world(out, mine, by_policy, rows, cuts)
     chat = [c for r in mine for c in r["charges"] if c[2]]
     chat_seconds = sum(c[0] for c in chat)
     out["ratio.chat"] = None if chat_seconds <= 0 else round(sum(c[1] for c in chat) / (chat_seconds / 60.0), 3)
@@ -1957,18 +3035,125 @@ def fold(runs: list[dict[str, Any]]) -> dict[str, Any]:
     return out
 
 
+def _weeks(runs: list[dict[str, Any]]) -> float:
+    """The in-game weeks the runs played, from each one's first session to its end."""
+    return sum(max(0.0, float(r["end"]) - float(r["spans"][0]["start"])) for r in runs if r.get("spans")) / (7 * 24.0)
+
+
+def _session_index(spans: list[dict[str, Any]], at: float) -> Optional[int]:
+    """The session an in-game hour belongs to: the first whose end is at or after it (a night's hour is the next
+    morning's session's)."""
+    return next((i for i, span in enumerate(spans) if float(span["end"]) >= float(at) - 1e-9), None)
+
+
+def _fold_world(out: dict[str, Any], mine: list[dict[str, Any]], by_policy: dict[str, list[dict[str, Any]]],
+                rows: list[dict[str, Any]], cuts: tuple[float, float]) -> None:
+    """The world's rows (T29; v0.24.0 §13) into ``out``: the scenes (the morning after counts as no scene, spec
+    §12.1), the deep growth, life events, the four life decks, the long-term stages, the people active at 20
+    real hours, the jump to morning, and the world's ratio (derived). A run with no world (phone only, or one
+    folded from before T29) reports None for each."""
+    world_runs = [r for r in mine if "scenes" in r]
+    if not world_runs:
+        return
+    scenes = [s for r in world_runs for s in r["scenes"] if s["kind"] != "morning"]
+    for band in SCENE_BANDS:
+        out[f"scene_band.{band}"] = _share(sum(1 for s in scenes if s["band"] == band), len(scenes))
+    gaps: list[float] = []
+    for r in world_runs:
+        first: dict[str, float] = {}
+        for s in r["scenes"]:
+            if s["kind"] != "morning" and s["pid"] not in first:
+                first[s["pid"]] = float(s["opened_at"])
+        matched = {p["pid"]: p.get("matched_at") for p in r["people"]}
+        for pid, opened in first.items():
+            if matched.get(pid) is None:
+                continue
+            k_scene, k_match = _session_index(r["spans"], opened), _session_index(r["spans"], float(matched[pid]))
+            if k_scene is not None and k_match is not None:
+                gaps.append(float(k_scene - k_match))
+    out["sessions_to_first_scene"] = _median(gaps)
+    world_rows = [p for r in world_runs for p in r["people"]]
+    for band in ("fast", "slow"):
+        for n in DEPTH_ROWS:
+            values = [float(p["depth_real"][str(n)]) - float(p["matched_real"]) for p in world_rows
+                      if str(n) in (p.get("depth_real") or {}) and p.get("matched_real") is not None
+                      and _tercile(p["pace"], cuts) == band]
+            out[f"real_hours_to_depth.{band}.{n}"] = _median(values)
+    weeks = _weeks(world_runs)
+    player_events = sum(1 for r in world_runs for e in r["life"] if e["who"] == "player")
+    out["life_events.player_per_week"] = None if weeks <= 0 else round(player_events / weeks, 3)
+    months = 0.0
+    for r in world_runs:
+        for p in r["people"]:
+            reached = (p.get("depth_at") or {}).get(str(DEPTH_ROWS[0]))
+            if reached is not None:
+                stop = float(p["left_at"]) if p.get("left_at") is not None else float(r["end"])
+                months += max(0.0, stop - float(reached)) / (30 * 24.0)
+    deep_events = sum(1 for r in world_runs for e in r["life"] if e["who"] == "person" and int(e["depth"]) >= 2)
+    out["life_events.person_per_month_d2plus"] = None if months <= 0 else round(deep_events / months, 3)
+    met = sum(int(((r.get("world_counts") or {}).get("decks") or {}).get(deck, 0)) for r in world_runs for deck in DECK_ROOMS)
+    out["life_decks_met_per_week"] = None if weeks <= 0 else round(met / weeks, 3)
+    for row, stage, hours in (("devoted.together_10h", "together", TOGETHER_REAL_HOURS),
+                              ("devoted.living_together_20h", "living_together", LIVING_REAL_HOURS),
+                              ("devoted.married_40h", "married", MARRIED_REAL_HOURS)):
+        devoted = [r for r in by_policy.get("devoted", []) if "stage_real" in r]
+        out[row] = (_share(sum(1 for r in devoted if float((r["stage_real"]).get(stage, 1e9)) <= hours), len(devoted))
+                    if devoted else None)
+    for name in ("bachelor", "attentive"):
+        counts = [float(r["active_20h"]) for r in by_policy.get(name, []) if r.get("active_20h") is not None]
+        out[f"active_relationships_20h.{name}"] = _median(counts)
+    jumps = [int(r["jump_events"]) for r in world_runs if r.get("jump_events") is not None]
+    out["events_per_jump_morning_day60"] = max(jumps) if jumps else None
+    charges = [c for r in world_runs for c in r["world_charges"]]
+    seconds = sum(float(c[0]) for c in charges)
+    out["ratio.world"] = None if seconds <= 0 else round(sum(float(c[1]) for c in charges) / (seconds / 60.0), 3)
+    # -- also.* (never banded): what the world did, per run ---------------------------------------------------
+    runs = len(world_runs)
+    out["also.scenes_per_run"] = round(len(scenes) / runs, 2)
+    out["also.mornings_per_run"] = round(sum(1 for r in world_runs for s in r["scenes"] if s["kind"] == "morning") / runs, 2)
+    kinds: dict[str, int] = {}
+    for s in scenes:
+        kinds[s["kind"]] = kinds.get(s["kind"], 0) + 1
+    out["also.scene_kinds_per_run"] = {k: round(v / runs, 2) for k, v in sorted(kinds.items())}
+    out["also.scene_moments_median"] = _median([float(s["moments"]) for s in scenes])
+    out["also.plans_made_per_run"] = round(sum(len(r["plans_made"]) for r in world_runs) / runs, 2)
+    closed: dict[str, int] = {}
+    for r in world_runs:
+        for status, n in (r.get("plans_closed") or {}).items():
+            closed[status] = closed.get(status, 0) + int(n)
+    out["also.plans_closed_per_run"] = {k: round(v / runs, 2) for k, v in sorted(closed.items())}
+    for key in ("work_days", "dinners", "at_home", "stay_overs", "stood_up_by_player"):
+        out[f"also.{key}_per_run"] = round(sum(int((r.get("world_counts") or {}).get(key, 0)) for r in world_runs) / runs, 2)
+    decks: dict[str, int] = {}
+    for r in world_runs:
+        for deck, n in (((r.get("world_counts") or {}).get("decks")) or {}).items():
+            decks[deck] = decks.get(deck, 0) + int(n)
+    out["also.decks_met_per_run"] = {k: round(v / runs, 2) for k, v in sorted(decks.items())}
+    out["also.player_life_events_per_run"] = round(player_events / runs, 2)
+    out["also.world_actions_per_run"] = round(sum(int(r["world_actions"]) for r in world_runs) / runs, 1)
+    out["also.world_refused_per_run"] = round(sum(int(r["world_refused"]) for r in world_runs) / runs, 1)
+    out["also.real_hours_per_run"] = round(sum(float(r["real_total"]) for r in world_runs) / runs, 2)
+    out["also.events_per_jump_morning_day60.median"] = _median([float(j) for j in jumps])
+    for stage in ("together", "living_together", "married"):
+        reached = [float(r["stage_real"][stage]) for r in world_runs if stage in (r.get("stage_real") or {})]
+        out[f"also.real_hours_to_{stage}.median"] = _median(reached)
+        out[f"also.{stage}_runs"] = _share(len(reached), runs)
+
+
 def companions(policy: str) -> list[str]:
     """The other policies a report of ``policy`` runs beside it, for its ``COMPANION_ROWS``."""
     return sorted({p for p in COMPANION_ROWS.values() if p != policy})
 
 
 def report(seeds: Iterable[int], sessions: int = 6, policy: str = "attentive", voice_policy: str = DEFAULT_VOICE, *,
-           model_seconds: float = DEFAULT_MODEL_SECONDS, companion: bool = True) -> dict[str, Any]:
-    """One value per ``REPORT_ROWS`` key (None: not built yet, or not reachable phone-only), plus ``also.*``.
-    With ``companion``, the ``COMPANION_ROWS`` policies are run on the same seeds for their rows."""
+           model_seconds: float = DEFAULT_MODEL_SECONDS, companion: bool = True, world: bool = True) -> dict[str, Any]:
+    """One value per ``REPORT_ROWS`` key (None: not reachable by these runs -- phone-only, say, or another
+    policy's row), plus ``also.*``. With ``companion``, the ``COMPANION_ROWS`` policies are run on the same seeds
+    for their rows. ``world=False``: T9's phone-only sessions."""
     seeds = [int(s) for s in seeds]
     policies = [policy, *(companions(policy) if companion else [])]
-    return fold([run(seed, sessions, p, voice_policy, model_seconds=model_seconds) for p in policies for seed in seeds])
+    return fold([run(seed, sessions, p, voice_policy, model_seconds=model_seconds, world=world)
+                 for p in policies for seed in seeds])
 
 
 # ---------------------------------------------------------------------------
@@ -2016,7 +3201,9 @@ def render(key: str, rep: dict[str, Any], seeds: int, sessions: int) -> str:
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0].strip().splitlines()[0])
     parser.add_argument("--game", default=SLUG, help=f"the story to play; only {SLUG!r} has this harness")
-    parser.add_argument("--sessions", type=int, default=6, help="phone-only sessions a run plays (40 real minutes each)")
+    parser.add_argument("--sessions", type=int, default=6, help="sessions a run plays (40 real minutes each)")
+    parser.add_argument("--phone-only", action="store_true",
+                        help="T9's phone-only sessions: no world, no work, no plans or scenes (full sessions by default)")
     parser.add_argument("--seeds", type=int, default=10)
     parser.add_argument("--first-seed", type=int, default=0)
     parser.add_argument("--policy", choices=(*POLICIES, "all"), default="attentive")
@@ -2033,6 +3220,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--disk", metavar="DIR", default="",
                         help="play on disk under DIR, spilling into the archive as play does (one folder per run)")
     parser.add_argument("--json", metavar="OUT", default="", help="also write the reports to this JSON file")
+    parser.add_argument("--day-save", metavar="DAYS", type=int, default=0,
+                        help="write_day_save: play --first-seed's run of --policy for DAYS sessions on disk under "
+                             "--disk (romantic voice, as the save-size test) and print save.json's bytes")
     args = parser.parse_args(argv)
     if args.game != SLUG:
         parser.error(f"argument --game: this harness plays {SLUG!r} only (scripts/simulate.py plays the others)")
@@ -2058,6 +3248,20 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 def _main(args: argparse.Namespace) -> int:
     reports: dict[str, dict[str, Any]] = {}
+    if args.day_save:
+        if not args.disk or args.policy == "all":
+            raise SystemExit("simulate_social: --day-save needs --disk DIR and one --policy")
+        logging.disable(logging.WARNING)
+        _ensure_active()
+        began = time.perf_counter()
+        path = write_day_save(args.first_seed, args.day_save, args.policy, Path(args.disk),
+                              model_seconds=args.model_seconds, world=not args.phone_only)
+        size = (path / "save.json").stat().st_size
+        spilled = (path / "phone_archive.jsonl")
+        print(f"day-save {args.policy} seed {args.first_seed} day {args.day_save}: save.json {size} bytes, "
+              f"phone_archive.jsonl {spilled.stat().st_size if spilled.exists() else 0} bytes "
+              f"(wall time {time.perf_counter() - began:.0f} s)", flush=True)
+        return 0
     if args.fold:
         # Runs made side by side (each its own --first-seed range and --raw file), folded as one.
         raw: dict[str, list[dict[str, Any]]] = {}
@@ -2082,7 +3286,8 @@ def _main(args: argparse.Namespace) -> int:
                 key = f"{policy}/{voice}/{args.model_seconds:g}"
                 ran = [policy, *([] if args.no_companion or args.policy == "all" else companions(policy))]
                 runs = [run(seed, args.sessions, p, voice, model_seconds=args.model_seconds,
-                            disk=Path(args.disk) / f"{p}-{voice}-{seed}" if args.disk else None)
+                            disk=Path(args.disk) / f"{p}-{voice}-{seed}" if args.disk else None,
+                            world=not args.phone_only)
                         for p in ran for seed in seeds]
                 raw_runs[key] = runs
                 reports[key] = fold(runs)

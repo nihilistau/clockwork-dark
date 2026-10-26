@@ -1,0 +1,19 @@
+# HUE & CRY's sounds (v0.24.0 spec §9.6): latches, coin and the watch. All on engine events (its screens are engine panels).
+version: 1
+sounds:
+  hue.wood:   {category: ui, label: "Wood", file: engine:files/kenney/impact-sounds/impactwood_light_000.ogg, gain: 0.5, fallback: {layers: [{wave: triangle, freq: 800, attack_ms: 1, decay_ms: 40, gain: 0.15}]}}
+  hue.latch:  {category: game, label: "A latch", file: engine:files/kenney/rpg-audio/metallatch.ogg, gain: 0.7, fallback: {layers: [{wave: square, freq: 1900, attack_ms: 1, decay_ms: 30, gain: 0.12, filter: {type: bandpass, freq: 1900, q: 5}}]}}
+  hue.bell:   {category: game, label: "Hand-bell", synth: {layers: [{wave: sine, freq: 1318.5, attack_ms: 2, decay_ms: 700, gain: 0.18}, {wave: sine, freq: 3530, attack_ms: 2, decay_ms: 300, gain: 0.05}]}}
+  hue.coins:  {category: game, label: "Coin purse", file: engine:files/kenney/rpg-audio/handlecoins.ogg, gain: 0.7, fallback: {layers: [{wave: triangle, freq: 3100, attack_ms: 1, decay_ms: 50, gain: 0.1}]}}
+  hue.rattle: {category: game, label: "The watchman's rattle", synth: {layers: [{wave: noise, attack_ms: 5, hold_ms: 580, sustain: 1, decay_ms: 1, gain: 0.2, tremolo: {rate_hz: 22, depth: 1}, filter: {type: bandpass, freq: 1400, q: 2}}]}}
+  hue.page:   {category: game, label: "A page turns", file: engine:files/kenney/rpg-audio/bookflip1.ogg, gain: 0.6, fallback: {layers: [{wave: noise, attack_ms: 5, decay_ms: 120, gain: 0.12, filter: {type: highpass, freq: 2000}}]}}
+  hue.door:   {category: game, label: "A door shuts", file: engine:files/kenney/rpg-audio/doorclose_1.ogg, gain: 0.6, fallback: {layers: [{wave: sine, freq: 90, attack_ms: 2, decay_ms: 300, gain: 0.3}]}}
+bind:
+  ui.press: hue.wood
+  choice.pick: hue.latch
+  turn.arrive: hue.bell
+  roll.cast: hue.coins
+  panel.wanted: hue.rattle
+  panel.job: hue.latch
+  panel.casing: hue.page
+  encounter.start: hue.door

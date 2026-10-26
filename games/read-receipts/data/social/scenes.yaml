@@ -71,12 +71,30 @@
 #                     `prior_bias`; its end swaps numbers or moves to
 #                     `meeting` only as far as growth.yaml `willing` allows.
 #
+#   morning           the morning after a stay-over (v0.24.0 §12.1), at the flat's
+#                     kitchen or at their home: the night's tail, never a second
+#                     date. `moments` (it ends after that many, else as any scene
+#                     ends), `moves` (the only moves on offer, never `phone`, always
+#                     `talk`) and `prior_bias` (added to its prior). It is breakfast,
+#                     getting ready and seeing them out: its end counts no scene,
+#                     swaps no numbers, moves no stage and queues no text. At the
+#                     flat the closer `see_them_out` (and `see_them_out:plan:soon`)
+#                     ends it with the player staying where they are.
+#
 # Words only: a move is conversation, an activity, a mood or something
 # shared about yourself. What two adults do on an evening out is the
 # narration's, in the storyteller prompt's and the model's register: none of
 # it is engine data (AGENTS.md rule 12).
 #
-# First values (spec §10); unmeasured until the balance task (T29).
+# First values (spec §10), measured T11 (v0.24.0) on full sessions; ONE lever
+# group changed (rule 10), `end_bands`. Round 1, at 0.72 / 0.56 / 0.42 / 0.3:
+# scene_band.great 45-48% (band 10-20) and fine 13-15% (20-30). Set to the
+# 85th / 50th / 28th / 12th percentiles of 1,338 attentive scene averages:
+# 0.92 / 0.70 / 0.55 / 0.40. Round 2, measured with them (10 seeds x 60
+# sessions, attentive, neutral model, at 6 / 15 / 30 s): great 16.2 / 16.2 /
+# 13.6%, good 31.0 / 34.0 / 35.4%, fine 21.5 / 23.4 / 22.6%, bad 10.1 /
+# 11.1 / 13.4% (banded); awkward 21.2 / 15.4 / 15.1% (10-20, DEFERRED at 6 s,
+# CLAUDE.md). Every other number here is unchanged.
 
 prior:                                     # v0.22's meets.quality, moved (§10.2)
   base: 0.5
@@ -95,14 +113,14 @@ moves:
   phone:      {label: "Check your phone", minutes: 5, fit: {}, bands: {lands: {}, fine: {}, flat: {}, misstep: {warmth: -3}}}
   talk:       {label: "Talk", minutes: 15, fit: {}, bands: {lands: {warmth: 2, trust: 1}, fine: {warmth: 1}, flat: {}, misstep: {warmth: -1}}}
 closers: [another_round, go_somewhere_else, walk_them_home, back_to_yours, back_to_theirs, stay_the_night, call_it_a_night,
-          propose]
+          propose, see_them_out]
 close:
   energy_out: 0                            # their energy at 0 -> they close
   misstep_run: 2                           # two missteps in a row -> they close
   another_round_minutes: 30
   another_round_energy: 0.34               # a third of a full evening's energy back
   walk_extra_minutes: 10
-end_bands: {great: 0.72, good: 0.56, fine: 0.42, awkward: 0.3}    # average moment score -> scene band
+end_bands: {great: 0.92, good: 0.7, fine: 0.55, awkward: 0.4}    # average moment score -> scene band (T11: was 0.72 / 0.56 / 0.42 / 0.3)
 too_deep_band: flat
 shared_activities: {apt_kitchen: [make_dinner], apt_dining: [eat], apt_lounge: [watch_something]}
 stay:                                      # §10.5, used from T16
@@ -110,7 +128,8 @@ stay:                                      # §10.5, used from T16
   early_start_hours: 9
   accept: {default: 0.6, romantic: 0.75, slow_burner: 0.35}   # by archetype only: no `intent` term (F34)
 wedding: {moments: 3, moves: [quiet, tell_about, playful, talk]}   # §12.2 (T18)
-chance:                                    # chance meetings with the cast (v0.23.0 addendum 4 W9; first values, T29)
+morning: {moments: 2, moves: [quiet, tell_about, playful, talk], prior_bias: 0.05}   # v0.24.0 §12.1: the night's tail
+chance:                                    # chance meetings with the cast (v0.23.0 addendum 4 W9; first values, unchanged at T11)
   prob: {out: 0.15, free: 0.04}            # by their schedule's status now: the share of blocks they are out at a venue
   block_hours: 3                           # one venue (or none) per person per block of the day
   max_here: 2                              # at most this many of them at one venue at once

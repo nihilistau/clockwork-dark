@@ -167,12 +167,10 @@ export default function Thread({
   const onSend = (intent) => {
     if (lost) {
       onClearNotSent();
-      if (onRetry) {
-        onRetry(intent);
-        return;
-      }
+      if (onRetry) return onRetry(intent);
     }
-    act(intent);
+    // What the sender answered: the compose bar plays its send sound only for an action that went (spec §9.7).
+    return act(intent);
   };
 
   return (
@@ -229,7 +227,7 @@ export default function Thread({
         {requests.map((r) => (
           <RequestCard key={r.id} request={r} name={name} now={now} act={act} pending={pending} />
         ))}
-        {typing && <TypingDots name={name} />}
+        {typing && <TypingDots name={name} threadId={threadId} lastAt={row && row.last ? row.last.at : ""} />}
       </ol>
       {closed ? (
         <p className="rr-thread__closed">This conversation has ended.</p>
@@ -247,6 +245,7 @@ export default function Thread({
           readyAsks={row?.asks}
           pid={pid}
           venues={venuesOf(phone)}
+          kinds={phone.meet_options && phone.meet_options.kinds}
           canSignOff={Boolean(row) && row.open !== false}
         />
       )}

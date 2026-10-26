@@ -1,0 +1,57 @@
+# READ RECEIPTS -- wedding invite (v0.24.0 spec §12.2): a life event's world moment.
+# ==========================================================================
+#
+# Dealt in the flat's hall while a wedding invitation waits for an answer (`life_wedding_invite`, set by the life event `wedding_invite` in
+# data/social/life_events.yaml and cleared when it has run its days, or by any answer here). Read by
+# engine/content/deck.py through `paths.decks`; THE FILENAME IS THE DECK ID.
+#
+# Ordinary domestic life and nothing more. Every answer is roll-free and clears the flag. REPEATABLE: the
+# event comes round again, the flag clears, the director re-arms the deck when its `when:` is seen false,
+# and it deals the next time. The director deals nothing over an open scene, so this waits for the room
+# to be the player's own again.
+#
+# Version: v0.1.0
+
+id: wedding_invite
+
+repeatable: true
+
+draw: 1
+
+when:
+  all:
+    - { flag: life_wedding_invite }
+    - { at_location: apt_hall }
+
+cards:
+  - id: WI1_the_envelope_on_the_mat
+    tags: [menu, gm]
+    title: "The Envelope on the Mat"
+    text: >-
+      INTENT: a cream envelope lies on the mat inside the door, your name written on it in careful
+      ink. CONSTRAINTS: an ordinary invitation to a friend's wedding; the player decides what to do
+      with it. MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: reply_yes
+        label: "Reply yes"
+        text: >-
+          Reply yes to the invitation.
+        gate:
+          on_pass:
+            text: >-
+              You find a pen, tick the box and put the reply card by your keys so it goes out in the
+              morning.
+            effects:
+              - { type: flag, flag: life_wedding_invite, value: false }
+
+      - id: pin_it_up
+        label: "Pin it on the fridge for later"
+        text: >-
+          Pin the invitation on the fridge to answer later.
+        gate:
+          on_pass:
+            text: >-
+              You pin it under a magnet in the kitchen where you will see it every day. There is time to
+              decide.
+            effects:
+              - { type: flag, flag: life_wedding_invite, value: false }

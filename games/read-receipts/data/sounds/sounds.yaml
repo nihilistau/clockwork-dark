@@ -1,0 +1,51 @@
+# READ RECEIPTS' sounds (v0.24.0 spec §9.7): the phone. Its events are fired by the plugin
+# (ui/src/stories/read-receipts/sounds.js and its components); the files are the engine's (`engine:`).
+version: 1
+events:
+  phone.message_in: {label: "A message in the open thread"}
+  phone.notify:     {label: "A message in another thread"}
+  phone.buzz:       {label: "A message while the phone is down"}
+  phone.ring:       {label: "A voice note or video message"}
+  phone.typing:     {label: "They start typing"}
+  phone.send:       {label: "You send"}
+  phone.unlock:     {label: "Unlock"}
+  phone.lock:       {label: "Lock"}
+  phone.up:         {label: "Pick the phone up"}
+  phone.down:       {label: "Put the phone down"}
+  phone.match:      {label: "A new match"}
+  phone.swipe:      {label: "A card passed or liked"}
+  scene.open:       {label: "Someone arrives"}
+sounds:
+  phone.pop:     {category: phone, label: "Pop", synth: {layers: [{wave: sine, freq: 880, to: 1320, glide_ms: 40, attack_ms: 2, decay_ms: 40, gain: 0.25}]}}
+  tone.chime:    {category: phone, label: "Chime", essential: true, synth: {sequence: {voice: {wave: sine, attack_ms: 2, decay_ms: 180, gain: 0.25}, notes: [[0, E6, 120], [120, B5, 220]]}}}
+  tone.ping:     {category: phone, label: "Ping", essential: true, synth: {layers: [{wave: sine, freq: 1760, attack_ms: 1, decay_ms: 260, gain: 0.22}]}}
+  tone.knock:    {category: phone, label: "Knock", essential: true, synth: {layers: [{wave: triangle, freq: 330, attack_ms: 1, decay_ms: 50, gain: 0.35}, {wave: triangle, freq: 330, start_ms: 140, attack_ms: 1, decay_ms: 50, gain: 0.35}]}}
+  ring.marimba:  {category: phone, label: "Marimba", essential: true, synth: {repeat: {times: 2, gap_ms: 300}, sequence: {voice: {wave: sine, attack_ms: 2, decay_ms: 140, gain: 0.3}, notes: [[0, E6, 120], [140, B5, 120], [280, E6, 120], [420, F#6, 120], [560, B6, 260]]}}}
+  ring.classic:  {category: phone, label: "Classic", essential: true, synth: {repeat: {times: 2, gap_ms: 400}, layers: [{wave: square, freq: 1200, attack_ms: 2, hold_ms: 400, sustain: 1, decay_ms: 1, gain: 0.12, tremolo: {rate_hz: 20, depth: 0.8}, filter: {type: lowpass, freq: 3000}}]}}
+  ring.pulse:    {category: phone, label: "Pulse", essential: true, synth: {repeat: {times: 2, gap_ms: 300}, sequence: {voice: {wave: triangle, attack_ms: 5, decay_ms: 90, gain: 0.3}, notes: [[0, A5, 90], [120, A5, 90], [240, E6, 200]]}}}
+  phone.tick:    {category: phone, label: "Typing", throttle_ms: 4000, synth: {layers: [{wave: sine, freq: 3000, attack_ms: 1, decay_ms: 15, gain: 0.08}]}}
+  phone.whoosh:  {category: phone, label: "Sent", synth: {layers: [{wave: noise, attack_ms: 8, decay_ms: 140, gain: 0.2, filter: {type: bandpass, freq: 1200, to: 4000, glide_ms: 140, q: 1.4}}]}}
+  phone.vibrate: {category: phone, label: "Buzz", essential: true, synth: {repeat: {times: 2, gap_ms: 140}, layers: [{wave: sawtooth, freq: 150, attack_ms: 5, hold_ms: 240, sustain: 1, decay_ms: 1, release_ms: 15, gain: 0.25, tremolo: {rate_hz: 32, depth: 0.7}, filter: {type: lowpass, freq: 400}}]}}
+  phone.click_up:   {category: phone, label: "Unlock", synth: {layers: [{wave: square, freq: 1800, to: 2600, glide_ms: 15, attack_ms: 1, decay_ms: 20, gain: 0.12, filter: {type: lowpass, freq: 5000}}]}}
+  phone.click_down: {category: phone, label: "Lock", synth: {layers: [{wave: square, freq: 2600, to: 1600, glide_ms: 15, attack_ms: 1, decay_ms: 25, gain: 0.12, filter: {type: lowpass, freq: 5000}}]}}
+  phone.cloth_up:   {category: phone, label: "Picked up", file: engine:files/kenney/rpg-audio/cloth1.ogg, gain: 0.6, fallback: {layers: [{wave: noise, attack_ms: 20, decay_ms: 160, gain: 0.15, filter: {type: lowpass, freq: 1500}}]}}
+  phone.cloth_down: {category: phone, label: "Put down", file: engine:files/kenney/rpg-audio/cloth2.ogg, gain: 0.6, fallback: {layers: [{wave: noise, attack_ms: 10, decay_ms: 200, gain: 0.15, filter: {type: lowpass, freq: 1200}}]}}
+  phone.match:   {category: phone, label: "A match", synth: {sequence: {voice: {wave: triangle, attack_ms: 2, decay_ms: 150, gain: 0.25}, notes: [[0, C6, 90], [90, E6, 90], [180, G6, 90], [270, C7, 240]]}}}
+  phone.swipe:   {category: phone, label: "Swipe", synth: {layers: [{wave: noise, attack_ms: 5, decay_ms: 90, gain: 0.12, filter: {type: bandpass, freq: 2000, to: 800, glide_ms: 90, q: 1}}]}}
+  phone.tap:     {category: ui, label: "Tap", synth: {layers: [{wave: sine, freq: 1200, attack_ms: 1, decay_ms: 12, gain: 0.15}]}}
+  scene.door:    {category: world, label: "Someone arrives", file: engine:files/kenney/rpg-audio/dooropen_1.ogg, gain: 0.5, fallback: {layers: [{wave: triangle, freq: 392, attack_ms: 5, decay_ms: 300, gain: 0.18}, {wave: triangle, freq: 523.3, start_ms: 120, attack_ms: 5, decay_ms: 360, gain: 0.15}]}}
+bind:
+  phone.message_in: phone.pop
+  phone.notify: {default: tone.chime, choices: [tone.chime, tone.ping, tone.knock]}
+  phone.buzz: phone.vibrate
+  phone.ring: {default: ring.marimba, choices: [ring.marimba, ring.classic, ring.pulse]}
+  phone.typing: phone.tick
+  phone.send: phone.whoosh
+  phone.unlock: phone.click_up
+  phone.lock: phone.click_down
+  phone.up: phone.cloth_up
+  phone.down: phone.cloth_down
+  phone.match: phone.match
+  phone.swipe: phone.swipe
+  scene.open: scene.door
+  ui.press: phone.tap

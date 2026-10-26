@@ -76,6 +76,7 @@ describe("the setup wizard", () => {
     typeInto(field("name").querySelector("input"), "  Robin ");
     goTo("What you want");
     expect(begin().disabled).toBe(false);
+    expect(begin().getAttribute("data-sound")).toBe("none");          // one sound per action: game.begin's (T14 d4)
     click(begin());
     const creation = onBegin.mock.calls[0][0];
     expect(creation).toMatchObject({

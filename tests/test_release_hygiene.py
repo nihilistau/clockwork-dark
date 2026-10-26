@@ -205,3 +205,26 @@ def test_agents_md_says_docs_move_with_the_change() -> None:
     section = text.split("## Working conventions", 1)[1].split("\n## ", 1)[0]
     assert "**Docs move with the change.**" in section
     assert "games/<slug>/CHANGELOG.md" in section
+
+
+#: Files a NOT WIRED row names as removed (the row says so), so they are expected to be gone.
+GOVERNANCE_REMOVED = {"engine/social/meets.py", "engine/media/interceptors.py"}
+
+
+def test_every_file_a_governance_row_names_exists() -> None:
+    """(v0.24.0 T14) A NOT WIRED row names its file (rule 9), so a row naming a file that is not there is a
+    broken contract: `contact/PlanMeet.jsx` and `settings/letTimePass.js` were named after both were gone."""
+    text = (ROOT / "docs" / "GOVERNANCE.md").read_text(encoding="utf-8")
+    pattern = r"`((?:engine|ui|tests|scripts|games|docs|config|content)/[A-Za-z0-9_./-]+?\.[a-z]{2,5})(?:::[A-Za-z_.]+)?`"
+    named = set(re.findall(pattern, text))
+    assert named, "no file named: the pattern no longer reads the table"
+    missing = sorted(p for p in named - GOVERNANCE_REMOVED if not (ROOT / p).exists())
+    assert not missing, missing
+    assert all(p in named for p in GOVERNANCE_REMOVED), "a removed-file allowance no longer needed: drop it"
+
+
+def test_no_governance_row_waits_for_a_task_number() -> None:
+    """(v0.24.0 T14) "read by nothing until T13" outlives its task: once the task ships the row is false. A row
+    says what is true now ("since v0.23.0 T13"), and a plan's task numbers mean nothing past their release."""
+    text = (ROOT / "docs" / "GOVERNANCE.md").read_text(encoding="utf-8")
+    assert not re.findall(r".{0,60}\buntil T\d+.{0,20}", text)

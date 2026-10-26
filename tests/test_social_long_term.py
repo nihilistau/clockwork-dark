@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from tests.social_fixtures import _force_stage, _set_person, matched, receipts_active, receipts_state  # noqa: F401
+from tests.social_fixtures import (  # noqa: F401
+    _force_stage, _set_person, matched, matched_numbers, receipts_active, receipts_state)
 
 
 def _all_willing(monkeypatch):
@@ -247,14 +248,17 @@ def test_proposing_in_person_is_a_closer_and_the_evening_goes_on(receipts_state,
         receipts_state, [{"skill": "social_close", "intent": {"target": "propose"}, "result": done}])
 
 
-def test_the_wedding_follows_the_engagement_by_its_days(receipts_state, matched, monkeypatch) -> None:
+def test_the_wedding_follows_the_engagement_by_its_days(receipts_state, matched_numbers, monkeypatch) -> None:
     """The `wedding` life row: eligible only `wedding_after_days` after `engaged_since`, with no wedding plan open;
-    it queues the registry office plan, and arriving there opens the wedding."""
+    it queues the registry office plan, and arriving there opens the wedding. The couple have each other's
+    numbers (v0.24.0 T15): a bare Matchstick match nobody has written in expires over the fortnight, and an
+    expired match is no live person for the daily life draw, so the test passed or failed on when they happened
+    to write first."""
     from engine import social
     from engine.game import clock
     from engine.social import events, life, plans, scene, world
 
-    pid = _pid(matched)
+    pid = matched_numbers("texts").split(":", 1)[1]
     _force_stage(receipts_state, pid, "engaged")
     _set_person(receipts_state, pid, warmth=90, trust=90)                 # no cold spell while the days pass
     row = life.row_of("person", "wedding")

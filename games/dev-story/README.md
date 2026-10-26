@@ -21,7 +21,10 @@ branch; the suite runs its rows (`tests/test_finales.py` plays it to an
 ending), so leave it working on main.
 
 It draws with the engine's default skin (`ui.plugin: _engine`): the generic
-sheet built from its declared meters and clock. What changed, release by
+sheet built from its declared meters and clock. It hears the engine's sounds
+(`content/sounds/sounds.yaml`) and declares no `paths.sounds` of its own, by
+design: it is the bench, and the engine's set is what a story with no palette
+of its own gets (docs/AUTHORING.md §3.16). What changed, release by
 release: [CHANGELOG.md](CHANGELOG.md).
 
 Writing a story of your own? The end-to-end guide — manifest contract, content

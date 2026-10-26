@@ -213,6 +213,17 @@
 # v0.23.0 T5 replaced that gate: `numbers` is `{willing: number}` (growth.yaml:
 # depth 1 and warmth 25, no exchanges, no days) and every per-day cap above is
 # per conversation episode. The rows above are v0.22.0's, kept as its record.
+#
+# Measured T11 (v0.24.0, 2026-10-26) on FULL sessions (phone capped at 60%, then the world day):
+#   python scripts/simulate_social.py --game read-receipts --sessions 60 --seeds 1 --first-seed N
+#     --no-companion --policy P --model-seconds S --raw r.json   (N = 0..9), then --fold
+#   (neutral model; attentive at 6 / 15 / 30 s, every other policy at 15 s ONLY: the owner's
+#   10-seed scale). Banded or DEFERRED (CLAUDE.md), never widened:
+#   the devoted player (15 s only): together within 10 real hours 10%
+#   (40-70, deferred), living together within 20 20% (20-50, banded), married
+#   within 40 30% (10-30, banded); active relationships at 20 real hours:
+#   attentive 12 / 10.5 / 9, bachelor 10 (3-8, both deferred). Nothing here
+#   retuned.
 # v0.23.0 T9's harness retired them (spec §17.2: its rows are per session);
 # its numbers rows are growth.yaml's header.
 #

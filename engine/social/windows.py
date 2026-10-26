@@ -79,13 +79,22 @@ def work_bands(state: GameState, who: str, day: int) -> list[tuple[float, float]
     return [(a, b) for a, b, status in _bands(schedule_of(state, who), day) if status == "work"]
 
 
+def _morning_hour() -> float:
+    return float((social.data("conversation").get("clock") or {}).get("morning", 7))
+
+
 def _on_day(sched: Any, window: str, day: int) -> Optional[tuple[float, float]]:
     bands = _bands(sched, day)
     awake = [b for b in bands if b[2] != "asleep"]
     work = [b for b in bands if b[2] == "work"]
     base = day * _DAY
-    if window == "waking" and awake:
-        return awake[0][0], awake[0][0] + 1.0
+    if window == "waking":
+        # The first awake band that is not the tail of the night before (a band from 00:00 that ends by
+        # `clock.morning`: a night shift's 00:00-02:00, a student's night out), as `_promise_day`'s morning
+        # guards (v0.24.0 T14): without it a bartender slept to the next midnight and a student a day on.
+        morning = base + _morning_hour()
+        rising = [b for b in awake if not (b[0] <= base and b[1] <= morning)]
+        return (rising[0][0], rising[0][0] + 1.0) if rising else None
     if window == "commute" and work:
         return work[0][0] - 1.0, work[0][0]
     if window == "lunch":
@@ -132,7 +141,7 @@ def resolve(state: GameState, who: str, window: str, at: float) -> Optional[tupl
     """The next occurrence of `window` for `who` that has not ended by `at` (clipped to start no earlier
     than `at`): an initiation window or a promise window. None when this schedule has none within a week."""
     sched = schedule_of(state, who)
-    morning = float((social.data("conversation").get("clock") or {}).get("morning", 7))
+    morning = _morning_hour()
     if window == "later":
         lead = float(social.data("promises").get("later_min_hours", 2))
         return first_free(state, who, at + lead)

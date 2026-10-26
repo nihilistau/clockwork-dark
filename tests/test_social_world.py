@@ -230,6 +230,34 @@ def test_sleep_lands_in_the_morning_and_promises_wait(receipts_active, office) -
     assert again["opens_at"] <= state.world_clock_hours
 
 
+@pytest.mark.parametrize("shape, weekday, start, wake_day, wake_hour", [
+    ("nights", 2, 2.5, 2, 12.0),     # a bartender home from Tuesday's shift at Wed 02:30: up at Wed 12:00
+    ("student", 0, 22.0, 1, 10.0),   # a student asleep at Mon 22:00: up for Tuesday's 10:00 lecture
+    ("student", 0, 20.5, 1, 10.0),   # ... and at 20:30, not at Tuesday's 00:30 (the tail of Monday night)
+])
+def test_sleep_wakes_a_night_worker_and_a_student_in_their_morning(receipts_active, monkeypatch, shape, weekday,
+                                                                   start, wake_day, wake_hour) -> None:
+    """(v0.24.0 T14 a1) `waking` is the first awake band that is not the tail of the night before (a band from
+    00:00 that ends by `clock.morning`), as the `morning` promise window already guards: before, a bartender
+    slept through to Thursday 00:00 and a student to Wednesday 10:00."""
+    from engine.social import windows, world
+
+    real = windows.schedule_of
+    monkeypatch.setattr(windows, "schedule_of",
+                        lambda state, who: SimpleNamespace(job_shape=shape) if who == "player" else real(state, who))
+    scene, session = _live_session()
+    state = session.engine.state
+    state.location_id = "apt_bedroom"
+    monday = _next_monday(state)
+    _to(state, monday + weekday, start)
+    result = world.do(state, "sleep")
+    assert not result["stopped"]
+    assert state.world_clock_hours == pytest.approx((monday + wake_day) * 24 + wake_hour, abs=1e-6)
+    # The initiation window itself, as a person of that shape would read it (the same line).
+    span = windows.resolve(state, "player", "waking", (monday + wake_day) * 24 + 0.0)
+    assert span is not None and span[0] == pytest.approx((monday + wake_day) * 24 + wake_hour)
+
+
 def test_carry_on_resumes_to_the_original_end(receipts_active, office) -> None:
     """§8.4: "Carry on" after a buzz resumes the activity to the end it had, not a fresh one: woken at 06:00 on
     a weekday, sleeping on lands at 07:00 that morning (a fresh sleep from 06:00 would run to the next day's)."""

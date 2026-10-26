@@ -163,7 +163,7 @@ def test_the_report_has_every_row_and_replays(receipts_active) -> None:
     assert first == again                                     # the same seeds, the same report
     assert set(sim.REPORT_ROWS) <= set(first)
     assert first["ratio.chat"] is not None and first["also.actions_per_run"] > 0
-    assert first["sessions_to_first_scene"] is None           # no scene in a phone-only session (T29's)
+    assert first["ratio.world"] is not None                    # full sessions (T29): the world was played
     assert first["also.runs"] == 2                            # the attentive runs; the flaky companion's apart
     assert isinstance(first["also.refusals_per_run"], dict)
     assert "also.days_to_warming.romantic" in first            # one row per behaviours.yaml archetype
@@ -181,7 +181,8 @@ def test_a_session_spends_its_real_seconds_then_sleeps(receipts_active) -> None:
         phone = sim.Phone(4, "neutral_model")
         try:
             player = sim.POLICIES["attentive"](phone, 4)
-            spans = [sim.Session(phone, player, model_seconds=30, real_seconds_budget=600).play() for _ in range(2)]
+            spans = [sim.Session(phone, player, model_seconds=30, real_seconds_budget=600, world=False).play()
+                     for _ in range(2)]
             assert phone.now % 24 == pytest.approx(sim.HOUR_WAKE)
             assert all(s["real_seconds"] < 600 + 40 * 63 for s in spans)      # the wind-down's few sends past it
             sends = [c for c in phone.charges if c[2] >= sim.REAL_SECONDS["send"]]

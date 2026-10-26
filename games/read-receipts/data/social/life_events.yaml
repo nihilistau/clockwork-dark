@@ -26,7 +26,8 @@
 #   cooldown_days      days after one begins before another of its id can
 #   text               the plain fact (the "Since you met" line, and a player event's note); a person
 #                      row may name it `canon` instead, which also writes it to what they shared
-#   lasts_days         how long it runs (a window of days); none: it happens and is over
+#   lasts_days         how long it runs (a window of days); none: it happens and is over. A row with a
+#                      `flag` or `news` NEEDS it (validation): news shows, and the flag holds, only while it runs
 #   news               `news` (person: told once, in the next conversation's reply) | `player_news`
 #                      (the player's: offered as a tell_about topic and a sign-off reason)
 #   followup           {about, when}: a follow-up in their memory ("days:3", "tomorrow", "after:<window>")
@@ -45,13 +46,23 @@
 #   label              the topic in words ("your boiler"), for tell_about
 #   sign_off           the reason the engine gives when YOU end a chat while it runs
 #   flag               a story flag `life_<id>` held while it runs (a deck's `when:`, an activity's)
-#   scene              the deck dealt for it (data/scenes/<id>.yaml)
+#   scene              the deck dealt for it (data/scenes/<id>.yaml); its `when:` must read the row's `flag`
+#                      (validation checks it)
 #   schedule           {work_extra_hours | lift_extra_minutes: n} while it runs
 #   effects            social effects applied when it begins (none shipped)
 #
-# Every number here is a balance constant (rule 10): first values, measured at the balance task.
+# Every number here is a balance constant (rule 10): first values.
+# Measured T11 (v0.24.0, 2026-10-26) on FULL sessions (phone capped at 60%, then the world day):
+#   python scripts/simulate_social.py --game read-receipts --sessions 60 --seeds 1 --first-seed N
+#     --no-companion --policy P --model-seconds S --raw r.json   (N = 0..9), then --fold
+#   (neutral model; attentive at 6 / 15 / 30 s, every other policy at 15 s ONLY: the owner's
+#   10-seed scale). Banded or DEFERRED (CLAUDE.md), never widened:
+#   life_events.player_per_week 0.90 / 0.92 / 0.93 (1-3, DEFERRED: the lever
+#   is the player rows' `prob_per_week`, nominally 1.36 a week, not changed:
+#   one lever group a round); life_events.person_per_month_d2plus 1.10 /
+#   1.27 / 1.23 (0.5-1.5, banded); the four decks met 0.14 a week (unbanded).
 #
-# Version: v0.2.0
+# Version: v0.3.0
 
 kept: {past: 4}
 
@@ -66,7 +77,7 @@ player:
      sign_off: "you have to work late"}
   - {id: rough_week, when: {}, prob_per_week: 0.1, cooldown_days: 30, lasts_days: 5, news: player_news,
      text: "You are having a rough week at work", label: "your week at work"}
-  - {id: promotion, when: {}, prob_per_week: 0.02, cooldown_days: 180, news: player_news,
+  - {id: promotion, when: {}, prob_per_week: 0.02, cooldown_days: 180, lasts_days: 7, news: player_news,
      text: "You were promoted at work", label: "your promotion"}
   - {id: a_cold, when: {}, prob_per_week: 0.08, cooldown_days: 45, lasts_days: 4, news: player_news,
      text: "You have a cold", label: "your cold", sign_off: "you are not feeling great"}
@@ -74,13 +85,16 @@ player:
      text: "It is a friend's birthday and there are drinks", label: "your friend's birthday",
      sign_off: "you are heading out for a friend's birthday"}
   - {id: family_visit, when: {}, prob_per_week: 0.04, cooldown_days: 60, lasts_days: 3, news: player_news,
-     text: "Your family are visiting", label: "your family visiting", sign_off: "your family are over"}
-  - {id: wedding_invite, when: {}, prob_per_week: 0.02, cooldown_days: 120, news: player_news,
-     text: "You have been invited to a wedding", label: "the wedding invitation"}
+     flag: life_family_visit, scene: family_visit, text: "Your family are visiting", label: "your family visiting", sign_off: "your family are over"}
+  - {id: wedding_invite, when: {}, prob_per_week: 0.02, cooldown_days: 120, lasts_days: 5, news: player_news,
+     flag: life_wedding_invite, scene: wedding_invite, text: "You have been invited to a wedding",
+     label: "the wedding invitation"}
   - {id: lift_out, when: {}, prob_per_week: 0.05, cooldown_days: 30, schedule: {lift_extra_minutes: 5},
-     lasts_days: 3, news: player_news, text: "The lift in your building is out", label: "the broken lift"}
+     lasts_days: 3, news: player_news, flag: life_lift_out, scene: lift_out, text: "The lift in your building is out",
+     label: "the broken lift"}
   - {id: neighbour_party, when: {}, prob_per_week: 0.06, cooldown_days: 30, lasts_days: 1, news: player_news,
-     text: "Your neighbour is having a party", label: "your neighbour's party"}
+     flag: life_neighbour_party, scene: neighbour_party, text: "Your neighbour is having a party",
+     label: "your neighbour's party"}
   - {id: payday, when: {}, prob_per_week: 0.25, cooldown_days: 25, lasts_days: 1, news: player_news,
      text: "It is payday", label: "payday"}
 
@@ -119,7 +133,7 @@ person:
   - {id: wedding, when: {stages: [engaged]}, prob_per_week: 7, cooldown_days: 7, plan: wedding,
      text: "A date was set at the registry office"}
 
-seen:                               # §12.4 (T18): first values, measured at the balance task
+seen:                               # §12.4 (T18): first values, unchanged at T11
   prob: 0.25
   trust: -25
   mood_days: 5

@@ -11,6 +11,7 @@
  */
 import NewRun from "./NewRun.jsx";
 import PlayScreen from "./PlayScreen.jsx";
+import { SOUND_EVENTS } from "./sounds.js";
 import { initialState, reduce } from "./state.js";
 
 export default {
@@ -29,4 +30,8 @@ export default {
 
   PlayScreen,
   NewRun,
+
+  // The phone's own sound events (v0.24.0 spec §5.2, §9.7), fired by this plugin; the palette is
+  // games/read-receipts/data/sounds/sounds.yaml.
+  soundEvents: SOUND_EVENTS,
 };

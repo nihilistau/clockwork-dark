@@ -67,7 +67,9 @@ const MAIN = resolve(process.cwd(), "src/main.jsx");
  * that still passes is worse than no test.
  */
 function slotsCoreReads() {
-  const found = new Set(["slug", "title", "theme", "initialState", "reduce"]);
+  // `soundEvents` is read by tests/test_sound_events.py, not by core: a plugin's list of the story sound events
+  // it fires (v0.24.0 spec §5.2), kept when borrowed.
+  const found = new Set(["slug", "title", "theme", "initialState", "reduce", "soundEvents"]);
   const scan = (path) => {
     const text = readFileSync(path, "utf8");
     for (const match of text.matchAll(/\bstory\??\.([A-Za-z_]\w*)/g)) {
@@ -202,6 +204,10 @@ describe.each(NAMES)("plugin: %s", (name) => {
       expect(Array.isArray(plugin[list]), `${name}.${list} is not an array`).toBe(true);
     }
     if (plugin.ownsPanels != null) expect(Array.isArray(plugin.ownsPanels)).toBe(true);
+    if (plugin.soundEvents !== undefined) {
+      expect(Array.isArray(plugin.soundEvents)).toBe(true);
+      for (const e of plugin.soundEvents) expect(e).toMatch(/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/);
+    }
   });
 
   it("declares well-formed overlays with unique shortcut keys", async () => {

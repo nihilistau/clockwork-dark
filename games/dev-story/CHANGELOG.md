@@ -12,6 +12,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-10-27
+
+### Added
+
+- Sound (v0.24.0): the bench plays the engine's sound set (`content/sounds/sounds.yaml`)
+  through the shared play screen, and declares no `paths.sounds` of its own, by design.
+  Nothing in the story's data changed.
+
 ## [0.21.0] — 2026-10-07
 
 ### Added

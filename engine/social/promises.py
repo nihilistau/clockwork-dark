@@ -17,9 +17,12 @@ written only by the ``social_promise`` effect (rule 3):
 - A model's ``promise`` proposal (``relationships.yaml`` ``proposals:``),
   legal only while the episode is winding or signed off, accepted when the
   window resolves within ``max_ahead_hours``.
-- With no model, ``promises.yaml`` ``phrases:`` matched in the player's own
-  message (``phrase_match``): a pending request (``people[pid]["promise_asked"]``)
-  the person's next decision accepts (``accept_asked``).
+- ``promises.yaml`` ``phrases:`` matched in the player's own message
+  (``phrase_match``), with a model or without one: a pending request
+  (``people[pid]["promise_asked"]``) the person's next decision accepts
+  (``accept_asked``). With no model it is the only route from the player's
+  words; with one, a ``promise`` proposal for the same window is the same
+  promise (``make``'s overlap rule), never a second.
 
 **Who the window belongs to (m4).** ``windows.owner_of``: the sender's
 schedule, but ``at_work`` the receiver's. A window that does not exist for
@@ -390,9 +393,10 @@ def on_player_message(state: GameState, pid: str, at: float) -> None:
 
 
 def note_player_text(state: GameState, pid: str, text: str, at: float) -> None:
-    """With no model (§5.2): a promise stated in the player's message is a pending request
-    (`people[pid]["promise_asked"]`, inside `social_message`'s handler), accepted at the person's next
-    decision (`accept_asked`)."""
+    """A promise stated in the player's message (§5.2) is a pending request (`people[pid]["promise_asked"]`,
+    inside `social_message`'s handler), accepted at the person's next decision (`accept_asked`). Read on every
+    player message, with a model or without one: with no model it is the only route; with one, a `promise`
+    proposal for the same window is deduped by `make` (v0.24.0 T14 ruling)."""
     found = phrase_match(text)
     if found is None:
         return
