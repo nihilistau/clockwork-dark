@@ -226,6 +226,10 @@ What changed, release by release: [CHANGELOG.md](CHANGELOG.md). The design is
   night is followed by a short morning scene (`scenes.yaml` `morning`): breakfast,
   getting ready and seeing them out, with its own moves and the closer "See them to
   the door"; it counts as the night's tail, not a second scene.
+  The broken lift adds its five minutes only to a move through your building (not to
+  every move, as v0.23.0 did), and the wedding invitation (five days) and your promotion
+  (seven) now run a window: for that long you can tell people the news, and then it is
+  old.
 - `data/social/creation.yaml` -- the player's own profile: every field the
   creation form asks for, its choices or range and its default. Where a
   field picks from a list the people are drawn from (hobbies, hair, style,
@@ -533,8 +537,8 @@ A run is SESSIONS (`--sessions`, 6 by default): 40 real minutes of the
 player's actions from its waking hour, each priced in real seconds (a send 30,
 a swipe, like or pass 4, each bubble read 3, and `--model-seconds` -- 6, 15 or
 30 -- for each reply a send got; a wait is free), then "talk later" where it
-was still talking and bed. T9's sessions are phone only; the full-session pass (T29b,
-deferred to the end of v0.24.0) adds the world, scenes, sleep and work. `--policy` sets the player:
+was still talking and bed. A session is full by default (v0.24.0 T11): the phone takes at most 60% of the
+40 minutes and the world day (work, dinner, plans, scenes, sleep) the rest; `--phone-only` is T9's phone-only session. `--policy` sets the player:
 `attentive`, `swiper`, `picky`, `slow`, `neglectful`, `pushy`, `devoted`,
 `bachelor`, `flaky`, `chatty` or `all`.
 `--voice` sets the stub: `neutral_model` (the default: a working model's
@@ -561,13 +565,13 @@ promises row (`--no-companion` skips it).
 
 **Where the measured tables live.** T9's phone-only pass (10 seeds x 6
 sessions at 6, 15 and 30 model seconds) is in this story's
-[CHANGELOG](CHANGELOG.md) (`[0.23.0]`); `conversation.yaml`'s,
+[CHANGELOG](CHANGELOG.md) (`[0.23.0]`), and the full-session pass (10 seeds x 60 sessions) under `[Unreleased]`; `conversation.yaml`'s,
 `promises.yaml`'s and `growth.yaml`'s headers carry the rows their numbers
 move. `tests/test_simulate_social.py` (`slow`) holds each row it bands at
 all three latencies on seeds 0-9 -- ghosting at depth 0, the fast tercile's
 real minutes to a number, and the attentive player's own promises -- and asserts every promise of theirs is kept; every
 other row is deferred by data with its CLAUDE.md row (the phone-only misses
-with their measured values, and the rows only T29b's full sessions reach, at the end of v0.24.0).
+with their measured values, and the full-session rows of v0.24.0 T11, which `FULL_BANDS` bands or CLAUDE.md defers by data). The full-session tables are in the [CHANGELOG](CHANGELOG.md) (`[Unreleased]`).
 `tests/test_social_save_size.py` pins a day-180 save under 1 MB.
 
 ## Screenshots and the layout check

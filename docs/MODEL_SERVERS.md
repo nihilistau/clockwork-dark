@@ -382,8 +382,8 @@ runs (spec §17.2's band is 60% or more; deferred by data in CLAUDE.md). The
 live figure: `tests/test_texter_latency_probe.py` (`@pytest.mark.live`; set
 `CLOCKWORK_LIVE_LLM` to the configured provider) sends one request per mode
 through the `texter` profile with a prompt the size of the stub's p50 and
-prints the measured tokens a second and this table from it. T31 re-measures
-live, with the fallback rate per mode.
+prints the measured tokens a second and this table from it. A live re-measure with the
+fallback rate per mode has not been done (live play was deferred, 2026-10-26).
 
 **Why reasoning is off.** A reply is a few bubbles in a small JSON
 envelope, and the player watches typing dots while it is written: thinking

@@ -35,9 +35,10 @@ tests** in 36 files under `ui/tests/` (`npm test --prefix ui`; `vitest` is a
 devDependency, so `npm install --prefix ui` once first). `fast` was not
 re-measured (v0.21.1: about 5.8 min). Not run for this release, by the owner's
 deferral: the 40-seed simulator confirmation and the balance pass over full
-sessions (T29b), live play with a model (T31) and a whole-branch review (T33). (T29b has
-since run on the v0.24.0 branch, as its T11, at the owner's 10-seed scale: see
-Deliberately deferred.)
+sessions (T29b), live play with a model (T31) and a whole-branch review (T33).
+(The balance pass has since run on the v0.24.0 branch, as its T11, at the owner's
+10-seed scale; the docs pass as its T13; the review is its T14; live play is
+deferred again: see Deliberately deferred.)
 Re-measure and restate these at every release rather than trusting this line --
 it has been stale before, in the very sentence that warned about it.
 A bare `pytest` is the fast tier since v0.21.1 (`slow` and `process` left
@@ -182,8 +183,8 @@ only once the last of them lands:
 | v0.21.0 | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | **shipped** |
 | v0.21.1 | Patch: test speed -- tiers, pytest-xdist hybrid runs, bounded runs (`scripts/run_tests.py`), libyaml, a shared HTTP client | **shipped** |
 | v0.22.0 | A new story: a dating simulation played through a phone of apps (dating apps, texts, instant messages, voice and video messages, two-player games), a populated cast the engine runs, no endgame (owner's brief: docs/superpowers/briefs/2026-09-30-dating-sim-brief.md) | **shipped** |
-| v0.23.0 | READ RECEIPTS rework: growth (people who change at their own pace, conversations and willingness that ramp up), no set time on dating, phone numbers that work, places (the player's apartment and its rooms, 3-4 homes for the cast) with their art, and real-life events and meet-ups happening outside the phone; slice of life, no ending (owner's brief, with its addendum: docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md). **Addendum 4 (2026-10-22, after the owner's playtest; docs/superpowers/specs/2026-10-22-v0.23.0-addendum4-world-interaction.md)** is part of it: the world's choices survive phone actions, a plan is kept where you stand (they arrive, the scene opens, `Wait for {name}`), the person is somewhere, a quiet phone while together, typing in the world (a typed line runs ONE offered choice or a scene move, or is narrated only), background people at venues and chance meetings with live contacts, T23A-T23H; replayed end to end in `tests/test_rr_playtest_replay.py` and `ui/tests/rr-playtest.test.jsx`, with the browser-pane walk (A4 §7.5, T31) deferred to the end of v0.24.0 | **shipped** (T29b, T31, T32, T33 deferred to the end of v0.24.0 by the owner) |
-| v0.24.0 | Sound effects for the engine and every story: alerts, ringtones, button presses (owner's brief: docs/superpowers/briefs/2026-10-13-sound-effects-brief.md), with READ RECEIPTS' morning scene and four more life-event decks (moved from v0.23.0 at its checkpoint C1); and, at its end, v0.23.0's deferred tail (owner, 2026-10-23): the full balance pass (T29b), live play with a model including the addendum-4 meet-up walk (T31), the docs pass (T32) and the whole-branch review (T33) | **next** |
+| v0.23.0 | READ RECEIPTS rework: growth (people who change at their own pace, conversations and willingness that ramp up), no set time on dating, phone numbers that work, places (the player's apartment and its rooms, 3-4 homes for the cast) with their art, and real-life events and meet-ups happening outside the phone; slice of life, no ending (owner's brief, with its addendum: docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md). **Addendum 4 (2026-10-22, after the owner's playtest; docs/superpowers/specs/2026-10-22-v0.23.0-addendum4-world-interaction.md)** is part of it: the world's choices survive phone actions, a plan is kept where you stand (they arrive, the scene opens, `Wait for {name}`), the person is somewhere, a quiet phone while together, typing in the world (a typed line runs ONE offered choice or a scene move, or is narrated only), background people at venues and chance meetings with live contacts, T23A-T23H; replayed end to end in `tests/test_rr_playtest_replay.py` and `ui/tests/rr-playtest.test.jsx`, with the browser-pane walk (A4 §7.5, T31) deferred, and still not done (below) | **shipped** (its tail moved into v0.24.0: T29b ran as v0.24.0 T11, T32 as T13, T33 is T14; T31 was deferred again by the owner, 2026-10-26) |
+| v0.24.0 | Sound effects for the engine and every story (owner's brief: docs/superpowers/briefs/2026-10-13-sound-effects-brief.md): sound as client-side data (`content/sounds/sounds.yaml` and a story's `paths.sounds`; twenty-five engine events; synth sounds, fifteen CC0 Kenney `.ogg` files with synth fallbacks, 216,524 of a 1 MiB budget), the server's two routes and file route, the client sound engine and triggers, the settings, the audition page (`/?sounds=1`) and a palette for each of the seven stories; READ RECEIPTS' morning scene after a stay-over, four more life-event decks (`lift_out`, `family_visit`, `wedding_invite`, `neighbour_party`), the lift fix and the news windows (moved from v0.23.0 at its checkpoint C1); and v0.23.0's deferred tail: the full balance pass (T11: 19 rows banded, 19 deferred by data, one data change), the docs pass (T13) and the whole-branch review (T14). **T12, live play with a model (the addendum-4 meet-up walk, listening to the sounds), was DEFERRED by the owner on 2026-10-26** (Deliberately deferred) | **next** (T14 review and T15 release remain) |
 | v0.25.0 | The Clockwork Dark overhaul | queued |
 | v0.26.0 | The Wicked Garden overhaul | queued |
 | v0.27.0 | NEON CITY overhaul | queued |
@@ -914,18 +915,30 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   - There is no chance presence on the street, at homes or in the flat (`engine/social/presence.py`): only at
     venues.
   - The replay (`tests/test_rr_playtest_replay.py`) drives the engine with the stub narrator; the real model's
-    words, the 80-200 word length and the pane's layout are T31 Step 0's, played by hand.
-- v0.23.0 shipped without its last four tasks (owner, 2026-10-23), moved to the
-  END of v0.24.0. T29b, the balance pass over full sessions, ran as v0.24.0 T11
-  (above: at the owner's 10-seed scale, not the 40-seed confirmation). T31 (live
-  play with a model, including the addendum-4 meet-up walk in the browser pane),
-  T32 (the docs pass) and T33 (the whole-branch review) are still to come, so the
-  world layer, scenes, chance meetings, life events and the long-term stages have
-  been measured by the harness and reviewed task by task but not as a whole, and
-  no live model has narrated a scene, a world turn or a typed line (READ RECEIPTS'
-  world narration, scene prose checks and the `xai` image provider are stub- and
-  test-verified only). The world and scene `REAL_SECONDS` (35 s a choice, 40 s a
-  moment) are still estimates; live play checks them (controller ruling, T11).
+    words, the 80-200 word length and the pane's layout were to be played by hand in
+    live play, which is deferred (above).
+- **Live play with a model was never done (v0.23.0's T31, v0.24.0's T12; the owner
+  deferred it again on 2026-10-26).** v0.23.0 shipped without its last four tasks,
+  moved to the end of v0.24.0: T29b ran there as T11 (above, at the owner's 10-seed
+  scale, not the 40-seed confirmation), T32 as T13 (the docs pass) and T33 is T14;
+  T31 did not run. Never verified live:
+  - no live model has narrated a scene, a world turn or a typed line (READ RECEIPTS'
+    world narration, scene prose checks and the `xai` image provider are stub- and
+    test-verified only), and the addendum-4 meet-up walk was not played in the
+    browser pane;
+  - nobody has LISTENED to the sounds (every palette, the audition page);
+  - one click giving exactly one sound is shown by jsdom tests only: jsdom cannot show
+    the click deferral's ordering in a real browser;
+  - the order of a READ RECEIPTS rejoin frame and the `openSeq` bump on a real socket;
+  - whether NEON CITY's `neon.data` suits the story (its `laserretro_000.ogg` stands in
+    for the over-budget `computerNoise_000`, a taste call);
+  - the world and scene `REAL_SECONDS` (35 s a choice, 40 s a moment) against a person
+    (they are estimates; an agent's pane latency is not a person's, and a re-run at a
+    person's numbers is the cost if they are wrong).
+  So the world layer, scenes, chance meetings, life events and the long-term stages
+  have been measured by the harness and reviewed task by task, and `scenes.yaml`'s,
+  `life_events.yaml`'s and `growth.yaml`'s values are measured only against the
+  harness's neutral model.
 - A READ RECEIPTS world turn with an injected model function still probes the
   model server's loaded models: `engine/memory/context.py::default_budget` calls
   `Budget.for_profile("big")`, which asks the server even when the turn's `llm_fn`
@@ -934,7 +947,7 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   final review, not fixed.
 - READ RECEIPTS' world and scene choice row overflows horizontally with 13 or more
   choices (scrollable; `npm run layout-check --prefix ui` passes). Found in
-  v0.23.0 T30, left for v0.24.0.
+  v0.23.0 T30, left (v0.24.0 did not take it up).
 - `engine/social/turnstile.py::report_share` swallows an exception silently
   rather than logging it (v0.23.0 T28 review, parked), and
   `scripts/generate_art.py --promote` writes a plate's time only, so the

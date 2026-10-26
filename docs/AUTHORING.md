@@ -3075,7 +3075,7 @@ never to state or memory. Keys:
   plan (`back_to_yours`, `back_to_theirs`, `go_somewhere_else` and
   `call_it_a_night:plan:soon`) are offered only while `willing.meet` holds.
   Absent, nobody is anywhere by chance. Every value is a first value,
-  unmeasured until T29.
+  measured only through the harness's full sessions (v0.24.0 T11) and no live player.
 
 Everything here is conversation, an activity, a mood or something shared
 about yourself. What two adults do on an evening is the narration's, in the
