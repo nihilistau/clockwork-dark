@@ -38,6 +38,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from typing import Callable
 
@@ -318,9 +319,13 @@ def test_the_hue_run_keeps_no_save(monkeypatch, capsys) -> None:
 
     written: list[str] = []
     real_save = saves.SaveStore.save
+    mine = threading.get_ident()
 
     def spy(self, state, **kwargs):
-        written.append(str(self.root))
+        # The harness runs on this thread. A save from another thread is some earlier test's leftover (a
+        # READ RECEIPTS autosave in the same xdist worker was caught here in v0.24.0 T15's full run), not the CLI.
+        if threading.get_ident() == mine:
+            written.append(str(self.root))
         return real_save(self, state, **kwargs)
 
     monkeypatch.setattr(saves.SaveStore, "save", spy)
