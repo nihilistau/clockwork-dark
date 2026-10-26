@@ -25,6 +25,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - A morning after at their place that ends by itself now sends you home, as "Head home" does, instead of leaving you standing in their home.
 - "...and say you'll do it again soon" no longer claims a plan they did not agree to: when none is made the receipt says "They don't commit to anything yet."
 - The "message me in the morning" phrases are read whether or not a model is loaded (as they always were); the data's comments now say so.
+- Every phone sound now has something on screen with it (spec 7): a message arriving with the phone down raises the buzz banner at once; a message in another thread shows a small notice on the phone (name and preview, tap to open it, gone after six seconds); a new match shows "It's a match".
+- The engine's own lines (a plan made, a match expired) no longer ring as incoming messages; the first match of a run chimes; any dating app is recognised by its kind, not a fixed list.
+- One sound per arrival: a scene opening, else the phone's cue, else the turn's bell, never two at once; Begin on the new-run screen plays one sound.
+- The arrow keys no longer swipe a dating card you cannot see once the phone is down. Putting the phone down moves focus to the world and picking it up moves it back; under 1200px the layer behind is inert to the keyboard and screen readers.
+- The thread's plan sheet offers the engine's plan kinds; a resume clears a pick-up the server never saw; a late opening no longer drops messages that had already arrived.
 
 ### Changed
 

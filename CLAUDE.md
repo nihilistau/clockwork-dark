@@ -808,6 +808,9 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   `.good`, `.fine` and `.bad`, both `player_promises_kept` rows, `life_events.person_per_month_d2plus`,
   `devoted.living_together_20h` (20%, at its band's floor: 2 runs of 10) and `devoted.married_40h` (30%,
   at its ceiling), and `events_per_jump_morning_day60`; `person_promises_kept` is asserted 1.0. The
+  T11's figures predate T14's `waking` fix (`engine/social/windows.py`): night-shift and student players
+  and people of those shapes were measured waking at the wrong hour, so their rows are re-measured at
+  the next balance pass. The
   phone-only replay (T9's shape, `world=False`) still holds `ghosted_per_episode.d0` and
   `player_promises_kept.attentive` in the suite. Every other row misses and is deferred by data, never
   widened:
