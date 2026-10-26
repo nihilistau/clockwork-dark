@@ -22,6 +22,8 @@ def _keys(value) -> set[str]:
 
 @pytest.mark.parametrize("slug", SLUGS)
 def test_no_payload_carries_a_sound_key(slug) -> None:
+    """The opening, one turn (a typed line, the stub narrator) and, for READ RECEIPTS, one phone action (spec
+    §14.1). Each answered 200 with a body, so an error can never pass as "no sound key" (v0.24.0 T14)."""
     import contextlib
 
     from engine.scenes.default_scene import create_app, reset_store
@@ -34,8 +36,25 @@ def test_no_payload_carries_a_sound_key(slug) -> None:
             reset_store()
             _, app = create_app(testing=True, llm_fn=lambda _m: "{}")
             client = app.test_client()
-            body = client.post("/api/game/new", json=_new_game_body(slug)).get_json() or {}
-            assert not (_keys(body) & SOUND_KEYS), slug
+            payloads = {}
+            opened = client.post("/api/game/new", json=_new_game_body(slug))
+            assert opened.status_code == 200, (slug, opened.get_data(as_text=True)[:400])
+            payloads["opening"] = opened.get_json()
+            sid = payloads["opening"]["session_id"]
+            if slug == "read-receipts":
+                phone = client.post("/api/phone/action", json={"session_id": sid, "action": "wait", "target": "",
+                                                               "args": {"until": "1h"}, "text": ""})
+                assert phone.status_code == 200, (slug, phone.get_data(as_text=True)[:400])
+                payloads["phone"] = phone.get_json()
+                client.post("/api/phone/action", json={"session_id": sid, "action": "put_down", "target": "",
+                                                        "args": {}, "text": ""})
+            turn = client.post("/api/game/choice", json={"session_id": sid, "choice_id": "",
+                                                         "custom_text": "look around"})
+            assert turn.status_code == 200, (slug, turn.get_data(as_text=True)[:400])
+            payloads["turn"] = turn.get_json()
+            for name, body in payloads.items():
+                assert isinstance(body, dict) and body, (slug, name)
+                assert not (_keys(body) & SOUND_KEYS), (slug, name)
     finally:
         registry.deactivate()
 

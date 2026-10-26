@@ -80,7 +80,13 @@ def sounds_blueprint(name: str = BLUEPRINT_NAME) -> Blueprint:
         from engine.games import registry, sounds
 
         manifest = registry.entry_manifest()
-        return jsonify({"enabled": True, **_with_urls(sounds.merged(manifest), _story_root(manifest))})
+        try:
+            merged = sounds.merged(manifest)
+        except sounds.SoundError as exc:      # the story's set is broken: the engine's still plays (v0.24.0 T14)
+            logger.warning("sounds: %s: %s; serving the engine's set alone",
+                           getattr(manifest, "slug", "?"), exc)
+            return jsonify({"enabled": True, **_with_urls(sounds.merged(None), None)})
+        return jsonify({"enabled": True, **_with_urls(merged, _story_root(manifest))})
 
     @blueprint.get("/api/sounds/catalog")
     def api_catalog() -> Any:

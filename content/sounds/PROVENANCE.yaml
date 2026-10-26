@@ -13,6 +13,7 @@ files:
   licence_file: LICENSES/kenney-casino-audio.txt
   downloaded: '2026-10-24'
   imported: '2026-10-24'
+  pack_version: '1.1'
 - path: files/kenney/casino-audio/card-slide-1.ogg
   sha256: 006cf9822d15d7063f8899e56041f41646df30adb6fbd8b974ee5d5420012690
   bytes: 8833
@@ -26,6 +27,7 @@ files:
   licence_file: LICENSES/kenney-casino-audio.txt
   downloaded: '2026-10-24'
   imported: '2026-10-24'
+  pack_version: '1.1'
 - path: files/kenney/casino-audio/chips-stack-1.ogg
   sha256: 12bf175b9afcea112175b241ad3336c6244ac5fdcdff8b5942ecc03f2225e0c4
   bytes: 6469
@@ -39,6 +41,7 @@ files:
   licence_file: LICENSES/kenney-casino-audio.txt
   downloaded: '2026-10-24'
   imported: '2026-10-24'
+  pack_version: '1.1'
 - path: files/kenney/casino-audio/dice-throw-1.ogg
   sha256: 4e6581c73465cdd7ec32e86a709b4ea5c682e819c9bdb7989d1df1880ba67886
   bytes: 9523
@@ -52,6 +55,7 @@ files:
   licence_file: LICENSES/kenney-casino-audio.txt
   downloaded: '2026-10-24'
   imported: '2026-10-24'
+  pack_version: '1.1'
 - path: files/kenney/impact-sounds/impactbell_heavy_000.ogg
   sha256: 94b8bb5f2d43ab65e4bcc32b28562416e9bc2c51d9fd4be1e333660ee52f977f
   bytes: 13915
@@ -65,6 +69,7 @@ files:
   licence_file: LICENSES/kenney-impact-sounds.txt
   downloaded: '2026-10-24'
   imported: '2026-10-24'
+  pack_version: '1.0'
 - path: files/kenney/impact-sounds/impactwood_light_000.ogg
   sha256: eb45e35b4bed784d3f120de4afec4b0d6ac09d9e143cce8cfcb7d739e1b1f3c3
   bytes: 6343
@@ -78,6 +83,7 @@ files:
   licence_file: LICENSES/kenney-impact-sounds.txt
   downloaded: '2026-10-24'
   imported: '2026-10-24'
+  pack_version: '1.0'
 - path: files/kenney/rpg-audio/bookflip1.ogg
   sha256: fa81ac2fedc8c641661b87e349630a36c9800e795e0c800e029214efdbe26a7d
   bytes: 18248
@@ -182,6 +188,7 @@ files:
   licence_file: LICENSES/kenney-sci-fi-sounds.txt
   downloaded: '2026-10-24'
   imported: '2026-10-24'
+  pack_version: '1.0'
 - path: files/kenney/sci-fi-sounds/laserretro_000.ogg
   sha256: 2a203a007d24cc7e607eb8bec1d86bedba7f551911217ce2c4c1f31393aed32c
   bytes: 12588
@@ -195,3 +202,4 @@ files:
   licence_file: LICENSES/kenney-sci-fi-sounds.txt
   downloaded: '2026-10-24'
   imported: '2026-10-24'
+  pack_version: '1.0'

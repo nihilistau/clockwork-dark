@@ -267,11 +267,14 @@ def _check_binding(where: str, key: str, value: Any, known: dict[str, Any]) -> N
 
 def _engine_rel() -> str:
     """The engine's sounds directory as the config names it (`sound.root`): the label in every message."""
-    return str(get_config().get("sound.root")).strip("/")
+    return Path(str(get_config().get("sound.root"))).as_posix().rstrip("/") or "."
 
 
 def engine_root() -> Path:
-    return project_root() / _engine_rel()
+    """`sound.root` as given when it is absolute (on POSIX or Windows alike: rule 11), else under the project
+    root (v0.24.0 T14: a leading '/' was stripped, so an absolute POSIX root became a project-relative one)."""
+    root = Path(str(get_config().get("sound.root")))
+    return root if root.is_absolute() else project_root() / root
 
 
 def _engine_label() -> str:
@@ -309,6 +312,9 @@ def _story_entry(manifest: Any) -> Optional[dict[str, Any]]:
     if not rel:
         return None
     path = manifest.resolve(rel) / "sounds.yaml"
+    if not path.is_file():                        # a declared directory with no file: the story's fault, in words
+        raise _fault(f"{str(rel).rstrip('/')}/sounds.yaml", "paths.sounds",
+                     "is declared but its sounds.yaml is missing")
     engine_path = engine_root() / "sounds.yaml"
     return _load_file(str(path), path.stat().st_mtime, f"{str(rel).rstrip('/')}/sounds.yaml", manifest.slug,
                       (str(engine_path.parent), engine_path.stat().st_mtime))

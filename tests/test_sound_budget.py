@@ -21,6 +21,7 @@ def _vorbis_header(data: bytes) -> tuple[int, int]:
 
 def test_the_budget() -> None:
     files = [p for root in _roots() for p in root.rglob("*.ogg")]
+    assert files, "no shipped audio found: the budget would pass on nothing (T14 c12)"
     assert sum(p.stat().st_size for p in files) <= TOTAL
     for path in files:
         data = path.read_bytes()

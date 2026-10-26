@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from pathlib import Path
 
 import yaml
@@ -49,19 +50,40 @@ def test_every_row_is_cc0_kenney_from_a_named_pack_and_matches_its_bytes() -> No
             assert hashlib.sha256(data).hexdigest() == row["sha256"], row["path"]
             assert row["path"] == row["path"].lower(), row["path"]                  # lower-cased at import (rule 11)
             assert Path(row["member"]).name.lower() == Path(row["path"]).name       # the original case kept
+            # (T14 d11, spec §8.2) the pack's version, when its own licence text states one ("Casino Audio (1.1)")
+            stated = re.search(r"^[ \t]*[^\n(]+\((\d+(?:\.\d+)*)\)[ \t]*$", licence.read_text(encoding="utf-8"), re.M)
+            assert row.get("pack_version") == (stated.group(1) if stated else None), row["path"]
+
+
+def test_the_engine_ships_its_recorded_files() -> None:
+    """(T14 c12) The checks above loop over what they find, so an engine root that resolves nowhere would pass
+    them all: the engine's files are there, one per provenance row."""
+    root = sounds.engine_root()
+    rows = yaml.safe_load((root / "PROVENANCE.yaml").read_text(encoding="utf-8"))["files"]
+    assert rows and len(list(root.rglob("*.ogg"))) == len(rows)
 
 
 def test_every_shipped_file_is_bound_somewhere() -> None:
-    """Review M8: no dead row. A file is used by a sound row in the engine's or a story's sounds.yaml."""
-    used: set[str] = set()
+    """Review M8: no dead row. An engine file is used by a sound row in the engine's sounds.yaml or by a story's
+    `engine:` row; a story's own file (`files/...` beside its sounds.yaml) by a row of that story's (T14 c12:
+    before, a story's own files were never checked)."""
     engine = sounds.load_engine()
+    used: dict[Path, set[str]] = {engine["root"]: set()}
     for row in engine["data"]["sounds"].values():
         if "file" in row:
-            used.add(row["file"])
+            used[engine["root"]].add(row["file"])
     for manifest in registry.discover().values():
         story = sounds.load_story(manifest)
-        for row in ((story or {}).get("data", {}).get("sounds") or {}).values():
+        if story is None:
+            continue
+        own = used.setdefault(story["root"], set())
+        for row in (story["data"].get("sounds") or {}).values():
             if "file" in row:
-                used.add(row["file"][len("engine:"):] if row["file"].startswith("engine:") else row["file"])
-    shipped = {p.relative_to(engine["root"]).as_posix() for p in engine["root"].rglob("*.ogg")}
-    assert shipped <= used, sorted(shipped - used)
+                if row["file"].startswith("engine:"):
+                    used[engine["root"]].add(row["file"][len("engine:"):])
+                else:
+                    own.add(row["file"])
+    assert len(used) == len(_roots())                 # every declaring story's root, and the engine's
+    for root, names in used.items():
+        shipped = {p.relative_to(root).as_posix() for p in root.rglob("*.ogg")}
+        assert shipped <= names, (root, sorted(shipped - names))

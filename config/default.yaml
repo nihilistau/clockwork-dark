@@ -385,8 +385,9 @@ llm:
 
 # Sound effects (v0.24.0 spec §3). The client plays them; the server only serves the data and the files.
 sound:
-  enabled: true              # false: /api/sounds answers {enabled: false} and the client makes no effect sound
-  root: "content/sounds"     # the engine's sounds.yaml, files and provenance
+  enabled: true              # false: /api/sounds answers {enabled: false} and the client makes no effect sound;
+                             # it governs play, not serving: the catalogue and the files are still served (docs/HOSTING.md)
+  root: "content/sounds"     # the engine's sounds.yaml, files and provenance; relative to the project root unless absolute
   cache_seconds: 3600        # Cache-Control: private, max-age on /sound/... files (behind a login when hosted)
 
 media:

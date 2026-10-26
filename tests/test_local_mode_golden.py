@@ -21,7 +21,7 @@ a rejoin), S7 and S8 (the codex's souls and vendors), S9 (a resume in an open
 encounter) and S10 (the pace slider's range, marks and hint), and v0.22.0
 adds S11 (READ RECEIPTS's row in the catalogue), and v0.24.0 adds S13 (the
 sound blueprint's three URL rules) and S12 (``paths.sounds`` in the catalogue rows
-of the stories that declare sounds; its table is empty until T9 and T10). There
+of the stories that declare sounds: five rows, ``EXPECTED_SOUNDS_ROWS``). There
 are no others.
 
 The capture opens no socket (Flask's and Socket.IO's test clients), writes

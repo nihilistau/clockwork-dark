@@ -279,3 +279,47 @@ def test_a_returned_dict_is_the_callers_own() -> None:
     assert again["sounds"]["ui.click"]["synth"]["layers"][0]["freq"] not in (1, 2)
     assert again["bind"]["ui.press"] != "changed" and again["limits"]["voices"] != -1
     assert sounds.load_engine()["data"]["sounds"]["ui.click"]["synth"]["layers"][0]["freq"] != 2
+
+
+# -- v0.24.0 T14: a declared directory with no file, and an absolute root ------------------------------------
+
+
+def _declared_empty(tmp_path: Path):
+    from types import SimpleNamespace
+
+    (tmp_path / "story_sounds").mkdir()
+    return SimpleNamespace(paths={"sounds": "story_sounds"}, slug="probe", title="Probe",
+                           resolve=lambda rel: tmp_path / rel)
+
+
+def test_a_declared_sounds_directory_with_no_file_is_a_sound_error(tmp_path) -> None:
+    """(T14 d8) Before, `path.stat()` raised FileNotFoundError, which the routes did not catch (a 500)."""
+    manifest = _declared_empty(tmp_path)
+    with pytest.raises(sounds.SoundError) as caught:
+        sounds.load_story(manifest)
+    assert (caught.value.file, caught.value.key) == ("story_sounds/sounds.yaml", "paths.sounds")
+    from engine.games.validation import StoryValidator
+
+    validator = StoryValidator(manifest)
+    validator.check_sounds()
+    assert [(i.source, i.ref_id) for i in validator.issues] == [("story_sounds/sounds.yaml", "paths.sounds")]
+
+
+def test_an_absolute_sound_root_is_used_as_given(monkeypatch) -> None:
+    """(T14 d9, rule 11) `.strip("/")` turned an absolute POSIX root into a project-relative one; on Windows a
+    forward-slash UNC root lost its leading slashes the same way. Each platform's own absolute form is kept."""
+    import os
+
+    from engine.config import get_config
+
+    value = "//server/share/sounds" if os.name == "nt" else "/opt/clockwork/sounds"
+    real = get_config().get
+    monkeypatch.setattr(type(get_config()), "get", lambda self, k, d=None: value if k == "sound.root" else real(k, d))
+    assert sounds.engine_root() == Path(value)
+    assert sounds.engine_root().is_absolute()
+
+
+def test_a_relative_sound_root_is_under_the_project() -> None:
+    from engine.config import project_root
+
+    assert sounds.engine_root() == project_root() / "content" / "sounds"

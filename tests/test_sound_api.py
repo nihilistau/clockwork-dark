@@ -190,3 +190,35 @@ def test_a_story_file_row_with_no_sounds_root_never_reads_the_engines_table(tmp_
     monkeypatch.setattr(sounds, "engine_root", lambda: tmp_path)
     out = api._with_urls(_catalogue({"file": "files/door.ogg", "scope": "probe"}), None)
     assert out["sounds"]["s0"]["provenance"] is None
+
+
+def _declared_empty(tmp_path):
+    from types import SimpleNamespace
+
+    (tmp_path / "story_sounds").mkdir()
+    return SimpleNamespace(paths={"sounds": "story_sounds"}, slug="probe", title="Probe",
+                           resolve=lambda rel: tmp_path / rel)
+
+
+def test_a_story_with_no_sounds_file_serves_the_engine_set(client, tmp_path, monkeypatch, caplog) -> None:
+    """(T14 d8) A story declaring `paths.sounds` with no sounds.yaml: `/api/sounds` 500ed. It now logs a warning
+    and serves the engine's set alone, and the catalogue shows the story's error row."""
+    import logging
+
+    from engine.games import registry, sounds
+
+    manifest = _declared_empty(tmp_path)
+    monkeypatch.setattr(registry, "entry_manifest", lambda: manifest)
+    with caplog.at_level(logging.WARNING, logger="engine.api.sounds"):
+        response = client.get("/api/sounds")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["enabled"] is True
+    assert set(body["sounds"]) == set(sounds.merged(None)["sounds"])
+    assert any("probe" in r.getMessage() and "engine's set alone" in r.getMessage() for r in caplog.records)
+    real = registry.discover
+    monkeypatch.setattr(registry, "discover", lambda: {**real(), "probe": manifest})
+    response = client.get("/api/sounds/catalog")
+    assert response.status_code == 200
+    rows = {row["slug"]: row for row in response.get_json()["stories"]}
+    assert "sounds.yaml is missing" in rows["probe"]["error"]
