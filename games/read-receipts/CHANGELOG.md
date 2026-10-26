@@ -19,9 +19,73 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- The day-60 turn-cost replay pin (`tests/fixtures/social/turn_cost_replay.json`, `tests/test_social_turn_cost.py`) was re-recorded (v0.24.0 T11, `CLOCKWORK_TURN_COST_RECORD=1`). Its 17 turn payloads are unchanged; only the save after the turns moved, and the cause was proved: the day-60 run v0.23.3 builds and the one this release builds differ in two keys alone, `flags.life_family_visit` and `flags.life_neighbour_party` (both `false`), the flags v0.24.0 T2 gave those life events for their days. The pin keeps T29a's phone-only day-60 run (`write_day_save(..., world=False)`), not the harness's new full-session default.
 - The broken lift adds its five minutes only when you go in or out of your building, not on every move (the engine's fix, root CHANGELOG).
 
 ### Changed
+
+- The balance pass over full sessions (v0.24.0 T11, the v0.23.0 T29b deferred to it): the scenes'
+  end bands (`scenes.yaml` `end_bands`) are now 0.92 / 0.70 / 0.55 / 0.40, from 0.72 / 0.56 / 0.42 /
+  0.3, so a date goes great about one time in six rather than one in two. Measured by
+  `scripts/simulate_social.py` at the owner's scale: 10 seeds x 60 sessions of 40 real minutes (the
+  phone at most 60% of each, then the world day), `--no-companion`, the neutral model. Round 1 (the
+  old end bands) put `scene_band.great` at 45-48% and `fine` at 13-15%; the new cuts are the 85th,
+  50th, 28th and 12th percentiles of 1,338 attentive scene averages, and round 2 measured them
+  (every config re-run: two harness fixes, the devoted player wanting something long-term and the
+  promises kept before the day, changed every attentive and devoted run). Nothing else was retuned;
+  a row that misses is deferred by data (CLAUDE.md), its band unwidened.
+
+  The attentive player, at 6 / 15 / 30 model seconds a reply (banded only if it holds at all three):
+
+  | Row (band) | 6 s | 15 s | 30 s | |
+  |---|---|---|---|---|
+  | `exchanges_per_episode.d0` (6-14) | 7 | 6 | 5 | deferred |
+  | `exchanges_per_episode.d2plus` (12-30) | 10 | 9 | 5 | deferred |
+  | `end_reason.schedule` (30-55%) | 14.4% | 13.6% | 15.1% | deferred |
+  | `end_reason.energy` (25-50%) | 16.9% | 14.4% | 11.2% | deferred |
+  | `end_reason.player` (10-30%) | 14.1% | 15.9% | 14.6% | banded |
+  | `cold_unanswered_1h.d0` (15-35%) | 68.7% | 67.2% | 73.6% | deferred |
+  | `ghosted_per_episode.d0` (5-15%) | 6.2% | 6.8% | 6.6% | banded |
+  | `ghosted_per_episode.d2plus` (3% or less) | 1.5% | 0.5% | 0.8% | banded |
+  | `chat_minutes_to_numbers.fast` (6-15) | 11.0 | 11.93 | 16.42 | deferred |
+  | `chat_minutes_to_numbers.mid` (12-30) | 12.62 | 14.75 | 19.77 | banded |
+  | `chat_minutes_to_numbers.slow` (25-60) | 18.08 | 19.8 | 25.35 | deferred |
+  | `numbers_within_session` (40-70%) | 0.7% | 1.1% | 0.8% | deferred |
+  | `sessions_to_first_scene` (1-3) | 15 | 14.5 | 16.5 | deferred |
+  | `scene_band.great` (10-20%) | 16.2% | 16.2% | 13.6% | banded (end bands changed) |
+  | `scene_band.good` (25-40%) | 31.0% | 34.0% | 35.4% | banded (end bands changed) |
+  | `scene_band.fine` (20-30%) | 21.5% | 23.4% | 22.6% | banded (end bands changed) |
+  | `scene_band.awkward` (10-20%) | 21.2% | 15.4% | 15.1% | deferred (end bands changed) |
+  | `scene_band.bad` (5-15%) | 10.1% | 11.1% | 13.4% | banded (end bands changed) |
+  | `person_promises_kept` (100%) | 1.0 | 1.0 | 1.0 | asserted |
+  | `player_promises_kept.attentive` (95%+) | 99.5% | 100% | 99.7% | banded |
+  | `full_replies_in_long_episodes` (60%+) | 59.9% | 57.9% | 57.9% | deferred |
+  | `life_events.player_per_week` (1-3) | 0.90 | 0.92 | 0.93 | deferred |
+  | `life_events.person_per_month_d2plus` (0.5-1.5) | 1.10 | 1.27 | 1.23 | banded |
+  | `active_relationships_20h.attentive` (3-8) | 12 | 10.5 | 9 | deferred |
+  | `events_per_jump_morning_day60` (1500 or less) | 26 | 25 | 14 | banded |
+  | `life_decks_met_per_week` (unbanded) | 0.14 | 0.14 | 0.14 | reported |
+  | `ratio.chat` / `ratio.world` (derived) | 1.56 / 109 | 1.27 / 117 | 0.97 / 123 | derived |
+
+  The other policies' rows, at 15 s only (banded at 15 s only):
+
+  | Row (band) | Policy | 15 s | |
+  |---|---|---|---|
+  | `real_hours_to_depth.fast.2` / `.3` / `.4` (1-2 / 3-5 / 6-10) | devoted | 1.94 / 3.06 / 5.23 | banded / banded / deferred |
+  | `real_hours_to_depth.slow.2` / `.3` / `.4` (3-6 / 7-12 / 14-24) | devoted | 2.39 / 3.78 / 5.47 | deferred (too fast) |
+  | `devoted.together_10h` (40-70%) | devoted | 10% | deferred |
+  | `devoted.living_together_20h` (20-50%) | devoted | 20% | banded (at its floor) |
+  | `devoted.married_40h` (10-30%) | devoted | 30% | banded (at its ceiling) |
+  | `active_relationships_20h.bachelor` (3-8) | bachelor | 10 | deferred |
+  | `player_promises_kept.flaky` (55-75%) | flaky | 69.9% | banded |
+
+  The other voices (attentive, 15 s; reported, not banded): `romantic_model` puts 42.7% of scenes
+  at great; `cold_model` and `zero` never reach a number, so no scene; `no_model` (the fallback)
+  measures as the neutral model does. The day-180 save on full sessions (seed 7): attentive
+  843,415, bachelor 809,272, devoted 304,829 bytes, under the 1 MB budget and pinned at x1.25.
+  The broken lift's fix and the two news windows (this release) moved neither
+  `numbers_within_session` nor `end_reason.player` in the phone-only sessions T9 measured them in:
+  11.0 / 10.5 / 8.3% (T9: 13.8 / 8.7 / 6.8%) and 28.6 / 32.0 / 35.5% (T9: 26.5 / 32.3 / 35.4%).
 
 - The wedding invitation (5 days) and your promotion (7 days) now run a window: for that long you can tell people the news, and then it is old news. Before they had no window and were never offered.
 

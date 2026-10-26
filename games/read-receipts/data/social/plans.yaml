@@ -4,7 +4,9 @@
 # words, a place and a person: `now` (they head there, you have a little
 # while), `tonight` (this evening) or `soon` (it stays open for a number of
 # their conversations, not days). Every number here is a first value
-# (rule 10), measured at the balance pass.
+# (rule 10), unchanged at the balance pass (v0.24.0 T11, full sessions,
+# attentive at 15 s, unbanded): 69.4 plans made a run of 60 sessions, 61.2
+# met, 7.9 lapsed, 0.1 cancelled, 0.1 stood up.
 #
 # kinds                  what sort of plan it is (also the kind of a venue in
 #                        venues.yaml, which the engine picks from when none is
@@ -40,7 +42,7 @@
 #                        are home) plus `late_minutes` [low, high], drawn once
 #                        per plan; patience runs from then. `wait_cap_hours`
 #                        is the longest "Wait for {name}" waits at once.
-#                        First values (rule 10), measured at T29
+#                        First values (rule 10), unchanged at T11
 
 kinds: [coffee, drinks, dinner, walk, visit, film, climbing, games, gig, their_place, your_place]
 patience_hours: {now: 1.5, tonight: 4}

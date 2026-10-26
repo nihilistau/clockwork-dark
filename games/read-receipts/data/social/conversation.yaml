@@ -91,6 +91,18 @@
 #   real minutes in about an in-game hour of chat. (After T9's fix round:
 #   `wait next` stops at the read a reply follows, a promise made inside its
 #   window is for its next occurrence.)
+#
+# Measured T11 (v0.24.0, 2026-10-26) on FULL sessions (phone capped at 60%, then the world day):
+#   python scripts/simulate_social.py --game read-receipts --sessions 60 --seeds 1 --first-seed N
+#     --no-companion --policy P --model-seconds S --raw r.json   (N = 0..9), then --fold
+#   (neutral model; attentive at 6 / 15 / 30 s, every other policy at 15 s ONLY: the owner's
+#   10-seed scale). Banded or DEFERRED (CLAUDE.md), never widened:
+#   exchanges_per_episode.d0 7 / 6 / 5 (6-14, deferred), .d2plus 10 / 9 / 5
+#   (12-30, deferred); end reasons schedule 14.4 / 13.6 / 15.1% (30-55,
+#   deferred), energy 16.9 / 14.4 / 11.2% (25-50, deferred), player 14.1 /
+#   15.9 / 14.6% (10-30, banded); cold_unanswered_1h.d0 68.7 / 67.2 / 73.6%
+#   (15-35, deferred); chatting or deep replies in 6+ exchanges 59.9 / 57.9 /
+#   57.9% (60+, deferred). Nothing here retuned.
 
 costs: {text: 1, voice: 2, photo: 1, video: 2, reply: 0}
 clock: {evening: 18, morning: 7, min_sleep_hours: 4, work_lead_hours: 2}     # min_sleep_hours: Plan decision 12 (used from T11)
