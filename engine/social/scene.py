@@ -711,9 +711,15 @@ def move(state: GameState, target: str) -> dict[str, Any]:
     out: dict[str, Any] = {"ok": True, "pid": pid, "move": name, "topic": topic, "band": band,
                            "words": _band_words(name, band, label, too_deep=bool(result.get("too_deep")))}
     if result.get("closed"):
-        ended = end_scene(state, str(result["closed"]), then="stay")
-        out.update(closed_by_them=str(result["closed"]), scene_band=ended.get("band", ""),
+        closed = str(result["closed"])
+        # A morning at THEIR home that runs out of moments sends the player home, as "Head home" does (the
+        # travel charged); everywhere else the player stays where the scene was (v0.24.0 T14).
+        then = "home" if closed == MORNING and not places.is_flat(state.location_id) else "stay"
+        ended = end_scene(state, closed, then=then)
+        out.update(closed_by_them=closed, scene_band=ended.get("band", ""),
                    scene_words=recap_line(str(ended.get("band") or "")))
+        if ended.get("went"):
+            out["went_home"] = bool((ended["went"] or {}).get("ok", True))
     return out
 
 
@@ -1526,12 +1532,15 @@ def _close_words(state: GameState, receipt: dict[str, Any], result: dict[str, An
 
         row = ((state.social.get("promises") or {}).get(str(result.get("promise_id") or "")) or {"window": value})
         words = f"You call it a night, and say you'll message them {promises.window_words(row, speaker='player')}."
+    elif name in ("call_it_a_night", "see_them_out") and what == "plan":
+        # Worded from the result: `plans.make` can refuse a `soon` plan (their willingness, an open plan), and a
+        # receipt never claims a plan the engine did not make (rule 1; v0.24.0 T14).
+        start = {"see_them_out": "You see them to the door"}.get(
+            name, "You head home" if result.get("kind") == MORNING else "You call it a night")
+        words = start + (", and say you'll do it again soon." if result.get("plan_id")
+                         else ", and say you'd like to do it again. They don't commit to anything yet.")
     elif name == "call_it_a_night" and result.get("kind") == MORNING:     # "Head home" after a night at theirs
-        words = "You head home" + (", and say you'll do it again soon." if what == "plan" else ".")
-    elif name == "call_it_a_night" and what == "plan":
-        words = "You call it a night, and say you'll do it again soon."
-    elif name == "see_them_out" and what == "plan":
-        words = "You see them to the door, and say you'll do it again soon."
+        words = "You head home."
     elif name == "call_it_a_night" and what == "stay":
         words = "You say goodnight, and stay here a while."
     elif name == "go_somewhere_else":
@@ -1611,6 +1620,8 @@ def receipt_lines(state: GameState, receipts: Optional[Sequence[dict[str, Any]]]
             done.append(str(result.get("words") or ""))
             if result.get("closed_by_them"):
                 said = CLOSED_WORDS.get(str(result["closed_by_them"]), "They call it a night.")
+                if result.get("went_home"):
+                    said += " You head home."
                 done.append(f"{said} {result.get('scene_words') or ''}".strip())
         elif receipt["skill"] == "social_close":
             done.append(_close_words(state, receipt, result))

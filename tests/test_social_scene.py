@@ -892,6 +892,46 @@ def test_a_morning_that_ends_by_itself_is_reported_as_the_morning(in_a_scene, mo
     assert "They have to get on with the day." in text and "call it a night" not in text
 
 
+def test_a_morning_at_theirs_that_ends_by_itself_sends_the_player_home(in_a_scene, monkeypatch) -> None:
+    """(v0.24.0 T14 a2) A morning at THEIR home that runs out of moments ends as "Head home" does: the player
+    goes home to the flat (the travel charged), and the receipt says so. Before, they were left in the other
+    person's home."""
+    from engine.social import places, scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where="theirs")
+    assert state.location_id == places.home_of(state, pid)
+    _moments(monkeypatch, "fine")
+    state.social["scene"]["energy"] = 100.0
+    before = state.world_clock_hours
+    result = {}
+    for _ in range(int(social_scene._data()["morning"]["moments"])):
+        result = social_scene.move(state, "quiet")
+    assert result["closed_by_them"] == "morning" and not state.social["scene"]
+    assert places.is_flat(state.location_id) and state.location_id == social_scene.HOME
+    assert state.world_clock_hours > before
+    text = social_scene.receipt_lines(state, [{"skill": "social_scene", "result": result}])
+    assert "They have to get on with the day. You head home." in text
+
+
+@pytest.mark.parametrize("where, target, words", [
+    ("theirs", "call_it_a_night:plan:soon", "You head home, and say you'd like to do it again."),
+    ("yours", "see_them_out:plan:soon", "You see them to the door, and say you'd like to do it again."),
+])
+def test_a_soon_closer_claims_no_plan_the_engine_did_not_make(in_a_scene, monkeypatch, where, target, words) -> None:
+    """(v0.24.0 T14 a5) "...and say you'll do it again soon" goes through `plans.make(when="soon")`, which can
+    refuse; the receipt is worded from the result, so a refused plan is never claimed (rule 1)."""
+    from engine.social import plans, scene as social_scene
+
+    state, pid = _stayed(in_a_scene, monkeypatch, where=where)
+    monkeypatch.setattr(plans, "make", lambda *a, **k: None)          # the refused case, forced
+    result = social_scene.close(state, target)
+    assert result["ok"] and not result.get("plan_id")
+    text = social_scene.receipt_lines(state, [{"skill": "social_close", "result": result,
+                                               "intent": {"action": "close", "target": target}}])
+    assert words in text and "They don't commit to anything yet." in text
+    assert "do it again soon" not in text
+
+
 @pytest.mark.parametrize("target, words", [
     ("call_it_a_night", "You head home."),
     ("call_it_a_night:plan:soon", "You head home, and say you'll do it again soon."),

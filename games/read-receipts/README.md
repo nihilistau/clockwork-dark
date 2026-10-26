@@ -225,9 +225,11 @@ What changed, release by release: [CHANGELOG.md](CHANGELOG.md). The design is
   one too (v0.24.0), in the hall, the lift, the lounge and the hall. Staying the
   night is followed by a short morning scene (`scenes.yaml` `morning`): breakfast,
   getting ready and seeing them out, with its own moves and the closer "See them to
-  the door"; it counts as the night's tail, not a second scene.
-  The broken lift adds its five minutes only to a move through your building (not to
-  every move, as v0.23.0 did), and the wedding invitation (five days) and your promotion
+  the door" (at their place, "Head home"; a morning there that ends by itself sends you
+  home too); it counts as the night's tail, not a second scene. You wake in YOUR
+  morning: a night worker or a student does not count the tail of last night as waking.
+  The broken lift adds its five minutes only to a `go` between your flat upstairs and
+  anywhere else (not to every move, as v0.23.0 did, and not from the lobby), and the wedding invitation (five days) and your promotion
   (seven) now run a window: for that long you can tell people the news, and then it is
   old.
 - `data/social/creation.yaml` -- the player's own profile: every field the
@@ -550,29 +552,44 @@ cannot reach is `-`): exchanges per conversation and why conversations end,
 cold messages unanswered within the hour, ghosting per conversation start,
 the real minutes from a match to their number by pace, numbers within a
 session, promises kept by them and by you, and fuller replies in long
-conversations; the in-game minutes a real minute buys (derived, never
-banded); and, unbanded, the real minutes to the `everyday` rung, every end
-reason, left on read, initiations a day, photos, the days and real hours to
-warming per archetype, and the voice prompt's tokens per mode.
+conversations; and, from the world day, the sessions to the first scene, the
+real hours to each depth by pace, how scenes end (`scene_band.*`), life
+events (the player's a week, a person's a month at depth 2 or more, and the
+decks met a week), the devoted player's stages (together within 10 real
+hours, living together within 20, married within 40), active relationships
+at 20 real hours, the day-180 save per policy, and the events one morning's
+jump brings at day 60; the in-game minutes a real minute buys and the chat,
+world and overall time ratios (derived, never banded); and, unbanded, the
+real minutes to the `everyday` rung, every end reason, left on read,
+initiations a day, photos, the days and real hours to warming per
+archetype, and the voice prompt's tokens per mode.
 `--disk DIR` plays on a real save store, spilling every thread into its
 archive as play does (the same report either way).
 
 Seed ranges run side by side (`--first-seed N --seeds 2 --raw OUT`, one
 process each) fold into one report with `--fold OUT...`. `--json OUT` writes
-the report. A six-session attentive run is about 550 actions and ten seconds;
-an attentive report also runs the flaky player on the same seeds for its
-promises row (`--no-companion` skips it).
+the report. A six-session phone-only attentive run (`--phone-only`) is
+about 550 actions and ten seconds; full sessions take far longer (a
+60-session run took 15-25 minutes at v0.24.0 T11). An attentive report also
+runs the flaky player on the same seeds for its promises row
+(`--no-companion` skips it).
 
 **Where the measured tables live.** T9's phone-only pass (10 seeds x 6
 sessions at 6, 15 and 30 model seconds) is in this story's
 [CHANGELOG](CHANGELOG.md) (`[0.23.0]`), and the full-session pass (10 seeds x 60 sessions) under `[Unreleased]`; `conversation.yaml`'s,
 `promises.yaml`'s and `growth.yaml`'s headers carry the rows their numbers
-move. `tests/test_simulate_social.py` (`slow`) holds each row it bands at
-all three latencies on seeds 0-9 -- ghosting at depth 0, the fast tercile's
-real minutes to a number, and the attentive player's own promises -- and asserts every promise of theirs is kept; every
-other row is deferred by data with its CLAUDE.md row (the phone-only misses
-with their measured values, and the full-session rows of v0.24.0 T11, which `FULL_BANDS` bands or CLAUDE.md defers by data). The full-session tables are in the [CHANGELOG](CHANGELOG.md) (`[Unreleased]`).
-`tests/test_social_save_size.py` pins a day-180 save under 1 MB.
+move. `tests/test_simulate_social.py` (`slow`) replays two phone-only
+rows at all three latencies on seeds 0-9 (`PHONE_BANDS`: ghosting at depth
+0 and the attentive player's own promises) and asserts every promise of
+theirs is kept. The full-session rows are NOT replayed (160 runs take
+hours): v0.24.0 T11's measured values are held as `FULL_MEASURED` and a fast
+test holds them to `FULL_BANDS`; `tests/test_social_balance_pin.py` fails
+when a balance file they were measured on changes (a sha256 of the parsed
+files), naming the re-measure (rule 10). Every other row is deferred by data
+with its CLAUDE.md row. The full-session tables are in the
+[CHANGELOG](CHANGELOG.md) (`[Unreleased]`). `tests/test_social_save_size.py`
+pins three day-180 saves, one per policy (attentive, bachelor, devoted),
+each under 1 MB.
 
 ## Screenshots and the layout check
 

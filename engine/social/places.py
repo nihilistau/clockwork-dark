@@ -170,6 +170,12 @@ def is_flat(location_id: str) -> bool:
     return any(t in tags for t in _FLAT_TAGS)
 
 
+def is_upstairs(location_id: str) -> bool:
+    """One of the flat's own rooms (tagged `home`): above the building's lift, which the lobby and the lift
+    itself (tagged `building`) are not."""
+    return "home" in ((LOCATIONS.get(location_id) or {}).get("tags") or ())
+
+
 def is_outside_flat(location_id: str) -> bool:
     """Anywhere that is not the flat or the building (the street, a venue, a home, the registry)."""
     return location_id in LOCATIONS and not is_flat(location_id)

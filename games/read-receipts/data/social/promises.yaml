@@ -26,7 +26,7 @@
 #   broken            trust and warmth a broken player promise costs (exact)
 #   broken_reason     the engine's words the person's next reply carries once
 #                     after a broken promise ({window}: its window's words)
-#   phrases           with no model (§5.2): a whole phrase, case-folded, not in a
+#   phrases           read with or without a model (§5.2): a whole phrase, case-folded, not in a
 #                     question, matched in the player's message. `you`: "message
 #                     me ..." (the PERSON promises to write); `me`: "I'll message
 #                     you ..." (the PLAYER promises). Keyed by window.
@@ -61,7 +61,7 @@ closed_kept: 3                   # closed promises kept per person at save compa
 kept_trust: 1
 broken: {trust: -3, warmth: -2}
 broken_reason: "they said they'd message you {window} and didn't"
-phrases:                         # with no model (§5.2): whole phrase, case-folded, not in a question
+phrases:                         # with or without a model (§5.2): whole phrase, case-folded, not in a question
   you:                           # "message me ..." -> the PERSON promises to write
     morning: ["message me in the morning", "text me in the morning", "message me tomorrow morning"]
     at_work: ["message me at work", "text me at work"]

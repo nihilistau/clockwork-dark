@@ -570,9 +570,11 @@ def go(state: GameState, to: str, *, targets: Optional[list[tuple[str, str]]] = 
 
     left = str(state.location_id or "")
     minutes = places.travel_minutes(to if to != HOME else left)
-    # The lift's minutes (§11.2, v0.24.0 §12.2) only for a move THROUGH the building: exactly one end in the
-    # player's flat and building (ring 0, `places.is_flat`). The cast's homes are `residence`, never in it.
-    if places.is_flat(left) != places.is_flat(to):
+    # The lift's minutes (§11.2, v0.24.0 §12.2) only for a move whose path passes the lift: exactly one end in
+    # the flat upstairs (`places.is_upstairs`, its `home`-tagged rooms). A move from the lobby or the lift is
+    # already downstairs (v0.24.0 T14). The cast's homes are `residence`, never upstairs. A room-by-room walk
+    # through `bldg_lift` with core `travel` pays nothing extra (docs/GOVERNANCE.md, NOT WIRED).
+    if places.is_upstairs(left) != places.is_upstairs(to):
         minutes += life.extra_minutes(state)
     clock.advance_time(state, minutes / 60.0)
     apply_effect(state, {"type": "social_go", "op": "place", "to": to})

@@ -21,11 +21,14 @@ Built per session by `SessionStore._build`, only for a story declaring
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from typing import Any, Optional
 
 from engine.config import get_config, hosting_enabled
+
+logger = logging.getLogger(__name__)
 
 WORLD = "world"
 VOICE = "voice"
@@ -128,7 +131,8 @@ def report_share(session: Any) -> None:
     Hosted narration-share metric (v0.23.0 T28, spec §20.1): after a side lets the turnstile go, the seconds
     each side held it since the last report, once a minute at most, as two `phone` rows (events
     `narration_world` and `narration_voice`, `ms` the seconds held), through `default_scene`'s phone hook
-    (None in local mode: nothing is recorded). Never raises.
+    (None in local mode: nothing is recorded). Never raises; a failure is logged at warning with its exception
+    (v0.24.0 T14: it was swallowed silently).
     """
     try:
         share = of(session).take_share(SHARE_INTERVAL_SECONDS)
@@ -140,7 +144,7 @@ def report_share(session: Any) -> None:
             if seconds > 0.0:
                 default_scene._report_phone(session, event, "ok", seconds * 1000.0)
     except Exception:  # noqa: BLE001 -- a metric must never fail a turn or a pass
-        pass
+        logger.warning("narration-share metric not recorded", exc_info=True)
 
 
 def of(session: Any) -> "Turnstile | _NullTurnstile":

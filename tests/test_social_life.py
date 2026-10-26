@@ -539,9 +539,14 @@ def _lift_out(state) -> None:
     ("apt_lounge", "merrow_street", True),          # out of the building
     ("merrow_street", "apt_lounge", True),          # home, through it
     ("apt_lounge", "apt_kitchen", False),           # room to room in the flat: never through the lift
+    ("bldg_reception", "merrow_street", False),     # (T14 a4) already downstairs: the lift is behind them
+    ("bldg_lift", "the_anchor", False),             # (T14 a4) standing at the lift: down the stairs is free
+    ("the_anchor", "apt_hall", True),               # (T14 a4) back up to the flat: past the lift
 ])
 def test_the_lift_minutes_only_through_the_building(receipts_state, here, to, pays) -> None:
-    """FAILS before the fix: `go` added the lift's minutes to EVERY move."""
+    """FAILS before the fix: `go` added the lift's minutes to EVERY move; then (v0.24.0 T14 a4) to a move from
+    the ground floor too. The minutes are paid only by a move whose path passes the lift: one end in the
+    flat upstairs (`home`-tagged), the other not."""
     from engine.social import life, places, world
 
     state = receipts_state

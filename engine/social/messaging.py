@@ -376,8 +376,8 @@ def _e_message(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> 
 
         memory.note_spoken(state, pid, message)   # the person's memory, whatever the app (v0.23.0 §7.1)
 
-        # A promise of theirs kept by this message, or one stated in it (no model, §5.2): before the
-        # read, so the person's next decision accepts it.
+        # A promise of theirs kept by this message, or one stated in it (§5.2, with a model or without):
+        # before the read, so the person's next decision accepts it.
         promises.on_player_message(state, pid, at)
         promises.note_player_text(state, pid, " ".join(message["bubbles"]) or str(message.get("transcript") or ""), at)
         convo.on_player_send(state, pid, tid, at)

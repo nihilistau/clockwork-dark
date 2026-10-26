@@ -20,7 +20,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - The day-60 turn-cost replay pin (`tests/fixtures/social/turn_cost_replay.json`, `tests/test_social_turn_cost.py`) was re-recorded (v0.24.0 T11, `CLOCKWORK_TURN_COST_RECORD=1`). Its 17 turn payloads are unchanged; only the save after the turns moved, and the cause was proved: the day-60 run v0.23.3 builds and the one this release builds differ in two keys alone, `flags.life_family_visit` and `flags.life_neighbour_party` (both `false`), the flags v0.24.0 T2 gave those life events for their days. The pin keeps T29a's phone-only day-60 run (`write_day_save(..., world=False)`), not the harness's new full-session default.
-- The broken lift adds its five minutes only when you go in or out of your building, not on every move (the engine's fix, root CHANGELOG).
+- The broken lift adds its five minutes only when you go between your flat upstairs and anywhere else, not on every move, and not from the lobby or the lift itself (the engine's fix, root CHANGELOG). Walking room by room down through the lift still costs nothing extra (NOT WIRED, docs/GOVERNANCE.md).
+- If you work nights (bartender, chef, musician, dock worker, security guard) or study, Sleep wakes you in your own morning: before, the tail of last night's shift or night out counted as your waking hour, so a bartender home at 02:30 slept to the next midnight and a student a whole day on. The morning after a stay-over wakes the same way, and a person of those shapes texts on waking in their real morning.
+- A morning after at their place that ends by itself now sends you home, as "Head home" does, instead of leaving you standing in their home.
+- "...and say you'll do it again soon" no longer claims a plan they did not agree to: when none is made the receipt says "They don't commit to anything yet."
+- The "message me in the morning" phrases are read whether or not a model is loaded (as they always were); the data's comments now say so.
 
 ### Changed
 
