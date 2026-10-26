@@ -14,6 +14,14 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.24.1] — 2026-10-27
+
+A repair release: v0.24.0's CI run failed one test on Linux, `tests/test_release_hygiene.py::test_every_file_a_governance_row_names_exists`, because two GOVERNANCE rows name `config/local.yaml`, the owner's gitignored machine layer, which exists on the owner's machine and never on CI. The check now leaves machine-local files out (`MACHINE_LOCAL`); every other named file must still exist.
+
+### Fixed
+
+- The GOVERNANCE file check no longer fails on CI for `config/local.yaml` (`tests/test_release_hygiene.py`).
+
 ## [0.24.0] — 2026-10-27
 
 Sound effects for the engine and every story (the owner's brief, docs/superpowers/briefs/2026-10-13-sound-effects-brief.md; spec docs/superpowers/specs/2026-10-23-v0.24.0-sound-design.md), READ RECEIPTS' morning after and its four remaining life-event decks, and v0.23.0's deferred tail: the full balance pass, the docs pass and the whole-branch review. Live play with a model was deferred again by the owner (Changed, below).

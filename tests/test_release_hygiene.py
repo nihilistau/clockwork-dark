@@ -209,6 +209,8 @@ def test_agents_md_says_docs_move_with_the_change() -> None:
 
 #: Files a NOT WIRED row names as removed (the row says so), so they are expected to be gone.
 GOVERNANCE_REMOVED = {"engine/social/meets.py", "engine/media/interceptors.py"}
+# Machine-local files a row may name: gitignored, so present on the owner's machine and absent on CI (v0.24.1).
+MACHINE_LOCAL = {"config/local.yaml"}
 
 
 def test_every_file_a_governance_row_names_exists() -> None:
@@ -218,7 +220,7 @@ def test_every_file_a_governance_row_names_exists() -> None:
     pattern = r"`((?:engine|ui|tests|scripts|games|docs|config|content)/[A-Za-z0-9_./-]+?\.[a-z]{2,5})(?:::[A-Za-z_.]+)?`"
     named = set(re.findall(pattern, text))
     assert named, "no file named: the pattern no longer reads the table"
-    missing = sorted(p for p in named - GOVERNANCE_REMOVED if not (ROOT / p).exists())
+    missing = sorted(p for p in named - GOVERNANCE_REMOVED - MACHINE_LOCAL if not (ROOT / p).exists())
     assert not missing, missing
     assert all(p in named for p in GOVERNANCE_REMOVED), "a removed-file allowance no longer needed: drop it"
 
