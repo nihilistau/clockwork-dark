@@ -11,7 +11,7 @@ export default function Companion({ person }) {
   if (!person || !person.pid) return null;
   const { name, stage_words: stage, closeness_words: closeness, portrait, kind } = person;
   return (
-    <div className="rr-companion" data-testid="rr-companion" aria-label={`With ${name}`}>
+    <div className="rr-companion" data-testid="rr-companion" role="group" aria-label={`With ${name}`}>
       {portrait ? <img className="rr-companion__portrait" src={portrait} alt="" draggable="false" /> : (
         <span className="rr-companion__portrait rr-companion__portrait--none" aria-hidden="true">{String(name || "?").slice(0, 1)}</span>
       )}

@@ -30,7 +30,8 @@ const CAT = {
 
 const row = (id, last, extra = {}) => ({ thread_id: id, app: "matchstick", last, ...extra });
 const msg = (at, from = "them", kind = "text", extra = {}) => ({ from, kind, at, preview: "hi", pending: false, ...extra });
-const phone = (threads, { scene = {}, up = true } = {}) => ({ threads, scene, world: { phone_up: up } });
+const APPS = [{ id: "matchstick", kind: "dating" }, { id: "front_porch", kind: "dating" }, { id: "texts", kind: "messenger" }];
+const phone = (threads, { scene = {}, up = true } = {}) => ({ threads, scene, apps: APPS, world: { phone_up: up } });
 const CTX = { openThread: "", up: true };
 
 beforeEach(() => { installFakeAudio(); resetSound({ logPlays: true }); installCatalog(CAT); gesture(); setLevels(PREFS); });
@@ -96,10 +97,10 @@ describe("one message, one sound (spec §9.7)", () => {
     expect(heard()).toEqual([]);
   });
 
-  it("a resume with unread messages is silent", () => {
-    const loaded = phone([row("t1", msg(30)), row("t3", msg(31))], { scene: { id: "p1@30.0", pid: "p1" } });
+  it("an opening with unread messages is silent: it hydrates, and the same block diffed again makes no sound", () => {
+    const loaded = phone([row("t1", msg(30)), row("t3", msg(31)), row("t5", null)], { scene: { id: "p1@30.0", pid: "p1" } });
     hydrate(loaded);
-    phoneSounds({ threads: [] }, loaded, CTX);
+    phoneSounds(loaded, { ...loaded, threads: [...loaded.threads] }, CTX);
     expect(heard()).toEqual([]);
   });
 
@@ -262,5 +263,24 @@ describe("the voice note's volume (spec §9.7)", () => {
     view.render(at({ ...PREFS, muted: true }));
     expect(audio().volume).toBe(0);
     view.unmount();
+  });
+});
+
+describe("T14 wave B: what counts as a sound", () => {
+  it("d3: an engine line in the thread never sounds as an incoming message", () => {
+    const before = phone([row("t1", msg(10))]);
+    phoneSounds(before, phone([row("t1", msg(12, "system", "text", { preview: "Cole is in" }))]), CTX);
+    expect(heard()).toEqual([]);
+  });
+
+  it("d5: the first match of a run, on an empty phone, chimes", () => {
+    phoneSounds({ threads: [] , apps: APPS }, phone([row("t1", null)]), CTX);
+    expect(heard()).toEqual(["phone.match"]);
+  });
+
+  it("d6: a dating app is whatever the payload calls one", () => {
+    const apps = [...APPS, { id: "spark", kind: "dating" }];
+    phoneSounds({ threads: [], apps }, { ...phone([row("t1", null, { app: "spark" })]), apps }, CTX);
+    expect(heard()).toEqual(["phone.match"]);
   });
 });

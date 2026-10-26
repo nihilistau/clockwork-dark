@@ -71,7 +71,7 @@ export default function World({ state, phone = null, onChoose, onCustom = null, 
   // The plate already names the place it has a name for; the label is for a plate that has none.
   const where = state.world && (state.world.location_name || state.world.location_id) ? "" : world.location || "";
   return (
-    <section className="rr-world" aria-label="Where you are">
+    <section className="rr-world" aria-label="Where you are" tabIndex={-1}>
       <div className="rr-world__plate">
         <ScenePlate state={state} />
         {where && <p className="rr-world__where">{where}</p>}

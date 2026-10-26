@@ -245,6 +245,7 @@ export default function Thread({
           readyAsks={row?.asks}
           pid={pid}
           venues={venuesOf(phone)}
+          kinds={phone.meet_options && phone.meet_options.kinds}
           canSignOff={Boolean(row) && row.open !== false}
         />
       )}

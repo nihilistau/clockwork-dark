@@ -6,10 +6,13 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PlayScreen from "../src/stories/read-receipts/PlayScreen.jsx";
-import { initialState as storyState } from "../src/stories/read-receipts/state.js";
-import { initialState, reducer } from "../src/core/store.js";
+import plugin from "../src/stories/read-receipts/index.jsx";
+import { createStore } from "../src/core/store.js";
 import { phoneFixture } from "./fixtures/phone.js";
 import { button, byTestId, click, mount, typeInto } from "./helpers/dom.js";
+
+// The COMPOSED reducer (core's with the plugin's `reduce`), so the frames pass through the phone's slice (T14 b6).
+const { initial: initialState, reducer } = createStore(plugin);
 
 let view;
 beforeEach(() => { view = mount(); });
@@ -20,7 +23,7 @@ const WORLD = (over = {}) => ({ phone_up: true, at_work: false, location: "The A
 const down = () => phoneFixture({ phone: { world: WORLD({ phone_up: false }) } });
 
 const screen = (state, props = {}) => (
-  <PlayScreen state={{ ...state, story: storyState, link: "live" }} sessionId="s1" onAct={() => true}
+  <PlayScreen state={{ ...state, link: "live" }} sessionId="s1" onAct={() => true}
               onChoose={() => {}} onCustom={() => {}} onOpenMenu={() => {}} onOpenSaves={() => {}} {...props} />
 );
 

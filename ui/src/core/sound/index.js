@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 
 import { callCount, ensure, installCatalog, limits, markSeen, noteSkip, play, playCount, resetEngine, setLevels, soundLog } from "./engine.js";
-import { inSentTurn, resetTurns, turnSent, turnSettled } from "./turns.js";
+import { inSentTurn, noteArrivalCue, resetTurns, turnSent, turnSettled } from "./turns.js";
 
-export { installCatalog, markSeen, setLevels, soundLog, turnSent, turnSettled };
+export { installCatalog, markSeen, noteArrivalCue, setLevels, soundLog, turnSent, turnSettled };
 export { inSentTurn } from "./turns.js";
 export { limits, playCount, oggSupported } from "./engine.js";
 export { loadCatalog } from "./catalog.js";

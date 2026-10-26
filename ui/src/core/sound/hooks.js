@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { play } from "./engine.js";
-import { turnSettled } from "./turns.js";
+import { takeArrivalCue, turnSettled } from "./turns.js";
 
 /** The narration <audio>'s volume: master x narration, 0 when muted (spec §7). */
 export const narrationVolume = (p) => (p.muted ? 0 : (p.soundMaster ?? 0.8) * (p.volume ?? 0.8));
@@ -21,7 +21,8 @@ export function useTurnSounds({ busy, error, phoneUp, link, turns }) {
         if (error) {
           if (!phoneUp) play("alert.error");
         } else if (turns > prev.turnsAtBusy) {
-          play("turn.arrive");
+          // One sound per arrival: a story's own cue (a scene door, a phone sound) already announced it.
+          if (!takeArrivalCue()) play("turn.arrive");
         }
       }
     }

@@ -67,6 +67,7 @@ export default function ComposeBar({
   readyAsks = null,
   pid = "",
   venues = [],
+  kinds = undefined,
   canSignOff = false,
 }) {
   const caps = (app && Array.isArray(app.capabilities) ? app.capabilities : ["text"]).map(String);
@@ -183,7 +184,7 @@ export default function ComposeBar({
           }
         >
           {menu === "plan" && (
-            <PlanSheet pid={pid} threadId={threadId} venues={venues} act={act} busy={sending} onDone={() => setMenu(null)} />
+            <PlanSheet pid={pid} threadId={threadId} venues={venues} kinds={kinds} act={act} busy={sending} onDone={() => setMenu(null)} />
           )}
           {menu === "later" &&
             [["you", "Message me"], ["me", "I'll message you"]].flatMap(([who, lead]) =>

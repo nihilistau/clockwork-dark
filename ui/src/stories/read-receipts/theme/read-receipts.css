@@ -1912,6 +1912,9 @@ body[data-story-skin="read-receipts"] {
   opacity: 0.55;
 }
 
+.rr-world:focus {
+  outline: none;
+}
 .rr-world {
   flex: 1;
   min-height: 0;
@@ -2158,4 +2161,56 @@ body[data-story-skin="read-receipts"] {
 .rr-places__go {
   width: 100%;
   text-align: left;
+}
+
+/* ---- the in-phone notice: a message in another thread, or a match (v0.24.0 T14 d2) ---- */
+
+.rr-notice {
+  position: absolute;
+  top: 34px;
+  left: 10px;
+  right: 10px;
+  z-index: 6;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  border-radius: 12px;
+  background: var(--rr-ink);
+  color: var(--rr-screen);
+  font-size: 13px;
+}
+.rr-notice--match {
+  background: var(--rr-accent);
+  color: var(--rr-accent-ink);
+}
+.rr-notice__open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rr-notice__head {
+  font-weight: 600;
+}
+.rr-notice__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rr-notice__close {
+  flex: none;
+  min-width: 36px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
 }

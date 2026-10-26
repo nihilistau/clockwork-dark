@@ -343,6 +343,7 @@ export default function NewRun({ onBegin, onCancel, busy = false, error = "" }) 
           <button
             type="button"
             className="rr-btn"
+            data-sound="none"
             disabled={!ready || busy}
             onClick={() => onBegin(creationOf(steps, values))}
           >
