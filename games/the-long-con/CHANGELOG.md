@@ -12,6 +12,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-10-27
+
 ### Added
 
 - Cards, chips and coin sound palette (v0.24.0 T10, spec 9.5): the story declares `paths.sounds` (`games/the-long-con/data/sounds/sounds.yaml`), reusing the engine's CC0 Kenney files by `engine:` with a synthesised fallback for each; the palette is in the README's Sounds table. It declares no story event of its own; its overhaul adds them.

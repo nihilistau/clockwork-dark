@@ -10,40 +10,37 @@ release to release.
 
 ## Status
 
-**v0.23.3** (a repair: a phone ask sent while the person's reply to the message before it was still due is answered, found by CI on Linux) is the current release, after **v0.23.2** (a cross-platform repair: the engine's lognormal, normal and decay math runs in software, `engine/game/detmath.py`, so one seed gives one save on Windows and Linux), **v0.23.1** (the world-turn cost bound is local-only and `run_tests.py` names each failure's reason), on **v0.23.0** (READ RECEIPTS' rework: growth, no set time on dating, phone numbers that follow the conversation, places and in-person scenes, living together and life events, and addendum 4's world interaction); v0.24.0 is next, and it carries v0.23.0's deferred tail (the owner moved T29b, T31, T32 and T33 to its end, 2026-10-23) (CHANGELOG.md has every release since 0.4.0;
+**v0.24.0** (sound effects for the engine and every story, READ RECEIPTS' morning after and four more life-event decks, and v0.23.0's deferred tail: the 10-seed balance pass, the docs pass and the whole-branch review; live play with a model was deferred again by the owner, 2026-10-26) is the current release, after **v0.23.3** (a repair: a phone ask sent while the person's reply to the message before it was still due is answered, found by CI on Linux), **v0.23.2** (a cross-platform repair: the engine's lognormal, normal and decay math runs in software, `engine/game/detmath.py`, so one seed gives one save on Windows and Linux) and **v0.23.1** (the world-turn cost bound is local-only and `run_tests.py` names each failure's reason), on **v0.23.0** (READ RECEIPTS' rework); v0.25.0, the flagship's overhaul, is next (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
-**Windows, v0.23.0 (`scripts/run_tests.py full`, measured 2026-10-23 at
-the release): 8380 passed, 28 skipped, 4 failed, exit 1, in 58.6 min** (parallel
-phase 7869 passed, 13 skipped, 4 failed in 48.3 min; serial phase 511 passed,
-15 skipped in 10.4 min, no FLAKY re-run). The four failures were fixed in 6779d36
-and their files re-run once, green (36 passed in 24.3 min): a deferred row's
-wording in this file, `chat_minutes_to_numbers.fast` at 30 s (16.8 against 6-15,
-deferred by data to v0.24.0's T29b), and two T29a replay fixtures re-recorded
-after 93ca910 added `scene_image` to every READ RECEIPTS frame (verified the only
-change). The release is slow because of READ RECEIPTS' `slow` pins:
-`tests/test_social_save_size.py` (a day-180 save), `tests/test_social_commit_scope.py`
-and, in the serial phase (it starts interpreters), `tests/test_simulate_social.py`'s
-simulator runs. The skips: `tests/test_llm_live.py` (unless `CLOCKWORK_LIVE_LLM`
-names the configured model server); the ten tests of `tests/test_docker_smoke.py`
-(opt-in, `CLOCKWORK_DOCKER_SMOKE=1` and a built image); the stamina
-soft-lock test's stories with no rest verb; THE LONG CON's word-limit
-check; `tests/test_constraints.py`'s installed-version check for
-`faster-whisper` and `gunicorn` (neither installed on Windows); the
-POSIX-only tests; one bus test skipped by design; and, since v0.23.0,
-`tests/test_media_xai.py::test_the_suite_never_resolves_the_repositorys_key_file`
-(it needs the owner's gitignored `xai_api_key.txt` in the repository root, so it
-runs on the owner's machine only, never on CI or a fresh clone). Plus **731 client
-tests** in 36 files under `ui/tests/` (`npm test --prefix ui`; `vitest` is a
-devDependency, so `npm install --prefix ui` once first). `fast` was not
-re-measured (v0.21.1: about 5.8 min). Not run for this release, by the owner's
-deferral: the 40-seed simulator confirmation and the balance pass over full
-sessions (T29b), live play with a model (T31) and a whole-branch review (T33).
-(The balance pass has since run on the v0.24.0 branch, as its T11, at the owner's
-10-seed scale; the docs pass as its T13; the review is its T14; live play is
-deferred again: see Deliberately deferred.)
-Re-measure and restate these at every release rather than trusting this line --
-it has been stale before, in the very sentence that warned about it.
+**Windows, v0.24.0 (`scripts/run_tests.py full --limit-minutes 240`, measured 2026-10-27 at
+the release): 8609 passed, 28 skipped, 0 failed after four fixes, in 93.4 min for the run
+itself** (the run: parallel phase 8093 passed, 13 skipped, 4 failed in 83.0 min; serial phase
+512 passed, 15 skipped in 10.4 min, no FLAKY re-run; exit 1 for the four). The four failures were
+real and fixed in their own commit, their files re-run once, green (72 passed in 11.5 min): the
+`SHIPPED_REPEATABLE` set did not list v0.24.0 T2's four life-event decks; the wedding test used a bare
+Matchstick match that expires unwritten over its 16 idle days (T14's `waking` window fix moved when
+people write first, so it failed; it now uses a match with numbers); the day-60 turn-cost pin moved
+(every turn digest and the save: T14's `waking` fix, re-recorded once with
+`CLOCKWORK_TURN_COST_RECORD=1`); and `test_the_hue_run_keeps_no_save` counted a READ RECEIPTS save made by
+another thread in its xdist worker (it now counts only its own thread's saves; the leaking test was not
+found, see Deliberately deferred). The release is slow because of READ RECEIPTS' `slow` pins
+(`tests/test_social_save_size.py`, `tests/test_social_commit_scope.py`, and in the serial phase
+`tests/test_simulate_social.py`); `run_tests.py full`'s default limit is 240 minutes. The skips:
+`tests/test_llm_live.py` (unless `CLOCKWORK_LIVE_LLM` names the configured model server); the ten
+tests of `tests/test_docker_smoke.py` (opt-in, `CLOCKWORK_DOCKER_SMOKE=1` and a built image); the
+stamina soft-lock test's stories with no rest verb; THE LONG CON's word-limit check;
+`tests/test_constraints.py`'s installed-version check for `faster-whisper` and `gunicorn` (neither
+installed on Windows); the POSIX-only tests; one bus test skipped by design; and
+`tests/test_media_xai.py::test_the_suite_never_resolves_the_repositorys_key_file` (it needs the owner's
+gitignored `xai_api_key.txt`, so it runs on the owner's machine only). Plus **850 client tests** in
+50 files under `ui/tests/` (`npm test --prefix ui`; `npm ci --prefix ui` once first). The layout check
+(`npm run layout-check --prefix ui`, clockwork-dark: start screen, the audition page, the encounter and
+play runs, Settings' Sound fieldset, at 1366x768, 900x600, 390x844 and 844x390) passed. `fast` was not
+re-measured (v0.21.1: about 5.8 min). Not run for this release: the 40-seed simulator confirmation the
+v0.23.0 plan named (the owner chose the 10-seed scale for the balance pass on 2026-10-24; 40 seeds would
+take about 17 hours per policy), and live play with a model (T12, deferred by the owner on 2026-10-26).
+Re-measure and restate these at every release rather than trusting this line.
 A bare `pytest` is the fast tier since v0.21.1 (`slow` and `process` left
 out); the numbers above are `--full`.
 
@@ -187,8 +184,8 @@ only once the last of them lands:
 | v0.21.1 | Patch: test speed -- tiers, pytest-xdist hybrid runs, bounded runs (`scripts/run_tests.py`), libyaml, a shared HTTP client | **shipped** |
 | v0.22.0 | A new story: a dating simulation played through a phone of apps (dating apps, texts, instant messages, voice and video messages, two-player games), a populated cast the engine runs, no endgame (owner's brief: docs/superpowers/briefs/2026-09-30-dating-sim-brief.md) | **shipped** |
 | v0.23.0 | READ RECEIPTS rework: growth (people who change at their own pace, conversations and willingness that ramp up), no set time on dating, phone numbers that work, places (the player's apartment and its rooms, 3-4 homes for the cast) with their art, and real-life events and meet-ups happening outside the phone; slice of life, no ending (owner's brief, with its addendum: docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md). **Addendum 4 (2026-10-22, after the owner's playtest; docs/superpowers/specs/2026-10-22-v0.23.0-addendum4-world-interaction.md)** is part of it: the world's choices survive phone actions, a plan is kept where you stand (they arrive, the scene opens, `Wait for {name}`), the person is somewhere, a quiet phone while together, typing in the world (a typed line runs ONE offered choice or a scene move, or is narrated only), background people at venues and chance meetings with live contacts, T23A-T23H; replayed end to end in `tests/test_rr_playtest_replay.py` and `ui/tests/rr-playtest.test.jsx`, with the browser-pane walk (A4 §7.5, T31) deferred, and still not done (below) | **shipped** (its tail moved into v0.24.0: T29b ran as v0.24.0 T11, T32 as T13, T33 is T14; T31 was deferred again by the owner, 2026-10-26) |
-| v0.24.0 | Sound effects for the engine and every story (owner's brief: docs/superpowers/briefs/2026-10-13-sound-effects-brief.md): sound as client-side data (`content/sounds/sounds.yaml` and a story's `paths.sounds`; twenty-five engine events; synth sounds, fifteen CC0 Kenney `.ogg` files with synth fallbacks, 216,524 of a 1 MiB budget), the server's two routes and file route, the client sound engine and triggers, the settings, the audition page (`/?sounds=1`) and a palette for each of the six played stories (dev-story hears the engine's set); READ RECEIPTS' morning scene after a stay-over, four more life-event decks (`lift_out`, `family_visit`, `wedding_invite`, `neighbour_party`), the lift fix and the news windows (moved from v0.23.0 at its checkpoint C1); and v0.23.0's deferred tail: the full balance pass (T11: 19 rows banded, 19 deferred by data, one data change), the docs pass (T13) and the whole-branch review (T14). **T12, live play with a model (the addendum-4 meet-up walk, listening to the sounds), was DEFERRED by the owner on 2026-10-26** (Deliberately deferred) | **next** (T14 review and T15 release remain) |
-| v0.25.0 | The Clockwork Dark overhaul | queued |
+| v0.24.0 | Sound effects for the engine and every story (owner's brief: docs/superpowers/briefs/2026-10-13-sound-effects-brief.md): sound as client-side data (`content/sounds/sounds.yaml` and a story's `paths.sounds`; twenty-five engine events; synth sounds, fifteen CC0 Kenney `.ogg` files with synth fallbacks, 216,524 of a 1 MiB budget), the server's two routes and file route, the client sound engine and triggers, the settings, the audition page (`/?sounds=1`) and a palette for each of the six played stories (dev-story hears the engine's set); READ RECEIPTS' morning scene after a stay-over, four more life-event decks (`lift_out`, `family_visit`, `wedding_invite`, `neighbour_party`), the lift fix and the news windows (moved from v0.23.0 at its checkpoint C1); and v0.23.0's deferred tail: the full balance pass (T11: 19 rows banded, 19 deferred by data, one data change), the docs pass (T13) and the whole-branch review (T14). **T12, live play with a model (the addendum-4 meet-up walk, listening to the sounds), was DEFERRED by the owner on 2026-10-26** (Deliberately deferred) | **shipped** |
+| v0.25.0 | The Clockwork Dark overhaul | **next** |
 | v0.26.0 | The Wicked Garden overhaul | queued |
 | v0.27.0 | NEON CITY overhaul | queued |
 | v0.28.0 | THE LONG CON overhaul | queued |
@@ -974,6 +971,7 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   between the flat upstairs and anywhere else (v0.24.0 T14). Charging the walk
   would put a social hook in `Engine.move_to`, every story's walk; a
   docs/GOVERNANCE.md NOT WIRED row.
+- A READ RECEIPTS save from a test earlier in the same xdist worker reached `tests/test_simulate_thief.py::test_the_hue_run_keeps_no_save` in v0.24.0 T15's full run (a `SaveStore.save` on another thread, `popen-gw1/guards/.../saves/read-receipts`): a thread some READ RECEIPTS test leaves running (the dirty saver or the world thread). The test now counts only its own thread's saves, which closes it; the leaking test was NOT found, so a test's leftover thread can still write a save into a later test's window. A hunt would start from `tests/social_fixtures.py::_stop_dirty_saver` and `receipts_active`'s teardown.
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 

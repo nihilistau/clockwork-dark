@@ -13,6 +13,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-10-27
+
 ### Added
 
 - Brass and gears sound palette (v0.24.0 T10, spec 9.2): the story declares `paths.sounds` (`games/clockwork-dark/data/sounds/sounds.yaml`), reusing the engine's CC0 Kenney files by `engine:` with a synthesised fallback for each; the palette is in the README's Sounds table. The phase badge, the Stage and the DiceToast fire the cues in `ui/src/stories/clockwork-dark/`.
