@@ -14,6 +14,10 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+### Tests
+
+- Tests: v0.24.0 recordings for v0.25.0's byte-identity and save tests (`tests/fixtures/flagship_overhaul/`, `tests/fixtures/clockwork_dark_v0240/`), recorded from 3c6882f by `CLOCKWORK_FLAGSHIP_RECORD=1`.
+
 ## [0.24.1] — 2026-10-27
 
 A repair release: v0.24.0's CI run failed one test on Linux, `tests/test_release_hygiene.py::test_every_file_a_governance_row_names_exists`, because two GOVERNANCE rows name `config/local.yaml`, the owner's gitignored machine layer, which exists on the owner's machine and never on CI. The check now leaves machine-local files out (`MACHINE_LOCAL`); every other named file must still exist.

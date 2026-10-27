@@ -1,0 +1,459 @@
+{
+ "active_arc": "quiet_life",
+ "active_effects": [],
+ "agendas": {},
+ "archetype": "wayfarer",
+ "arcs_unlocked": [
+  "quiet_life"
+ ],
+ "assistant_mind": {
+  "appearance_schedule": "hidden",
+  "current_form": "cat",
+  "help_probability": 0.4,
+  "intervention_willingness": 0.3,
+  "patience": 80.0,
+  "trust_level": 20.0
+ },
+ "awareness": 0.0,
+ "challenge": {},
+ "clocks": {},
+ "doom_resistance": 0.0,
+ "encounter": {},
+ "ended": false,
+ "evil_phase": "dormant",
+ "evil_progress": 0.72,
+ "flags": {
+  "discovery_hidden_path": true,
+  "doom_beat_scarecrow_wakes": true,
+  "doom_beat_tunnels_open": true,
+  "doom_beat_vines_breach_forest": true,
+  "doom_beat_wheat_turns": true,
+  "harvest_wrong": true,
+  "scarecrow_awake": true,
+  "seam_opened": true,
+  "tunnels_open": true,
+  "vines_breached": true
+ },
+ "hunger": 0.0,
+ "inventory": [
+  {
+   "id": "road_bread",
+   "name": "Stale road bread",
+   "qty": 2,
+   "tags": [
+    "food"
+   ]
+  },
+  {
+   "id": "walking_staff",
+   "name": "Walking staff",
+   "qty": 1,
+   "tags": [
+    "tool"
+   ]
+  }
+ ],
+ "jobs": {},
+ "last_cutscene_phase": "",
+ "law": {},
+ "location_id": "forest_clearing",
+ "media_cache": {},
+ "media_cutscenes_shown": [],
+ "meters": {},
+ "moved": [
+  {
+   "kind": "rumor",
+   "location_id": "",
+   "text": "No one will walk the south harvest line now \u2014 the wheat lies down in rows too straight for any wind."
+  },
+  {
+   "kind": "event",
+   "location_id": "",
+   "text": "The south wheatfield has gone over to the rows; something low and brass moves through it at night."
+  },
+  {
+   "kind": "rumor",
+   "location_id": "",
+   "text": "The east-field scarecrow turned to face the road, and no hand turned it. Its grin shows brass now."
+  },
+  {
+   "kind": "event",
+   "location_id": "",
+   "text": "The brass scarecrow no longer stands where it was put; it follows the road when unwatched."
+  },
+  {
+   "kind": "rumor",
+   "location_id": "",
+   "text": "Cold filigree threads the birches at the forest margin. No one works past the first birch now."
+  },
+  {
+   "kind": "event",
+   "location_id": "",
+   "text": "Clockwork-vines have crept into the forest margin, ticking where the sap should run."
+  },
+  {
+   "kind": "rumor",
+   "location_id": "",
+   "text": "Beneath the old stump a seam of worked stone has yawned open, breathing a draught of oil and old time."
+  },
+  {
+   "kind": "event",
+   "location_id": "",
+   "text": "The tunnels under Edgewood are unsealed; something under the village has been given a door."
+  }
+ ],
+ "player_name": "Traveler",
+ "plot_involvement": 0.0,
+ "premise_intel": {},
+ "procgen": {
+  "bakery_job_day": 3,
+  "buildings": [
+   {
+    "canon": true,
+    "id": "building_bakery",
+    "location_id": "edgewood_bakery",
+    "name": "Hearth Bakery",
+    "type": "bakery"
+   },
+   {
+    "canon": true,
+    "id": "building_communal_oven",
+    "location_id": "edgewood_square",
+    "name": "Communal Stone Oven",
+    "type": "oven"
+   },
+   {
+    "canon": true,
+    "id": "building_shrine",
+    "location_id": "edgewood_square",
+    "name": "Shrine of Unnamed Saints",
+    "type": "shrine"
+   },
+   {
+    "canon": true,
+    "id": "building_well",
+    "location_id": "edgewood_square",
+    "name": "Square Well",
+    "type": "well"
+   },
+   {
+    "canon": true,
+    "id": "building_notice_board",
+    "location_id": "edgewood_square",
+    "name": "Notice Board",
+    "type": "civic"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_1",
+    "location_id": "edgewood_square",
+    "name": "Low Mill",
+    "type": "miller"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_2",
+    "location_id": "edgewood_square",
+    "name": "East Granary",
+    "type": "granary"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_3",
+    "location_id": "edgewood_square",
+    "name": "Joiner's Yard",
+    "type": "carpenter"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_4",
+    "location_id": "edgewood_square",
+    "name": "Cooper's Shed",
+    "type": "cooper"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_5",
+    "location_id": "edgewood_square",
+    "name": "Road Stables",
+    "type": "stable"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_6",
+    "location_id": "edgewood_square",
+    "name": "Nine Skeps",
+    "type": "apiary"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_7",
+    "location_id": "edgewood_square",
+    "name": "Weaver's Loft",
+    "type": "weaver"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_8",
+    "location_id": "edgewood_square",
+    "name": "The Malthouse",
+    "type": "brewer"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_9",
+    "location_id": "edgewood_square",
+    "name": "Cobbler's Step",
+    "type": "cobbler"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_10",
+    "location_id": "edgewood_square",
+    "name": "Blue Dyeyard",
+    "type": "dye"
+   }
+  ],
+  "festival": {
+   "day_offset": 17,
+   "name": "Founder's Ash",
+   "season": "summer"
+  },
+  "forest": {
+   "barrow_dungeon": {
+    "dc": 16,
+    "id": "barrow_dungeon",
+    "location_id": "forest_clearing",
+    "name": "Old King's Rest",
+    "optional": true
+   },
+   "forage_nodes": [
+    {
+     "dc": 8,
+     "id": "forage_1",
+     "location_id": "forest_clearing",
+     "resource": "game_trail"
+    },
+    {
+     "dc": 12,
+     "id": "forage_2",
+     "location_id": "forest_clearing",
+     "resource": "mushroom"
+    },
+    {
+     "dc": 11,
+     "id": "forage_3",
+     "location_id": "forest_clearing",
+     "resource": "game_trail"
+    },
+    {
+     "dc": 12,
+     "id": "forage_4",
+     "location_id": "forest_clearing",
+     "resource": "berry"
+    },
+    {
+     "dc": 6,
+     "id": "forage_5",
+     "location_id": "forest_clearing",
+     "resource": "game_trail"
+    },
+    {
+     "dc": 14,
+     "id": "forage_6",
+     "location_id": "forest_clearing",
+     "resource": "mushroom"
+    }
+   ],
+   "hidden_paths": [
+    {
+     "dc": 11,
+     "id": "hidden_path_1",
+     "label": "root-choked gap",
+     "leads_to": "herb_glen"
+    },
+    {
+     "dc": 12,
+     "id": "hidden_path_2",
+     "label": "root-choked gap",
+     "leads_to": "old_barrows"
+    }
+   ]
+  },
+  "npcs": [
+   {
+    "canon": true,
+    "id": "npc_maris",
+    "location_id": "edgewood_bakery",
+    "name": "Maris Hearth",
+    "role": "baker",
+    "traits": [
+     "warm",
+     "watchful",
+     "maternal"
+    ]
+   },
+   {
+    "canon": true,
+    "id": "npc_odran",
+    "location_id": "edgewood_square",
+    "name": "Odran Cartwright",
+    "role": "caravan_master",
+    "traits": [
+     "weathered",
+     "gossiping",
+     "cautious"
+    ]
+   },
+   {
+    "canon": true,
+    "displaced": true,
+    "id": "npc_ilya",
+    "location_id": "edgewood_square",
+    "name": "Ilya of the Nine Pins",
+    "role": "tinker",
+    "traits": [
+     "clever",
+     "evasive",
+     "charming"
+    ]
+   },
+   {
+    "canon": true,
+    "id": "npc_sera",
+    "location_id": "millhaven_gate",
+    "name": "Sergeant Sera Venn",
+    "role": "militia",
+    "traits": [
+     "stern",
+     "conflicted",
+     "dutiful"
+    ]
+   },
+   {
+    "canon": true,
+    "id": "npc_brindle",
+    "location_id": "edgewood_square",
+    "name": "Brindle",
+    "role": "cat",
+    "traits": [
+     "silent",
+     "knowing",
+     "feline"
+    ]
+   },
+   {
+    "canon": false,
+    "id": "npc_villager_1",
+    "location_id": "edgewood_square",
+    "name": "Sable Pike",
+    "role": "farmer",
+    "traits": [
+     "pious",
+     "generous"
+    ]
+   },
+   {
+    "canon": false,
+    "id": "npc_villager_2",
+    "location_id": "edgewood_square",
+    "name": "Rook Orr",
+    "role": "farmer",
+    "traits": [
+     "sharp_tongued",
+     "pious"
+    ]
+   },
+   {
+    "canon": false,
+    "id": "npc_villager_3",
+    "location_id": "edgewood_square",
+    "name": "Cora Ashford",
+    "role": "weaver",
+    "traits": [
+     "practical",
+     "pious"
+    ]
+   }
+  ],
+  "premises": [],
+  "seed": 7,
+  "shrine_mural": "a village burning in perfect symmetry"
+ },
+ "provenance": {},
+ "quests": {},
+ "reputations": {},
+ "rng_counters": {},
+ "rng_seed": 7,
+ "rumors": [
+  "No one will walk the south harvest line now \u2014 the wheat lies down in rows too straight for any wind.",
+  "The east-field scarecrow turned to face the road, and no hand turned it. Its grin shows brass now.",
+  "Cold filigree threads the birches at the forest margin. No one works past the first birch now.",
+  "Beneath the old stump a seam of worked stone has yawned open, breathing a draught of oil and old time."
+ ],
+ "save_version": 2,
+ "scene": {},
+ "stats": {
+  "agility": 11,
+  "craft": 8,
+  "focus": 10,
+  "gold": 5,
+  "grit": 11,
+  "hp": 20,
+  "max_focus": 10,
+  "max_hp": 20,
+  "max_stamina": 100,
+  "presence": 10,
+  "stamina": 100,
+  "wits": 10
+ },
+ "story_pressure": 0.0,
+ "story_pressure_prev": 0.0,
+ "storyteller_mind": {
+  "appearance_schedule": "hidden",
+  "current_form": "cat",
+  "help_probability": 0.4,
+  "intervention_willingness": 0.3,
+  "patience": 80.0,
+  "trust_level": 20.0
+ },
+ "threads": [],
+ "tracks": {},
+ "turn_number": 0,
+ "world_clock_hours": 8.0,
+ "world_events": [
+  {
+   "beat": "wheat_turns",
+   "day": 1,
+   "event_id": "south_field_falls",
+   "expires_day": 999999,
+   "source": "doom",
+   "text": "The south wheatfield has gone over to the rows; something low and brass moves through it at night."
+  },
+  {
+   "beat": "scarecrow_wakes",
+   "day": 1,
+   "event_id": "scarecrow_walks",
+   "expires_day": 999999,
+   "source": "doom",
+   "text": "The brass scarecrow no longer stands where it was put; it follows the road when unwatched."
+  },
+  {
+   "beat": "vines_breach_forest",
+   "day": 1,
+   "event_id": "forest_margin_turns",
+   "expires_day": 999999,
+   "source": "doom",
+   "text": "Clockwork-vines have crept into the forest margin, ticking where the sap should run."
+  },
+  {
+   "beat": "tunnels_open",
+   "day": 1,
+   "event_id": "tunnels_unsealed",
+   "expires_day": 999999,
+   "source": "doom",
+   "text": "The tunnels under Edgewood are unsealed; something under the village has been given a door."
+  }
+ ],
+ "wounds": []
+}
