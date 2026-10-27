@@ -25,7 +25,7 @@ file is the authority from 0.4.0 on.
 
 ### Fixed
 
-- A death check's own unconsciousness hours that crossed midnight rolled those days' declared events twice: once in the nested `advance_time` and again in the outer call, which read its end day after the check, out of date order (a probabilistic event drew twice for a day, and its older-dated instance replaced the newer). The nested call now leaves the declared-event roll to the outer, which rolls every day crossed once and in order (`engine/game/clock.py`).
+- A death check's own unconsciousness hours that crossed midnight rolled those days' declared events twice: once in the nested `advance_time` and again in the outer call, which read its end day after the check, out of date order (a probabilistic event drew twice for a day, and its older-dated instance replaced the newer). In a story with a probabilistic declared event (the flagship), the nested call now leaves the declared-event roll to the outer, which rolls every day crossed once and in order (`engine/game/clock.py`, `schedules.declares_probabilistic`). Every other story keeps v0.24.0's order (an event the respawn's hours reach starts inside the respawn, before its effects), pinned for HUE & CRY's starvation respawn into the fair's day 10 (`tests/test_hue_and_cry.py`).
 
 ### Measured
 

@@ -79,3 +79,20 @@ def test_the_flag_is_the_flagships_alone() -> None:
     sim = _simulate()
     with pytest.raises(SystemExit):
         sim.main(["--event-rates", "--game", "hue-and-cry"])
+
+
+def test_an_authored_zero_gate_stays_zero(monkeypatch) -> None:
+    """`rate_gates`: `min_day: 0` and `min_awareness: 0` are gates of 0, not the defaults."""
+    sim = _simulate()
+    monkeypatch.setattr(sim, "load_schedules", lambda: {"events": {
+        "caravan_arrival": {"probability_per_day": 0.5, "min_day": 0},
+        "militia_press": {"probability_per_day": 0.5, "when": {"min_awareness": 0}},
+    }})
+    gates = sim.rate_gates()
+    assert gates["caravan_arrival"](1, {1: 0.0})
+    assert gates["militia_press"](1, {1: 0.0})
+    monkeypatch.setattr(sim, "load_schedules", lambda: {
+        "caravan_arrival": {"min_day": 0}, "militia_press": {"min_awareness": 0}})
+    gates = sim.rate_gates()
+    assert gates["caravan_arrival"](1, {1: 0.0}) and gates["militia_press"](1, {1: 0.0})
+

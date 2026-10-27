@@ -326,16 +326,24 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
         # used to run only on the background tick, so an event's window
         # depended on how often real time happened to tick.
         #
-        # NOT inside the death check's own re-entry (unconsciousness hours):
-        # the outer call reads ``to_day`` after the check and rolls every day
-        # crossed, the nested call's included, once and in order. Rolled in
-        # both, the outer re-crossed the nested call's days -- a probabilistic
-        # event drew again for a day already drawn, and its older-dated
-        # instance replaced the newer one (v0.25.0 E1).
-        if not _in_death_check():
+        # In a story with a PROBABILISTIC declared event, NOT inside the death
+        # check's own re-entry (unconsciousness hours): the outer call reads
+        # ``to_day`` after the check and rolls every day crossed, the nested
+        # call's included, once and in order. Rolled in both, the outer
+        # re-crossed the nested call's days -- a probabilistic event drew again
+        # for a day already drawn, and its older-dated instance replaced the
+        # newer one (v0.25.0 E1). A story with none keeps v0.24.0's order (its
+        # events start inside the respawn, before its effects): nothing there
+        # draws, and its bytes are pinned (tests/test_hue_and_cry.py).
+        try:
+            from engine.world import schedules as schedules_module
+        except ImportError:
+            schedules_module = None
+        if schedules_module is not None and not (
+            _in_death_check() and schedules_module.declares_probabilistic()
+        ):
             try:
                 from engine.game import effects as effects_module
-                from engine.world import schedules as schedules_module
                 from engine.world.world_sim import WorldSim
 
                 # A probabilistic declared event reads its activity per day from

@@ -432,3 +432,32 @@ def test_a_forced_event_still_keeps_its_gates(probabilistic) -> None:
     assert WorldSim.on_tick(early, hours=0.0, force=["caravan_arrival"]) == []
     assert "caravan_arrival" not in _ids(early)
 
+
+
+def _validator_issues(tmp_path: Path, events: dict) -> list[str]:
+    """Every validator ERROR for dev-story with its schedules file swapped for `events`."""
+    from engine.games import registry, validation
+
+    sched = tmp_path / "schedules.yaml"
+    sched.write_text(yaml.safe_dump({"events": events}), encoding="utf-8")
+    manifest = registry.get("dev-story")
+    paths = {**manifest.paths, "world_schedules": str(sched)}
+    patched = type(manifest)(**{**manifest.__dict__, "paths": paths})
+    return [f"{i.source}|{i.ref_id}|{i.message}"
+            for i in validation.errors_only(validation.validate_story(patched))]
+
+
+def test_the_validator_names_a_bad_probabilistic_event_and_passes_a_good_one(tmp_path: Path) -> None:
+    """`validation.check_declared_events`: the shared problem, as an Issue on the
+    schedules file and the event's id; a well-formed event reports nothing."""
+    issues = _validator_issues(tmp_path, {
+        "levy": {"probability_per_day": 0.2, "stream": "schedule.militia", "text": "x"},
+        "market": {"probability_per_day": 0.3, "min_day": 2, "duration_days": 1, "text": "y"},
+    })
+    mine = [i for i in issues if "|levy|" in i or "|market|" in i]
+    assert len(mine) == 1, issues
+    assert mine[0].split("|")[0].endswith("schedules.yaml") and "|levy|" in mine[0]
+    assert "legacy" in mine[0]
+    clean = _validator_issues(tmp_path, {
+        "market": {"probability_per_day": 0.3, "min_day": 2, "duration_days": 1, "text": "y"}})
+    assert not [i for i in clean if "|market|" in i], clean

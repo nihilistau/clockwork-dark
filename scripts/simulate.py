@@ -1179,9 +1179,12 @@ def rate_gates() -> dict[str, Callable[[int, dict[int, float]], bool]]:
     def spec(event_id: str) -> dict[str, Any]:
         return dict((sched.get("events") or {}).get(event_id) or sched.get(event_id) or {})
 
-    caravan_min = int(spec("caravan_arrival").get("min_day", 5) or 5)
+    # An authored 0 stays 0: only a key that is absent takes the legacy default.
+    caravan_day = spec("caravan_arrival").get("min_day")
+    caravan_min = 5 if caravan_day is None else int(caravan_day)
     press = spec("militia_press")
-    press_min = float(press.get("min_awareness", 20) or 20)
+    press_awareness = press.get("min_awareness")
+    press_min = 20.0 if press_awareness is None else float(press_awareness)
     when = press.get("when")
     if isinstance(when, dict) and "min_awareness" in when:
         press_min = float(when["min_awareness"])

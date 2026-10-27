@@ -296,6 +296,13 @@ def declared_event_problem(event_id: str, spec: Any) -> Optional[str]:
     return None
 
 
+def declares_probabilistic() -> bool:
+    """Whether the active story declares any ``probability_per_day`` event (the clock's death-check gate)."""
+    loaded = load_schedules()
+    declared = (loaded.get("events") or {}) if isinstance(loaded, dict) else {}
+    return any(isinstance(spec, dict) and "probability_per_day" in spec for spec in declared.values())
+
+
 def instances(state: GameState) -> list[tuple[str, int, int]]:
     """``(event_id, start_day, expires_day)`` for every event on state; a malformed row is skipped."""
     out: list[tuple[str, int, int]] = []
