@@ -62,28 +62,14 @@ def test_hue_and_crys_endings_block_is_v0240s(recorded: dict) -> None:
     assert rec.hue_endings() == recorded["hue_endings"]
 
 
-class _NoLore:
-    """A lore index with nothing in it: the recording's (T0 ran in a fresh worktree, which has no
-    gitignored ``lore.db``). With the flagship's ``lore.db`` present every prompt gains a LORE
-    CONTEXT block, so the prompt digests would follow the checkout, not the code."""
-
-    def count(self) -> int:
-        return 0
-
-
-def test_the_flagships_stub_run_is_v0240s_until_its_cast_arrives(
-    recorded: dict, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_the_flagships_stub_run_is_v0240s_until_its_cast_arrives(recorded: dict) -> None:
     """T2 ONLY (plan decision 8): the builder split moved no flagship catalogue. Deleted by T4,
     whose four new people change who stands in the square, and so the turn schema's npc enum.
 
     The catalogues and prompts only, never the save (controller ruling M22): T1 converted the
     flagship's caravan, tinker and press to probabilistic declared events, so its save digest can
     move for T1's reason. The catalogue and prompt digests are what the builder split could move.
-    The lore index is held empty, as the recording's worktree had it (``_NoLore``)."""
-    from engine.agents import storyteller
-
-    monkeypatch.setattr(storyteller, "get_lore_manager", lambda **_: _NoLore())
+    The lore index is held empty by the recorder itself (``rec.active``)."""
     run = rec.stub_run(rec.FLAGSHIP)
     was = recorded["runs"][rec.FLAGSHIP]
     assert run["catalogues"] == was["catalogues"]

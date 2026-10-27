@@ -61,25 +61,54 @@ def sha(value: Any) -> str:
 
 @contextmanager
 def active(slug: str) -> Iterator[None]:
-    """Activate a story for the duration; READ RECEIPTS quietened as its own tests do."""
+    """
+    Activate a story for the duration; READ RECEIPTS quietened as its own tests do.
+
+    The lore index is held EMPTY throughout (``_no_lore``), for every story and
+    every reader here: T0 recorded in a fresh worktree, which has no gitignored
+    ``lore.db``, and a checkout that has one adds a LORE CONTEXT block to every
+    storyteller prompt, so a digest would follow the checkout, not the code.
+    """
     from engine.games import registry
 
-    registry.activate(slug)
-    try:
-        if slug == "read-receipts":
-            from engine import social
-            from tests.social_fixtures import _quieted, _stop_dirty_saver
+    with _no_lore():
+        registry.activate(slug)
+        try:
+            if slug == "read-receipts":
+                from engine import social
+                from tests.social_fixtures import _quieted, _stop_dirty_saver
 
-            with _quieted():
-                social.boot()
-                try:
-                    yield
-                finally:
-                    _stop_dirty_saver()
-        else:
+                with _quieted():
+                    social.boot()
+                    try:
+                        yield
+                    finally:
+                        _stop_dirty_saver()
+            else:
+                yield
+        finally:
+            registry.deactivate()
+
+
+@contextmanager
+def _no_lore() -> Iterator[None]:
+    """
+    Every lore reader sees an empty in-memory index. Patched at the source
+    (``engine.lore.manager._default_db_path``), so the storyteller's
+    ``_lore_block`` and ``engine/lore/interceptors.py``'s interceptors, which
+    both build through ``get_lore_manager()``, are covered alike; the singleton
+    is dropped on the way in and out, so neither a file-backed manager built
+    before nor the empty one built here outlives the hold.
+    """
+    from engine.lore import manager
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(manager, "_default_db_path", lambda: manager.MEMORY_DB)
+        manager._manager = None
+        try:
             yield
-    finally:
-        registry.deactivate()
+        finally:
+            manager._manager = None
 
 
 def catalogue(state: Any) -> dict[str, str]:

@@ -103,6 +103,43 @@ def test_a_ninth_sellable_thing_is_legal_from_the_overlay_with_its_own_label(fla
     assert _run(state, intent, overlay=False)["skill"] == "sell"          # a legality refusal
 
 
+def _ten_rows(monkeypatch, state: Any, action: str) -> None:
+    """Give ``buy``, ``work`` or ``craft`` ten legal rows here, past the narrator's eight: the
+    flagship offers fewer than nine of each at any one place, so the source each row function
+    reads is widened to ten (the rows themselves are still built by ``intents``)."""
+    from engine.game import economy, trade
+    from engine.skills.builtin import mechanics
+
+    if action == "buy":
+        monkeypatch.setattr(trade, "vendors_at", lambda *a, **k: ["npc_maris"])
+        monkeypatch.setattr(trade, "browse", lambda st, npc_id: {
+            "ok": True, "vendor": "Maris",
+            "sells": [{"item_id": f"thing_{n:02d}", "name": f"Thing {n}", "price": 1, "affordable": True}
+                      for n in range(10)]})
+    elif action == "work":
+        monkeypatch.setattr(economy, "available", lambda *a, **k: [
+            {"id": f"shift_{n:02d}", "name": f"Shift {n}"} for n in range(10)])
+    else:
+        monkeypatch.setattr(mechanics, "craftable_here", lambda st: [
+            (f"recipe_{n:02d}", f"Recipe {n}") for n in range(10)])
+
+
+@pytest.mark.parametrize("action", ["buy", "work", "craft"])
+def test_the_narrators_eight_are_the_first_eight_overlay_rows(flagship, monkeypatch, action: str) -> None:
+    from engine.game import intents
+
+    state = _state()
+    _ten_rows(monkeypatch, state, action)
+    rows = intents.overlay_targets(state)[action]
+    verb = intents.find_verb(intents.legal_intents(state), action)
+    assert len(rows) == 10
+    assert verb is not None and list(verb.options) == rows[:8]
+    ninth, label = rows[8]
+    intent = {"action": action, "target": ninth}
+    assert intents.describe_intent(state, intent) == ""
+    assert intents.describe_overlay_intent(state, intent) == f"{intents.OVERLAY_WORDS[action]}: {label}"
+
+
 def _first(items: dict, key: str, state: Any) -> str:
     from engine.game import inventory
 
@@ -268,12 +305,13 @@ def test_a_press_while_an_encounter_is_open_reaches_the_prose_and_leaves_it_open
 
 
 def test_a_legal_press_runs_its_skill_and_the_turn_carries_it(game) -> None:
-    from engine.game import intents
+    from engine.game import intents, inventory
 
     scene, app, _http, session = game
     state = session.engine.state
     _grant(state, _edible(1)[0])
     target = intents.overlay_targets(state)["eat"][0][0]
+    carried = inventory.quantity(state, target)
     sio = scene.socketio.test_client(app)
     sio.emit("join_session", {"session_id": session.session_id})
     sio.get_received()
@@ -282,6 +320,7 @@ def test_a_legal_press_runs_its_skill_and_the_turn_carries_it(game) -> None:
     names = [e["name"] for e in sio.get_received()]
     assert "turn_update" in names and "turn_error" not in names
     assert PROMPTS and "The player chooses: Eat:" in PROMPTS[-1]
+    assert inventory.quantity(state, target) == carried - 1      # the eat skill ran: one eaten
 
 
 def test_a_second_overlay_press_while_a_turn_runs_is_busy(game) -> None:
@@ -302,3 +341,15 @@ def test_typed_text_still_carries_no_intent(game) -> None:
 
     _scene, _app, _http, session = game
     assert resolve_player_intent(session, "custom", "I eat the loaf") == {}
+
+
+def test_a_use_receipt_says_what_was_used_once() -> None:
+    """An item with no authored ``text`` gets ``inventory.use``'s default line; the summary must not
+    double it ("used the X: You use the X."). An authored line is kept after the name."""
+    from engine.agents.prompts import summarise_receipt
+
+    plain = {"skill": "use_item", "result": {"ok": True, "name": "Whetstone", "text": "You use the whetstone."}}
+    assert summarise_receipt(plain) == "used the whetstone."
+    authored = {"skill": "use_item", "result": {"ok": True, "name": "Poultice bandage",
+                                                "text": "The wound closes under it."}}
+    assert summarise_receipt(authored) == "used the poultice bandage: The wound closes under it."

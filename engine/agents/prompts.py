@@ -1838,10 +1838,18 @@ def _sum_authored_choice(result: dict[str, Any]) -> str:
 
 
 def _sum_use_item(result: dict[str, Any]) -> str:
-    """What was used and what it did -- the item by name, the item's own line."""
+    """
+    What was used and what it did -- the item by name, the item's own line.
+
+    ``inventory.use`` writes "You use the <name>." when the item authors no
+    ``text``; that line already says what was used, so it stands alone rather
+    than doubling up as "used the <name>: You use the <name>."
+    """
     name = str(result.get("name") or "it").lower()
     text = str(result.get("text") or "").strip()
-    return f"used the {name}: {text}" if text else f"used the {name}."
+    if not text or text.rstrip(".").lower() == f"you use the {name}":
+        return f"used the {name}."
+    return f"used the {name}: {text}"
 
 
 def _sum_equip_item(result: dict[str, Any]) -> str:
