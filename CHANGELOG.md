@@ -14,6 +14,21 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+### Measured
+
+**The legacy rates, measured before the conversion** (v0.25.0 T1, rule 10; `scripts/simulate.py --policy all --turns 200 --seed 42 --seeds 40 --event-rates --json`, seeds 42-81, the default background tick): starts per ELIGIBLE in-game day (no instance carried from an earlier day, and the event's own gate: the caravan from day 5, the press while awareness was 20 or more at the day's first sample), summed over the 40 seeds.
+
+| Policy | Caravan starts / eligible days (per day) | Tinker (per day) | Press (per day) | First caravan (median day) |
+|---|---|---|---|---|
+| baker | 567 / 735 (0.7714) | 6 / 1439 (0.0042) | none eligible (awareness never 20) | 5 |
+| cautious | 475 / 617 (0.7699) | 6 / 1222 (0.0049) | 199 / 1109 (0.1794) | 5 |
+| hero | 362 / 422 (0.8578) | 6 / 918 (0.0065) | 146 / 659 (0.2215) | 5 |
+| pauper | 526 / 653 (0.8055) | 6 / 1313 (0.0046) | none eligible (awareness never 20) | 5 |
+| reckless | 709 / 1112 (0.6376) | 6 / 1958 (0.0031) | 225 / 1888 (0.1192) | 5 |
+| **mean** (policies with an eligible day) | 0.768 | 0.00465 | 0.173 | |
+
+Spec §6.1's DERIVED rates, for comparison (worked out from the legacy roll per background tick, not measured): caravan 0.71-0.90, press 0.12-0.22, tinker 0.0025-0.0048 per day. Measured and derived agree on the caravan and the press; the tinker's six starts per policy are too few to tell the two apart. The policies differ only because their turns cut a day into a different number of background ticks, and each tick rolled.
+
 ### Tests
 
 - Tests: v0.24.0 recordings for v0.25.0's byte-identity and save tests (`tests/fixtures/flagship_overhaul/`, `tests/fixtures/clockwork_dark_v0240/`), recorded from 3c6882f by `CLOCKWORK_FLAGSHIP_RECORD=1`.

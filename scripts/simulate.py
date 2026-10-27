@@ -119,7 +119,7 @@ import sys
 from collections import Counter, deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Iterable, Optional
 
 _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
@@ -143,6 +143,7 @@ from engine.game import trade as trade_module  # noqa: E402
 from engine.game.state import GameState  # noqa: E402
 from engine.memory.ledger import StoryLedger  # noqa: E402
 from engine.skills.builtin.mechanics import trade as trade_skill  # noqa: E402
+from engine.world.schedules import load_schedules  # noqa: E402
 from engine.world.world_sim import WorldSim  # noqa: E402
 
 #: Where each vendor stands. This used to be a hardcoded dict here, because
@@ -302,6 +303,11 @@ class RunResult:
     #: ends broke but carrying forty coppers of brass has an economy; one that
     #: ends broke and empty does not.
     carried_value_end: int = 0
+    #: (event_id, start_day, expires_day) of every caravan, tinker and press
+    #: instance seen on state, after the tick and after the action (v0.25.0 T1).
+    event_instances: set[tuple[str, int, int]] = field(default_factory=set)
+    #: Awareness at each day's FIRST sample, for the press's gate (v0.25.0 T1).
+    day_awareness: dict[int, float] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
 
 
@@ -1095,18 +1101,33 @@ class Simulation:
         self.result.carried_value_end = inventory_module.carried_value(self.state)
         return self.result
 
+    def _observe_events(self) -> None:
+        """Note every rate event instance on state, and the day's first awareness (v0.25.0 T1)."""
+        state = self.state
+        self.result.day_awareness.setdefault(int(state.world_day), float(state.awareness))
+        for raw in state.world_events:
+            event_id = str(raw.get("event_id") or "")
+            if event_id in RATE_EVENTS:
+                try:
+                    self.result.event_instances.add(
+                        (event_id, int(raw.get("day", 0) or 0), int(raw.get("expires_day", 0) or 0)))
+                except (TypeError, ValueError):
+                    continue
+
     def _one_turn(self) -> None:
         state = self.state
 
         # The background world tick, exactly as run_turn applies it.
         if self.tick_hours > 0:
             WorldSim.on_tick(state, hours=self.tick_hours)
+        self._observe_events()
 
         action, args = self.policy(state)
         try:
             self._execute(action, args)
         except Exception as exc:  # noqa: BLE001 — a harness must survive to report
             self.result.errors.append(f"turn {state.turn_number}: {action}: {exc}")
+        self._observe_events()
 
         state.turn_number += 1
 
@@ -1145,6 +1166,60 @@ class Simulation:
 # ---------------------------------------------------------------------------
 # reporting
 # ---------------------------------------------------------------------------
+
+
+#: The three events whose rates v0.25.0 T1 measures (spec §6.1 "Rates").
+RATE_EVENTS = ("caravan_arrival", "tinker_camp", "militia_press")
+
+
+def rate_gates() -> dict[str, Callable[[int, dict[int, float]], bool]]:
+    """Each event's own gate, read from the ACTIVE story's schedules (legacy block or declared event)."""
+    sched = load_schedules()
+
+    def spec(event_id: str) -> dict[str, Any]:
+        return dict((sched.get("events") or {}).get(event_id) or sched.get(event_id) or {})
+
+    caravan_min = int(spec("caravan_arrival").get("min_day", 5) or 5)
+    press = spec("militia_press")
+    press_min = float(press.get("min_awareness", 20) or 20)
+    when = press.get("when")
+    if isinstance(when, dict) and "min_awareness" in when:
+        press_min = float(when["min_awareness"])
+    return {
+        "caravan_arrival": lambda d, aw: d >= caravan_min and d in aw,
+        "tinker_camp": lambda d, aw: d in aw,
+        "militia_press": lambda d, aw: d in aw and aw[d] >= press_min,
+    }
+
+
+def event_rates(
+    instances: Iterable[tuple[str, int, int]],
+    day_awareness: dict[int, float],
+    *,
+    first_day: int,
+    last_day: int,
+    gates: dict[str, Callable[[int, dict[int, float]], bool]],
+) -> dict[str, dict[str, Any]]:
+    """
+    Starts per ELIGIBLE day, per event: a day is eligible when no instance that
+    started before it is active on it and the event's gate holds. A day with no
+    sample (a long sleep crossed it) fails every gate, so it is never counted.
+    """
+    rows = sorted(set(instances))
+    out: dict[str, dict[str, Any]] = {}
+    for event_id in RATE_EVENTS:
+        mine = [(start, expires) for eid, start, expires in rows if eid == event_id]
+        starts = eligible = 0
+        for day in range(int(first_day), int(last_day) + 1):
+            if any(start < day < expires for start, expires in mine):
+                continue
+            if not gates[event_id](day, day_awareness):
+                continue
+            eligible += 1
+            starts += sum(1 for start, _ in mine if start == day)
+        out[event_id] = {"starts": starts, "eligible_days": eligible,
+                         "per_day": (starts / eligible) if eligible else 0.0}
+    return out
 
 
 def _distribution(values: list[float]) -> dict[str, float]:
@@ -1437,6 +1512,49 @@ def simulate(
     return summarize(
         Simulation(policy=policy, seed=seed, turns=turns, tick_hours=tick_hours).run()
     )
+
+
+def measure_event_rates(
+    policies: list[str], seeds: list[int], turns: int, tick_hours: float
+) -> dict[str, Any]:
+    """Per policy: summed starts and eligible days over the seeds, and the first caravan's median day."""
+    gates = rate_gates()
+    report: dict[str, Any] = {"seeds": [seeds[0], seeds[-1]], "turns": turns, "policies": {}}
+    for name in policies:
+        totals = {e: {"starts": 0, "eligible_days": 0} for e in RATE_EVENTS}
+        firsts: list[int] = []
+        for seed in seeds:
+            result = Simulation(policy=name, seed=seed, turns=turns, tick_hours=tick_hours).run()
+            last_day = max(result.day_awareness) if result.day_awareness else 1
+            rates = event_rates(result.event_instances, result.day_awareness,
+                                first_day=1, last_day=last_day, gates=gates)
+            for event_id, row in rates.items():
+                totals[event_id]["starts"] += row["starts"]
+                totals[event_id]["eligible_days"] += row["eligible_days"]
+            caravans = sorted(s for e, s, _ in result.event_instances if e == "caravan_arrival")
+            if caravans:
+                firsts.append(caravans[0])
+        row = {e: {**t, "per_day": round(t["starts"] / t["eligible_days"], 4) if t["eligible_days"] else 0.0}
+               for e, t in totals.items()}
+        row["first_caravan_day"] = statistics.median(firsts) if firsts else None
+        report["policies"][name] = row
+    report["mean"] = mean_rates(report["policies"])
+    return report
+
+
+def mean_rates(rows: dict[str, dict[str, Any]]) -> dict[str, float]:
+    """
+    Each event's per-day rate averaged over the policies that HAD an eligible
+    day for it: a policy whose awareness never reached the press's threshold
+    measured no press rate, not a rate of zero. Six decimals, so the tinker's
+    small rate keeps three significant figures.
+    """
+    out: dict[str, float] = {}
+    for event_id in RATE_EVENTS:
+        rates = [row[event_id]["starts"] / row[event_id]["eligible_days"]
+                 for row in rows.values() if row[event_id]["eligible_days"]]
+        out[event_id] = round(statistics.fmean(rates), 6) if rates else 0.0
+    return out
 
 
 #: The one graph story the policies can actually play. Their location ids,
@@ -1818,7 +1936,17 @@ def main(argv: Optional[list[str]] = None) -> int:
         ),
     )
     parser.add_argument("--json", action="store_true", help="Emit JSON, not prose.")
+    parser.add_argument(
+        "--event-rates",
+        action="store_true",
+        help=(
+            "The flagship only (v0.25.0 T1): starts per eligible in-game day of the "
+            "caravan, tinker and press, per policy, over --seeds seeds from --seed."
+        ),
+    )
     args = parser.parse_args(argv)
+    if args.event_rates and args.game and args.game != FLAGSHIP_SLUG:
+        parser.error("argument --event-rates: the flagship's events only")
 
     if args.game:
         dispatched = _dispatch_game(args, parser)
@@ -1840,6 +1968,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
 
     names = sorted(POLICIES) if args.policy == "all" else [args.policy]
+    if args.event_rates:
+        seeds = list(range(args.seed, args.seed + int(args.runs or 1)))
+        print(json.dumps(measure_event_rates(names, seeds, args.turns, args.tick_hours), indent=2))
+        return 0
     reports = [
         simulate(
             policy=name,

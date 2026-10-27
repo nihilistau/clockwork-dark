@@ -1,4 +1,24 @@
 # Trader, tinker, and militia schedule probabilities
+#
+# THE LEGACY RATES, MEASURED BEFORE v0.25.0's CONVERSION (T1, rule 10):
+#   scripts/simulate.py --policy all --turns 200 --seed 42 --seeds 40 --event-rates --json
+# Starts per ELIGIBLE in-game day (no instance carried from an earlier day, and
+# the event's own gate), summed over seeds 42-81:
+#
+#   | Policy   | Caravan starts / eligible (per day) | Tinker (per day)   | Press (per day)       | First caravan (median day) |
+#   | baker    | 567 / 735  (0.7714)                 | 6 / 1439 (0.0042)  | none eligible         | 5 |
+#   | cautious | 475 / 617  (0.7699)                 | 6 / 1222 (0.0049)  | 199 / 1109 (0.1794)   | 5 |
+#   | hero     | 362 / 422  (0.8578)                 | 6 / 918  (0.0065)  | 146 / 659  (0.2215)   | 5 |
+#   | pauper   | 526 / 653  (0.8055)                 | 6 / 1313 (0.0046)  | none eligible         | 5 |
+#   | reckless | 709 / 1112 (0.6376)                 | 6 / 1958 (0.0031)  | 225 / 1888 (0.1192)   | 5 |
+#   | mean     | 0.768                               | 0.00465            | 0.173                 |   |
+#
+# (The mean is over the policies with an eligible day: the baker and the
+# pauper never reach awareness 20, so they measured no press rate.)
+# Spec §6.1's DERIVED rates, for comparison: caravan 0.71-0.90, press
+# 0.12-0.22, tinker 0.0025-0.0048 per day. The policies differ only because
+# their turns cut a day into different numbers of background ticks, each of
+# which rolled the legacy slots below.
 
 caravan_arrival:
   min_day: 5
