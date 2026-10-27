@@ -348,6 +348,19 @@ to `_engine` when the engine got its own — so this path is held by
 `ui/tests/plugin-contract.test.js` rather than by a running game. If you borrow,
 you are the one exercising it.
 
+**An overlay's action is an intent (v0.25.0).** An overlay that buys, sells,
+eats, uses, wears, takes off, makes or works something sends the server
+`{action, target}` (the socket event `overlay_action`, or `POST
+/api/game/choice` with `overlay_intent`), never words, and reads what it may
+offer from `GET /api/intents/overlay?session_id=` (`{scene_owns_turn,
+actions: {action: [{target, label, slot?}]}}`, every row, not the narrator's
+eight). The verbs are a closed set (`engine/game/intents.py`'s
+`OVERLAY_ACTIONS`); anything else, or a pair no longer on offer, is refused
+before a turn runs (`turn_error` with `stale_choice`, nothing changed). A press
+while a dealt card, an encounter, a set-piece or a job owns the turn runs the
+turn and is refused in the prose ("That will have to wait: what is in front
+of you comes first."), the scene left as it was.
+
 **Borrowing does not lend overlays, and that is deliberate.** An overlay looks
 like a visual slot and is not — it is a whole screen written against one
 story's concepts. A funeral-barge test story borrowing the Garden was

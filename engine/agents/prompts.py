@@ -1837,6 +1837,21 @@ def _sum_authored_choice(result: dict[str, Any]) -> str:
     return " ".join(p for p in parts if p)
 
 
+def _sum_use_item(result: dict[str, Any]) -> str:
+    """What was used and what it did -- the item by name, the item's own line."""
+    name = str(result.get("name") or "it").lower()
+    text = str(result.get("text") or "").strip()
+    return f"used the {name}: {text}" if text else f"used the {name}."
+
+
+def _sum_equip_item(result: dict[str, Any]) -> str:
+    return str(result.get("text") or f"put on the {str(result.get('name') or 'it').lower()}.")
+
+
+def _sum_unequip_item(result: dict[str, Any]) -> str:
+    return str(result.get("text") or "took it off.")
+
+
 _SUMMARISERS: dict[str, Any] = {
     "rest": _sum_rest,
     "eat": _sum_eat,
@@ -1860,6 +1875,9 @@ _SUMMARISERS: dict[str, Any] = {
     "call_flashback": _sum_call_flashback,
     "abort_job": _sum_abort_job,
     "authored_choice": _sum_authored_choice,
+    "use_item": _sum_use_item,
+    "equip_item": _sum_equip_item,
+    "unequip_item": _sum_unequip_item,
 }
 
 #: Keys whose value is a sentence written for a reader, in order of preference.

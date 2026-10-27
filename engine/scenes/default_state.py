@@ -874,6 +874,31 @@ def resolve_authored_choice(
     return authored_choice.opening_consequences(choice_id)
 
 
+def resolve_overlay_intent(session: GameSession, raw: Any) -> tuple[dict[str, Any], str, str]:
+    """
+    An overlay's press, checked before any turn runs (v0.25.0 E2, spec §7.1).
+
+    Returns ``(intent, sentence, refusal)``. A refusal here means NOTHING RAN:
+    an action outside ``OVERLAY_ACTIONS``, a story whose world turn is read
+    under a narration turnstile (READ RECEIPTS' phone owns its own path), or a
+    pair not in ``overlay_targets`` now. It does NOT refuse on a scene owning
+    the turn: that refusal belongs in the prose, so it is left to the lock
+    (``execute_intent(..., overlay=True)``). Read off the lock, cheap: the
+    lock re-checks.
+    """
+    from engine.game import intents
+
+    row = intents.normalise(raw)
+    action = str(row.get("action") or "")
+    if action not in intents.OVERLAY_ACTIONS or getattr(session, "narration_turnstile", None) is not None:
+        return {}, "", intents.OVERLAY_STALE
+    state = session.engine.state
+    sentence = intents.describe_overlay_intent(state, row)
+    if not sentence:
+        return {}, "", intents.overlay_refusal(state, row)
+    return {"action": action, "target": str(row.get("target") or "")}, sentence, ""
+
+
 def _evaluate_quests(session: GameSession) -> list[dict[str, Any]]:
     """
     Advance quest state after a turn.
@@ -1198,6 +1223,7 @@ def run_turn(
     intent: Optional[dict[str, Any]] = None,
     authored: Optional[dict[str, Any]] = None,
     emit_callback: Optional[Callable[[str, dict[str, Any]], None]] = None,
+    overlay: bool = False,
 ) -> dict[str, Any]:
     """
     Execute Storyteller + Assistant turn and build turn_update payload.
@@ -1216,6 +1242,9 @@ def run_turn(
             an authored opening's, which is every turn of every story that
             declares none.
         emit_callback: Optional (event_name, payload) emitter for Socket.IO.
+        overlay: The press came from an overlay (``resolve_overlay_intent``):
+            ``execute_intent`` checks it against the overlay's list under this
+            lock. False for every other caller.
 
     Returns:
         turn_update dict.
@@ -1295,7 +1324,7 @@ def run_turn(
         if intent:
             from engine.agents.tool_dispatcher import execute_intent
 
-            intent_receipts = execute_intent(intent, session.engine)
+            intent_receipts = execute_intent(intent, session.engine, overlay=overlay)
             if social.declared() and isinstance(intent, dict) and intent.get("typed"):
                 # A phone story's typed line, read under the lock (v0.23.0 addendum 4 §3): its receipt says so,
                 # and the narrator is told what the engine read it as. Only `engine/social/typed.py` sets `typed`.

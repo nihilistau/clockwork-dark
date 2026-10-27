@@ -229,8 +229,8 @@ def _rest(state: GameState) -> Optional[IntentVerb]:
     )
 
 
-def _eat(state: GameState) -> Optional[IntentVerb]:
-    """Whatever in the pack the survival rules actually count as food."""
+def _eat_rows(state: GameState) -> list[tuple[str, str]]:
+    """Whatever in the pack the survival rules count as food, uncapped."""
     from engine.game import survival
 
     rules = survival.load_rules()
@@ -240,6 +240,12 @@ def _eat(state: GameState) -> Optional[IntentVerb]:
             continue
         if survival.food_value(entry.id, list(entry.tags), rules):
             options.append((entry.id, str(getattr(entry, "name", "") or entry.id)))
+    return options
+
+
+def _eat(state: GameState) -> Optional[IntentVerb]:
+    """The narrator's ``eat``: the first eight of ``_eat_rows``."""
+    options = _eat_rows(state)
     return IntentVerb("eat", tuple(options[:_MAX_OPTIONS])) if options else None
 
 
@@ -264,9 +270,9 @@ def _check(state: GameState) -> Optional[IntentVerb]:
     )
 
 
-def _buy(state: GameState) -> Optional[IntentVerb]:
+def _buy_rows(state: GameState) -> list[tuple[str, str]]:
     """
-    What a vendor standing here will sell, that the player can afford.
+    What a vendor standing here will sell, that the player can afford, uncapped.
 
     The target is composite -- ``npc_id/item_id`` -- because a purchase needs
     both and a flat pair of enums would let the grammar cross a baker with a
@@ -277,7 +283,7 @@ def _buy(state: GameState) -> Optional[IntentVerb]:
         from engine.game import trade
     except Exception as exc:  # noqa: BLE001 -- a story with no economy
         logger.debug("[intents] No trade module: %s", exc)
-        return None
+        return []
 
     options: list[tuple[str, str]] = []
     for npc_id in trade.vendors_at(state.location_id, state=state):
@@ -295,6 +301,12 @@ def _buy(state: GameState) -> Optional[IntentVerb]:
                     + trade.currency_label(int(row.get("price") or 0)),
                 )
             )
+    return options
+
+
+def _buy(state: GameState) -> Optional[IntentVerb]:
+    """The narrator's ``buy``: the first eight of ``_buy_rows``."""
+    options = _buy_rows(state)
     return IntentVerb("buy", tuple(options[:_MAX_OPTIONS])) if options else None
 
 
@@ -422,9 +434,9 @@ def _set_piece(state: GameState) -> Optional[IntentVerb]:
     return IntentVerb("set_piece", targets[:_MAX_OPTIONS]) if targets else None
 
 
-def _work(state: GameState) -> Optional[IntentVerb]:
+def _work_rows(state: GameState) -> list[tuple[str, str]]:
     """
-    Shifts that can be worked here, now.
+    Shifts that can be worked here, now, uncapped.
 
     ``economy.available`` already filters on requirements, the job's hours
     (its ``when:`` condition) and today's cap, so an offered job is a job that
@@ -436,12 +448,17 @@ def _work(state: GameState) -> Optional[IntentVerb]:
         rows = economy.available(state, state.location_id)
     except Exception as exc:  # noqa: BLE001 -- a story with no labour table
         _absent("labour", exc)
-        return None
-    targets = tuple(
+        return []
+    return [
         (str(j.get("id")), str(j.get("name") or j.get("id")))
         for j in rows
         if j.get("id")
-    )
+    ]
+
+
+def _work(state: GameState) -> Optional[IntentVerb]:
+    """The narrator's ``work``: the first eight of ``_work_rows``."""
+    targets = tuple(_work_rows(state))
     return IntentVerb("work", targets[:_MAX_OPTIONS]) if targets else None
 
 
@@ -470,9 +487,9 @@ def _forage(state: GameState) -> Optional[IntentVerb]:
     return IntentVerb("forage", targets[:_MAX_OPTIONS]) if targets else None
 
 
-def _craft(state: GameState) -> Optional[IntentVerb]:
+def _craft_rows(state: GameState) -> list[tuple[str, str]]:
     """
-    Recipes the player could attempt right here, right now.
+    Recipes the player could attempt right here, right now, uncapped.
 
     ``mechanics.craftable_here`` asks ``craft_item``'s own refusal rule of
     every recipe -- station here (or none), tools held, inputs carried -- so
@@ -487,8 +504,13 @@ def _craft(state: GameState) -> Optional[IntentVerb]:
         rows = mechanics.craftable_here(state)
     except Exception as exc:  # noqa: BLE001 -- a story with no recipes
         _absent("crafting", exc)
-        return None
-    targets = tuple((recipe_id, name) for recipe_id, name in rows if recipe_id)
+        return []
+    return [(recipe_id, name) for recipe_id, name in rows if recipe_id]
+
+
+def _craft(state: GameState) -> Optional[IntentVerb]:
+    """The narrator's ``craft``: the first eight of ``_craft_rows``."""
+    targets = tuple(_craft_rows(state))
     return IntentVerb("craft", targets[:_MAX_OPTIONS]) if targets else None
 
 
@@ -681,9 +703,10 @@ def _serve(state: GameState) -> Optional[IntentVerb]:
     return IntentVerb("serve") if law.in_custody(state) else None
 
 
-def _sell(state: GameState) -> Optional[IntentVerb]:
+def _sell_rows(state: GameState) -> list[tuple[str, str]]:
     """
-    What the player is carrying that someone here will actually buy.
+    What the player is carrying that someone here will actually buy, uncapped:
+    every vendor, every carried thing, in the order the narrator's eight are cut from.
 
     THE ECONOMY'S MISSING HALF. ``buy`` has been reachable since intents
     shipped and ``sell`` has not, so gold had a sink and no faucet -- while
@@ -696,7 +719,7 @@ def _sell(state: GameState) -> Optional[IntentVerb]:
         vendors = trade.vendors_at(state.location_id, state=state)
     except Exception as exc:  # noqa: BLE001 -- a story with no vendors
         _absent("vendors", exc)
-        return None
+        return []
 
     targets: list[tuple[str, str]] = []
     for npc_id in vendors:
@@ -728,11 +751,13 @@ def _sell(state: GameState) -> Optional[IntentVerb]:
             if hot:
                 label += " (hot)"
             targets.append((f"{npc_id}/{item.id}", label))
-            if len(targets) >= _MAX_OPTIONS:
-                break
-        if len(targets) >= _MAX_OPTIONS:
-            break
-    return IntentVerb("sell", tuple(targets)) if targets else None
+    return targets
+
+
+def _sell(state: GameState) -> Optional[IntentVerb]:
+    """The narrator's ``sell``: the first eight of ``_sell_rows`` -- the eight the old loop broke at."""
+    targets = _sell_rows(state)
+    return IntentVerb("sell", tuple(targets[:_MAX_OPTIONS])) if targets else None
 
 
 def _bargain(state: GameState) -> Optional[IntentVerb]:
@@ -858,6 +883,130 @@ def scene_owns_turn(state: GameState) -> bool:
         _challenge_open(state) or _card_open(state) or _scene_open(state) or _job_open(state)
         or _social_scene_open(state)
     )
+
+
+# ---------------------------------------------------------------------------
+# the overlay's list (v0.25.0 E2, spec §7)
+# ---------------------------------------------------------------------------
+
+#: The verbs an overlay may press. Closed: anything else is refused before a turn runs.
+OVERLAY_ACTIONS: frozenset[str] = frozenset(
+    {"buy", "sell", "eat", "use", "equip", "unequip", "craft", "work"}
+)
+#: Overlay-only: never in ``legal_intents``, so no story's turn schema moves
+#: (docs/GOVERNANCE.md, NOT WIRED: the narrator cannot offer them).
+OVERLAY_ONLY_ACTIONS: frozenset[str] = frozenset({"use", "equip", "unequip"})
+#: The engine's verb for each overlay action, in the sentence the narrator is handed.
+OVERLAY_WORDS: dict[str, str] = {
+    "buy": "Buy", "sell": "Sell", "eat": "Eat", "use": "Use", "equip": "Put on",
+    "unequip": "Take off", "craft": "Make", "work": "Work",
+}
+#: A press while a dealt card, an encounter, a set-piece or a job owns the turn.
+OVERLAY_SCENE_REFUSAL = "That will have to wait: what is in front of you comes first."
+#: A pair not on offer, with no skill reason of its own.
+OVERLAY_STALE = "That is not on offer here and now."
+
+
+def _use_rows(state: GameState) -> list[tuple[str, str]]:
+    """Carried things with a ``use:`` block that ``inventory.use`` would not refuse now."""
+    from engine.game import inventory
+
+    out: list[tuple[str, str]] = []
+    for entry in state.inventory:
+        if entry.qty > 0 and inventory.use_spec(entry.id) and not inventory.use_refusal(state, entry.id):
+            out.append((entry.id, inventory.name_of(entry.id)))
+    return out
+
+
+def _equip_rows(state: GameState) -> list[tuple[str, str]]:
+    """Carried things with an ``equip:`` block, not already worn."""
+    from engine.game import inventory
+
+    worn = set(inventory.equipped(state).values())
+    return [
+        (entry.id, inventory.name_of(entry.id))
+        for entry in state.inventory
+        if entry.qty > 0 and entry.id not in worn and inventory.equip_spec(entry.id)
+    ]
+
+
+def _unequip_rows(state: GameState) -> list[tuple[str, str]]:
+    """What is worn, slot by slot."""
+    from engine.game import inventory
+
+    return [
+        (item_id, inventory.name_of(item_id))
+        for _slot, item_id in sorted(inventory.equipped(state).items())
+        if item_id
+    ]
+
+
+_OVERLAY_ROWS = {
+    "buy": _buy_rows, "sell": _sell_rows, "eat": _eat_rows, "craft": _craft_rows, "work": _work_rows,
+    "use": _use_rows, "equip": _equip_rows, "unequip": _unequip_rows,
+}
+
+
+def overlay_targets(state: GameState) -> dict[str, list[tuple[str, str]]]:
+    """
+    What an overlay may press now: every ``OVERLAY_ACTIONS`` verb, its legal
+    ``(target, label)`` rows UNCAPPED. Built BESIDE ``legal_intents``, never into
+    it: the narrator's catalogue keeps its eight. Read only. A verb whose rows
+    cannot be built (a story with no economy) is an empty list, never an error.
+    """
+    out: dict[str, list[tuple[str, str]]] = {}
+    for action in sorted(OVERLAY_ACTIONS):
+        try:
+            out[action] = list(_OVERLAY_ROWS[action](state))
+        except Exception as exc:  # noqa: BLE001 -- one verb must not cost the list
+            logger.debug("[intents] No overlay rows for %s: %s", action, exc)
+            out[action] = []
+    return out
+
+
+def describe_overlay_intent(state: GameState, intent: Any) -> str:
+    """
+    The engine's sentence for an overlay press -- ``"Use: Poultice bandage"`` --
+    from ``overlay_targets``' label, never a raw id. ``describe_intent`` cannot
+    serve: it reads ``legal_intents``, which never holds the overlay-only verbs
+    or a target past the eighth. "" when the pair is not on offer now.
+    """
+    row = normalise(intent)
+    action, target = str(row.get("action") or ""), str(row.get("target") or "")
+    if action not in OVERLAY_ACTIONS or not target:
+        return ""
+    for candidate, label in overlay_targets(state).get(action, []):
+        if candidate == target:
+            return f"{OVERLAY_WORDS[action]}: {label}"
+    return ""
+
+
+def overlay_refusal(state: GameState, intent: Any) -> str:
+    """Why an overlay pair is not on offer: the skill's own reason where it has one, else ``OVERLAY_STALE``."""
+    row = normalise(intent)
+    action, target = str(row.get("action") or ""), str(row.get("target") or "")
+    try:
+        if action == "sell":
+            from engine.game import trade
+
+            reason = trade.refusal_to_buy(state, target.partition("/")[0])
+            if reason:
+                return str(reason)
+        if action == "craft":
+            from engine.skills.builtin import mechanics
+
+            reason = mechanics._craft_refusal(state, target, mechanics._load_recipes().get(target))
+            if reason:
+                return str(reason)
+        if action == "use":
+            from engine.game import inventory
+
+            reason = inventory.use_refusal(state, target)
+            if reason:
+                return reason
+    except Exception as exc:  # noqa: BLE001 -- a reason must never cost the refusal
+        logger.debug("[intents] No overlay reason for %s/%s: %s", action, target, exc)
+    return OVERLAY_STALE
 
 
 def legal_intents(state: GameState) -> tuple[IntentVerb, ...]:
@@ -1141,6 +1290,10 @@ SKILL_FOR_ACTION: dict[str, str] = {
     # READ RECEIPTS in person (v0.23.0 T13): a scene's moves and its closers.
     "scene": "social_scene",
     "close": "social_close",
+    # The overlay-only verbs (v0.25.0 E2): reached through `overlay_targets`, never `legal_intents`.
+    "use": "use_item",
+    "equip": "equip_item",
+    "unequip": "unequip_item",
 }
 
 #: The world verbs of a phone story (v0.23.0 Plan decision 4): their skills are system-only, so
@@ -1248,6 +1401,10 @@ REFUSAL_KEY_FOR_ACTION: dict[str, Optional[str]] = {
     "scene": "ok",
     # `ok: False` is the engine declining: no scene open, or a closer not on offer now.
     "close": "ok",
+    # The overlay-only verbs (v0.25.0 E2): each skill answers `ok: False` only when the engine declined.
+    "use": "ok",
+    "equip": "ok",
+    "unequip": "ok",
 }
 
 
@@ -1410,6 +1567,10 @@ def to_tool_call(
         # A composite target (`ask_about:<topic>`, `call_it_a_night:promise:morning`): the skill splits it
         # at the first `:` (Plan decision 5).
         return name, {"target": target}
+    if action in ("use", "equip"):
+        return name, {"item_id": target}
+    if action == "unequip":
+        return name, {"slot": "", "item_id": target}
     if action in ("pay_fine", "serve"):
         # No target: the custody record already says what is owed.
         return name, {}
@@ -1420,13 +1581,21 @@ __all__ = [
     "DIFFICULTY_BANDS",
     "ENGINE_CHOICE_WORDS",
     "IntentVerb",
+    "OVERLAY_ACTIONS",
+    "OVERLAY_ONLY_ACTIONS",
+    "OVERLAY_SCENE_REFUSAL",
+    "OVERLAY_STALE",
+    "OVERLAY_WORDS",
     "REFUSAL_KEY_FOR_ACTION",
     "SKILL_FOR_ACTION",
     "SOCIAL_WORLD_ACTIONS",
     "declined_reason",
+    "describe_overlay_intent",
     "find_verb",
     "legal_intents",
     "normalise",
+    "overlay_refusal",
+    "overlay_targets",
     "refusal",
     "scene_owns_turn",
     "to_tool_call",

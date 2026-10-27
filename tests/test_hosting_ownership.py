@@ -121,6 +121,10 @@ def test_every_http_door_answers_another_accounts_id_as_a_missing_one(
         "POST /api/saves/<id>/load": lambda _sid, save: b.client.post(f"/api/saves/{save}/load"),
         "DELETE /api/saves/<id>": lambda _sid, save: b.client.delete(f"/api/saves/{save}"),
         "POST /api/voice/transcribe": lambda sid, _save: _voice(b.client, sid),
+        "GET /api/intents/overlay": lambda sid, _save: b.client.get(
+            "/api/intents/overlay", query_string={"session_id": sid}),
+        "POST /api/game/choice overlay": lambda sid, _save: b.client.post(
+            "/api/game/choice", json={"session_id": sid, "overlay_intent": {"action": "eat", "target": "loaf"}}),
     }
     for rule in STORY_ROUTES:
         doors[f"GET {rule}"] = lambda sid, _save, rule=rule: b.client.get(rule, query_string={"session_id": sid})
@@ -157,6 +161,7 @@ def test_every_socket_door_answers_another_accounts_id_as_a_missing_one(
     for event, payload_of in (
         ("join_session", lambda sid, _save: {"session_id": sid}),
         ("player_choice", lambda sid, _save: {"session_id": sid, "choice_id": "a"}),
+        ("overlay_action", lambda sid, _save: {"session_id": sid, "intent": {"action": "eat", "target": "loaf"}}),
         ("resume", lambda _sid, save: {"save_id": save}),
     ):
         theirs = _socket_answer(b.sio, event, payload_of(a.session_id, a.save_id))

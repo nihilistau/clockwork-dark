@@ -14,6 +14,7 @@ The engine's default story screens, as one Blueprint.
     GET /api/notices           the notice board: contracts posted here
     GET /api/clues             the clue board: what the player has worked out
     GET /api/people            who is here (names and faces only once met)
+    GET /api/intents/overlay   what an overlay may press now (v0.25.0 E2)
 
 MOVED FROM ``content/scenes/clockwork/clockwork_api.py`` in v0.3.0. Every
 route here resolves through ``paths.*`` on the active manifest (the loaders
@@ -1012,6 +1013,26 @@ def people_here(state: Any, ledger: Any = None) -> dict[str, Any]:
     return {"people": rows, "more": more}
 
 
+def overlay_offer(state: Any) -> dict[str, Any]:
+    """
+    What an overlay may press now (v0.25.0 E4/E2): ``{scene_owns_turn, actions:
+    {action: [{target, label, slot?}]}}``, uncapped. ``slot`` rides the
+    ``equip``/``unequip`` rows only (from the item's ``equip:`` block).
+    """
+    from engine.game import intents, inventory
+
+    actions: dict[str, list[dict[str, str]]] = {}
+    for action, rows in intents.overlay_targets(state).items():
+        out = []
+        for target, label in rows:
+            row = {"target": target, "label": label}
+            if action in ("equip", "unequip"):
+                row["slot"] = str((inventory.equip_spec(target) or {}).get("slot") or "")
+            out.append(row)
+        actions[action] = out
+    return {"scene_owns_turn": bool(intents.scene_owns_turn(state)), "actions": actions}
+
+
 # ---------------------------------------------------------------------------
 # the blueprint
 # ---------------------------------------------------------------------------
@@ -1167,6 +1188,19 @@ def story_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
             logger.exception("[api] People here failed (operation=api_people)")
             return jsonify({"people": [], "more": 0})
 
+    @blueprint.get("/api/intents/overlay")
+    def api_overlay_intents() -> Any:
+        """What an overlay may press now. Session-required, read-only, off the turn lock."""
+        try:
+            session = store.require(request.args.get("session_id", ""))
+        except KeyError:
+            return jsonify({"error": "session not found"}), 404
+        try:
+            return jsonify(overlay_offer(session.engine.state))
+        except Exception:  # noqa: BLE001 -- the /api/people convention: a mid-turn read answers empty
+            logger.exception("[api] Overlay offer failed (operation=api_overlay_intents)")
+            return jsonify({"scene_owns_turn": True, "actions": {}})
+
     return blueprint
 
 
@@ -1179,6 +1213,7 @@ __all__ = [
     "codex_things",
     "item_catalog",
     "notice_board",
+    "overlay_offer",
     "people_here",
     "quest_journal",
     "recipe_book",
