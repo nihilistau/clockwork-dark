@@ -871,7 +871,7 @@ in-game minutes a real minute buys. Seed ranges run side by side
 (`--first-seed`, `--raw`) fold into one report with `--fold`.
 NEON CITY's and THE LONG CON's numbers are authored judgement and haven't been
 simulated; their READMEs say so, and `simulate.py --game` refuses them (and
-Dev Story, the engine's test bench) until their overhauls, v0.27.0-v0.28.0.
+Dev Story, the engine's test bench) until their overhauls, v0.28.0-v0.29.0.
 
 </details>
 
@@ -941,9 +941,10 @@ fixed; details may change as each release lands.
 | v0.23.0 | **READ RECEIPTS rework**: people who grow closer at their own pace, no set time on dating, phone numbers that work, places (the player's apartment, the cast's homes) with art, and real-life events and meet-ups outside the phone -- and, after the owner's first playtest, a world you can type into and people who turn up where you wait for them (staff at venues, a contact you run into; no strangers yet) | **shipped** (its balance pass and docs pass ran in v0.24.0; live play with a model was deferred by the owner and has not been done) |
 | v0.24.0 | **Sound effects** for the engine and every story: alerts, ringtones, button presses -- with READ RECEIPTS' morning scene, four more life-event decks, and the v0.23.0 tail (the full balance pass, the docs pass and the whole-branch review; live play with a model was deferred by the owner, 2026-10-26) | **shipped** (live play with a model was deferred by the owner, 2026-10-26) |
 | v0.25.0 | **The Clockwork Dark overhaul** | **next** |
-| v0.26.0 | **The Wicked Garden overhaul** | planned |
-| v0.27.0 | **NEON CITY overhaul** | planned |
-| v0.28.0 | **THE LONG CON overhaul** | planned |
+| v0.26.0 | **Engine correctness and tools**: negations read across a whole clause, ranked intent options, a faster test suite, counterfactual echoes in epilogues, a replay inspector in Studio, a per-model compliance report | planned |
+| v0.27.0 | **The Wicked Garden overhaul** | planned |
+| v0.28.0 | **NEON CITY overhaul** | planned |
+| v0.29.0 | **THE LONG CON overhaul** | planned |
 | v1.0.0 | **Every story finished**, each with its art and live play (Dev Story stays the engine's test bench) | planned |
 
 Each overhaul gives a story HUE & CRY's full treatment: a design spec, its

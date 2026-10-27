@@ -726,7 +726,7 @@ export default function App({ story }) {
           // posted work: each is sent as the player's TYPED words, which carry
           // no intent -- so no skill runs from it, and only the narrator reads
           // it (NOT WIRED, docs/GOVERNANCE.md; v0.21.0 final review finding 9).
-          // The overlay-to-intent path is the v0.25.0 and v0.27.0 overhauls'.
+          // The overlay-to-intent path is the v0.25.0 and v0.28.0 overhauls'.
           onAct={(text) => send("custom", text, text)}
           onClose={() => setOverlay(null)}
         />

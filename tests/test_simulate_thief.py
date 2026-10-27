@@ -762,8 +762,8 @@ def test_living_is_a_hue_and_cry_policy(capsys) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("slug,release", [("neon-city", "v0.27.0"),
-                                          ("the-long-con", "v0.28.0"),
+@pytest.mark.parametrize("slug,release", [("neon-city", "v0.28.0"),
+                                          ("the-long-con", "v0.29.0"),
                                           ("dev-story", "")])          # the test bench: no overhaul
 def test_a_graph_story_with_no_harness_is_refused_truthfully(capsys, slug: str,
                                                              release: str) -> None:

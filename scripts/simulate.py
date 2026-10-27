@@ -49,7 +49,7 @@ runs the policy harness exactly as before, HUE & CRY runs its own harnesses
 (below), and any OTHER graph story is refused with its reason: the policies
 would walk it into location ids it does not have. neon-city, the-long-con and
 dev-story are refused that way; for the two stories the refusal names the
-roadmap overhaul (v0.27.0, v0.28.0) where each gets a harness (Dev Story, the
+roadmap overhaul (v0.28.0, v0.29.0) where each gets a harness (Dev Story, the
 engine's test bench, is not overhauled). No ``--game`` -- or ``--game
 clockwork-dark``, or a deck story -- prints byte-for-byte what it printed
 before v0.18 (tests/test_simulate_thief.py holds golden copies).
@@ -1536,7 +1536,7 @@ THIEF_SLUG = "hue-and-cry"
 #: Graph stories with no harness, and the roadmap release that overhauls each
 #: (CLAUDE.md's in-flight table). The refusal names it rather than implying
 #: the harness is merely missing a flag.
-NO_HARNESS_YET = {"neon-city": "v0.27.0", "the-long-con": "v0.28.0"}
+NO_HARNESS_YET = {"neon-city": "v0.28.0", "the-long-con": "v0.29.0"}
 
 #: The policy ``--policy thief`` names is ``simulate_endings.THIEF_POLICY``
 #: (the heister; its comment says why). The days a thief keeps on its own coin

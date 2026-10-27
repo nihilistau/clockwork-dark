@@ -186,9 +186,10 @@ only once the last of them lands:
 | v0.23.0 | READ RECEIPTS rework: growth (people who change at their own pace, conversations and willingness that ramp up), no set time on dating, phone numbers that work, places (the player's apartment and its rooms, 3-4 homes for the cast) with their art, and real-life events and meet-ups happening outside the phone; slice of life, no ending (owner's brief, with its addendum: docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md). **Addendum 4 (2026-10-22, after the owner's playtest; docs/superpowers/specs/2026-10-22-v0.23.0-addendum4-world-interaction.md)** is part of it: the world's choices survive phone actions, a plan is kept where you stand (they arrive, the scene opens, `Wait for {name}`), the person is somewhere, a quiet phone while together, typing in the world (a typed line runs ONE offered choice or a scene move, or is narrated only), background people at venues and chance meetings with live contacts, T23A-T23H; replayed end to end in `tests/test_rr_playtest_replay.py` and `ui/tests/rr-playtest.test.jsx`, with the browser-pane walk (A4 §7.5, T31) deferred, and still not done (below) | **shipped** (its tail moved into v0.24.0: T29b ran as v0.24.0 T11, T32 as T13, T33 is T14; T31 was deferred again by the owner, 2026-10-26) |
 | v0.24.0 | Sound effects for the engine and every story (owner's brief: docs/superpowers/briefs/2026-10-13-sound-effects-brief.md): sound as client-side data (`content/sounds/sounds.yaml` and a story's `paths.sounds`; twenty-five engine events; synth sounds, fifteen CC0 Kenney `.ogg` files with synth fallbacks, 216,524 of a 1 MiB budget), the server's two routes and file route, the client sound engine and triggers, the settings, the audition page (`/?sounds=1`) and a palette for each of the six played stories (dev-story hears the engine's set); READ RECEIPTS' morning scene after a stay-over, four more life-event decks (`lift_out`, `family_visit`, `wedding_invite`, `neighbour_party`), the lift fix and the news windows (moved from v0.23.0 at its checkpoint C1); and v0.23.0's deferred tail: the full balance pass (T11: 19 rows banded, 19 deferred by data, one data change), the docs pass (T13) and the whole-branch review (T14). **T12, live play with a model (the addendum-4 meet-up walk, listening to the sounds), was DEFERRED by the owner on 2026-10-26** (Deliberately deferred) | **shipped** |
 | v0.25.0 | The Clockwork Dark overhaul | **next** |
-| v0.26.0 | The Wicked Garden overhaul | queued |
-| v0.27.0 | NEON CITY overhaul | queued |
-| v0.28.0 | THE LONG CON overhaul | queued |
+| v0.26.0 | Engine correctness and tools (the owner's triage of an outside review, 2026-10-27): negation and third-party checks scoped to the clause, intent options ranked before the cap, the suite's runtime, counterfactual echoes, a replay inspector in Studio, a per-model compliance report | queued |
+| v0.27.0 | The Wicked Garden overhaul | queued |
+| v0.28.0 | NEON CITY overhaul | queued |
+| v0.29.0 | THE LONG CON overhaul | queued |
 | v1.0.0 | Every story finished, each with its art and live play -- `hue-and-cry`'s being a thief mistaken for "the Magpie" in the candle-port of Tallowmere, eight endings, a ~55-plate Grok art pack -- tagged only once this lands. `dev-story` is the engine's test bench, not a story, and is not overhauled | queued |
 
 Re-cut once more by the owner on 2026-09-26: the platform releases (v0.19.0
@@ -198,7 +199,7 @@ v0.21.0, so the shared surfaces are built once, as engine panels.
 
 Re-cut again by the owner on 2026-09-26 (during v0.16.0): after the UI/UX
 overhaul, each of the other five stories gets the full HUE & CRY treatment,
-one a release (now v0.25.0–v0.28.0, Dev Story excepted): a design spec, its story and characters,
+one a release (now v0.25.0 and v0.27.0–v0.29.0, Dev Story excepted): a design spec, its story and characters,
 the engine systems apt to it, every ending reachable and tested, measured
 balance, reviews, UI screens and art. A large story may take two minors,
 which shifts the later numbers. v1.0.0 now means all six stories finished,
@@ -225,6 +226,12 @@ outside the phone; brief and addendum verbatim in
 docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md), sound
 effects are v0.24.0 and the overhauls v0.25.0-v0.28.0. Same rule: spec,
 opus review, build.
+
+Re-cut again by the owner on 2026-10-27 (during v0.25.0): v0.26.0 is an engine
+release from the owner's triage of an outside review (agreement's negation scope,
+ranked intent options, test runtime, counterfactual echoes, a replay inspector,
+a per-model compliance report), and the overhauls move up one: The Wicked Garden
+v0.27.0, NEON CITY v0.28.0, THE LONG CON v0.29.0.
 
 **Roadmap note for the owner (2026-10-22, v0.23.0 addendum 4): strangers at
 venues.** v0.23.0 puts the world's people where they live: staff on shift at
@@ -261,7 +268,7 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
 - The Garden's bargains work only as written: `bargain` strikes, `discharge`
   settles, falling due breaks. Its renegotiations, the knife's cut, the gift
   auto-thread (`accept_gift`) and two undeclared templates (`briar_witness`,
-  `three_nights_or_truths`) are NOT WIRED (docs/GOVERNANCE.md); the v0.26.0
+  `three_nights_or_truths`) are NOT WIRED (docs/GOVERNANCE.md); the v0.27.0
   Wicked Garden overhaul takes them up.
 - `mortal_threshold`, the Garden's entry location, has no plate on purpose (it
   hosts the ten-card prologue), so a new player sees no scene art until the
@@ -744,7 +751,7 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   work, a thread's paper) send the player's words as typed text, which carries
   no intent, so no skill runs from them and the prose can tell of a trade the
   save never made (a GOVERNANCE NOT WIRED row names the five files). The
-  overlay-to-intent path is the v0.25.0 (flagship) and v0.27.0 (NEON CITY)
+  overlay-to-intent path is the v0.25.0 (flagship) and v0.28.0 (NEON CITY)
   overhauls' work, not a fix (v0.21.0 final review, controller ruling).
 - Under 640px tall, with the people strip in the stage, the scene plate gives
   way to the strip entirely (HUE & CRY at 900x600 and 844x390), so the log
@@ -761,7 +768,7 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   stands in (`_law_block`), the prose of a turn finished across a server
   restart, a story switched in another tab then a reconnect, a player's
   place in the queue, and the flagship's and NEON CITY's encounter look
-  (theirs to restyle in v0.25.0 and v0.27.0).
+  (theirs to restyle in v0.25.0 and v0.28.0).
 - The `process` guard (`tests/tier_plugin.py`, v0.21.1) sees only the
   suite's direct `subprocess.Popen` children. A grandchild interpreter (an
   `sh`, or on Windows a `cmd /c`, that starts python) and a start that

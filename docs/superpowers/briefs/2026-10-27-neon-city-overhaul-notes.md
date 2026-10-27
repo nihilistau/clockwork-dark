@@ -1,4 +1,4 @@
-# NEON CITY overhaul (v0.27.0): notes to carry in
+# NEON CITY overhaul (v0.28.0): notes to carry in
 
 Parked by the owner on 2026-10-27, from their triage of an outside review (Gemini, against v0.23.0). These are notes for the overhaul's design spec to take up. Nothing here is built, and nothing in them is a requirement until that spec adopts it.
 
