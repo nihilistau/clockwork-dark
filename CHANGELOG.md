@@ -14,6 +14,19 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+### Added
+
+- **Probabilistic declared world events (E1, spec §6.1)**: an `events:` entry with `probability_per_day` (0 to 1) draws once per ELIGIBLE in-game day crossed, on `advance_time`'s day roll, on its own stream (`stream:`, default `event.<id>`; the legacy `schedule.caravan`/`.tinker`/`.militia` are refused by the loader and the validator, `schedules.declared_event_problem`). Eligible: at or past `min_day`, its `when:` holding (a gate asked per day, no `event_fired_` flag, so the event repeats), and no instance active on that day, read per day from the instances held before the step's expiry plus the step's own draws (`advance_time` passes `active_before`). So its days depend on the seed, the days crossed and the choices, never on how the hours were cut. `rumor_from` draws a rumour attributed to that NPC on the same stream. The force hook (`WorldSim.on_tick(force=...)`) starts a declared event today with no draw while its gates hold. A story with no `probability_per_day` is unchanged (`engine/world/schedules.py`, `engine/game/clock.py`, `engine/world/world_sim.py`, `engine/games/validation.py::check_declared_events`).
+- `scripts/simulate.py --event-rates` (the flagship only): starts per eligible day of the caravan, tinker and press, per policy.
+
+### Changed
+
+- **The flagship's caravan, tinker and press are declared `events:`** (`games/clockwork-dark/data/world/schedules.yaml`) at the measured legacy means: caravan 0.768, tinker 0.00465, press 0.173 per eligible day (the tables below). The legacy payload's `goods` and `npc_id` are not carried over (`npc_ids` carries the NPC; nothing read `goods`, a GOVERNANCE row). The legacy slots stay for The Wicked Garden and Dev Story.
+
+### Fixed
+
+- A death check's own unconsciousness hours that crossed midnight rolled those days' declared events twice: once in the nested `advance_time` and again in the outer call, which read its end day after the check, out of date order (a probabilistic event drew twice for a day, and its older-dated instance replaced the newer). The nested call now leaves the declared-event roll to the outer, which rolls every day crossed once and in order (`engine/game/clock.py`).
+
 ### Measured
 
 **The legacy rates, measured before the conversion** (v0.25.0 T1, rule 10; `scripts/simulate.py --policy all --turns 200 --seed 42 --seeds 40 --event-rates --json`, seeds 42-81, the default background tick): starts per ELIGIBLE in-game day (no instance carried from an earlier day, and the event's own gate: the caravan from day 5, the press while awareness was 20 or more at the day's first sample), summed over the 40 seeds.
@@ -28,6 +41,19 @@ file is the authority from 0.4.0 on.
 | **mean** (policies with an eligible day) | 0.768 | 0.00465 | 0.173 | |
 
 Spec §6.1's DERIVED rates, for comparison (worked out from the legacy roll per background tick, not measured): caravan 0.71-0.90, press 0.12-0.22, tinker 0.0025-0.0048 per day. Measured and derived agree on the caravan and the press; the tinker's six starts per policy are too few to tell the two apart. The policies differ only because their turns cut a day into a different number of background ticks, and each tick rolled.
+
+**The rates after the conversion** (the same command, seeds 42-81, measured on the converted events; each policy's per-day rate against its pre-change rate and spec §10.2's ±20% band):
+
+| Policy | Caravan starts / eligible (per day; vs pre) | Tinker (per day; vs pre) | Press (per day; vs pre) | First caravan (median day) |
+|---|---|---|---|---|
+| baker | 570 / 737 (0.7734; +0.3%, in) | 8 / 1436 (0.0056; +33.6%, OUT) | none eligible | 5 |
+| cautious | 474 / 622 (0.7621; -1.0%, in) | 7 / 1222 (0.0057; +16.7%, in) | 201 / 1111 (0.1809; +0.8%, in) | 5 |
+| hero | 337 / 446 (0.7556; -11.9%, in) | 6 / 915 (0.0066; +0.3%, in) | 121 / 653 (0.1853; -16.4%, in) | 5 |
+| pauper | 515 / 667 (0.7721; -4.1%, in) | 7 / 1311 (0.0053; +16.8%, in) | none eligible | 5 |
+| reckless | 793 / 1023 (0.7752; +21.6%, OUT) | 9 / 1944 (0.0046; +51.1%, OUT) | 327 / 1880 (0.1739; +46.0%, OUT) | 5 |
+| **mean** | 0.768 (pre 0.768) | 0.00557 (pre 0.00465) | 0.180 (pre 0.173) | |
+
+Written down as measured, not tuned (T10 owns the bands and the levers, §10.3 lever 5). The reckless policy's caravan and press sit outside the band because they collapse UP to the shared rate: its long turns cut its days into the fewest ticks, so it had the lowest legacy rates, and that spread was the wall-clock dependence the conversion removes. The tinker's moves rest on 6-9 starts per policy over 40 seeds, too few to separate from noise.
 
 ### Tests
 
