@@ -1034,7 +1034,7 @@ on a fixed day (`on_day`), on a cadence (`every_days`, from `first_day`), or on
 the first rolled day a `when:` predicate holds; it lasts `duration_days`
 (default 1), may name a `location_id` and `npc_ids`, and its `text` reaches the
 narrator on the turn it starts (`engine/world/schedules.py::declared_events_due`,
-fired from `advance_time`'s day roll, no randomness). An event may also carry
+fired from `advance_time`'s day roll; these three forms use no randomness). An event may also carry
 `forces_scene: <deck or card id>`: while it is active, the scene director deals
 that deck (§3.3) exactly as it deals a clock's forced scene. The id must name a
 deck or card the story ships — and a story with no decks declaring one is an
@@ -1048,12 +1048,48 @@ events:
     forces_scene: raid          # data/scenes/raid.yaml
 ```
 
+**A probabilistic event** (v0.25.0) carries `probability_per_day` instead of
+`on_day`/`every_days` (the two cannot be combined; a load error and a validator
+error say so):
+
+```yaml
+events:
+  caravan_arrival:
+    probability_per_day: 0.768     # 0 to 1: one draw per eligible day crossed
+    min_day: 5                     # eligible from this day
+    when: { min_awareness: 0 }     # optional; asked on each day, NOT once (no fired flag)
+    stream: event.caravan_arrival  # optional; default "event.<event_id>"
+    duration_days: 2
+    location_id: edgewood_square
+    npc_ids: [npc_odran]
+    rumor_from: npc_odran          # optional: a tiered rumour attributed to this NPC
+    text: "Odran's cart comes in off the Millhaven road with the dust still on it."
+```
+
+A day is ELIGIBLE when it is at or past `min_day`, its `when:` holds, and no
+instance of the event is active on it (one drawn earlier in the same step
+counts, and so does one that expires inside the step); each eligible day crossed
+draws one number on the event's stream, an ineligible day draws nothing. So the
+days an event starts depend on the seed, the days crossed and the choices, never
+on how the hours were cut. It REPEATS: once expired it is eligible again, and its
+`when:` is a gate, not a once-only trigger (no `event_fired_` flag). Inside one
+multi-day step `when` is read against the state as the step ends. `stream`
+defaults to `event.<id>`; the legacy slots' `schedule.caravan`,
+`schedule.tinker` and `schedule.militia` are refused, because the background tick
+draws them in every story. `rumor_from` draws a rumour attributed to that NPC on
+the same stream, after the probability draw (its tier read as the step ends);
+`stream` and `rumor_from` are read only with `probability_per_day`. The force
+hook (`WorldSim.on_tick(force=[...])`, `advance_world_day(force_events=...)`)
+starts a declared event today with no probability draw, while its `min_day` and
+`when:` hold and it is not already active.
+
 The shipped example is HUE & CRY's `hanging_fair` (`data/world/schedules.yaml`,
 v0.17): `on_day: 10`, `duration_days: 3`, on Gallows Green, forcing
 `fair_day` — a deck whose own `when:` names the event AND the Green, so the
 forced deal waits for the player to walk there (§3.3). A schedules file that
-declares only `events:` stages none of the flagship's caravan, tinker or
-militia: those fire only for a story that declares their blocks. **An event
+declares only `events:` stages none of the legacy caravan, tinker or militia
+slots: those fire only for a story that declares their top-level blocks (the
+flagship's own three are declared `events:` since v0.25.0). **An event
 a condition names must be one the story raises** (v0.17): an `event_active`,
 `event_seen`, `held_before_event` or `days_since_event: {event}` whose id is
 no `events:` entry, engine slot block, procgen `festival` or `event_id` the

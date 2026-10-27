@@ -13,6 +13,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- The caravan, the tinker's camp and the militia press are declared `events:` (`data/world/schedules.yaml`), each rolled once per in-game day crossed on its own stream, at the legacy rates measured per eligible day (v0.25.0 T1): caravan 0.768 from day 5, tinker 0.00465, press 0.173 while awareness is 20 or more. Their rates no longer depend on how a day was cut into background ticks. Each carries its own line of text; the caravan's rumour is Odran's. The unread `goods:` lists are gone. The pre- and post-change tables are in the root CHANGELOG and the schedules file's header.
+
 ## [0.24.0] — 2026-10-27
 
 ### Added

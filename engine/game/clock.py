@@ -325,23 +325,36 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
         # clock -- see schedules.declared_events_due. Expiry runs here too: it
         # used to run only on the background tick, so an event's window
         # depended on how often real time happened to tick.
-        try:
-            from engine.game import effects as effects_module
-            from engine.world import schedules as schedules_module
-            from engine.world.world_sim import WorldSim
+        #
+        # NOT inside the death check's own re-entry (unconsciousness hours):
+        # the outer call reads ``to_day`` after the check and rolls every day
+        # crossed, the nested call's included, once and in order. Rolled in
+        # both, the outer re-crossed the nested call's days -- a probabilistic
+        # event drew again for a day already drawn, and its older-dated
+        # instance replaced the newer one (v0.25.0 E1).
+        if not _in_death_check():
+            try:
+                from engine.game import effects as effects_module
+                from engine.world import schedules as schedules_module
+                from engine.world.world_sim import WorldSim
 
-            WorldSim.expire_events(state)
-            due = schedules_module.declared_events_due(state, from_day, to_day)
-            if due:
-                WorldSim.apply_events(state, due)
-                for event in due:
-                    flag = event.payload.get("fired_flag")
-                    if flag:
-                        effects_module.apply_effect(
-                            state, {"type": "flag", "flag": flag, "value": True}
-                        )
-        except ImportError:
-            pass
+                # A probabilistic declared event reads its activity per day from
+                # the instances held BEFORE this expiry (v0.25.0 E1, spec §6.1).
+                active_before = schedules_module.instances(state)
+                WorldSim.expire_events(state)
+                due = schedules_module.declared_events_due(
+                    state, from_day, to_day, active_before=active_before
+                )
+                if due:
+                    WorldSim.apply_events(state, due)
+                    for event in due:
+                        flag = event.payload.get("fired_flag")
+                        if flag:
+                            effects_module.apply_effect(
+                                state, {"type": "flag", "flag": flag, "value": True}
+                            )
+            except ImportError:
+                pass
 
         # Contracts whose day has passed break on the rollover. Silence is an
         # answer too: a bargain the player quietly let lapse should cost them

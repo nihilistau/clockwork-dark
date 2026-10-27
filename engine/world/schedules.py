@@ -17,6 +17,7 @@ from typing import Any, Optional
 
 from engine import yamlio
 from engine.config import get_config
+from engine.game.rng import SCHEDULE_CARAVAN, SCHEDULE_MILITIA, SCHEDULE_TINKER, world_rng
 from engine.game.state import GameState
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,10 @@ def load_schedules() -> dict[str, Any]:
     else:
         with path.open(encoding="utf-8") as fh:
             schedules = yamlio.safe_load(fh) or {}
+        for event_id, spec in ((schedules.get("events") or {}) if isinstance(schedules, dict) else {}).items():
+            problem = declared_event_problem(str(event_id), spec)
+            if problem:
+                raise ValueError(f"{path}: events.{event_id}: {problem}")
     _SCHEDULE_CACHE = schedules
     return schedules
 
@@ -244,6 +249,68 @@ def _event_active(state: GameState, event_id: str) -> bool:
 #: and cadence events need none: each day is crossed exactly once.
 EVENT_FIRED_PREFIX = "event_fired_"
 
+#: The three legacy slots' streams. ``WorldSim.on_tick`` draws each of them on
+#: EVERY background tick in every story, before it asks whether the story
+#: declares the slot, so their counters count real-time ticks. A declared
+#: event that drew on one would roll on wall-clock time again (v0.25.0 §6.1).
+LEGACY_STREAMS = frozenset({SCHEDULE_CARAVAN, SCHEDULE_TINKER, SCHEDULE_MILITIA})
+
+#: A probabilistic declared event's default stream: ``event.<event_id>``.
+EVENT_STREAM_PREFIX = "event."
+
+#: Keys read only on the probabilistic form.
+_PROBABILISTIC_ONLY = ("stream", "rumor_from")
+
+
+def event_stream(event_id: str, spec: dict[str, Any]) -> str:
+    """The stream a probabilistic event draws on: its own ``stream:``, else ``event.<id>``."""
+    return str((spec or {}).get("stream") or f"{EVENT_STREAM_PREFIX}{event_id}")
+
+
+def declared_event_problem(event_id: str, spec: Any) -> Optional[str]:
+    """
+    What is wrong with one declared event's PROBABILISTIC shape, or None.
+
+    Shared by ``load_schedules`` (a ValueError naming the file) and the content
+    validator (an Issue), so the two cannot disagree. An event with no
+    ``probability_per_day`` and none of its keys is the v0.13 shape and is not
+    checked here.
+    """
+    if not isinstance(spec, dict):
+        return None
+    if "probability_per_day" not in spec:
+        extra = [k for k in _PROBABILISTIC_ONLY if k in spec]
+        return f"`{extra[0]}` is read only with probability_per_day" if extra else None
+    try:
+        chance = float(spec["probability_per_day"])
+    except (TypeError, ValueError):
+        return "probability_per_day must be a number"
+    if not 0.0 <= chance <= 1.0:
+        return "probability_per_day must be a number from 0 to 1"
+    if "on_day" in spec or "every_days" in spec:
+        return "probability_per_day cannot be combined with on_day or every_days"
+    stream = event_stream(event_id, spec)
+    if stream in LEGACY_STREAMS:
+        return (f"stream `{stream}` is a legacy slot's stream, drawn by the background tick "
+                f"in every story; use `{EVENT_STREAM_PREFIX}{event_id}`")
+    return None
+
+
+def instances(state: GameState) -> list[tuple[str, int, int]]:
+    """``(event_id, start_day, expires_day)`` for every event on state; a malformed row is skipped."""
+    out: list[tuple[str, int, int]] = []
+    for raw in state.world_events:
+        try:
+            out.append((str(raw.get("event_id") or ""), int(raw.get("day", 0) or 0),
+                        int(raw.get("expires_day"))))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def _active_on(rows: list[tuple[str, int, int]], event_id: str, day: int) -> bool:
+    return any(eid == event_id and start <= day < expires for eid, start, expires in rows)
+
 
 def _declared_fire_day(spec: dict[str, Any], day: int) -> bool:
     """Whether a fixed-day or cadence event starts on this day."""
@@ -256,27 +323,49 @@ def _declared_fire_day(spec: dict[str, Any], day: int) -> bool:
     return False
 
 
-def declared_events_due(state: GameState, from_day: int, to_day: int) -> list[SimEvent]:
+def declared_events_due(
+    state: GameState,
+    from_day: int,
+    to_day: int,
+    *,
+    active_before: Optional[list[tuple[str, int, int]]] = None,
+) -> list[SimEvent]:
     """
     Story-declared world events that start on a day in ``(from_day, to_day]``.
 
-    THE GAP. This module fired exactly three events, each a hardcoded flagship
-    id with its own roll: caravan, tinker, militia. Any other story's
-    ``world_schedules`` could declare rumours and nothing that HAPPENS -- no
-    market day, no festival, no curfew. An ``events:`` block declares them now.
+    Called from ``advance_time``'s day roll, so an event starts from the seed,
+    the choices and the days crossed -- never from how long the menu sat open.
 
-    NO RANDOMNESS, deliberately. Called from ``advance_time``'s day roll, so an
-    event starts from the seed and the choices, never from how long the menu
-    sat open. A probabilistic declared event is NOT WIRED (docs/GOVERNANCE.md).
+    THREE FORMS. A fixed day (``on_day``) or a cadence (``every_days``); a
+    ``when:`` that fires ONCE, the first rolled day it holds; and (v0.25.0 E1)
+    ``probability_per_day``: one draw per eligible day crossed, on the event's
+    OWN stream (``event_stream``), never a legacy slot's. A probabilistic event
+    REPEATS and its ``when:`` is a gate, so it sets no ``event_fired_`` flag.
 
-    Also fires the flagship's procgen festival on its ``day_offset``: every seed
-    generated one and nothing read it.
+    ``active_before``: the ``(event_id, start, expires)`` rows state held
+    BEFORE this advance's expiry (``advance_time`` takes it). A probabilistic
+    event's activity is read PER DAY from those rows plus this call's own
+    draws, so an instance expiring inside a long step still blocks its last
+    days, and one drawn inside it blocks the days after. The other two forms
+    read ``state.world_events`` as they always did.
+
+    Also fires the flagship's procgen festival on its ``day_offset``.
     """
-    declared = (load_schedules().get("events") or {}) if isinstance(load_schedules(), dict) else {}
+    loaded = load_schedules()
+    declared = (loaded.get("events") or {}) if isinstance(loaded, dict) else {}
+    rows = list(active_before) if active_before is not None else instances(state)
     out: list[SimEvent] = []
     for day in range(int(from_day) + 1, int(to_day) + 1):
         for event_id, spec in sorted(declared.items()):
-            if not isinstance(spec, dict) or _event_active(state, str(event_id)):
+            if not isinstance(spec, dict):
+                continue
+            if "probability_per_day" in spec:
+                event = _probabilistic_due(state, str(event_id), spec, day, rows)
+                if event is not None:
+                    out.append(event)
+                    rows.append((event.event_id, event.day, event.expires_day))
+                continue
+            if _event_active(state, str(event_id)):
                 continue
             if "when" in spec:
                 if state.flags.get(f"{EVENT_FIRED_PREFIX}{event_id}"):
@@ -308,12 +397,67 @@ def declared_events_due(state: GameState, from_day: int, to_day: int) -> list[Si
     return out
 
 
-def _declared_event(event_id: str, spec: dict[str, Any], day: int) -> SimEvent:
+def _probabilistic_due(
+    state: GameState,
+    event_id: str,
+    spec: dict[str, Any],
+    day: int,
+    rows: list[tuple[str, int, int]],
+) -> Optional[SimEvent]:
+    """One eligible day's draw, or None. An ineligible day draws nothing."""
+    if _active_on(rows, event_id, day) or not gates_hold(state, spec, day):
+        return None
+    rng = world_rng(state, event_stream(event_id, spec))
+    if rng.random() >= float(spec.get("probability_per_day") or 0.0):
+        return None
+    return _declared_event(event_id, spec, day, rng=rng, state=state)
+
+
+def gates_hold(state: GameState, spec: dict[str, Any], day: int) -> bool:
+    """
+    A declared event's own gates on ``day``: its ``min_day`` and its ``when:``.
+
+    The ``when`` is read against the state as the step ends: inside one
+    multi-day step nothing time-driven writes what a gate here may read
+    (spec §6.1). Shared by the draw and the force hook, which skips the draw
+    and never the gates -- as the legacy slots' force always did.
+    """
+    if day < int(spec.get("min_day") or 0):
+        return False
+    if "when" in spec:
+        from engine.game.quests import evaluate_condition
+
+        return bool(evaluate_condition(state, spec.get("when")))
+    return True
+
+
+def force_declared(state: GameState, event_id: str, spec: dict[str, Any]) -> SimEvent:
+    """
+    Start a declared event TODAY with no probability draw (the force hook:
+    ``WorldSim.on_tick(force=...)``, which asks ``gates_hold`` first). Its
+    rumour, if it names a speaker, is still drawn on its own stream.
+    """
+    rng = world_rng(state, event_stream(event_id, spec)) if spec.get("rumor_from") else None
+    return _declared_event(event_id, spec, state.world_day, rng=rng, state=state)
+
+
+def _declared_event(
+    event_id: str,
+    spec: dict[str, Any],
+    day: int,
+    *,
+    rng: Optional[random.Random] = None,
+    state: Optional[GameState] = None,
+) -> SimEvent:
     duration = max(1, int(spec.get("duration_days") or 1))
     payload: dict[str, Any] = {"text": str(spec.get("text") or ""), "declared": True}
     if spec.get("rumor"):
         payload["rumor"] = str(spec["rumor"])
-    if "when" in spec:
+    if spec.get("rumor_from") and rng is not None and state is not None:
+        # After the probability draw, on the same stream; the tier is read as
+        # the step ends (spec §6.1).
+        payload["rumor"] = pick_rumor(state, rng, source_npc=str(spec["rumor_from"]))
+    if "when" in spec and "probability_per_day" not in spec:
         payload["fired_flag"] = f"{EVENT_FIRED_PREFIX}{event_id}"
     # The event owes the player a scene while it is active. Carried on the
     # payload and read back by `clocks.forced_scenes`, the same query a clock

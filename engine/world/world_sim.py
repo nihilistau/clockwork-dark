@@ -24,7 +24,14 @@ from engine.game.rng import (
 )
 from engine.game.state import GameState
 from engine.world import npc_sim
-from engine.world.schedules import ScheduleRoll, SimEvent, load_schedules
+from engine.world.schedules import (
+    ScheduleRoll,
+    SimEvent,
+    _event_active,
+    force_declared,
+    gates_hold,
+    load_schedules,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -232,8 +239,8 @@ class WorldSim:
             hours: In-game hours to advance.
             rng: Optional RNG override for tests. When omitted, each schedule
                 draws from its own named stream so they stay uncorrelated.
-            force: Force specific event ids (caravan_arrival, tinker_camp,
-                militia_press).
+            force: Force specific event ids: a legacy slot the story
+                configures, or a declared event (started today, no draw).
 
         Returns:
             List of SimEvent emitted this tick.
@@ -272,6 +279,22 @@ class WorldSim:
                 force="militia_press" in force_set,
             )
         )
+
+        # The force hook for a DECLARED event (v0.25.0 E1): a forced id the story
+        # declares under `events:` starts today, no probability draw -- but only
+        # when its own gates hold (`min_day`, `when:`), as a forced legacy slot
+        # never skipped its day or its awareness. A legacy slot the story still
+        # configures was already rolled (forced) above.
+        declared = (schedules.get("events") or {}) if isinstance(schedules, dict) else {}
+        for event_id in sorted(force_set):
+            spec = declared.get(event_id)
+            if (
+                isinstance(spec, dict)
+                and not isinstance(schedules.get(event_id), dict)
+                and not _event_active(state, event_id)
+                and gates_hold(state, spec, state.world_day)
+            ):
+                events.append(force_declared(state, event_id, spec))
 
         WorldSim.apply_events(state, events)
         return events

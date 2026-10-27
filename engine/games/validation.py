@@ -664,6 +664,7 @@ class StoryValidator:
         self.check_lore()
         self.check_decks_and_structures()
         self.check_declared_event_scenes()
+        self.check_declared_events()
         self.check_event_references()
         self.check_endings_and_epilogues()
         self.check_endless()
@@ -1829,6 +1830,20 @@ class StoryValidator:
         source = self._rel(path)
         for _event_id, scene_id in declared:
             self._check_scene_ref(source, scene_id, known_decks, known_cards, "event's")
+
+    def check_declared_events(self) -> None:
+        """A probabilistic declared event's shape (v0.25.0 E1): a probability, never a legacy stream."""
+        path = self._file("world_schedules")
+        doc = _read_yaml(path) if path is not None and path.is_file() else None
+        if not isinstance(doc, dict):
+            return
+        from engine.world.schedules import declared_event_problem
+
+        source = self._rel(path)
+        for event_id, spec in (doc.get("events") or {}).items():
+            problem = declared_event_problem(str(event_id), spec)
+            if problem:
+                self._add(source, str(event_id), problem)
 
     #: Condition predicates whose value names a world event (a string or a list).
     EVENT_PREDICATES = ("event_active", "event_seen", "held_before_event")

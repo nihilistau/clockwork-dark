@@ -25,7 +25,8 @@ def _engine(day: int = 6, *, awareness: float = 0.0, seed: int = 42) -> GameEngi
 
 def test_schedules_load():
     schedules = load_schedules()
-    assert "caravan_arrival" in schedules
+    # A declared event since v0.25.0 E1, no longer a legacy top-level slot.
+    assert "caravan_arrival" in schedules["events"]
     assert len(schedules.get("rumors", [])) >= 3
 
 

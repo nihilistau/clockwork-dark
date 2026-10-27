@@ -533,6 +533,14 @@ GOLDEN = {
 }
 
 
+#: The one sanctioned move (v0.25.0 T1, E1): the flagship's caravan, tinker and
+#: press became probabilistic declared events on their own `event.<id>` streams,
+#: so a respawn's hours that cross a day draw there (spec §6.1: a flagship save
+#: gains these streams). Asserted EXACT, then left out of the digest, so every
+#: other byte of the death is still held to the recording.
+E1_EVENT_DRAWS = {"flagship_respawn": {"event.tinker_camp": 1}}
+
+
 def _death_digest(case: str) -> str:
     from engine.games import registry
 
@@ -556,6 +564,11 @@ def _death_digest(case: str) -> str:
         death = encounter.check_death(state)
         saved = state.to_save_dict()
         saved.pop("session_id", None)  # random per GameState, not per death
+        counters = saved.get("rng_counters") or {}
+        drawn = {k: v for k, v in counters.items() if k.startswith("event.")}
+        assert drawn == E1_EVENT_DRAWS.get(case, {}), drawn
+        for key in drawn:
+            del counters[key]
         blob = json.dumps({"death": death, "state": saved},
                           sort_keys=True, default=str)
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()

@@ -133,7 +133,7 @@ because the fiction cannot un-happen.
 | Arc | Gate (as implemented) | Player experience |
 |-----|-----------------------|-------------------|
 | **Quiet Life** | default | Forest, bakery apprenticeship, festivals; Awareness stays <15 |
-| **Whisper** | `caravan_arrival` seen **AND** 10 days since **AND** Awareness ≥15 | Maps sold, songs with wrong lyrics, child draws gears |
+| **Whisper** | `caravan_arrival` seen **AND** 3 days since **AND** Awareness ≥15 | Maps sold, songs with wrong lyrics, child draws gears |
 | **March** | visited `millhaven_gate` **OR** Awareness ≥25 | Militia, tolls, burned farmstead quests |
 | **Convergence** | Awareness ≥50 **OR** evil_phase ≥ SPREADING | Name the wound, choose sacrifice, world-scale choices |
 
@@ -749,7 +749,7 @@ Stored as `InventoryItem` in `GameState.inventory`.
 
 - Each location has supply/demand tables
 - `trade(action, item_id, npc_id)` — prices from engine, not narration
-- Caravan events inject rare goods and rumor packets
+- Caravan events bring Odran and a rumour attributed to him (the legacy `goods:` list was read by nothing and is gone, v0.25.0)
 
 ### Travel
 
@@ -940,18 +940,22 @@ Reproduce with:
 
 ### Trader & Tinker Schedule
 
-From `games/clockwork-dark/data/world/schedules.yaml`. Each event draws from its **own named RNG
-stream**, so they are independent of each other and replay from the save seed.
+From `games/clockwork-dark/data/world/schedules.yaml`, declared `events:` since v0.25.0 (E1).
+Each draws once per eligible in-game day crossed, on the day roll, from its **own named RNG
+stream** (`event.<id>`), so they are independent of each other and replay from the save seed and
+the days crossed, never from how the day was cut into background ticks. The per-day numbers are
+the legacy rates MEASURED per eligible day (`scripts/simulate.py --event-rates`, 40 seeds, the
+five policies' mean; the tables are in the schedules file's header and the CHANGELOG).
 
 | Event | Probability | Effect |
 |-------|-------------|--------|
-| `caravan_arrival` | 8% per in-game day, from day 5, lasts 2 days | Odran at Edgewood Square + goods + rumor packet |
-| `tinker_camp` | 5% per week, lasts 3 days | Ilya at the caravan + knowledge trade |
-| `militia_press` | 3% per day, **only if Awareness ≥20**, lasts 1 day | Sergeant Sera visits the square |
+| `caravan_arrival` | 0.768 per eligible day, from day 5, lasts 2 days | Odran at Edgewood Square + a rumour attributed to him |
+| `tinker_camp` | 0.00465 per eligible day, lasts 3 days | Ilya at the caravan + knowledge trade |
+| `militia_press` | 0.173 per eligible day, **only while Awareness ≥20**, lasts 1 day | Sergeant Sera visits the square |
 
 World events expire from `state.world_events` after their duration, so the quest
 engine writes down the **day they were first seen** (`quests["_meta"]`) — the
-Whisper gate needs "the caravan came on day six" ten days later, by which time
+Whisper gate needs "the caravan came on day six" three days later, by which time
 the event itself is long gone from state.
 
 Templates in `games/clockwork-dark/data/procgen_templates/`.
