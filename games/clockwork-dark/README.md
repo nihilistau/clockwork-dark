@@ -28,7 +28,7 @@ A graph story, and the one every other graph story was measured against:
 | A village generated per seed: villagers, venues, the festival | `data/procgen_templates/edgewood.yaml` |
 | The **evil clock**: `dormant`, `stirring`, `spreading`, `consuming`, advancing whatever you do; pushing back buys reprieve (`doom_resistance`) | `data/rules/doom_effects.yaml`, `state.yaml` |
 | 26 quests in four arcs (`quiet_life`, `whisper`, `march`, `convergence`) that open on **awareness**, a hidden stat, so a baker who never listens stays a baker | `data/quests/` |
-| Eight ending classes and their epilogue cards | `data/rules/endings.yaml`, `data/epilogues/` |
+| Eight ending classes and their epilogue cards, each locked BY NAME at its own door since v0.25.0 (a deck card where its person is, or the terminal death); each has a one-line `tease` | `data/rules/endings.yaml`, `data/epilogues/`, `data/scenes/` |
 | Three archetypes: Wayfarer, Hearthkeeper, Tinker-apprentice | `data/rules/archetypes.yaml` |
 | Survival (stamina, hunger, hp; rest is never gated) and death rules: you are carried back to the square, and only a second death while the world is `consuming` ends the run | `data/rules/survival.yaml`, `data/rules/death.yaml` |
 | Trade with three vendors, paid work, foraging, boons and complications, collectable sets | `data/economy.yaml`, `data/tables/` |
@@ -47,6 +47,24 @@ participant (`pipeline: false`), so turns do not negotiate. Its hints are in
 
 **Its own UI plugin** — `ui.plugin: clockwork-dark`
 (`ui/src/stories/clockwork-dark/`), including the notice-board overlay (`n`).
+
+## The endings and their doors
+
+Each ending is locked by name at one door (a choice the player reads), and
+its Speak · Act · Seal and epilogue card follow on the same beat. A door deck
+is dealt one card a visit, only where and when its person is there, and comes
+round again on the next visit, so "not yet" is never the last chance.
+
+| Ending | Its gate, in short | Where its door stands |
+|---|---|---|
+| The Hearth Holds | a place in Edgewood (one of six quiet-life quests done), the larder walked (`H0`), awareness 40 or less | the bakery 04-09, Maris there: `the_morning_firing` / `H1` / `stay` |
+| The Dark Keeps Its Hours (the fail-forward) | none | the same card's `stay_anyway`, offered when the Hearth's gate is shut; and the terminal death (a second death while the world is `consuming`) |
+| The Long Witness | awareness 30, listened (a whisper quest, or awareness 50), the Unnamed Saints at 30, day 27 | the shrine while old Wenna is there (06-07, 18-21): `the_count_kept` / `W1` / `give_it` |
+| The Counted March | the march arc open, the militia at 20, a levy seen through (a march quest, or a night on the wall) | the gate or the square while Sera is there: `the_muster_roll` / `M1` / `strike_it` |
+| The Named Wound | named, decided, and the last quiet morning at its third stage | the bakery 04-09, Maris there: `the_morning_firing` / `Q1` / `tell_her` or `say_nothing` |
+| The Price Asked | named, chose, paid | locked today by `the_sacrifice`'s completion; its card (`the_price` / `S2`) is v0.25.0 T7's |
+| The Pin and the Join | the ninth pin taken and held, the join walked | no door yet: `the_join` / `J1` is v0.25.0 T7's |
+| The Stopped Wheel | the doom reading at 1.0 | no door yet: `the_stopped_wheel` / `Z1`, forced by `the_last_hour`, is v0.25.0 T7's |
 
 ## Art
 

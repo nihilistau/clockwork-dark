@@ -14,6 +14,9 @@
     "the terminal-death rules (data/rules/death.yaml, applied by",
     "engine/game/encounter.py). collection_brass_evidence_complete is",
     "written by the collections engine off data/tables/collections.yaml.",
+    "stood_the_wall is the march ending's other way to `served`: read by",
+    "data/rules/endings.yaml since v0.25.0 T6, written by Sera's bargain",
+    "(v0.25.0 T8), canon so the gate's read is declared before its writer.",
     "ending_gallery_unlocked is the deliberately write-only case: every",
     "ending's Seal beat sets it and only the CLIENT reads it."
   ],
@@ -89,7 +92,8 @@
         "nf_sera_refused",
         "nf_toll_ledger_read",
         "nf_toll_paid",
-        "nf_toll_refused"
+        "nf_toll_refused",
+        "stood_the_wall"
       ],
       "convergence": [
         "quest_naming_the_wound_done",

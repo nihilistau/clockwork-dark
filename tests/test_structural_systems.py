@@ -139,20 +139,20 @@ def test_a_story_with_no_endings_cannot_softlock_its_finale(
     assert endings.resolve(GameState()) == ""
 
 
-def test_the_flagship_still_declares_no_clocks_threads_or_decks() -> None:
+def test_the_flagship_declares_decks_but_still_no_clocks_or_threads() -> None:
     """
     What the flagship's compatibility bar actually is, now that it has a finale.
 
-    Three of the four structural systems are still inert for The Clockwork
-    Dark, which is why its simulator output did not move when endings landed:
-    the finale chain is reached through quest `on_complete` effects on the
-    graph it already had, not through a day deck or a progress clock. If this
-    ever fails, the flagship has grown a system whose cost has to be measured
-    against `scripts/simulate.py` before it ships.
+    Since v0.25.0 T6 its endings are locked at their doors, deck cards
+    (`paths.decks`, spec §4.3), so decks are no longer inert for it; its
+    doors' measured cost is the release's balance pass (`scripts/simulate_doors.py`,
+    v0.25.0 §10). Clocks and threads are still inert. If either fails, the
+    flagship has grown a system whose cost has to be measured against
+    `scripts/simulate.py` before it ships.
     """
     assert clocks.load_clocks() == {}
     assert threads.templates() == {}
-    assert deck_module.deck_ids() == []
+    assert {"the_morning_firing", "the_count_kept", "the_muster_roll"} <= set(deck_module.deck_ids())
 
     # ...and the one it DOES declare is real: eight endings, a declared
     # fail-forward, and never an empty eligible set.

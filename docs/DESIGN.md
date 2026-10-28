@@ -175,6 +175,27 @@ The doom clock moves people (`doom_effects.yaml` `npc_moves`): Ilya to the squar
 and at 0.88 Sera to the square and Edrin and Nessa to the ditch camp (`refugee_camp`). A move is
 the override flag `npc_at_<id>`, which outranks a routine (below an event and a quest pin).
 
+### Endings and their doors (v0.25.0)
+
+Eight endings (`games/clockwork-dark/data/rules/endings.yaml`), each locked **by name** at its
+own door and never by an id-less lock (spec §4.1; `tests/test_clockwork_dark.py` holds that no
+id-less `ending_lock` remains). A door is a card in a repeatable, draw-one deck
+(`games/clockwork-dark/data/scenes/`) whose `when:` stands where its person is (`npc_here`), so a
+doom move or a pin moves the door with them; each door card is gated on its own ending's
+eligibility, so a door and its gate cannot drift apart. The `score:` rows no longer pick an
+ending; they feed only the gallery's closeness band. Each ending carries a one-sentence `tease`.
+
+| Ending | Door (deck / card / beat) | State |
+|---|---|---|
+| The Hearth Holds | `the_morning_firing` / `H1_the_question` / `stay` (the bakery 04-09, Maris there) | wired (T6) |
+| The Dark Keeps Its Hours | `H1_the_question` / `stay_anyway` (the Hearth's gate shut); the terminal death | wired (T6; the death since T3) |
+| The Long Witness | `the_count_kept` / `W1_the_list` / `give_it` (the shrine, Wenna there) | wired (T6) |
+| The Counted March | `the_muster_roll` / `M1_strike_the_name` / `strike_it` (the gate or the square, Sera there) | wired (T6) |
+| The Named Wound | `the_morning_firing` / `Q1_tell_her_or_dont` / `tell_her` or `say_nothing` | wired (T6) |
+| The Price Asked | `the_price` / `S2_pay_it` | **NOT WIRED** until v0.25.0 T7: locked today by `the_sacrifice`'s quest-level lock (`games/clockwork-dark/data/quests/convergence/the_sacrifice.yaml`) |
+| The Pin and the Join | `the_join` / `J1_the_pin` / `set_it` | **NOT WIRED** until v0.25.0 T7: no door locks it (`games/clockwork-dark/data/scenes/`) |
+| The Stopped Wheel | `the_stopped_wheel` / `Z1_the_last_morning`, forced by `the_last_hour` | **NOT WIRED** until v0.25.0 T7: no door locks it (`games/clockwork-dark/data/scenes/`) |
+
 ### The Assistant (Lore)
 
 The Assistant is **not** a UI tutorial. It is an entity (or entities) that the Storyteller also cannot fully control. In Edgewood folklore they are the **Grey Wanderer**, the **Cat Who Knows**, the **Tinker’s Shadow**. They may:

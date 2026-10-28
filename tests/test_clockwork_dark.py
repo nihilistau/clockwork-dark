@@ -311,3 +311,111 @@ def test_the_seams_riddle_counts_its_own_answer() -> None:
     answer = str(seam["challenge"]["answer"])
     words = {4: "four", 5: "five", 6: "six"}
     assert f"{words[len(answer)]} letters" in str(seam["challenge"]["prompt"])
+
+
+# -- doors I (T6, §4.2-§4.3) ---------------------------------------------------------------------
+
+from endings_driver import Door, drive_ending  # noqa: E402
+
+from tests import clockwork_doors as doors  # noqa: E402
+
+SCENES = STORY / "data" / "scenes"
+
+
+def _drive(ending_id: str, door: Door, setup) -> Any:
+    state, shown = drive_ending("clockwork-dark", ending_id, door, setup, seed=7)
+    return state
+
+
+@pytest.mark.parametrize("ending_id, door, setup", [
+    ("the_hearth_holds", Door.card("the_morning_firing", "H1_the_question", "stay"), doors.hearth_door),
+    ("the_dark_keeps_its_hours", Door.card("the_morning_firing", "H1_the_question", "stay_anyway"),
+     doors.stay_anyway_door),
+    ("the_long_witness", Door.card("the_count_kept", "W1_the_list", "give_it"), doors.witness_door),
+    ("the_counted_march", Door.card("the_muster_roll", "M1_strike_the_name", "strike_it"), doors.march_door),
+    ("the_named_wound", Door.card("the_morning_firing", "Q1_tell_her_or_dont", "tell_her"), doors.named_wound_door),
+    ("the_named_wound", Door.card("the_morning_firing", "Q1_tell_her_or_dont", "say_nothing"),
+     doors.named_wound_door),
+])
+def test_each_door_of_the_first_three_decks_locks_its_ending(ending_id, door, setup) -> None:
+    _drive(ending_id, door, setup)
+
+
+def _deal(state: Any, deck_id: str) -> list[str]:
+    from engine.content import director
+
+    receipt = director.begin(state, deck_id)
+    assert receipt["ok"], receipt
+    return receipt["card_ids"]
+
+
+def test_h1_offers_stay_only_while_the_hearth_is_open(flagship) -> None:
+    from engine.content import director
+
+    open_state, shut_state = new_state(), new_state()
+    doors.hearth_door(open_state)
+    doors.stay_anyway_door(shut_state)
+    for state, offered in ((open_state, ["stay", "not_yet"]), (shut_state, ["stay_anyway", "not_yet"])):
+        assert _deal(state, "the_morning_firing") == ["H1_the_question"]
+        assert [o["id"] for o in director.options(state)] == offered
+
+
+def test_h1_is_not_dealt_while_the_named_wound_is_open(flagship) -> None:
+    from engine.content import deck as deck_module
+
+    state = new_state()
+    doors.named_wound_door(state)
+    at_stage = doors.at_stage
+    at_stage(state, "banking_the_fire", 1)
+    doors.flag(state, "nf_hearth_taking_stock")
+    eligible, _ = deck_module.eligible_cards(state, deck_module.load_deck("the_morning_firing"))
+    assert [c.id for c in eligible] == ["Q1_tell_her_or_dont"]
+
+
+def test_a_dealt_door_stays_answerable_after_its_person_leaves(flagship) -> None:
+    """Review Focus 1: Maris goes to the square at noon; the card in hand still locks what it says."""
+    from engine.content import director
+    from engine.game import endings
+    from engine.game.clock import advance_time
+
+    state = new_state()
+    doors.hearth_door(state)
+    _deal(state, "the_morning_firing")
+    advance_time(state, 8.0)                       # 05:00 -> 13:00
+    assert director.resolve(state, chosen="stay")["ok"]
+    assert endings.locked(state) == "the_hearth_holds"
+
+
+def test_not_yet_locks_nothing_and_the_deck_comes_round_again(flagship) -> None:
+    from engine.content import director
+    from engine.game import endings
+
+    state = new_state()
+    doors.hearth_door(state)
+    _deal(state, "the_morning_firing")
+    assert director.resolve(state, chosen="not_yet")["ok"]
+    assert endings.locked(state) == endings.NONE_ID
+    doors.stand(state, "edgewood_square", 12)
+    director.rearm(state)
+    doors.stand(state, "edgewood_bakery", 5)
+    deck_id, _card, _src = director.due(state)
+    assert deck_id == "the_morning_firing"
+
+
+def test_no_id_less_ending_lock_remains_in_the_story() -> None:
+    from engine.games.validation import walk
+
+    for path in (STORY / "data").rglob("*.yaml"):
+        for node in walk(yaml.safe_load(path.read_text(encoding="utf-8"))):
+            if node.get("type") == "ending_lock":
+                assert node.get("ending"), f"{path.relative_to(STORY)}: an id-less ending_lock"
+
+
+def test_every_tease_is_one_sentence_and_names_no_ending() -> None:
+    doc = yaml.safe_load((STORY / "data" / "rules" / "endings.yaml").read_text(encoding="utf-8"))
+    titles = [str(body["label"]).lower() for body in doc["classes"].values()]
+    for ending_id, body in doc["classes"].items():
+        tease = str(body.get("tease") or "")
+        assert tease.endswith(".") and tease.count(". ") == 0, ending_id
+        assert not any(title in tease.lower() for title in titles), ending_id
+        assert "clockwork" not in tease.lower(), ending_id    # the reveal word (spoilers.yaml)

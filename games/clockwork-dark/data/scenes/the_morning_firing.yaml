@@ -1,0 +1,187 @@
+# The Clockwork Dark -- the morning firing (v0.25.0 §4.3).
+# ==========================================================================
+# The bakery from four to ten, while Maris is there (`npc_here`, which asks
+# npc_sim, so a doom move or a pin moves the door with her). Two doors and the
+# two stages before them:
+#   H0  banking_the_fire's `taking_stock` (sets nf_hearth_taking_stock)
+#   H1  The Hearth Holds (`stay`) or, its gate shut, the fail-forward's
+#       morning door (`stay_anyway`); offered by beat-level `when:` (E5)
+#   Q0  the_last_quiet_thing's `show_up`, in its own hours (4-7)
+#   Q1  The Named Wound (`tell_her` / `say_nothing`)
+# H1 is not dealt while The Named Wound is eligible, so H1 and Q1 never
+# compete for one arming. REPEATABLE, draw 1: one card a morning, and "not
+# yet" is never the last chance (director.rearm deals again on the next
+# visit). The deck's `when:` ends in `any:` of its cards' own gates (plan
+# decision 3), so it is due only when a card can be dealt. Each lock runs
+# before its module; no beat carries more than four effects.
+#
+# Version: v0.1.0 [2026-10-27]
+
+id: the_morning_firing
+repeatable: true
+draw: 1
+
+when:
+  all:
+    - { at_location: edgewood_bakery }
+    - { hour_between: [4, 10] }
+    - { npc_here: npc_maris }
+    - any:
+        - all:
+            - { quest_state: { quest: banking_the_fire, status: active } }
+            - { quest_state: { quest: banking_the_fire, stage_at_least: 0 } }
+            - none: [{ quest_state: { quest: banking_the_fire, stage_at_least: 1 } }]
+        - all:
+            - { quest_state: { quest: banking_the_fire, status: active } }
+            - { quest_state: { quest: banking_the_fire, stage_at_least: 1 } }
+            - none: [{ quest_state: { quest: banking_the_fire, stage_at_least: 2 } }]
+            - { flag: nf_hearth_taking_stock }
+            - none: [{ ending: { eligible: the_named_wound } }]
+        - all:
+            - { quest_state: { quest: the_last_quiet_thing, status: active } }
+            - { quest_state: { quest: the_last_quiet_thing, stage_at_least: 0 } }
+            - none: [{ quest_state: { quest: the_last_quiet_thing, stage_at_least: 1 } }]
+            - { hour_between: [4, 7] }
+        - { ending: { eligible: the_named_wound } }
+
+cards:
+
+  - id: H0_taking_stock
+    title: "Taking stock"
+    when:
+      all:
+        - { quest_state: { quest: banking_the_fire, status: active } }
+        - { quest_state: { quest: banking_the_fire, stage_at_least: 0 } }
+        - none: [{ quest_state: { quest: banking_the_fire, stage_at_least: 1 } }]
+    tags: [hearth]
+    text: >-
+      INTENT: The oven ticking as it heats, Maris at the trough, and the
+      player walking their life here end to end in their head: the larder,
+      the woodpile, the names at every door between the well and the oven.
+      CONSTRAINTS: Maris says little. Nothing is decided yet.
+    beats:
+      - id: take_stock
+        text: >-
+          Count it up while the oven comes to heat: the stores, the wood, the
+          people who would notice if you were gone.
+        gate:
+          on_pass:
+            text: >-
+              Laid end to end it is not nothing. Laid end to end it looks a
+              great deal like a life.
+            effects:
+              - { type: flag, flag: nf_hearth_taking_stock }
+
+  - id: H1_the_question
+    title: "The question"
+    when:
+      all:
+        - { quest_state: { quest: banking_the_fire, status: active } }
+        - { quest_state: { quest: banking_the_fire, stage_at_least: 1 } }
+        - none: [{ quest_state: { quest: banking_the_fire, stage_at_least: 2 } }]
+        - { flag: nf_hearth_taking_stock }
+        - none: [{ ending: { eligible: the_named_wound } }]
+    tags: [menu, hearth, door]
+    text: >-
+      INTENT: The morning firing. Maris hands over the long peel and goes on
+      shaping, and the question she stopped asking sits between them.
+      CONSTRAINTS: She does not ask it aloud. Saying "I am staying" ends the
+      story; letting the morning be a morning ends nothing.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: stay
+        label: "Tell her you are staying"
+        when: { ending: { eligible: the_hearth_holds } }
+        text: >-
+          Tell Maris you are staying. This ends the story: The Hearth Holds.
+        gate:
+          on_pass:
+            text: >-
+              "I know," she says, the way she says the oven is hot.
+            effects:
+              - { type: flag, flag: nf_hearth_book_closed }
+              - { type: ending_lock, ending: the_hearth_holds }
+              - { type: ending_module }
+      - id: stay_anyway
+        label: "Stay anyway"
+        when: { none: [{ ending: { eligible: the_hearth_holds } }] }
+        text: >-
+          Stay anyway, knowing what you know, or knowing nobody yet. This ends
+          the story: The Dark Keeps Its Hours.
+        gate:
+          on_pass:
+            text: >-
+              She nods once and hands you the peel, and the morning goes on
+              being a morning because somebody has to make it one.
+            effects:
+              - { type: flag, flag: nf_hearth_book_closed }
+              - { type: ending_lock, ending: the_dark_keeps_its_hours }
+              - { type: ending_module }
+      - id: not_yet
+        label: "Let the morning be a morning"
+        text: >-
+          Say nothing yet. Work the batch and keep the question.
+        gate:
+          on_pass:
+            text: >-
+              The batch comes out. The question stays where it was, warm.
+
+  - id: Q0_show_up
+    title: "Showing up"
+    when:
+      all:
+        - { quest_state: { quest: the_last_quiet_thing, status: active } }
+        - { quest_state: { quest: the_last_quiet_thing, stage_at_least: 0 } }
+        - none: [{ quest_state: { quest: the_last_quiet_thing, stage_at_least: 1 } }]
+        - { hour_between: [4, 7] }
+    tags: [hearth]
+    text: >-
+      INTENT: Four in the morning, after everything, and Maris at the oven the
+      way she is every morning. CONSTRAINTS: No ceremony. She hands over the
+      peel without looking up.
+    beats:
+      - id: take_the_peel
+        text: >-
+          Take the long peel from her and stand where you always stand.
+        gate:
+          on_pass:
+            text: >-
+              There is no ceremony to it, and that is the mercy.
+            effects:
+              - { type: flag, flag: nf_lastquiet_showed_up }
+
+  - id: Q1_tell_her_or_dont
+    title: "What you paid"
+    when: { ending: { eligible: the_named_wound } }
+    tags: [menu, hearth, door]
+    text: >-
+      INTENT: The last quiet morning's batch is out. Maris is shaping the
+      next, and the player could tell her what naming the thing cost, or let
+      the morning be a morning. CONSTRAINTS: She says "I know" either way.
+      Both choices end the story.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: tell_her
+        label: "Tell her what you paid"
+        text: >-
+          Tell Maris what you paid. This ends the story: The Named Wound.
+        gate:
+          on_pass:
+            text: >-
+              "I know," she says, and goes on shaping. One turn and a press.
+            effects:
+              - { type: flag, flag: nf_lastquiet_told_her }
+              - { type: ending_lock, ending: the_named_wound }
+              - { type: ending_module }
+      - id: say_nothing
+        label: "Say nothing, and work"
+        text: >-
+          Say nothing and work beside her. This ends the story: The Named Wound.
+        gate:
+          on_pass:
+            text: >-
+              She does not ask. One turn and a press. One turn and a press.
+            effects:
+              - { type: flag, flag: nf_lastquiet_said_nothing }
+              - { type: ending_lock, ending: the_named_wound }
+              - { type: ending_module }

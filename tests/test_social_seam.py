@@ -70,10 +70,34 @@ def test_a_story_without_paths_social_carries_no_phone_and_imports_nothing(slug:
     assert added == [], added
 
 
+def _sanctioned(slug: str, payload: str) -> str:
+    """
+    The recording as the flagship's own overhaul makes it (v0.25.0). S19 (T6,
+    tests/test_local_mode_golden.py, asserted exact there): the flagship's gallery
+    block reads its rewritten gates and lock reasons and gains its teases -- story
+    content, not a social seam. Nothing else, and no other story, moves.
+    """
+    if slug != "clockwork-dark":
+        return payload
+    from tests.test_local_mode_golden import named_doors_gallery
+
+    body = json.loads(payload)
+    named_doors_gallery(body["endings"]["gallery"])
+    return json.dumps(body, sort_keys=True)
+
+
 @pytest.mark.parametrize("slug", SIX)
 def test_the_payload_is_byte_identical_to_v0211(slug: str) -> None:
     recorded = json.loads(PAYLOADS.read_text(encoding="utf-8"))
-    assert _payload(slug, tuple(recorded["volatile"])) == recorded["payloads"][slug]
+    assert _payload(slug, tuple(recorded["volatile"])) == _sanctioned(slug, recorded["payloads"][slug])
+
+
+def test_the_flagships_payload_sanction_moves_only_its_gallery() -> None:
+    recorded = json.loads(PAYLOADS.read_text(encoding="utf-8"))["payloads"]["clockwork-dark"]
+    before, after = json.loads(recorded), json.loads(_sanctioned("clockwork-dark", recorded))
+    assert after != before
+    after["endings"]["gallery"] = before["endings"]["gallery"]
+    assert after == before
 
 
 _CHILD = """

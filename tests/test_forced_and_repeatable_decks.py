@@ -590,13 +590,16 @@ SHIPPED_REPEATABLE = {("hue-and-cry", "interrogation"), ("hue-and-cry", "lantern
                       ("read-receipts", "boiler"), ("read-receipts", "parcel"),
                       # v0.24.0 T2: the four remaining life-event decks.
                       ("read-receipts", "neighbour_party"), ("read-receipts", "lift_out"),
-                      ("read-receipts", "family_visit"), ("read-receipts", "wedding_invite")}
+                      ("read-receipts", "family_visit"), ("read-receipts", "wedding_invite"),
+                      # v0.25.0 T6: the flagship's first three door decks (§4.3).
+                      ("clockwork-dark", "the_morning_firing"), ("clockwork-dark", "the_count_kept"),
+                      ("clockwork-dark", "the_muster_roll")}
 
 
 def test_only_hue_and_crys_six_decks_opt_in() -> None:
     """Byte-identical by construction for every other story: nothing else
-    shipped declares either key (HUE & CRY's six, and READ RECEIPTS' six life-event moments: two since v0.23.0 T17, four since v0.24.0 T2,
-    which only a story with `paths.social` can ever deal)."""
+    shipped declares either key (HUE & CRY's six, READ RECEIPTS' six life-event moments: two since v0.23.0 T17, four since v0.24.0 T2,
+    which only a story with `paths.social` can ever deal, and since v0.25.0 the flagship's decks, every one repeatable, §4.3)."""
     root = Path(__file__).resolve().parents[1] / "games"
     opted: set[tuple[str, str]] = set()
     for path in root.glob("*/data/**/*.yaml"):

@@ -1,0 +1,60 @@
+# The Clockwork Dark -- the muster roll (v0.25.0 §4.3).
+# ==========================================================================
+# Millhaven gate or Edgewood square, while Sergeant Sera Venn is there
+# (`npc_here`, which asks npc_sim): her routine (the gate by day, the
+# square's notice board 18:00-20:59, asleep 00:00-04:59, drilling and not to
+# be had 14:00-17:59), the press's day, and the square for good once the
+# doom moves her there (doom_effects.yaml, 0.88). One door:
+#   M1  The Counted March (`strike_it`), or `not_yet`, which ends nothing
+# REPEATABLE, draw 1: "not yet" is never the last chance (director.rearm
+# deals again on the next visit that finds her there). The deck's `when:`
+# ends in `any:` of its card's own gate (plan decision 3), so it is due only
+# when the card can be dealt. The lock runs before its module; no beat
+# carries more than four effects.
+#
+# Version: v0.1.0 [2026-10-28]
+
+id: the_muster_roll
+repeatable: true
+draw: 1
+
+when:
+  all:
+    - { at_location: [millhaven_gate, edgewood_square] }
+    - { npc_here: npc_sera }
+    - any:
+        - { ending: { eligible: the_counted_march } }
+
+cards:
+  - id: M1_strike_the_name
+    title: "The roll"
+    when: { ending: { eligible: the_counted_march } }
+    tags: [menu, march, door]
+    text: >-
+      INTENT: Sergeant Venn with the levy roll open, the player's name in the
+      column for those who served. She can strike it, cleanly, the way she
+      does everything. CONSTRAINTS: She does not thank anyone. Striking it
+      ends the story; not yet ends nothing.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: strike_it
+        label: "Ask her to strike your name"
+        text: >-
+          Ask Sera to strike your name off the roll. This ends the story: The
+          Counted March.
+        gate:
+          on_pass:
+            text: >-
+              One clean line. "Done, then," she says.
+            effects:
+              - { type: reputation, faction: militia, delta: 5 }
+              - { type: ending_lock, ending: the_counted_march }
+              - { type: ending_module }
+      - id: not_yet
+        label: "Not yet"
+        text: >-
+          Leave your name where it is a while longer.
+        gate:
+          on_pass:
+            text: >-
+              She closes the roll on it. It will keep.

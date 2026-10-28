@@ -24,8 +24,10 @@ sound blueprint's three URL rules) and S12 (``paths.sounds`` in the catalogue ro
 of the stories that declare sounds: five rows, ``EXPECTED_SOUNDS_ROWS``), and
 v0.25.0 adds S14 (the overlay's route and socket handler), S15 (the
 factions route), S16 (the codex's declared souls), S17 (Nessa met in the
-flagship's recorded run) and S18 (the flagship's banded roads and its two
-secret places on the no-session map). There are no others.
+flagship's recorded run), S18 (the flagship's banded roads and its two
+secret places on the no-session map) and S19 (the flagship's doors named: its
+gallery's gates, lock reasons and teases, and its `paths.decks`). There are no
+others.
 
 The capture opens no socket (Flask's and Socket.IO's test clients), writes
 nothing outside the test's temp directory (asserted, by an audit hook), and
@@ -764,12 +766,179 @@ def with_the_banded_map(value: Any) -> None:
 MAP_SANCTION: tuple[str, Callable[[str], str]] = (S18_FIXTURE, json_sanction(with_the_banded_map))
 
 
+#: S19's gallery rows (v0.25.0 T6, §4.2): per ending, the recorded ``gate`` and
+#: ``lock_reason`` and what each reads since, and the ``tease`` each gains. A row
+#: absent from ``S19_GATES`` keeps its gate and lock reason. Every recorded run
+#: stands on day 1 with nothing earned, so each row's lock reason is the same in
+#: every fixture.
+S19_GATES: dict[str, tuple[tuple[str, str], tuple[str, str]]] = {
+    "the_hearth_holds": (
+        ("any: [{'quest_completed': 'bakery_apprentice'}, {'quest_completed': 'winter_stores'}, "
+         "{'quest_completed': 'neighbours_ro and flag: nf_hearth_book_closed",
+         "any: [{'quest_completed': 'bakery_apprentice'}, {'quest_completed': 'winter_stores'}, "
+         "{'quest_completed': 'neighbours_ro and flag: nf_hearth_taking_stock"),
+        ("Nobody in Edgewood would miss you yet, and that is the whole of what this ending is made of. "
+         "You have not said you are staying. Not out loud, not to yourself.",
+         "Nobody in Edgewood would miss you yet, and that is the whole of what this ending is made of. "
+         "You have not walked your life here end to end and seen what it adds up to."),
+    ),
+    "the_long_witness": (
+        ("min_awareness: 30 and any: [{'quest_completed': 'childs_drawing'}, {'quest_completed': 'not_right'}, "
+         "{'quest_completed': 'rumour_made_true'},  and any: [{'flag': 'nf_hearth_book_closed'}, "
+         "{'quest_completed': 'the_last_quiet_thing'}]",
+         "min_awareness: 30 and any: [{'quest_completed': 'childs_drawing'}, {'quest_completed': 'not_right'}, "
+         "{'quest_completed': 'rumour_made_true'},  and reputation: {'faction': 'unnamed_saints', 'min': 30} "
+         "and min_day: 27"),
+        ("You have not seen anything you could not explain to yourself by breakfast. The wrong things have "
+         "been in front of you for weeks. You have not once looked twice. Knowing is not this. Staying with "
+         "what you know is this, and you have not chosen it.",
+         "You have not seen anything you could not explain to yourself by breakfast. The wrong things have "
+         "been in front of you for weeks. You have not once looked twice. The shrine's women have not counted "
+         "you among the ones who keep the count. Three counts of nine days have not yet passed with you here "
+         "to see them."),
+    ),
+    "the_counted_march": (
+        ("arc_unlocked: march and reputation: {'faction': 'militia', 'min': 20} and any: "
+         "[{'quest_completed': 'militia_press'}, {'quest_completed': 'conscription_list'}, "
+         "{'quest_completed': 'toll_roads'}, and flag: nf_hearth_book_closed",
+         "arc_unlocked: march and reputation: {'faction': 'militia', 'min': 20} and any: "
+         "[{'quest_completed': 'militia_press'}, {'quest_completed': 'conscription_list'}, "
+         "{'quest_completed': 'toll_roads'},"),
+        ("The road inward has soldiers on it, and you have not once stood where they could count you. Sera's "
+         "ledger has your name in the column for strangers. Strangers are not mustered out; they are moved on. "
+         "You have watched the arithmetic being done with people. Watching is not a discharge. The sergeant "
+         "cannot strike a name that has not said it is done.",
+         "The road inward has soldiers on it, and you have not once stood where they could count you. Sera's "
+         "ledger has your name in the column for strangers. Strangers are not mustered out; they are moved on. "
+         "You have watched the arithmetic being done with people, and never once stood your night on the wall "
+         "or seen a levy through."),
+    ),
+    "the_named_wound": (
+        ("quest_completed: naming_the_wound and quest_completed: what_edgewood_keeps",
+         "quest_completed: naming_the_wound and quest_completed: what_edgewood_keeps and any: "
+         "[{'quest_completed': 'the_last_quiet_thing'}, {'quest_state': {'quest': 'the_last_quiet_thing', "
+         "'stage_at_least': 2"),
+        ("It is still eleven separate wrong things to you. It has a shape, and you have not paid what looking "
+         "at it costs. Edgewood does not know what you know, and what it does not know it cannot choose about.",
+         "It is still eleven separate wrong things to you. It has a shape, and you have not paid what looking "
+         "at it costs. Edgewood does not know what you know, and what it does not know it cannot choose about. "
+         "You have not stood at the oven for the last quiet morning."),
+    ),
+    "the_price_asked": (
+        ("quest_completed: the_sacrifice and flag: nf_sacrifice_paid",
+         "quest_completed: naming_the_wound and flag: nf_sacrifice_chosen and flag: nf_sacrifice_paid"),
+        ("Sympathy takes a like for a like, and you have not put anything on the table. It is still in your "
+         "hands. Everything is negotiable until your hand comes off it.",
+         "It has no name yet, and sympathy cannot price what has no name. Sympathy takes a like for a like, "
+         "and you have not put anything on the table. It is still in your hands. Everything is negotiable "
+         "until your hand comes off it."),
+    ),
+    "the_pin_and_the_join": (
+        ("flag: nf_ninth_taken and has_item: {'id': 'ninth_pin', 'qty': 1} and quest_completed: "
+         "the_heartland_road",
+         "flag: nf_ninth_taken and has_item: {'id': 'ninth_pin', 'qty': 1} and any: "
+         "[{'quest_completed': 'the_heartland_road'}, {'quest_state': {'quest': 'the_heartland_road', "
+         "'stage_at_least': 2}}]"),
+        ("The ninth pin is still on Ilya's felt, and he has never once said it is not for sale. You had it, "
+         "and you spent it, or you left it somewhere a pin like that should never be left. You do not know "
+         "where it goes. It goes where the two ends of the road were made to meet.",
+         "The ninth pin is still on Ilya's felt, and he has never once said it is not for sale. You had it, "
+         "and you spent it, or you left it somewhere a pin like that should never be left. You do not know "
+         "where it goes. It goes where the two ends of the road were made to meet."),
+    ),
+}
+#: Every ending's tease, as data/rules/endings.yaml writes it (all eight gain one).
+S19_TEASES: dict[str, str] = {
+    "the_hearth_holds": "Maris at the oven before dawn, and a question she has stopped needing to ask.",
+    "the_long_witness": "Old Wenna at the shrine with her two candles, and room on her list for yours.",
+    "the_counted_march": "Sergeant Venn's roll at the gate, and one name on it she can strike.",
+    "the_named_wound": "The bakery at the morning firing, after the village has had its say.",
+    "the_price_asked": "Ilya's book of prices, and the column he keeps for what is not coin.",
+    "the_pin_and_the_join": "Ilya's felt, and the road past Millhaven gate that keeps getting shorter.",
+    "the_stopped_wheel": "The square, on a morning when no bell in Edgewood rings the hour.",
+    "the_dark_keeps_its_hours": "Edgewood's hours, kept whether or not you keep them.",
+}
+#: S19's payload fixtures and how many gallery blocks each carries.
+S19_GALLERIES: dict[str, int] = {
+    "clockwork-dark/http_turns.json": 2, "clockwork-dark/join_live.json": 2,
+    "clockwork-dark/new_game.json": 2, "clockwork-dark/save_load.json": 1,
+    "clockwork-dark/socket_resume.json": 2, "clockwork-dark/socket_stream_turn.json": 3,
+    "clockwork-dark/socket_turns.json": 2, "clockwork-dark/state.json": 1,
+}
+#: S19's catalogue fixtures: each carries one flagship row, which gains `paths.decks`.
+S19_CATALOGUES = ("games.json", "games_active.json", "games_clockwork-dark.json")
+S19_DECKS = "games/clockwork-dark/data/scenes"
+
+
+def named_doors_gallery(rows: list[dict[str, Any]]) -> None:
+    """
+    S19's change to one gallery block (v0.25.0 T6, §4.2): the six gates T6 rewrote
+    read their new clauses and lock reasons, and every ending gains its tease.
+    Shared with tests/test_social_seam.py, whose flagship payload carries the same
+    block. Nothing else in a row moves.
+    """
+    assert [r["id"] for r in rows] == list(S19_TEASES), [r["id"] for r in rows]
+    for row in rows:
+        assert "tease" not in row, "S19 applied twice"
+        if row["id"] in S19_GATES:
+            (gate_was, gate_now), (reason_was, reason_now) = S19_GATES[row["id"]]
+            assert (row["gate"], row["lock_reason"]) == (gate_was, reason_was), row["id"]
+            row["gate"], row["lock_reason"] = gate_now, reason_now
+        row["tease"] = S19_TEASES[row["id"]]
+
+
+def _galleries(value: Any) -> list[list[dict[str, Any]]]:
+    """Every flagship gallery block in a fixture, in document order."""
+    found: list[list[dict[str, Any]]] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "gallery" and isinstance(item, list) and any(
+                    isinstance(r, dict) and r.get("id") == "the_hearth_holds" for r in item):
+                found.append(item)
+            else:
+                found.extend(_galleries(item))
+    elif isinstance(value, list):
+        for item in value:
+            found.extend(_galleries(item))
+    return found
+
+
+def with_named_doors(expected: int) -> Callable[[str], str]:
+    """S19 on a payload fixture: exactly ``expected`` gallery blocks, each by ``named_doors_gallery``."""
+
+    def transform(value: Any) -> None:
+        blocks = _galleries(value)
+        assert len(blocks) == expected, (len(blocks), expected)
+        for rows in blocks:
+            named_doors_gallery(rows)
+
+    return json_sanction(transform)
+
+
+def with_flagship_decks(value: Any) -> None:
+    """S19 on a catalogue fixture: the flagship's row (and only it) gains `paths.decks`."""
+    body = value["json"]
+    rows = body["games"] if "games" in body else [body["manifest"]] if "manifest" in body else [body]
+    flagship = [row for row in rows if row.get("id") == "clockwork-dark"]
+    assert len(flagship) == 1, len(flagship)
+    paths = flagship[0]["paths"]
+    assert "decks" not in paths, "S19 applied twice"
+    paths["decks"] = S19_DECKS
+
+
+DOORS_SANCTION: list[tuple[str, Callable[[str], str]]] = [
+    *((name, with_named_doors(count)) for name, count in S19_GALLERIES.items()),
+    *((name, json_sanction(with_flagship_decks)) for name in S19_CATALOGUES),
+]
+
+
 #: ``(fixture name, transform)``: the recording, as the sanctioned change
 #: makes it. S1 since v0.20.0 T2, S2 since T3, S3-S10 since v0.21.0
 #: (spec §1.2; S7 added in T3 fix round 1, S8 in fix round 2, S9 in the
 #: encounter-resume fix, S10 in T13 fix round 1, S5 in T14), S11 since
 #: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10, S14 since v0.25.0 T2, S15 since
-#: v0.25.0 T3, S16 and S17 since v0.25.0 T4, S18 since v0.25.0 T5; there are no others.
+#: v0.25.0 T3, S16 and S17 since v0.25.0 T4, S18 since v0.25.0 T5, S19 since v0.25.0 T6;
+#: there are no others.
 SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     BIND_SANCTION,
     *SAVES_SANCTION,
@@ -789,6 +958,7 @@ SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     *DECLARED_SOULS_SANCTION,
     NESSA_SANCTION,
     MAP_SANCTION,
+    *DOORS_SANCTION,
 ]
 
 
@@ -1298,3 +1468,34 @@ def test_the_map_sanction_is_exact() -> None:
     assert after == before
     with pytest.raises(AssertionError, match="S18 applied twice"):
         MAP_SANCTION[1](MAP_SANCTION[1](recorded[S18_FIXTURE]))
+
+
+def test_the_doors_sanction_is_exact() -> None:
+    """
+    S19 changes, in each flagship payload fixture, exactly its gallery blocks'
+    six rewritten gates and lock reasons and the eight teases, and in each catalogue
+    fixture exactly the flagship row's `paths.decks`; undone, every fixture is the
+    recording again, and it cannot apply twice.
+    """
+    recorded = _recorded()
+    for name, sanction in DOORS_SANCTION:
+        before = json.loads(recorded[name])
+        after = json.loads(sanction(recorded[name]))
+        assert after != before, name
+        if name in S19_GALLERIES:
+            blocks = _galleries(after)
+            assert len(blocks) == S19_GALLERIES[name], name
+            for rows in blocks:
+                for row in rows:
+                    assert row.pop("tease") == S19_TEASES[row["id"]]
+                    if row["id"] in S19_GATES:
+                        (gate_was, gate_now), (reason_was, reason_now) = S19_GATES[row["id"]]
+                        assert (row["gate"], row["lock_reason"]) == (gate_now, reason_now)
+                        row["gate"], row["lock_reason"] = gate_was, reason_was
+        else:
+            body = after["json"]
+            rows = body["games"] if "games" in body else [body["manifest"]] if "manifest" in body else [body]
+            assert next(r for r in rows if r.get("id") == "clockwork-dark")["paths"].pop("decks") == S19_DECKS
+        assert after == before, name
+        with pytest.raises(AssertionError, match="S19 applied twice"):
+            sanction(sanction(recorded[name]))

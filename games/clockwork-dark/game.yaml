@@ -104,12 +104,19 @@ paths:
   encounters: "games/clockwork-dark/data/encounters"
   doom_effects: "games/clockwork-dark/data/rules/doom_effects.yaml"
   challenges: "games/clockwork-dark/data/challenges"
-  # The finale chain. Three doors carry the lock -- the quiet-life door
-  # (banking_the_fire), the sacrifice, and the last quiet thing -- and every
-  # locked ending resolves to a card in data/epilogues/. See the header of
-  # data/rules/endings.yaml for the shape.
+  # The finale. Every ending is locked BY NAME at its own door, a deck card
+  # (v0.25.0 §4.2): the morning firing's H1 and Q1, the count kept's W1, the
+  # muster roll's M1, and the rest as they land -- plus the terminal death,
+  # the fail-forward's second door. No quest carries an id-less lock any
+  # more. Each locked ending plays its module and shows its card in
+  # data/epilogues/. See the header of data/rules/endings.yaml for the shape.
   endings: "games/clockwork-dark/data/rules/endings.yaml"
   epilogues: "games/clockwork-dark/data/epilogues"
+  # The decks: fourteen at v0.25.0's end (§4.3), each a file here whose
+  # filename is the deck id -- the door decks, the critical-path decks and the
+  # levy's forced one. Every deck draws one card, and every one not forced
+  # is repeatable.
+  decks: "games/clockwork-dark/data/scenes"
   sounds: "games/clockwork-dark/data/sounds"   # the palette: brass and gears (v0.24.0 spec §9.2)
 
 entry:

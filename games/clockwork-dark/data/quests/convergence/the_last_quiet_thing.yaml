@@ -1,4 +1,4 @@
-# Version: v0.1.0 [2026-08-07]
+# Version: v0.2.0 [2026-10-28]
 #
 # The last quest in the last arc, and it is a bake.
 #
@@ -7,6 +7,16 @@
 # and a valley bought at a price, the game's final beat is an ordinary morning's
 # work done properly. The baker path is not the arc you leave behind. It is the
 # thing all the other arcs were about.
+#
+# THE LAST DOOR (v0.25.0 §4.3). The door is a deck card, not this quest: the
+# morning firing's Q1_tell_her_or_dont (data/scenes/the_morning_firing.yaml),
+# dealt at the bakery while Maris is there once The Named Wound is eligible --
+# which its `baked` clause makes true at this quest's third stage,
+# `tell_her_or_dont`. Both of Q1's beats lock The Named Wound BY NAME. Q0 sets
+# `show_up`'s flag in that stage's own hours. The quest opens on
+# what_edgewood_keeps alone: the_sacrifice and the_heartland_road end the
+# story at their own doors, so requiring either would make The Named Wound
+# unreachable.
 
 id: the_last_quiet_thing
 arc: convergence
@@ -18,10 +28,7 @@ summary: >-
 preconditions:
   all:
     - min_awareness: 62
-    - any:
-        - quest_completed: what_edgewood_keeps
-        - quest_completed: the_sacrifice
-        - quest_completed: the_heartland_road
+    - quest_completed: what_edgewood_keeps
 
 start_text: >-
   Maris is at the bakery at four in the morning, the way she has been every
@@ -108,15 +115,8 @@ on_complete:
     - type: ledger_fact
       text: "Whatever else is true, Edgewood had bread that morning."
       kind: event
-    # THE LAST DOOR. The final beat of the final arc is a morning's work done
-    # properly, and finishing it closes the book. The lock carries NO id --
-    # whatever the run has EARNED (engine/game/endings.py::resolve): the named
-    # wound if Edgewood chose knowing, the pin and the join if the ninth pin
-    # is set, the long witness for the run that knew and stayed, the stopped
-    # wheel if there is nothing left to save -- else the declared
-    # fail-forward. The id belongs to the player, not to the beat.
-    - { type: ending_lock }
-    - { type: ending_module }
+    # No lock here (v0.25.0 §4.1): the morning firing's Q1 locks The Named
+    # Wound by name (the header's THE LAST DOOR).
 
 complete_text: >-
   Edgewood has bread. The road is still coming. Both of those go on being true,
