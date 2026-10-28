@@ -91,6 +91,38 @@ encounters:
         difficulty: easy
         requires_item: loaf
         text: "Break off the heel of your bread and toss it over"
+        # The loaf is spent whatever the dog makes of it: every degree's block
+        # here takes it (approach-level outcomes win over the row's).
+        outcomes:
+          crit_success:
+            text: >-
+              It takes the bread out of the air, decides you are allowed, and
+              walks you the rest of the way with its shoulder against your knee.
+            effects:
+              - { type: remove_item, item_id: loaf, qty: 1 }
+              - { type: awareness, delta: 1 }
+              - { type: reputation, faction: edgewood, delta: 1 }
+          success:
+            text: >-
+              It eats the bread in two bites, sniffs your hand for more, and
+              trots off to wherever the burner is.
+            effects:
+              - { type: remove_item, item_id: loaf, qty: 1 }
+          partial:
+            text: >-
+              It eats the bread and lets you by, but walks behind you, close,
+              for a long way, in case there is more.
+            effects:
+              - { type: remove_item, item_id: loaf, qty: 1 }
+              - { type: stamina, delta: -5 }
+          failure:
+            text: >-
+              It takes the bread, and then your sleeve, and lets go only when
+              somebody whistles from deeper in the trees.
+            effects:
+              - { type: remove_item, item_id: loaf, qty: 1 }
+              - { type: hp, delta: -2 }
+              - { type: stamina, delta: -6 }
       back_off:
         skill: survival
         difficulty: easy

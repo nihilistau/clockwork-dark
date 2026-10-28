@@ -50,6 +50,8 @@ spoilers:
   - term: "Works Below the Stump"
     instead: "the cold under the clearing"
     location: the_works
+  # Case-sensitive: the capital is the name; a carpenter's "join" is not it.
   - term: "the Join"
     instead: "the far end of the inward road"
     location: the_join
+    case_sensitive: true
