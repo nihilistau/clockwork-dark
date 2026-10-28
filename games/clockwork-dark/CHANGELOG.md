@@ -29,8 +29,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Leaving the ninth pin no longer grants it (bug 1): `the_ninth_pin`'s `take_it_or_dont` stage granted the pin in its `on_complete` whether it was taken or left. The pin is now the `take_it` card beat's to grant (v0.25.0 T8); the stage keeps its doom resistance and the tinkers' +15.
+- Leaving the ninth pin no longer grants it (bug 1): `the_ninth_pin`'s `take_it_or_dont` stage granted the pin in its `on_complete` whether it was taken or left. The stage keeps its doom resistance and the tinkers' +15. The pin will be the `take_it` beat's to grant on v0.25.0 T8's `T3_take_it_or_dont` card; until then nothing grants it, and The Pin and the Join and paying the price with the pin are NOT WIRED.
 - The sacrifice takes the thing offered (bug 2): `the_sacrifice`'s `pay_it` stage removed the written name whatever was chosen, and closed only once the written name was gone. The price's `S2` beat removes exactly the thing offered; the stage now closes on `nf_sacrifice_paid` alone, and the quest no longer locks The Price Asked itself (the card does).
+- A v0.24.0 save whose narrator already raised `nf_sacrifice_paid` while still holding the written name completes `pay_it` with nothing removed (the stage no longer removes the name). Accepted: only an old save can reach it.
 - Four flags are no longer the narrator's to raise: `nf_ninth_taken`, `nf_ninth_left`, `nf_sacrifice_chosen` and `nf_sacrifice_paid` leave their stages' `narrative_flags` (§4.1); card beats write them.
 - The inward road's join is a place (bug 4): `the_heartland_road`'s `walk_the_join` stage completed at Millhaven gate; it now completes at `the_join`, past the heartland road.
 - The sealed seam's riddle counts its own answer (bug 6): the prompt said "six letters" for `time`; it says "four letters".

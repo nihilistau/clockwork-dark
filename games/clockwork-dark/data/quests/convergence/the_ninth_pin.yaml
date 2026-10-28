@@ -68,10 +68,12 @@ stages:
           faction: tinkers
           delta: -5
 
-  # Taken or left on a card, not by the narrator (v0.25.0 §4.1): the deck
-  # beat `take_it` writes nf_ninth_taken and grants the pin; `leave_it`
-  # writes nf_ninth_left and grants nothing. Bug 1: this stage's on_complete
-  # granted the pin either way.
+  # Taken or left on a card, not by the narrator (v0.25.0 §4.1). Bug 1: this
+  # stage's on_complete granted the pin either way. NOT WIRED until v0.25.0
+  # T8: the card is T8's `T3_take_it_or_dont` (data/scenes/), whose `take_it`
+  # beat will write nf_ninth_taken and grant the pin and whose `leave_it` will
+  # write nf_ninth_left and grant nothing. Until it lands nothing writes
+  # either flag, so this stage does not complete.
   - id: take_it_or_dont
     objective: "Take the ninth pin, or leave it on the felt."
     complete_when:

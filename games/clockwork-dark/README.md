@@ -63,7 +63,7 @@ round again on the next visit, so "not yet" is never the last chance.
 | The Counted March | the march arc open, the militia at 20, a levy seen through (a march quest, or a night on the wall) | the gate or the square while Sera is there: `the_muster_roll` / `M1` / `strike_it` |
 | The Named Wound | named, decided, and the last quiet morning at its third stage | the bakery 04-09, Maris there: `the_morning_firing` / `Q1` / `tell_her` or `say_nothing` |
 | The Price Asked | named, chose (a thing offered at `S1`), paid | wherever Ilya is while the sacrifice is open: `the_price` / `S2` / the beat for the thing offered, which takes exactly that thing |
-| The Pin and the Join | the ninth pin taken and held, the join walked | at the Join: `the_join` / `J1` / `set_it` |
+| The Pin and the Join | the ninth pin taken and held, the join walked | at the Join: `the_join` / `J1` / `set_it`. **NOT WIRED** until v0.25.0 T8: nothing yet writes `nf_ninth_taken`/`nf_ninth_left` or grants the pin (T8's `T3_take_it_or_dont` card), so neither this door nor paying the price with the pin can be reached in play |
 | The Stopped Wheel | the doom reading at 1.0 | forced, not walked to: the declared event `the_last_hour` deals `the_stopped_wheel` / `Z1` once an open encounter or hand is done |
 
 ## Art

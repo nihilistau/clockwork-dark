@@ -193,7 +193,7 @@ ending; they feed only the gallery's closeness band. Each ending carries a one-s
 | The Counted March | `the_muster_roll` / `M1_strike_the_name` / `strike_it` (the gate or the square, Sera there) | wired (T6) |
 | The Named Wound | `the_morning_firing` / `Q1_tell_her_or_dont` / `tell_her` or `say_nothing` | wired (T6) |
 | The Price Asked | `the_price` / `S2_pay_it` / the beat for the thing offered at `S1` (wherever Ilya is, the sacrifice open) | wired (T7) |
-| The Pin and the Join | `the_join` / `J1_the_pin` / `set_it` (at the Join) | wired (T7) |
+| The Pin and the Join | `the_join` / `J1_the_pin` / `set_it` (at the Join) | the door is T7's; **NOT WIRED** until v0.25.0 T8: nothing writes `nf_ninth_taken`/`nf_ninth_left` or grants the ninth pin, so `the_ninth_pin` stalls at `take_it_or_dont` (`games/clockwork-dark/data/scenes/`, T8's `T3_take_it_or_dont`). Paying the price with the pin (`the_price` / `S2` / `pay_the_pin`) waits on the same card |
 | The Stopped Wheel | `the_stopped_wheel` / `Z1_the_last_morning`, forced by the declared event `the_last_hour` (the reading at 1.0) | wired (T7) |
 
 ### The Assistant (Lore)

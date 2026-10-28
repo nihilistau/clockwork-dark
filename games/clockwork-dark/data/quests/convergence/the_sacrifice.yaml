@@ -1,9 +1,11 @@
 # Version: v0.2.0 [2026-10-29]
 #
-# The sacrifice quest. Note what the engine will and will not do: it checks
-# that a price was actually paid (an item gone, Focus spent, a wound taken), and
-# it will not close the stage on narration alone. "The player gave something up"
-# is exactly the kind of claim a model will make for free.
+# The sacrifice quest. Note what the engine will and will not do: it will not
+# close a stage on narration alone. "The player gave something up" is exactly
+# the kind of claim a model will make for free. Since v0.25.0 the choosing and
+# the paying are cards (data/scenes/the_price.yaml): S1 offers a thing carried,
+# and S2 removes exactly that thing and writes nf_sacrifice_paid, the only
+# flag pay_it reads; this quest's own effects spend Focus and leave the wound.
 
 id: the_sacrifice
 arc: convergence

@@ -556,7 +556,7 @@ def _without_t7_ending(rules: dict) -> dict:
     return {**rules, "terminal": terminal}
 
 
-def _death_digest(case: str) -> str:
+def _death_digest(case: str, monkeypatch: pytest.MonkeyPatch) -> str:
     from engine.games import registry
 
     slug, scene, where = {
@@ -565,12 +565,11 @@ def _death_digest(case: str) -> str:
         "neon_respawn": ("neon-city", "storm_front", "the_grid"),
     }[case]
     registry.activate(slug)
-    real_rules = encounter.load_death_rules
     try:
         terminal = case == "flagship_terminal"
         if terminal:
-            recorded = _without_t7_ending(real_rules())
-            encounter.load_death_rules = lambda: recorded
+            recorded = _without_t7_ending(encounter.load_death_rules())
+            monkeypatch.setattr(encounter, "load_death_rules", lambda: recorded)
         state = GameState(rng_seed=77, location_id=where, evil_progress=0.99 if terminal else 0.0)
         set_clock(state, day=3, hour=14)
         state.stats.gold = 40
@@ -592,7 +591,6 @@ def _death_digest(case: str) -> str:
                           sort_keys=True, default=str)
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()
     finally:
-        encounter.load_death_rules = real_rules
         registry.deactivate()
 
 
@@ -615,8 +613,8 @@ def test_the_t7_sanction_is_exactly_the_terminals_ending() -> None:
 
 
 @pytest.mark.parametrize("case", sorted(GOLDEN))
-def test_shipped_death_handling_is_byte_identical(case: str) -> None:
-    assert _death_digest(case) == GOLDEN[case]
+def test_shipped_death_handling_is_byte_identical(case: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert _death_digest(case, monkeypatch) == GOLDEN[case]
 
 
 #: sha256 of a HELD player's respawn in a story whose death.yaml does not opt

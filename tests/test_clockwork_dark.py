@@ -451,6 +451,39 @@ def test_s2_takes_exactly_the_thing_offered_and_the_price_is_asked(item_id: str)
     assert item_id not in held and set(others) <= held
 
 
+def test_paying_the_shard_completes_the_sacrifice_and_the_name_stays(flagship) -> None:
+    """Bug 2, the quest half: once S2 pays the shard, the_sacrifice completes through
+    QuestEngine.evaluate, the written name is still held and the card's lock stands
+    (pay_it removed the name and the quest locked the ending itself)."""
+    from engine.content import director
+    from engine.game import endings
+    from engine.game.quests import STATUS_COMPLETED, QuestEngine, progress_records
+
+    state = new_state()
+    state.arcs_unlocked.append("convergence")
+    doors.price_door_for("brass_shard")(state)
+    doors.effect(state, type="item", item_id="the_written_name", qty=1)
+    assert _deal(state, "the_price") == ["S2_pay_it"]
+    assert director.resolve(state, chosen="pay_the_shard")["ok"]
+    assert endings.locked(state) == "the_price_asked"
+    for _ in range(3):
+        QuestEngine.evaluate(state)
+    assert progress_records(state)["the_sacrifice"].status == STATUS_COMPLETED
+    held = {i.id for i in state.inventory if i.qty > 0}
+    assert "the_written_name" in held and "brass_shard" not in held
+    assert endings.locked(state) == "the_price_asked"
+
+
+def test_the_sacrifice_quest_locks_no_ending_the_card_does() -> None:
+    """Bug 2: the quest's on_complete locked The Price Asked itself. A lock is never walked
+    back, so a quest-level lock behind the card's is invisible in a drive; held by the file."""
+    from engine.games.validation import walk
+
+    quest = yaml.safe_load((STORY / "data" / "quests" / "convergence" / "the_sacrifice.yaml").read_text("utf-8"))
+    kinds = {node.get("type") for node in walk(quest)}
+    assert not kinds & {"ending_lock", "ending_module"}, kinds & {"ending_lock", "ending_module"}
+
+
 def test_s1_offers_one_beat_per_thing_carried(flagship) -> None:
     from engine.content import director
 
