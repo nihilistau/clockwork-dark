@@ -283,3 +283,31 @@ def test_sharing_bread_with_the_burners_dog_spends_the_loaf(
     receipt = encounter.resolve_approach(state, "share")
     assert receipt["ok"] and receipt["degree"] == degree, receipt
     assert sum(i.qty for i in state.inventory if i.id == "loaf") == before - 1
+
+
+def test_the_works_below_is_found_on_arrival(flagship) -> None:
+    from engine.game.effects import apply_effect
+    from engine.game.quests import QuestEngine, STATUS_COMPLETED, progress_records
+
+    state = new_state()
+    state.arcs_unlocked.append("whisper")          # long open by 0.70 (arcs.yaml); the arc writer is a list append
+    apply_effect(state, {"type": "flag", "flag": "seam_opened", "value": True})
+    state.location_id = "the_works"
+    for _ in range(3):
+        QuestEngine.evaluate(state)
+    assert progress_records(state)["the_works_below"].status == STATUS_COMPLETED
+    assert any(i.id == "brass_shard" for i in state.inventory)
+
+
+def test_the_join_is_where_the_road_is_walked() -> None:
+    quest = yaml.safe_load((STORY / "data" / "quests" / "convergence" / "the_heartland_road.yaml").read_text("utf-8"))
+    walk = next(s for s in quest["stages"] if s["id"] == "walk_the_join")
+    assert {"at_location": "the_join"} in walk["complete_when"]["all"]
+
+
+def test_the_seams_riddle_counts_its_own_answer() -> None:
+    doc = yaml.safe_load((STORY / "data" / "challenges" / "edgewood.yaml").read_text(encoding="utf-8"))
+    seam = next(p for p in doc["set_pieces"] if p["id"] == "sealed_seam")
+    answer = str(seam["challenge"]["answer"])
+    words = {4: "four", 5: "five", 6: "six"}
+    assert f"{words[len(answer)]} letters" in str(seam["challenge"]["prompt"])
