@@ -9,6 +9,7 @@ card-only walks and the presence sweep (T9).
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -98,6 +99,33 @@ def test_nessa_has_one_surname() -> None:
             text = path.read_text(encoding="utf-8")
             assert "Nessa Weller" not in text and "Weller girl" not in text, path
     assert "Weller" in (STORY / "data" / "quests" / "quiet_life" / "lost_goat.yaml").read_text(encoding="utf-8")
+
+
+#: An age as the story's text gives it: "a six-year-old", "She is six", "Nessa Fallow, nine".
+_AGE = re.compile(
+    r"\b(\w+)[- ]years?[- ]old\b|\bshe is (\w+)\b|\bNessa(?: Fallow)?, (\w+)\b", re.IGNORECASE
+)
+_NUMBER_WORDS = {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+                 "eleven", "twelve", "thirteen", "fourteen"}
+
+
+def test_nessa_is_nine_everywhere_the_story_gives_her_age() -> None:
+    """v0.25.0 T4 fix round 1 (the controller's ruling): the cast line, the portrait and the
+    quest gave a narrator two ages. Every age in a file that speaks of Nessa (or of her
+    drawing, `childs_drawing`) is nine."""
+    ages: list[tuple[str, str]] = []
+    for path in STORY.rglob("*"):
+        if not (path.is_file() and path.suffix in (".yaml", ".md", ".json")) or path.name == "CHANGELOG.md":
+            continue
+        text = path.read_text(encoding="utf-8")
+        if "Nessa" not in text and path.name != "childs_drawing.yaml":
+            continue
+        for match in _AGE.finditer(text):
+            word = next(g for g in match.groups() if g).lower()
+            if word in _NUMBER_WORDS or word.isdigit():
+                ages.append((path.name, word))
+    assert ages, "no age found: the pattern no longer reads the story"
+    assert all(word == "nine" for _, word in ages), ages
 
 
 def test_the_vines_bring_ilya_to_the_square(flagship) -> None:

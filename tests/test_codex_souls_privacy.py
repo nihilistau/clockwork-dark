@@ -99,6 +99,25 @@ def test_an_unmet_soul_carries_no_id_or_name() -> None:
     assert met["met"] is True and met["id"] == "npc_odran" and met["name"] == "Odran Cartwright"
 
 
+def test_a_souls_secret_home_is_not_named_until_the_place_is_known(
+    declared_cast: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """v0.25.0 T4 fix round 1: a soul's ``place`` passes ``locations.is_known``, the map's gate,
+    so a person who lives in a secret place does not name it before the player knows it."""
+    import engine.game.locations as locations
+    import engine.world.npc_sim as npc_sim
+
+    monkeypatch.setitem(locations.LOCATIONS, "hidden_den", {"name": "The Hidden Den", "secret": True})
+    monkeypatch.setattr(npc_sim, "load_npc_schedules", lambda: {"npcs": {
+        "npc_hallam": {"name": "Hallam", "role": "smith", "home": "hidden_den"},
+    }})
+    state = _state()
+    hidden = default_api.codex_souls(state, _ledger())["souls"][-1]
+    assert hidden["place"] == "" and "Hidden Den" not in json.dumps(hidden)
+    state.flags["location_known:hidden_den"] = True
+    assert default_api.codex_souls(state, _ledger())["souls"][-1]["place"] == "The Hidden Den"
+
+
 def test_with_no_session_nobody_is_met(monkeypatch: pytest.MonkeyPatch) -> None:
     import engine.game.procgen as procgen
 

@@ -437,7 +437,7 @@ def codex_souls(state: Any, ledger: Any = None) -> dict[str, Any]:
     The client reads it only as a React key and a tint seed. The role passes
     the awareness spoiler gate, met or not (v0.21.0 T3 fix round 1).
     """
-    from engine.game.locations import LOCATIONS
+    from engine.game.locations import LOCATIONS, is_known
 
     relations = getattr(ledger, "relations", {}) or {}
     npcs = list(getattr(getattr(state, "procgen", None), "npcs", []) or [])
@@ -470,6 +470,10 @@ def codex_souls(state: Any, ledger: Any = None) -> dict[str, Any]:
         relation = relations.get(npc_id)
         met = bool(getattr(relation, "met", False))
         place_id = str(npc.get("location_id") or "")
+        if place_id and not is_known(state, place_id):
+            # A secret place is named nowhere before the player knows it exists
+            # (``locations.is_known``, the map's own gate): not as a soul's home either.
+            place_id = ""
         souls.append(
             {
                 "id": npc_id if met else f"s{len(souls)}",

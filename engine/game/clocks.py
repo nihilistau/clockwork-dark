@@ -208,6 +208,7 @@ def _apply_npc_moves(
     with no error anywhere.
     """
     from engine.game.locations import LOCATION_IDS
+    from engine.world import npc_sim
 
     moves = spec.get("npc_moves", {}) or {}
     if not isinstance(moves, dict):
@@ -231,8 +232,6 @@ def _apply_npc_moves(
             continue
 
         npc = state.procgen.npc_by_id(npc_id)
-        from engine.world import npc_sim
-
         scheduled = npc_id in (npc_sim.load_npc_schedules().get("npcs") or {})
         if npc is None and not scheduled:
             logger.warning(
