@@ -61,16 +61,3 @@ def test_the_legacy_slots_roll_as_in_v0240(recorded: dict, slug: str) -> None:
 def test_hue_and_crys_endings_block_is_v0240s(recorded: dict) -> None:
     assert rec.hue_endings() == recorded["hue_endings"]
 
-
-def test_the_flagships_stub_run_is_v0240s_until_its_cast_arrives(recorded: dict) -> None:
-    """T2 ONLY (plan decision 8): the builder split moved no flagship catalogue. Deleted by T4,
-    whose four new people change who stands in the square, and so the turn schema's npc enum.
-
-    The catalogues and prompts only, never the save (controller ruling M22): T1 converted the
-    flagship's caravan, tinker and press to probabilistic declared events, so its save digest can
-    move for T1's reason. The catalogue and prompt digests are what the builder split could move.
-    The lore index is held empty by the recorder itself (``rec.active``)."""
-    run = rec.stub_run(rec.FLAGSHIP)
-    was = recorded["runs"][rec.FLAGSHIP]
-    assert run["catalogues"] == was["catalogues"]
-    assert run["prompts"] == was["prompts"]

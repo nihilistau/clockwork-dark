@@ -36,6 +36,7 @@ A graph story, and the one every other graph story was measured against:
 | Encounters played as scenes on the roads, in the forest, the village and the Marches | `data/encounters/` |
 | Set pieces in Edgewood | `data/challenges/edgewood.yaml` |
 | World events and schedules, NPC schedules, factions, rumours | `data/world/` |
+| The cast: five canon people (Maris, Odran, Ilya, Sera, Brindle) and three villagers a seed, plus four the lore named, declared with hourly routines since v0.25.0: Hallam the smith (the forge by day), Nessa Fallow (the square 09-16, the Fallow holding otherwise), old Wenna (the shrine at dawn and dusk, Well Row by day) and Edrin Fallow (his holding). The doom clock moves Ilya and Sera to the square, and Edrin and Nessa to the ditch camp at 0.88 | `data/world/npc_schedules.yaml`, `data/rules/doom_effects.yaml` |
 | A lore corpus for RAG | `data/lore/` |
 
 **Two agents** (`agents.yaml`, canon ids): `clockwork_storyteller` narrates,

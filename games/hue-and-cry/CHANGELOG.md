@@ -18,6 +18,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- The codex's Souls list HUE & CRY's declared cast (v0.25.0 T4, an engine change, spec §8.7): the fourteen people of `data/world/npc_schedules.yaml` (Ardane, Brask, the two lanterns, Mother Gannet, Silas, the fences, Quill, Lady Imelda, Tobiah, Sister Ember, Dock Mag and Wren) were missing from it, because it read only the generated households. Each is listed once, by role and home and as "Someone" until met, like every other soul; with no run they are the whole list. No content of this story changed, and its turns and saves do not move.
+
 ## [0.24.0] — 2026-10-27
 
 ### Added

@@ -13,6 +13,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Four people the lore already named are placed in the world (v0.25.0 T4, spec §3.3), declared in `data/world/npc_schedules.yaml` with routines covering every hour: Hallam the smith (the forge 06-18, the square 19-20, asleep on Well Row), Nessa Fallow (the Fallow holding mornings and evenings, the square 09-16 with the other children, asleep at the holding), old Wenna (the shrine 06-07 and 18-21, her Well Row doorstep by day, asleep there) and Edrin Fallow, Nessa's father (the Fallow holding all day, asleep 20-04). They are not in the procgen template, so no seed's village moves.
+- At 0.88 (`tower_assembles`, `data/rules/doom_effects.yaml`) Edrin and Nessa leave the holding for the ditch camp, beside Sera's move to the square.
+- The storyteller prompt's CAST section: one line for each of the four (`prompts/storyteller.md`); nothing else in the prompt moved.
+- Portrait prompts for the four in `data/art/subjects.yaml` (no plate yet: they render on the procedural tile until their plates are made).
+
+### Fixed
+
+- Nessa's surname corrected (bug 3): `childs_drawing.yaml`'s summary, its first objective and its ledger fact now call her Nessa Fallow, as the lore does. The other family `lost_goat` and `militia_press` name keeps its name.
+- The doom clock's moves place people: Ilya reaches the square at 0.50 and Sera at 0.88 (the engine fix is in the root CHANGELOG); before, their routines kept them where they were.
+
 ### Changed
 
 - The caravan, the tinker's camp and the militia press are declared `events:` (`data/world/schedules.yaml`), each rolled once per in-game day crossed on its own stream, at the legacy rates measured per eligible day (v0.25.0 T1): caravan 0.768 from day 5, tinker 0.00465, press 0.173 while awareness is 20 or more. Their rates no longer depend on how a day was cut into background ticks. Each carries its own line of text; the caravan's rumour is Odran's. The unread `goods:` lists are gone. The pre- and post-change tables are in the root CHANGELOG and the schedules file's header.

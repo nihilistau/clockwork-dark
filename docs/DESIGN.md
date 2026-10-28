@@ -160,6 +160,21 @@ game never punishes the baker for baking.
 | `npc_sera` | Sergeant Sera Venn | Millhaven militia; moral ambiguity |
 | `npc_brindle` | Brindle | Cat that is sometimes the Assistant |
 
+Four more people the lore already named, placed since v0.25.0. They are declared in
+`games/clockwork-dark/data/world/npc_schedules.yaml` only, never in the procgen template (its
+named list is drawn on the `PROCGEN` stream, so adding to it would regenerate every seed's village):
+
+| ID | Name | Where (hours) |
+|----|------|---------------|
+| `npc_hallam` | Hallam, the smith who mends anything but a clock | the forge 06-18; the square 19-20; asleep on Well Row 21-05 |
+| `npc_nessa` | Nessa Fallow, nine, who draws gears she has never seen | the Fallow holding 06-08 and 17-20; the square 09-16; asleep at the holding 21-05 |
+| `npc_wenna` | Old Wenna, eldest of the shrine's women | the shrine 06-07 and 18-21; Well Row 08-17; asleep there 22-05 |
+| `npc_edrin` | Edrin Fallow, Nessa's father | the Fallow holding 05-19; asleep there 20-04 |
+
+The doom clock moves people (`doom_effects.yaml` `npc_moves`): Ilya to the square at 0.50,
+and at 0.88 Sera to the square and Edrin and Nessa to the ditch camp (`refugee_camp`). A move is
+the override flag `npc_at_<id>`, which outranks a routine (below an event and a quest pin).
+
 ### The Assistant (Lore)
 
 The Assistant is **not** a UI tutorial. It is an entity (or entities) that the Storyteller also cannot fully control. In Edgewood folklore they are the **Grey Wanderer**, the **Cat Who Knows**, the **Tinker’s Shadow**. They may:

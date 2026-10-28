@@ -288,6 +288,28 @@ portraits:
     details: "one ear notched, unhurried, looking directly at the viewer"
     setting: "a windowsill or a fence post, everything behind it out of focus"
     mood: "knowing, entirely unbothered"
+  # v0.25.0 (§3.3, §9): the four people the lore named, now placed. Prompt
+  # fields only; no manifest row until their plates are made and promoted.
+  npc_hallam:
+    subject: "A broad village smith in his fifties in a scorched leather apron"
+    details: "burn-scarred forearms, sleeves rolled, a small tin of brass sweepings in one big hand"
+    setting: "the forge behind him, its glow on one side of his face, a slack tub steaming"
+    mood: "patient, stubborn, keeping a reason to himself"
+  npc_nessa:
+    subject: "A nine-year-old farm girl, chalk dust on her fingers and sleeves"
+    details: "a slate held against her chest with a toothed wheel drawn on it, hair cut short by someone in a hurry"
+    setting: "the Fallow farmyard, hens underfoot, packed dirt scratched with drawings"
+    mood: "absorbed, unafraid, far too sure of her lines"
+  npc_wenna:
+    subject: "A very old woman in a heavy shawl holding two lit candles"
+    details: "a deeply lined face, thin hands steady around the candles, a folded list tucked in her sleeve"
+    setting: "the village shrine at dusk, an unfinished mural behind her"
+    mood: "quiet, watchful, counting"
+  npc_edrin:
+    subject: "A lean farmer in his forties in a work-worn shirt"
+    details: "sun-dark neck, arms folded, not looking at the field behind him"
+    setting: "the edge of a wheatfield whose rows run unnaturally, perfectly straight"
+    mood: "uneasy, guarded, a man who no longer invites anyone out to look"
 
 # ------------------------------------------------------------
 # Items, keyed by the registry id in data/items/*.yaml.

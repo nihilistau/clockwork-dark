@@ -116,7 +116,7 @@ serialises through `to_save_dict` with no migration:
 | `discoveries` | `state.flags["discovery_<key>"]` |
 | `rumors` | `state.rumors`, deduped |
 | `world_events` | `state.world_events` |
-| `npc_moves` | `state.procgen.npcs[].location_id` — the village visibly empties |
+| `npc_moves` | `state.flags["npc_at_<id>"]`, the override `npc_sim.resolve_npc` ranks above a routine (since v0.25.0; a person with a routine was never moved by the procgen row alone), and for a procgen NPC also `state.procgen.npcs[].location_id` — the village visibly empties. A scheduled-only NPC (`npc_schedules.yaml`) is accepted |
 
 Beats are idempotent: each sets `doom_beat_<id>` and is skipped forever after.
 Idempotency is owned here, not by the caller.

@@ -421,3 +421,19 @@ def test_a_story_with_no_art_root_resolves_exactly_what_it_did_before(
     here is what would catch a change to it.
     """
     assert _count_resolved(load_manifest()) == FLAGSHIP_RESOLVED
+
+
+def test_the_four_new_people_are_on_the_procedural_tile_until_t15() -> None:
+    """v0.25.0 §9: a subject with prompt fields and no shipped plate (T15 makes the plates)."""
+    from engine.media.art import load_subjects
+    from engine.media.providers.base import ImageRequest
+    from engine.media.providers.shipped import lookup
+
+    registry.activate("clockwork-dark")
+    try:
+        portraits = load_subjects().get("portraits") or {}
+        for npc_id in ("npc_hallam", "npc_nessa", "npc_wenna", "npc_edrin"):
+            assert npc_id in portraits, npc_id
+            assert lookup(ImageRequest(subject_id=npc_id, kind="portrait")) is None, npc_id
+    finally:
+        registry.deactivate()

@@ -4,7 +4,7 @@ id: childs_drawing
 arc: whisper
 name: "What Nessa Draws"
 summary: >-
-  The Weller girl draws the same thing every day now. She has never been more
+  Nessa Fallow draws the same thing every day now. She has never been more
   than four miles from this village.
 
 preconditions:
@@ -18,7 +18,7 @@ start_text: >-
 
 stages:
   - id: see_it
-    objective: "Get a proper look at what the Weller girl has been drawing."
+    objective: "Get a proper look at what the Fallow girl has been drawing."
     narrative_flags:
       - nf_drawing_seen
     complete_when:
@@ -54,7 +54,7 @@ stages:
         - type: awareness
           delta: 3
         - type: ledger_fact
-          text: "Nessa Weller stopped drawing gears. Somebody made her stop."
+          text: "Nessa Fallow stopped drawing gears. Somebody made her stop."
           kind: event
 
   - id: keep_one

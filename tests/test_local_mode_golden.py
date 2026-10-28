@@ -22,8 +22,9 @@ encounter) and S10 (the pace slider's range, marks and hint), and v0.22.0
 adds S11 (READ RECEIPTS's row in the catalogue), and v0.24.0 adds S13 (the
 sound blueprint's three URL rules) and S12 (``paths.sounds`` in the catalogue rows
 of the stories that declare sounds: five rows, ``EXPECTED_SOUNDS_ROWS``), and
-v0.25.0 adds S14 (the overlay's route and socket handler) and S15 (the
-factions route). There are no others.
+v0.25.0 adds S14 (the overlay's route and socket handler), S15 (the
+factions route), S16 (the codex's declared souls) and S17 (Nessa met in the
+flagship's recorded run). There are no others.
 
 The capture opens no socket (Flask's and Socket.IO's test clients), writes
 nothing outside the test's temp directory (asserted, by an audit hook), and
@@ -628,12 +629,79 @@ SOUNDS_SANCTION: list[tuple[str, Callable[[str], str]]] = [
 ]
 
 
+#: S16's rows per fixture, in the schedule file's order: ``(role, place)`` of each
+#: person the story declares in ``npc_schedules.yaml`` and its procgen list lacks.
+#: The flagship's four (v0.25.0 T4, §3.3); HUE & CRY's whole declared cast.
+S16_DECLARED: dict[str, list[tuple[str, str]]] = {
+    "clockwork-dark/story_routes.json": [
+        ("smith", "Well Row"), ("child", "The Fallow Holding"),
+        ("shrine keeper", "Well Row"), ("farmer", "The Fallow Holding"),
+    ],
+    "hue-and-cry/story_routes.json": [
+        ("captain", "The Lantern House"), ("sergeant", "The Lantern House"),
+        ("watch", "The Lantern House"), ("watch", "The Lantern House"),
+        ("guild head", "The Snuffs"), ("upstart", "The Snuffs"), ("fence", "Wickmarket"),
+        ("fence", "The Snuffs"), ("steward", "Margrave's Hill"), ("noble", "Silk Row"),
+        ("chandler", "Chandlers' Rise"), ("priest", "Chandlers' Rise"),
+        ("porter boss", "Tallow Docks"), ("lamplighter", "The Snuffs"),
+    ],
+}
+
+
+def with_declared_souls(rows: list[tuple[str, str]]) -> Callable[[str], str]:
+    """
+    S16 (v0.25.0 T4, spec §8.7): both souls answers gain exactly the story's declared
+    people the procgen list lacks, after the recorded souls and unmet (opaque ``s<index>``,
+    "Someone", no traits or portrait), each its role and home. Nothing else moves.
+    """
+
+    def transform(value: Any) -> None:
+        for route in SOULS_ROUTES:
+            souls = value[route]["json"]["souls"]
+            for role, place in rows:
+                souls.append({
+                    "canon": False, "disposition": 0, "first_met_day": 0, "id": f"s{len(souls)}",
+                    "met": False, "name": "Someone", "place": place, "portrait": "", "role": role,
+                    "traits": [],
+                })
+
+    return json_sanction(transform)
+
+
+DECLARED_SOULS_SANCTION: list[tuple[str, Callable[[str], str]]] = [
+    (name, with_declared_souls(rows)) for name, rows in S16_DECLARED.items()
+]
+
+#: S17's fixture and the memory files in it that gain Nessa's relation.
+S17_FIXTURE = "save_tree_clockwork-dark.json"
+S17_MEMORIES = ("<save-1>/memory.json", "<save-1>/memory.json.bak")
+
+
+def with_nessa_met(value: Any) -> None:
+    """
+    S17 (v0.25.0 T4, §3.3): the flagship's recorded run stands in Edgewood Square on day 1
+    in Nessa Fallow's hours (09-16), so its memory (and the backup) meets her there, as it
+    met the people already standing there. Exactly one relation per memory file.
+    """
+    for name in S17_MEMORIES:
+        relations = value[name]["relations"]
+        assert "npc_nessa" not in relations, "S17 applied twice"
+        relations["npc_nessa"] = {
+            "debts": [], "disposition": 0, "first_met_day": 1, "kind": "npc", "known_facts": [],
+            "last_seen_day": 1, "last_seen_location": "edgewood_square", "met": True, "notes": [],
+            "npc_id": "npc_nessa", "owed": [], "tags": [], "trust": 0,
+        }
+
+
+NESSA_SANCTION: tuple[str, Callable[[str], str]] = (S17_FIXTURE, json_sanction(with_nessa_met))
+
+
 #: ``(fixture name, transform)``: the recording, as the sanctioned change
 #: makes it. S1 since v0.20.0 T2, S2 since T3, S3-S10 since v0.21.0
 #: (spec §1.2; S7 added in T3 fix round 1, S8 in fix round 2, S9 in the
 #: encounter-resume fix, S10 in T13 fix round 1, S5 in T14), S11 since
 #: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10, S14 since v0.25.0 T2, S15 since
-#: v0.25.0 T3; there are no others.
+#: v0.25.0 T3, S16 and S17 since v0.25.0 T4; there are no others.
 SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     BIND_SANCTION,
     *SAVES_SANCTION,
@@ -650,6 +718,8 @@ SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     *SOUNDS_SANCTION,
     OVERLAY_SANCTION,
     FACTIONS_SANCTION,
+    *DECLARED_SOULS_SANCTION,
+    NESSA_SANCTION,
 ]
 
 
@@ -1103,3 +1173,33 @@ def test_the_sounds_sanction_is_exact() -> None:
         assert all(l[2:].strip().rstrip(",") in allowed for l in changed), (name, changed)
         assert len(changed) == counts[name], (name, len(changed))
         assert "games/dev-story/data/sounds" not in after, name
+
+
+def test_the_declared_cast_sanctions_are_exact() -> None:
+    """
+    S16 adds exactly the counted declared souls to each souls answer of its two fixtures,
+    with their ids, and nothing else in either moves; S17 adds exactly Nessa's relation to
+    the two memory files of the flagship's save tree, and nothing else moves.
+    """
+    recorded = _recorded()
+    for name, transform in DECLARED_SOULS_SANCTION:
+        before, after = json.loads(recorded[name]), json.loads(transform(recorded[name]))
+        rows = S16_DECLARED[name]
+        for route in SOULS_ROUTES:
+            old, new = before[route]["json"]["souls"], after[route]["json"]["souls"]
+            assert new[: len(old)] == old, (name, route)
+            added = new[len(old):]
+            assert len(added) == len(rows), (name, route, len(added))
+            assert [soul["id"] for soul in added] == [f"s{i}" for i in range(len(old), len(old) + len(rows))]
+            assert [(soul["role"], soul["place"]) for soul in added] == rows
+            assert all(soul["met"] is False and soul["name"] == "Someone" for soul in added)
+            after[route]["json"]["souls"] = old
+        assert after == before, name
+    before = json.loads(recorded[S17_FIXTURE])
+    after = json.loads(NESSA_SANCTION[1](recorded[S17_FIXTURE]))
+    for name in S17_MEMORIES:
+        assert set(after[name]["relations"]) - set(before[name]["relations"]) == {"npc_nessa"}, name
+        del after[name]["relations"]["npc_nessa"]
+    assert after == before
+    with pytest.raises(AssertionError, match="S17 applied twice"):
+        NESSA_SANCTION[1](NESSA_SANCTION[1](recorded[S17_FIXTURE]))

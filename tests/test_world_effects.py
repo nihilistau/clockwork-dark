@@ -245,3 +245,14 @@ def test_doom_signs_reads_back_what_the_dark_did(state):
     signs = world_effects.doom_signs(state)
     assert signs
     assert all(isinstance(s, str) and s for s in signs)
+
+
+def test_a_doom_move_places_a_person_with_a_routine(state):
+    """v0.25.0 plan decision 1: the beat used to rewrite a procgen row a routine outranks."""
+    from engine.game.clock import set_clock
+    from engine.world import npc_sim
+
+    set_clock(state, day=state.world_day, hour=10)
+    world_effects.apply_beat(state, "vines_breach_forest")
+    assert npc_sim.resolve_npc(state, "npc_ilya").location_id == "edgewood_square"
+    assert state.flags["npc_at_npc_ilya"] == "edgewood_square"

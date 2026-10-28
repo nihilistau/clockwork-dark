@@ -87,11 +87,17 @@ def test_canon_npcs_cover_every_hour(npc_id: str):
 
 
 def test_routines_stay_on_the_canonical_map():
+    """The five canon people keep to the five canon places; every declared person
+    (v0.25.0's four live at the forge, Well Row, the shrine and the Fallow holding)
+    keeps to a place the live graph has."""
+    from engine.game import locations
+
     data = npc_sim.load_npc_schedules()
     for npc_id, cfg in (data.get("npcs") or {}).items():
-        assert cfg.get("home") in CANONICAL_LOCATION_IDS, npc_id
+        places = CANONICAL_LOCATION_IDS if npc_id in CANON_NPCS else locations.LOCATION_IDS
+        assert cfg.get("home") in places, npc_id
         for slot in cfg.get("routine", []):
-            assert slot["location"] in CANONICAL_LOCATION_IDS, (npc_id, slot)
+            assert slot["location"] in places, (npc_id, slot)
 
 
 def test_procedural_villagers_get_role_activities():

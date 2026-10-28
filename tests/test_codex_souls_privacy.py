@@ -57,6 +57,40 @@ def _quiet_art(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(default_api, "shipped_art_url", lambda subject, kind="enemy", *a, **k: f"/art/{kind}/{subject}.jpg")
 
 
+@pytest.fixture(autouse=True)
+def _only_this_cast(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The codex also lists the story's declared cast (v0.25.0 §8.7); these tests are
+    about CAST, so the schedule file declares nobody unless a test says otherwise."""
+    if "declared_cast" in request.fixturenames:
+        return
+    import engine.world.npc_sim as npc_sim
+
+    monkeypatch.setattr(npc_sim, "load_npc_schedules", lambda: {"npcs": {}})
+
+
+@pytest.fixture
+def declared_cast(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A schedule-only person beside CAST, as the flagship's four and HUE & CRY's cast are."""
+    import engine.world.npc_sim as npc_sim
+
+    monkeypatch.setattr(npc_sim, "load_npc_schedules", lambda: {"npcs": {
+        "npc_odran": {"name": "Odran Cartwright", "role": "caravan_master", "home": ""},
+        "npc_hallam": {"name": "Hallam", "role": "smith", "home": ""},
+    }})
+
+
+def test_a_declared_soul_is_listed_once_and_named_only_when_met(declared_cast: None) -> None:
+    """v0.25.0 §8.7: a person declared only in the schedule file is a soul like any other --
+    an opaque key and no name until met -- and one also in the procgen list is not listed twice."""
+    souls = default_api.codex_souls(_state(), _ledger())["souls"]
+    assert [soul["id"] for soul in souls] == ["s0", "s1", "s2"]
+    assert [soul["name"] for soul in souls] == ["Someone"] * 3
+    assert [soul["role"] for soul in souls] == ["baker", "caravan master", "smith"]
+    assert "Hallam" not in json.dumps(souls) and "npc_hallam" not in json.dumps(souls)
+    met = default_api.codex_souls(_state(), _ledger("npc_hallam"))["souls"][-1]
+    assert met["id"] == "npc_hallam" and met["name"] == "Hallam" and met["met"] is True
+
+
 def test_an_unmet_soul_carries_no_id_or_name() -> None:
     souls = default_api.codex_souls(_state(), _ledger("npc_odran"))["souls"]
     unmet, met = souls

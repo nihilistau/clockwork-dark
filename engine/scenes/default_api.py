@@ -451,6 +451,19 @@ def codex_souls(state: Any, ledger: Any = None) -> dict[str, Any]:
 
         npcs = list(load_templates().get("canon_npcs", []) or [])
 
+    # The cast every story declares in npc_schedules.yaml (v0.25.0 §8.7), deduplicated
+    # against the procgen list: the flagship's four new people are declared there only,
+    # and so is HUE & CRY's whole cast. Read from the schedule file, which needs no run.
+    from engine.world import npc_sim
+
+    seen = {str(n.get("id") or "") for n in npcs}
+    for npc_id, row in (npc_sim.load_npc_schedules().get("npcs") or {}).items():
+        if str(npc_id) in seen or not isinstance(row, dict):
+            continue
+        seen.add(str(npc_id))
+        npcs.append({"id": str(npc_id), "name": str(row.get("name") or ""), "role": str(row.get("role") or ""),
+                     "location_id": str(row.get("home") or ""), "traits": [], "canon": False})
+
     souls: list[dict[str, Any]] = []
     for npc in npcs:
         npc_id = str(npc.get("id") or "")
@@ -460,7 +473,7 @@ def codex_souls(state: Any, ledger: Any = None) -> dict[str, Any]:
         souls.append(
             {
                 "id": npc_id if met else f"s{len(souls)}",
-                "name": str(npc.get("name") or npc_id) if met else "Someone",
+                "name": str(npc.get("name") or npc_sim.display_name(npc_id, state)) if met else "Someone",
                 "role": _gated(str(npc.get("role") or "villager").replace("_", " "), state),
                 "place": str((LOCATIONS.get(place_id) or {}).get("name") or place_id),
                 "traits": [str(t) for t in (npc.get("traits") or [])] if met else [],
