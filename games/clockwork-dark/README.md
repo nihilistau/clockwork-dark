@@ -24,16 +24,16 @@ A graph story, and the one every other graph story was measured against:
 
 | What | Where |
 |---|---|
-| Twenty locations in rings out from the Wound; the five canon ids (`forest_clearing`, `edgewood_square`, `edgewood_bakery`, `tinker_caravan`, `millhaven_gate`) must not be renamed | `data/world/locations.yaml` |
+| Twenty-two locations in rings out from the Wound, two of them secret since v0.25.0 (the works below the stump, known once the sealed seam's riddle is solved; the Join on the inward road, known once the road is measured); the five canon ids (`forest_clearing`, `edgewood_square`, `edgewood_bakery`, `tinker_caravan`, `millhaven_gate`) must not be renamed | `data/world/locations.yaml` |
 | A village generated per seed: villagers, venues, the festival | `data/procgen_templates/edgewood.yaml` |
 | The **evil clock**: `dormant`, `stirring`, `spreading`, `consuming`, advancing whatever you do; pushing back buys reprieve (`doom_resistance`) | `data/rules/doom_effects.yaml`, `state.yaml` |
-| 25 quests in four arcs (`quiet_life`, `whisper`, `march`, `convergence`) that open on **awareness**, a hidden stat, so a baker who never listens stays a baker | `data/quests/` |
+| 26 quests in four arcs (`quiet_life`, `whisper`, `march`, `convergence`) that open on **awareness**, a hidden stat, so a baker who never listens stays a baker | `data/quests/` |
 | Eight ending classes and their epilogue cards | `data/rules/endings.yaml`, `data/epilogues/` |
 | Three archetypes: Wayfarer, Hearthkeeper, Tinker-apprentice | `data/rules/archetypes.yaml` |
 | Survival (stamina, hunger, hp; rest is never gated) and death rules: you are carried back to the square, and only a second death while the world is `consuming` ends the run | `data/rules/survival.yaml`, `data/rules/death.yaml` |
 | Trade with three vendors, paid work, foraging, boons and complications, collectable sets | `data/economy.yaml`, `data/tables/` |
 | Crafting: 22 recipes (baking, herbalism, mending), offered by the `craft` verb only where one can be made | `data/recipes/` |
-| Encounters played as scenes on the roads, in the forest, the village and the Marches | `data/encounters/` |
+| Encounters played as scenes on every road since v0.25.0: the forest walk, the Millhaven road, arrivals in the square and at the gate, and five bands for the rest (the wood, the barrows, the toll road, the heartland road, the works); only doors carry no danger | `data/encounters/` |
 | Set pieces in Edgewood | `data/challenges/edgewood.yaml` |
 | World events and schedules, NPC schedules, factions, rumours | `data/world/` |
 | The cast: five canon people (Maris, Odran, Ilya, Sera, Brindle) and three villagers a seed, plus four the lore named, declared with hourly routines since v0.25.0: Hallam the smith (the forge by day), Nessa Fallow (the square 09-16, the Fallow holding otherwise), old Wenna (the shrine at dawn and dusk, Well Row by day) and Edrin Fallow (his holding). The doom clock moves Ilya and Sera to the square, and Edrin and Nessa to the ditch camp at 0.88 | `data/world/npc_schedules.yaml`, `data/rules/doom_effects.yaml` |
@@ -53,7 +53,9 @@ participant (`pipeline: false`), so turns do not negotiate. Its hints are in
 The largest shipped pack, in `content/scenes/clockwork/static/art/` (the
 flagship's art root predates per-story art directories):
 `data/art/manifest.yaml` maps 20 locations, five Assistant forms, four
-portraits, 81 items, five enemies, UI plates and the dice.
+portraits, 81 items, five enemies, UI plates and the dice. The two secret
+places, the four new people and the new bands' six enemies have prompts but
+no plate yet, so they draw the procedural tile.
 `scripts/art_missing.py --game clockwork-dark` lists what is still missing,
 and `scripts/generate_art.py` (the default plan is this story's) fills it.
 

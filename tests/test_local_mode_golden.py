@@ -23,8 +23,9 @@ adds S11 (READ RECEIPTS's row in the catalogue), and v0.24.0 adds S13 (the
 sound blueprint's three URL rules) and S12 (``paths.sounds`` in the catalogue rows
 of the stories that declare sounds: five rows, ``EXPECTED_SOUNDS_ROWS``), and
 v0.25.0 adds S14 (the overlay's route and socket handler), S15 (the
-factions route), S16 (the codex's declared souls) and S17 (Nessa met in the
-flagship's recorded run). There are no others.
+factions route), S16 (the codex's declared souls), S17 (Nessa met in the
+flagship's recorded run) and S18 (the flagship's banded roads and its two
+secret places on the no-session map). There are no others.
 
 The capture opens no socket (Flask's and Socket.IO's test clients), writes
 nothing outside the test's temp directory (asserted, by an audit hook), and
@@ -696,12 +697,79 @@ def with_nessa_met(value: Any) -> None:
 NESSA_SANCTION: tuple[str, Callable[[str], str]] = (S17_FIXTURE, json_sanction(with_nessa_met))
 
 
+#: S18's fixture, its two map routes, and the 22 roads that carried `danger_dc: 0`
+#: with a `# needs band` note in the recording and carry a band's number since
+#: v0.25.0 T5 (§5.3), each with that number.
+S18_FIXTURE = "clockwork-dark/story_routes.json"
+S18_ROUTES = ("/api/codex/places", "/api/codex/places?session_id")
+S18_BANDED: dict[str, int] = {
+    "forest_clearing>deeper_forest": 6, "deeper_forest>forest_clearing": 6,
+    "forest_clearing>herb_glen": 6, "herb_glen>forest_clearing": 6,
+    "deeper_forest>herb_glen": 6, "herb_glen>deeper_forest": 6,
+    "deeper_forest>charcoal_burn": 6, "charcoal_burn>deeper_forest": 6,
+    "edgewood_square>charcoal_burn": 6, "edgewood_square>fallow_farm": 6,
+    "deeper_forest>old_barrows": 10, "old_barrows>deeper_forest": 10,
+    "old_barrows>tunnel_entrance": 10, "tunnel_entrance>old_barrows": 10,
+    "millhaven_gate>toll_bridge": 10, "toll_bridge>burned_farmstead": 10,
+    "burned_farmstead>toll_bridge": 10, "refugee_camp>burned_farmstead": 10,
+    "burned_farmstead>refugee_camp": 10, "millhaven_gate>refugee_camp": 10,
+    "toll_bridge>heartland_road": 14, "heartland_road>toll_bridge": 14,
+}
+#: The two secret places as the no-session map draws them (a codex with no
+#: player knows every place), each after the place it follows in the graph, and
+#: the road to each from its one neighbour (last in that neighbour's roads).
+S18_PLACES: tuple[tuple[str, dict[str, Any], tuple[str, dict[str, Any]]], ...] = (
+    ("tunnel_entrance", {
+        "discovered": True, "here": False, "id": "the_works", "image": "",
+        "name": "The Works Below the Stump", "points": [], "ring": 0,
+        "roads": [{"danger_dc": 12, "hours": 1, "name": "Forest Clearing", "to": "forest_clearing"}],
+    }, ("forest_clearing", {"danger_dc": 12, "hours": 1, "name": "The Works Below the Stump", "to": "the_works"})),
+    ("heartland_road", {
+        "discovered": True, "here": False, "id": "the_join", "image": "",
+        "name": "The Join", "points": [], "ring": 3,
+        "roads": [{"danger_dc": 14, "hours": 1, "name": "The Heartland Road", "to": "heartland_road"}],
+    }, ("heartland_road", {"danger_dc": 14, "hours": 1, "name": "The Join", "to": "the_join"})),
+)
+
+
+def with_the_banded_map(value: Any) -> None:
+    """
+    S18 (v0.25.0 T5, §3.4, §5.3): the flagship's map answers carry its banded roads
+    and, with no session only, its two secret places. In both map routes each of the
+    22 roads recorded at ``danger_dc: 0`` carries its band's number (asserted 0
+    before). With no session (no player, so every place known) the works and the
+    Join appear, on the procedural tile (``image`` ""), each with its one road, and
+    the road to each is added to its neighbour. With a session neither is known, so
+    nothing of them appears. Nothing else moves.
+    """
+    for route in S18_ROUTES:
+        places = value[route]["json"]["places"]
+        assert not {"the_works", "the_join"} & {p["id"] for p in places}, "S18 applied twice"
+        rebanded = 0
+        for place in places:
+            for road in place["roads"]:
+                leg = f"{place['id']}>{road['to']}"
+                if leg in S18_BANDED:
+                    assert road["danger_dc"] == 0, leg
+                    road["danger_dc"] = S18_BANDED[leg]
+                    rebanded += 1
+        assert rebanded == len(S18_BANDED), (route, rebanded)
+    places = value[S18_ROUTES[0]]["json"]["places"]
+    for after, place, (neighbour, road) in S18_PLACES:
+        index = next(i for i, p in enumerate(places) if p["id"] == after)
+        places.insert(index + 1, copy.deepcopy(place))
+        next(p for p in places if p["id"] == neighbour)["roads"].append(dict(road))
+
+
+MAP_SANCTION: tuple[str, Callable[[str], str]] = (S18_FIXTURE, json_sanction(with_the_banded_map))
+
+
 #: ``(fixture name, transform)``: the recording, as the sanctioned change
 #: makes it. S1 since v0.20.0 T2, S2 since T3, S3-S10 since v0.21.0
 #: (spec §1.2; S7 added in T3 fix round 1, S8 in fix round 2, S9 in the
 #: encounter-resume fix, S10 in T13 fix round 1, S5 in T14), S11 since
 #: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10, S14 since v0.25.0 T2, S15 since
-#: v0.25.0 T3, S16 and S17 since v0.25.0 T4; there are no others.
+#: v0.25.0 T3, S16 and S17 since v0.25.0 T4, S18 since v0.25.0 T5; there are no others.
 SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     BIND_SANCTION,
     *SAVES_SANCTION,
@@ -720,6 +788,7 @@ SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     FACTIONS_SANCTION,
     *DECLARED_SOULS_SANCTION,
     NESSA_SANCTION,
+    MAP_SANCTION,
 ]
 
 
@@ -1203,3 +1272,29 @@ def test_the_declared_cast_sanctions_are_exact() -> None:
     assert after == before
     with pytest.raises(AssertionError, match="S17 applied twice"):
         NESSA_SANCTION[1](NESSA_SANCTION[1](recorded[S17_FIXTURE]))
+
+
+def test_the_map_sanction_is_exact() -> None:
+    """
+    S18 rebands exactly the 22 counted roads in each map answer of the flagship's
+    story routes and adds exactly the two secret places (and the road to each) to the
+    no-session answer; nothing else in the fixture moves, and it cannot apply twice.
+    """
+    recorded = _recorded()
+    before = json.loads(recorded[S18_FIXTURE])
+    after = json.loads(MAP_SANCTION[1](recorded[S18_FIXTURE]))
+    secret = {"the_works", "the_join"}
+    for route in S18_ROUTES:
+        new = after[route]["json"]["places"]
+        added = [p["id"] for p in new if p["id"] in secret]
+        assert added == (["the_works", "the_join"] if route == S18_ROUTES[0] else []), route
+        new = [p for p in new if p["id"] not in secret]
+        for place in new:
+            place["roads"] = [r for r in place["roads"] if r["to"] not in secret]
+            for road in place["roads"]:
+                if f"{place['id']}>{road['to']}" in S18_BANDED:
+                    road["danger_dc"] = 0
+        after[route]["json"]["places"] = new
+    assert after == before
+    with pytest.raises(AssertionError, match="S18 applied twice"):
+        MAP_SANCTION[1](MAP_SANCTION[1](recorded[S18_FIXTURE]))

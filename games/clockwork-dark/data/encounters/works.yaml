@@ -1,0 +1,106 @@
+# The Works Below the Stump (v0.25.0 §5.3): the clearing<->works legs (danger_dc 12).
+# First values, unmeasured until T10 (rule 10).
+band: works
+
+encounters:
+  - id: oil_and_old_time
+    tier: 2
+    weight: 30
+    triggers:
+      edges: ["forest_clearing>the_works", "the_works>forest_clearing"]
+    intro: >-
+      The steps are slick with something that is not water. Below, a sound
+      like a great many small things being counted, very slowly, by something
+      that is in no hurry and has never once lost its place.
+    threat: { name: "The count below the stair", resolve: 3 }
+    approaches:
+      listen:
+        skill: lore
+        difficulty: standard
+        text: "Stand still and learn the count's rhythm"
+      steady:
+        skill: nerve
+        difficulty: standard
+        text: "Keep your feet and keep going"
+    outcomes:
+      crit_success:
+        text: >-
+          You find the rhythm and walk inside it, and the count does not notice
+          you any more than a clock notices dust.
+        effects:
+          - { type: awareness, delta: 3 }
+      success:
+        text: >-
+          You go down and come up with your feet under you and the count still
+          going behind you, unbothered.
+        effects:
+          - { type: awareness, delta: 2 }
+          - { type: stamina, delta: -6 }
+      partial:
+        text: >-
+          You slip twice on the oiled stone and the second time the count
+          pauses. Then it picks up exactly where it stopped.
+        effects:
+          - { type: stamina, delta: -10 }
+          - { type: awareness, delta: 2 }
+      failure:
+        text: >-
+          You go down hard on the stair and lie there listening to the count
+          go on as if you had not happened.
+        effects:
+          - { type: hp, delta: -3 }
+          - { type: stamina, delta: -12 }
+
+  - id: the_works_engine
+    tier: 3
+    weight: 20
+    art: the_works_engine
+    triggers:
+      edges: ["forest_clearing>the_works", "the_works>forest_clearing"]
+    intro: >-
+      A thing of brass and pinned leather is working in the dark, fitting one
+      cut stone to the next with the care of a mason who has forgotten what a
+      wall is for. It turns its head when you breathe.
+    threat: { name: "The works' engine", resolve: 4 }
+    approaches:
+      still:
+        skill: stealth
+        difficulty: hard
+        text: "Go perfectly still until it goes back to its stone"
+      jam:
+        skill: craft
+        difficulty: hard
+        text: "Wedge something into the joint it keeps turning"
+      run:
+        skill: survival
+        difficulty: standard
+        text: "Back up the stair the way you came"
+    outcomes:
+      crit_success:
+        text: >-
+          It goes back to its stone. You leave with the shape of its joints in
+          your head, which is worth more than anything you could have carried.
+        effects:
+          - { type: awareness, delta: 4 }
+          - { type: item, item_id: brass_shard, qty: 1 }
+      success:
+        text: >-
+          It loses interest in you the way weather does, all at once, and you
+          are on the stair before it remembers.
+        effects:
+          - { type: awareness, delta: 3 }
+          - { type: stamina, delta: -8 }
+      partial:
+        text: >-
+          A pinned arm catches your sleeve and lets it go, and the cloth comes
+          away with a neat row of holes in it, evenly spaced.
+        effects:
+          - { type: hp, delta: -3 }
+          - { type: awareness, delta: 2 }
+      failure:
+        text: >-
+          It does not hurt you so much as move you, the way it moves stone, and
+          you come to on the stair with your ribs telling you about it.
+        effects:
+          - { type: hp, delta: -6 }
+          - { type: stamina, delta: -12 }

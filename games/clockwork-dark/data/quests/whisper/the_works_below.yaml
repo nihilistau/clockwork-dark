@@ -1,0 +1,28 @@
+# Version: v0.1.0 [2026-10-27]
+#
+# A FIND (v0.25.0 §4.3): starts and completes on arrival in the works.
+id: the_works_below
+arc: whisper
+name: "The Works Below"
+summary: >-
+  Under the clearing, cut stone going down, and a count that keeps itself.
+preconditions:
+  all:
+    - at_location: the_works
+start_text: >-
+  The last step is not the last step. There is a floor below it, swept.
+stages:
+  - id: see_it
+    objective: "Stand in the works and see what is being built."
+    complete_when:
+      all:
+        - at_location: the_works
+    complete_text: >-
+      Not a tunnel. A gear-race, cut into the bedrock, waiting for its gear.
+on_complete:
+  effects:
+    - { type: awareness, delta: 6 }
+    - { type: item, item_id: brass_shard, qty: 1 }
+    - { type: ledger_fact, kind: secret, text: "Under the clearing there is a gear-race cut into the bedrock, waiting for its gear." }
+complete_text: >-
+  Whatever is coming has had the room ready for longer than Edgewood has had a name.

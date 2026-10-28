@@ -92,7 +92,7 @@ You wake at the forest's edge beside Edgewood, the last comfortable village
 before the Marches. The **evil clock** ticks through `dormant`, `stirring`,
 `spreading` and `consuming` whatever you do. Four story arcs (quiet life,
 whisper, march, convergence) open on **awareness**, a hidden stat, so a baker
-who never listens to the caravan master stays a baker. It has 25 quests,
+who never listens to the caravan master stays a baker. It has 26 quests,
 survival with rest that is never gated, crafting and recipes, trade, encounters
 played as scenes rather than a combat system, death rules, and an in-world
 companion (the Assistant) whose trust you earn. It has the largest shipped art

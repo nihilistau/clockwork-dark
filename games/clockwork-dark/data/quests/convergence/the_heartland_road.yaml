@@ -42,14 +42,14 @@ stages:
           kind: secret
 
   - id: walk_the_join
-    objective: "Walk the place where the two ends meet."
+    objective: "Walk the place where the two ends meet. Past the heartland road, where the hedges grow together."
     narrative_flags:
       - nf_road_walked
     expires_after_days: 3
     complete_when:
       all:
         - flag: nf_road_walked
-        - at_location: millhaven_gate
+        - at_location: the_join
         - hour_between: [10, 15]
     complete_text: >-
       Underfoot it is one road. The hedgerows on either side belong to two

@@ -19,9 +19,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - At 0.88 (`tower_assembles`, `data/rules/doom_effects.yaml`) Edrin and Nessa leave the holding for the ditch camp, beside Sera's move to the square.
 - The storyteller prompt's CAST section: one line for each of the four (`prompts/storyteller.md`); nothing else in the prompt moved.
 - Portrait prompts for the four in `data/art/subjects.yaml` (no plate yet: they render on the procedural tile until their plates are made).
+- Two secret places (v0.25.0 T5, spec §3.4): the works below the stump (`the_works`, ring 0, an hour from the clearing), known once the sealed seam's riddle is solved (`seam_opened`), and the Join (`the_join`, ring 3, an hour past the heartland road), known once the inward road is measured. Neither is offered, drawn or named before then; `data/rules/spoilers.yaml` masks each name in the prose until it is known. Location prompts for both in `data/art/subjects.yaml` (no plate yet: the procedural tile).
+- Every road is banded (spec §5.3): the 22 roads that carried `danger_dc: 0` with a `# needs band` note now carry 6 (the wood), 10 (the barrows and the toll road) or 14 (the heartland road), and the two new roads 12 (the works) and 14 (the Join). Five new encounter files take them, `wood.yaml`, `barrows.yaml`, `toll_road.yaml`, `heartland.yaml` and `works.yaml`, and `village.yaml` gains two rows for the walk out to the Fallow holding; the square's own rows are unchanged. Millhaven gate's market and barracks stay 0: they are doors. Every number in the new rows is a first value, measured in the release's balance pass. The new bands' six enemies (`barrow_cold`, `press_gang`, `toll_men`, `brass_hound`, `wrong_walker`, `the_works_engine`) draw the procedural tile until their plates are made.
+- A find, `the_works_below` (whisper arc): standing in the works completes it, for awareness, a brass shard and a secret in the ledger.
 
 ### Fixed
 
+- The inward road's join is a place (bug 4): `the_heartland_road`'s `walk_the_join` stage completed at Millhaven gate; it now completes at `the_join`, past the heartland road.
+- The sealed seam's riddle counts its own answer (bug 6): the prompt said "six letters" for `time`; it says "four letters".
 - Nessa's surname corrected (bug 3): `childs_drawing.yaml`'s summary, its first objective and its ledger fact now call her Nessa Fallow, as the lore does. The other family's lines (`lost_goat`, `militia_press`) are unchanged.
 - Nessa is nine everywhere (bug 3's two extra lines, the controller's ruling): `childs_drawing.yaml`'s completion text and its "nine-year-old" ledger fact said six, against the cast line, the portrait and the lore table.
 - The doom clock's moves place people: Ilya reaches the square at 0.50 and Sera at 0.88 (the engine fix is in the root CHANGELOG); before, their routines kept them where they were.

@@ -79,12 +79,15 @@ def test_content_pack_shape() -> None:
     are convergence quests that already existed, so only the quiet path needed
     a new one built. A player who bakes bread for forty days can now finish the
     game, which DESIGN.md has claimed since the beginning.
+
+    Twenty-six since v0.25.0 (§3.4, §4.3): `the_works_below`, the whisper
+    arc's find in the works under the clearing.
     """
     arcs = load_arcs()
     assert set(arcs) == {"quiet_life", "whisper", "march", "convergence"}
 
     definitions = load_quests()
-    assert len(definitions) == 25
+    assert len(definitions) == 26
 
     per_arc: dict[str, int] = {}
     for quest_id, definition in definitions.items():
@@ -98,7 +101,7 @@ def test_content_pack_shape() -> None:
             )
     assert per_arc == {
         "quiet_life": 7,
-        "whisper": 6,
+        "whisper": 7,
         "march": 6,
         "convergence": 6,
     }

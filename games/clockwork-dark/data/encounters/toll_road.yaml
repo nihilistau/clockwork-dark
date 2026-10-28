@@ -1,0 +1,235 @@
+# The Toll Road (v0.25.0 §5.3): the six danger_dc 10 lines past Millhaven gate:
+# the gate out to the toll bridge and to the ditch camp, and the bridge, the
+# camp and the burned farmstead between themselves. (The walks back to the gate
+# arrive at the gate, and marches.yaml has them.)
+# First values, unmeasured until T10 (rule 10).
+band: toll_road
+
+encounters:
+  - id: the_toll_men
+    tier: 1
+    weight: 30
+    art: toll_men
+    triggers:
+      edges:
+        - "millhaven_gate>toll_bridge"
+        - "toll_bridge>burned_farmstead"
+        - "burned_farmstead>toll_bridge"
+        - "refugee_camp>burned_farmstead"
+        - "burned_farmstead>refugee_camp"
+        - "millhaven_gate>refugee_camp"
+    intro: >-
+      Two men with a pole across the road and a tin on a stool, a long way from
+      any bridge. They are not wearing anybody's colours. They are wearing the
+      look of men who have found out what a pole is worth.
+    threat: { name: "The toll men", resolve: 3 }
+    approaches:
+      pay:
+        skill: persuasion
+        difficulty: easy
+        cost_gold: 2
+        text: "Put two coins in the tin and keep it friendly"
+      talk:
+        skill: persuasion
+        difficulty: standard
+        text: "Talk your way past without the tin"
+      round:
+        skill: stealth
+        difficulty: standard
+        text: "Double back and go round by the hedges"
+    outcomes:
+      crit_success:
+        text: >-
+          By the end of it they are telling you which stretch of road to stay
+          off tonight, and why, and the why is worth the walk.
+        effects:
+          - { type: awareness, delta: 2 }
+      success:
+        text: >-
+          The pole goes up. Neither of them says anything, which on this road
+          counts as good manners.
+        effects:
+          - { type: stamina, delta: -3 }
+      partial:
+        text: >-
+          You get by, but the long way round, and the long way round on this
+          road is very long.
+        effects:
+          - { type: stamina, delta: -10 }
+      failure:
+        text: >-
+          The bigger one decides the toll has gone up, and collects the
+          difference with his fist before the pole goes up.
+        effects:
+          - { type: hp, delta: -3 }
+          - { type: stamina, delta: -8 }
+
+  - id: a_press_gang
+    tier: 2
+    weight: 25
+    art: press_gang
+    triggers:
+      edges:
+        - "millhaven_gate>toll_bridge"
+        - "toll_bridge>burned_farmstead"
+        - "burned_farmstead>toll_bridge"
+        - "refugee_camp>burned_farmstead"
+        - "burned_farmstead>refugee_camp"
+        - "millhaven_gate>refugee_camp"
+      phases: [stirring, spreading, consuming]
+    intro: >-
+      Six men in militia coats and a sergeant with a list, walking the road in
+      a line, looking at every pair of shoulders they pass and counting under
+      their breath. The sergeant's list has a gap at the bottom.
+    threat: { name: "A press gang short of its number", resolve: 4 }
+    approaches:
+      no_list:
+        skill: persuasion
+        difficulty: hard
+        text: "Show them your name is on no list they have any right to"
+      slip:
+        skill: stealth
+        difficulty: standard
+        text: "Slip off the road before the line reaches you"
+    outcomes:
+      crit_success:
+        text: >-
+          The sergeant hears you out, checks his list twice, and moves on
+          looking, for a moment, like a man who would rather not be counting.
+        effects:
+          - { type: awareness, delta: 2 }
+          - { type: reputation, faction: militia, delta: 1 }
+      success:
+        text: >-
+          The line goes past you and on down the road, still counting, still
+          one short.
+        effects:
+          - { type: stamina, delta: -6 }
+      partial:
+        text: >-
+          You get clear, but one of them has your face now, and the sergeant
+          wrote something down.
+        effects:
+          - { type: stamina, delta: -8 }
+          - { type: reputation, faction: militia, delta: -1 }
+      failure:
+        text: >-
+          They have you by both arms for a long quarter hour before somebody
+          checks the list properly and lets you go, bruised and on record.
+        effects:
+          - { type: hp, delta: -3 }
+          - { type: stamina, delta: -10 }
+          - { type: reputation, faction: militia, delta: -2 }
+
+  - id: the_refugee_cart
+    tier: 1
+    weight: 25
+    triggers:
+      edges:
+        - "millhaven_gate>toll_bridge"
+        - "toll_bridge>burned_farmstead"
+        - "burned_farmstead>toll_bridge"
+        - "refugee_camp>burned_farmstead"
+        - "burned_farmstead>refugee_camp"
+        - "millhaven_gate>refugee_camp"
+    intro: >-
+      A handcart is down on one side in the ruts with its axle cracked, piled
+      with a whole house's worth of things, and a family standing round it not
+      saying what they are all thinking about the road behind them.
+    threat: { name: "A cart with a broken axle", resolve: 3 }
+    approaches:
+      mend:
+        skill: craft
+        difficulty: standard
+        text: "Splint the axle with whatever is to hand"
+      push:
+        skill: survival
+        difficulty: easy
+        text: "Get a shoulder under it and push it to the verge"
+    outcomes:
+      crit_success:
+        text: >-
+          The splint holds, and the father shakes your hand with both of his,
+          and tells you where they came from and what the road was doing there.
+        effects:
+          - { type: awareness, delta: 3 }
+          - type: ledger_fact
+            kind: engine
+            text: "A family on the toll road fled a village inward where the road had started arriving early."
+      success:
+        text: >-
+          You get the cart moving again, slowly, and the youngest walks beside
+          you for a while holding one corner of your coat.
+        effects:
+          - { type: awareness, delta: 1 }
+          - { type: stamina, delta: -8 }
+      partial:
+        text: >-
+          It goes to the verge and stays there. They thank you anyway, and
+          start unloading what they can carry.
+        effects:
+          - { type: stamina, delta: -8 }
+      failure:
+        text: >-
+          The axle gives the rest of the way with your weight on it, and the
+          cart comes down on your foot.
+        effects:
+          - { type: hp, delta: -3 }
+          - { type: stamina, delta: -10 }
+
+  - id: a_wrong_walker
+    tier: 3
+    weight: 15
+    art: wrong_walker
+    triggers:
+      edges:
+        - "millhaven_gate>toll_bridge"
+        - "toll_bridge>burned_farmstead"
+        - "burned_farmstead>toll_bridge"
+        - "refugee_camp>burned_farmstead"
+        - "burned_farmstead>refugee_camp"
+        - "millhaven_gate>refugee_camp"
+      phases: [spreading, consuming]
+    intro: >-
+      Somebody is coming down the road toward you, a man in a carter's smock,
+      and the closer he gets the more there is wrong with how he walks: every
+      step the same length, the arms swinging on a count, the head not moving.
+    threat: { name: "Someone walking wrong", resolve: 4 }
+    approaches:
+      eyes_down:
+        skill: nerve
+        difficulty: hard
+        text: "Keep walking and do not meet its eye"
+      off_road:
+        skill: stealth
+        difficulty: standard
+        text: "Get off the road and into the ditch before it comes level"
+    outcomes:
+      crit_success:
+        text: >-
+          It passes so close you could touch the smock, and you hear what is
+          keeping time inside it, and you do not look round.
+        effects:
+          - { type: awareness, delta: 4 }
+      success:
+        text: >-
+          It goes by on its count and does not turn, and you stay in the ditch
+          until the road is empty both ways.
+        effects:
+          - { type: awareness, delta: 3 }
+          - { type: stamina, delta: -6 }
+      partial:
+        text: >-
+          Its head turns as it passes, all at once, a quarter turn and back,
+          and you walk the rest of the road with that in your neck.
+        effects:
+          - { type: awareness, delta: 3 }
+          - { type: stamina, delta: -10 }
+      failure:
+        text: >-
+          It stops level with you. It puts one hand on your shoulder, exactly
+          as hard as it means to, and then walks on as if it had never stopped.
+        effects:
+          - { type: hp, delta: -5 }
+          - { type: stamina, delta: -10 }
+          - { type: awareness, delta: 3 }

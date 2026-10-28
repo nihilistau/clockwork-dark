@@ -257,6 +257,40 @@ locations:
         setting: "barred, with a watchman's brazier"
         light: "firelight and deep shadow"
 
+  the_works:
+    subject: "Worked stone steps going down beneath a forest clearing into a cut-stone chamber"
+    details: "square-cut bedrock walls, steps slick with dark oil, a great circular race cut into the floor"
+    times:
+      dawn:
+        setting: "grey light falling a short way down the stair, then none"
+        light: "a thin shaft from the seam above, oil shining on the steps"
+      day:
+        setting: "the stair lit only as far as the third step"
+        light: "daylight dying on the cut stone below the stump"
+      dusk:
+        setting: "the chamber all shadow, the race a darker ring"
+        light: "a last amber thread from above, everything else black"
+      night:
+        setting: "lit only by what the visitor carries"
+        light: "a single lantern glinting on oiled stone and brass filings"
+
+  the_join:
+    subject: "A country road where two different stretches of hedgerow have grown together along a seam"
+    details: "metalled road, two kinds of hedge meeting mid-stretch, milestones cut in the same hand"
+    times:
+      dawn:
+        setting: "mist lying along the seam in the hedges"
+        light: "flat pale dawn, the two hedgerows two different greens"
+      day:
+        setting: "the road empty in both directions"
+        light: "even daylight, no shadows to measure by"
+      dusk:
+        setting: "the hedges going black at slightly different rates"
+        light: "low red light along the metalling"
+      night:
+        setting: "the road a pale line between dark hedges"
+        light: "starlight, the milestones faintly white"
+
 # ------------------------------------------------------------
 # Portraits. Consistency comes from generating ONE base image per NPC and then
 # using image_edit for variants -- Grok Imagine has no seed parameter, so the

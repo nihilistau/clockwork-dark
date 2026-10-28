@@ -142,7 +142,7 @@ player, so its arrival alone cannot be the Whisper gate — that would drag ever
 baker into the arc on a dice roll. What separates the two arcs is not that the
 trader came, it is that the player **listened** to him.
 
-25 quests, six per arc and seven in `quiet_life` (`games/clockwork-dark/data/quests/<arc>/*.yaml`). Each arc is **valid**. The
+26 quests: six in `march` and `convergence`, seven in `quiet_life` and `whisper` (`games/clockwork-dark/data/quests/<arc>/*.yaml`). Each arc is **valid**. The
 game never punishes the baker for baking.
 
 > **Caveat, measured.** Convergence's `min_phase: spreading` term is a timer, not
@@ -773,20 +773,40 @@ Stored as `InventoryItem` in `GameState.inventory`.
 
 Location graph (not grid). Each edge has `travel_time_hours`, `danger_dc`, `awareness_delta`.
 
+The flagship's map (`games/clockwork-dark/data/world/locations.yaml`), by ring,
+with each road's `danger_dc` (0 is a door, which no encounter can come from):
+
 ```
-forest_clearing ──1h── edgewood_square ──4h── millhaven_gate
-         │                    ├── edgewood_bakery (0h)
-         │                    └── tinker_caravan (0h, event-gated)
+Ring 0  the deep forest
+  forest_clearing ─6─ deeper_forest ─10─ old_barrows ─10─ tunnel_entrance
+        │  └─6─ herb_glen ─6─┘    └─6─ charcoal_burn
+        └─12─ the_works          (SECRET: known once the sealed seam is solved)
+Ring 1  Edgewood
+  edgewood_square ─8─ forest_clearing, ─6─ charcoal_burn, ─6─ fallow_farm,
+                  ─12─ millhaven_gate; doors (0): bakery, caravan, shrine,
+                  forge, Well Row
+Ring 2  the Marches
+  millhaven_gate ─10─ toll_bridge ─10─ burned_farmstead ─10─ refugee_camp ─10─ millhaven_gate
+                 doors (0): market, barracks
+Ring 3  the heartland road
+  toll_bridge ─14─ heartland_road ─14─ the_join   (SECRET: known once the road is measured)
 ```
 
-Each edge carries `hours`, `danger_dc`, `awareness_delta`. Locations carry `evil_multiplier` (forest 0.5, bakery 0.7, Edgewood 0.8, caravan 0.9, Millhaven 1.2).
+Each edge carries `hours`, `danger_dc`, `awareness_delta`; the two directions may
+differ (the return legs into the square and the gate carry their own numbers). Each
+location carries `evil_multiplier` in three bands (hearth 0.25-0.4, mid 0.8-1.2, deep
+1.6-2.2; the file's header). A secret place (`secret: true`, `known_when:`) is offered,
+drawn and named only once `locations.is_known` holds; its spoiler row
+(`data/rules/spoilers.yaml`) masks its name in the prose until then.
 
 `move_to(location_id)` validates stamina, spends it, advances the clock through
 `clock.advance_time`, applies `awareness_delta`, and rolls the encounter table
-off the edge's `danger_dc`. Measured encounter rate on the one dangerous edge
-in the graph (`edgewood_square ↔ millhaven_gate`, `danger_dc: 12`): **0.42–0.89
-per leg** depending on hour and evil phase (`scripts/simulate.py`). Every other
-edge is `danger_dc: 0` and can never produce one.
+off the edge's `danger_dc`. Since v0.25.0 every road has a band in
+`data/encounters/` (forest, road, village, marches, wood, barrows, toll_road,
+heartland, works); the five new bands' numbers are first values, measured in
+the release's balance pass. Measured before v0.25.0 on the one dangerous edge
+then in the graph (`edgewood_square ↔ millhaven_gate`, `danger_dc: 12`):
+**0.42–0.89 per leg** depending on hour and evil phase (`scripts/simulate.py`).
 
 An unresolved scene is not overwritten by walking away from it. Travel always
 completes; the road does not get to hand you a second problem while the first
@@ -1682,7 +1702,7 @@ trusting this line — it has been stale before.
 | **P3** | Vite + React UI: design tokens, socket store, components and screens; Jinja serves the built app; UI contract tests |
 | **P4 / P5** | Survival (hunger, rest, the stamina soft-lock fix); the 7-skill taxonomy, difficulty bands, itemised modifiers, degrees; `effects.py` single mutation dispatcher; archetypes → starting kit; `skill_check`/`dc_mod` contract removed |
 | **P6** | Encounters as contested scenes; edge `danger_dc` finally read; wounds; death rules |
-| **P7** | Quest engine — 25 quests across 4 awareness-gated arcs, engine-only stage predicates, `set_narrative_flag` as the model's one lever |
+| **P7** | Quest engine — 26 quests across 4 awareness-gated arcs, engine-only stage predicates, `set_narrative_flag` as the model's one lever |
 | **P8** | Media providers: shipped art pack → cache → live generation (off by default) → deterministic procedural SVG |
 | **P9** | Content pass: items registry, economy, recipes, art manifest, content-integrity tests |
 | **P10** | Cutscene and settings UI; `engine/stack.py`, `launcher.py --stack/--check` |

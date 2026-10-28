@@ -437,3 +437,17 @@ def test_the_four_new_people_are_on_the_procedural_tile_until_t15() -> None:
             assert lookup(ImageRequest(subject_id=npc_id, kind="portrait")) is None, npc_id
     finally:
         registry.deactivate()
+
+
+def test_the_two_secret_places_are_on_the_procedural_tile_until_t15() -> None:
+    from engine.media.art import load_subjects
+    from engine.media.providers.base import ImageRequest
+    from engine.media.providers.shipped import lookup
+
+    registry.activate("clockwork-dark")
+    try:
+        for place in ("the_works", "the_join"):
+            assert place in (load_subjects().get("locations") or {}), place
+            assert lookup(ImageRequest(subject_id=place, kind="location")) is None, place
+    finally:
+        registry.deactivate()

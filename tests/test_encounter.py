@@ -763,15 +763,30 @@ def test_clockwork_is_reserved_for_the_late_phases():
 
 def test_every_art_key_exists_in_the_manifest():
     from engine.config import get_config
+    from tests.test_encounter_art import ENEMIES_ON_THE_TILE_UNTIL_T15
 
     path = encounter._ROOT / str(get_config().get("paths.art_manifest", "games/clockwork-dark/data/art/manifest.yaml"))
     with path.open(encoding="utf-8") as fh:
         enemies = set((yaml.safe_load(fh) or {}).get("enemies", {}))
 
+    used = set()
     for row in encounter.all_encounters():
         art = row.get("art")
         if art:
-            assert art in enemies, f"{row['id']} points at missing art '{art}'"
+            used.add(art)
+            assert art in enemies or art in ENEMIES_ON_THE_TILE_UNTIL_T15, (
+                f"{row['id']} points at missing art '{art}'"
+            )
+    assert ENEMIES_ON_THE_TILE_UNTIL_T15 <= used, ENEMIES_ON_THE_TILE_UNTIL_T15 - used
+
+
+def test_the_new_bands_enemies_are_on_the_procedural_tile_until_t15():
+    from engine.media.providers.base import ImageRequest
+    from engine.media.providers.shipped import lookup
+    from tests.test_encounter_art import ENEMIES_ON_THE_TILE_UNTIL_T15
+
+    for key in sorted(ENEMIES_ON_THE_TILE_UNTIL_T15):
+        assert lookup(ImageRequest(subject_id=key, kind="enemy")) is None, key
 
 
 def test_every_skill_and_band_is_one_the_engine_knows():

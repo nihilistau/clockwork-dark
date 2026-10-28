@@ -8,6 +8,9 @@
 # Note that the square's internal edges (bakery, caravan) carry danger_dc 0 and
 # can therefore never produce an encounter. That is deliberate. Crossing the
 # square to Maris's door is not an event.
+#
+# Since v0.25.0 the last two rows are not arrivals at the square: they are
+# written for the walk out to the Fallow holding (`to: [fallow_farm]`).
 
 band: village
 
@@ -442,3 +445,107 @@ encounters:
             check_penalty: -2
             skills: [nerve, sympathy, craft]
             heals_on_day: "+5"
+
+  # -- The walk out to the Fallow holding (v0.25.0 §5.3) --------
+  # The square's rows above are arrivals at the square; these two are written
+  # for the holding's own leg (`edgewood_square>fallow_farm`, danger_dc 6). The
+  # walk back arrives in the square and draws from the rows above.
+  # First values, unmeasured until T10 (rule 10).
+  - id: the_straight_rows
+    tier: 1
+    weight: 26
+    triggers:
+      to: [fallow_farm]
+    intro: >-
+      The track out to the Fallow holding runs along the wheat, and the wheat
+      stands in rows straighter than any drill could set them, every ear at
+      the same height. A crow lands on the nearest row and leaves again at once.
+    threat: { name: "Wheat in rows too straight", resolve: 3 }
+    approaches:
+      headland:
+        skill: survival
+        difficulty: easy
+        text: "Keep to the headland and do not touch the crop"
+      look:
+        skill: lore
+        difficulty: standard
+        text: "Stop and look along a row to see where it ends"
+    outcomes:
+      crit_success:
+        text: >-
+          Every row ends at the same stone in the far hedge, as if the whole
+          field were drawn to it from one point, the way spokes are.
+        effects:
+          - { type: awareness, delta: 3 }
+          - type: ledger_fact
+            kind: engine
+            text: "Every row of the Fallow wheat runs to one stone in the far hedge."
+      success:
+        text: >-
+          You walk the headland with your hands in your pockets and arrive at
+          the yard gate with nothing on you but dust.
+        effects:
+          - { type: awareness, delta: 1 }
+      partial:
+        text: >-
+          You look along a row too long, and lose a while to it, and the light
+          has moved when you look up.
+        effects:
+          - { type: awareness, delta: 2 }
+          - { type: stamina, delta: -6 }
+      failure:
+        text: >-
+          You step into the wheat to cut a corner, and the stalks close behind
+          you in their rows, and it takes a long time to find the track again.
+        effects:
+          - { type: stamina, delta: -12 }
+          - { type: awareness, delta: 1 }
+
+  - id: the_holding_gate_shut
+    tier: 1
+    weight: 20
+    triggers:
+      to: [fallow_farm]
+      phases: [stirring, spreading, consuming]
+    intro: >-
+      The yard gate at the Fallow holding is shut and roped, which it never
+      used to be, and the dog behind it does not bark, only watches you come
+      up the track the whole way.
+    threat: { name: "A gate roped shut", resolve: 3 }
+    approaches:
+      call:
+        skill: persuasion
+        difficulty: standard
+        text: "Call out across the yard and wait to be let in"
+      dog:
+        skill: sympathy
+        difficulty: easy
+        text: "Talk to the dog through the bars until somebody comes"
+    outcomes:
+      crit_success:
+        text: >-
+          Somebody comes out to the gate at last, and unties the rope, and
+          says you are the first person up the track in a week.
+        effects:
+          - { type: reputation, faction: edgewood, delta: 1 }
+          - { type: awareness, delta: 2 }
+      success:
+        text: >-
+          The rope comes off after a while, from the inside, by somebody who
+          does not say why it was on.
+        effects:
+          - { type: awareness, delta: 1 }
+      partial:
+        text: >-
+          Nobody comes. You let yourself in over the stile in the end, and the
+          dog follows you across the yard at a fixed distance.
+        effects:
+          - { type: stamina, delta: -5 }
+          - { type: awareness, delta: 1 }
+      failure:
+        text: >-
+          You climb the gate and the rope gives, and you land badly in the
+          yard, and the dog does not move at all.
+        effects:
+          - { type: hp, delta: -2 }
+          - { type: stamina, delta: -8 }

@@ -179,3 +179,110 @@ def test_the_prompt_names_the_four_and_nothing_else_moved() -> None:
         assert name in prompt
     for word in ("intensity", "explicit", "safety", "content limit"):
         assert word not in prompt.lower()          # rule 12
+
+
+# -- the map (T5, §3.4, §5.3) ----------------------------------------------------------------------
+
+LOCATIONS = STORY / "data" / "world" / "locations.yaml"
+
+
+def test_no_edge_keeps_a_needs_band_note_with_danger() -> None:
+    for number, line in enumerate(LOCATIONS.read_text(encoding="utf-8").splitlines(), 1):
+        if "needs band" in line and "danger_dc:" in line:
+            assert "danger_dc: 0" in line, f"locations.yaml:{number} has danger and still needs a band"
+    assert "needs band" not in "".join(
+        line for line in LOCATIONS.read_text(encoding="utf-8").splitlines() if "danger_dc:" in line)
+
+
+BANDED = {
+    6: ("forest_clearing>deeper_forest", "deeper_forest>forest_clearing", "forest_clearing>herb_glen",
+        "herb_glen>forest_clearing", "deeper_forest>herb_glen", "herb_glen>deeper_forest",
+        "deeper_forest>charcoal_burn", "charcoal_burn>deeper_forest", "edgewood_square>charcoal_burn",
+        "edgewood_square>fallow_farm"),
+    10: ("deeper_forest>old_barrows", "old_barrows>deeper_forest", "old_barrows>tunnel_entrance",
+         "tunnel_entrance>old_barrows", "millhaven_gate>toll_bridge", "toll_bridge>burned_farmstead",
+         "burned_farmstead>toll_bridge", "refugee_camp>burned_farmstead", "burned_farmstead>refugee_camp",
+         "millhaven_gate>refugee_camp"),
+    12: ("forest_clearing>the_works", "the_works>forest_clearing"),
+    14: ("toll_bridge>heartland_road", "heartland_road>toll_bridge", "heartland_road>the_join",
+         "the_join>heartland_road"),
+}
+DOORS = ("millhaven_gate>millhaven_market", "millhaven_gate>millhaven_barracks",
+         "millhaven_market>millhaven_barracks", "millhaven_barracks>millhaven_market")
+
+
+def test_every_marked_line_is_banded_or_a_door(flagship) -> None:
+    from engine.game.locations import LOCATIONS as GRAPH
+
+    for dc, legs in BANDED.items():
+        for leg in legs:
+            src, dst = leg.split(">")
+            assert int(GRAPH[src]["connections"][dst]["danger_dc"]) == dc, leg
+    for leg in DOORS:
+        src, dst = leg.split(">")
+        edge = GRAPH[src]["connections"][dst]
+        assert int(edge["danger_dc"]) == 0 and int(edge["hours"]) == 0, leg
+
+
+def test_the_holding_has_rows_of_its_own_and_the_squares_rows_are_unchanged() -> None:
+    """Ruling I5 (amends Plan decision 17): the square's arrivals keep `to: [edgewood_square]`
+    and the holding's outbound leg is carried by rows written for it."""
+    doc = yaml.safe_load((STORY / "data" / "encounters" / "village.yaml").read_text(encoding="utf-8"))
+    destinations = [tuple(row["triggers"]["to"]) for row in doc["encounters"]]
+    assert {d for d in destinations if d != ("fallow_farm",)} == {("edgewood_square",)}
+    assert 1 <= destinations.count(("fallow_farm",)) <= 2
+
+
+@pytest.mark.parametrize("place, condition", [
+    ("the_works", "seam"),
+    ("the_join", "road"),
+])
+def test_a_secret_place_is_unknown_until_its_condition(flagship, place: str, condition: str) -> None:
+    from engine.game import locations
+    from engine.game.effects import apply_effect
+    from engine.game.quests import QuestProgress
+
+    state = new_state()
+    assert not locations.is_known(state, place)
+    if condition == "seam":
+        apply_effect(state, {"type": "flag", "flag": "seam_opened", "value": True})
+    else:
+        state.quests["the_heartland_road"] = QuestProgress(quest_id="the_heartland_road", stage_index=1).to_dict()
+    assert locations.is_known(state, place)
+
+
+def test_a_secret_place_is_never_offered_as_a_road_before(flagship) -> None:
+    from engine.game import intents
+
+    state = new_state()
+    state.location_id = "forest_clearing"
+    travel = intents.find_verb(intents.legal_intents(state), "travel")
+    assert "the_works" not in (travel.targets if travel else ())
+
+
+def test_the_works_below_is_found_on_arrival(flagship) -> None:
+    from engine.game.effects import apply_effect
+    from engine.game.quests import QuestEngine, STATUS_COMPLETED, progress_records
+
+    state = new_state()
+    state.arcs_unlocked.append("whisper")          # long open by 0.70 (arcs.yaml); the arc writer is a list append
+    apply_effect(state, {"type": "flag", "flag": "seam_opened", "value": True})
+    state.location_id = "the_works"
+    for _ in range(3):
+        QuestEngine.evaluate(state)
+    assert progress_records(state)["the_works_below"].status == STATUS_COMPLETED
+    assert any(i.id == "brass_shard" for i in state.inventory)
+
+
+def test_the_join_is_where_the_road_is_walked() -> None:
+    quest = yaml.safe_load((STORY / "data" / "quests" / "convergence" / "the_heartland_road.yaml").read_text("utf-8"))
+    walk = next(s for s in quest["stages"] if s["id"] == "walk_the_join")
+    assert {"at_location": "the_join"} in walk["complete_when"]["all"]
+
+
+def test_the_seams_riddle_counts_its_own_answer() -> None:
+    doc = yaml.safe_load((STORY / "data" / "challenges" / "edgewood.yaml").read_text(encoding="utf-8"))
+    seam = next(p for p in doc["set_pieces"] if p["id"] == "sealed_seam")
+    answer = str(seam["challenge"]["answer"])
+    words = {4: "four", 5: "five", 6: "six"}
+    assert f"{words[len(answer)]} letters" in str(seam["challenge"]["prompt"])

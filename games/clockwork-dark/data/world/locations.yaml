@@ -34,18 +34,32 @@
 # you overhear things, walking out is not.
 #
 # ------------------------------------------------------------
-# WHY SO MANY danger_dc: 0
+# EVERY ROAD IS BANDED (v0.25.0 §5.3)
 # ------------------------------------------------------------
 # tests/test_encounter.py::test_every_edge_in_the_graph_with_danger_has_content
 # asserts that a dangerous edge always has an encounter that can fire on it --
-# a danger roll with an empty table is a roll that can never pay off. The
-# shipped bands in data/encounters/ are keyed to the five original places:
-# forest.yaml to the clearing<->square walk, road.yaml to the square<->gate
-# road, village.yaml to arrivals at edgewood_square, marches.yaml to arrivals
-# at millhaven_gate. So the only NEW legs that may carry danger today are the
-# ones arriving at Edgewood square or Millhaven gate. Every other new edge is
-# marked `danger_dc: 0` with a `# needs band` note. Raising them is a content
-# job in data/encounters/, not a number change here.
+# a danger roll with an empty table is a roll that can never pay off. Before
+# v0.25.0 the bands were keyed to the five original places only, so twenty-six
+# newer lines sat at zero danger waiting for content. Since v0.25.0 every road
+# has a band in data/encounters/:
+#
+#   forest.yaml     the clearing<->square walk
+#   road.yaml       the square<->gate road
+#   village.yaml    arrivals at edgewood_square, and (rows of its own) the
+#                   walk out to the Fallow holding
+#   marches.yaml    arrivals at millhaven_gate
+#   wood.yaml       the wood's nine lines: clearing, deeper wood, herb glen,
+#                   charcoal burn, and the square out to the burn (6)
+#   barrows.yaml    deeper wood<->barrows, barrows<->barrow mouth (10)
+#   toll_road.yaml  gate out to the bridge and the ditch camp, and the bridge,
+#                   camp and burned farmstead between themselves (10)
+#   heartland.yaml  bridge<->heartland road, heartland road<->the Join (14)
+#   works.yaml      clearing<->the works below the stump (12)
+#
+# Every number in the five new files is a first value, unmeasured until the
+# release's balance task. What still carries `danger_dc: 0` is a door: the
+# square's buildings, and Millhaven gate's market and barracks, each a step
+# through a doorway with no hours on it (`# a door, not a road`).
 #
 # ------------------------------------------------------------
 # evil_multiplier (R-06)
@@ -65,7 +79,7 @@
 # Ordering within a band is the fiction's: the bakery is the warmest place in
 # the world and the burned farmstead is nearly the Wound.
 #
-# Version: v0.2.0 [2026-08-13]
+# Version: v0.3.0 [2026-10-28]
 # ============================================================
 
 version: 1
@@ -110,8 +124,9 @@ locations:
     tags: [outdoors, wild, safe_camp]
     connections:
       edgewood_square: { hours: 1, danger_dc: 8, awareness_delta: 0 }
-      deeper_forest: { hours: 2, danger_dc: 0, awareness_delta: 1 }  # needs band
-      herb_glen: { hours: 2, danger_dc: 0, awareness_delta: 0 }  # needs band
+      deeper_forest: { hours: 2, danger_dc: 6, awareness_delta: 1 }
+      herb_glen: { hours: 2, danger_dc: 6, awareness_delta: 0 }
+      the_works: { hours: 1, danger_dc: 12, awareness_delta: 2 }
 
   deeper_forest:
     name: "The Deeper Wood"
@@ -122,10 +137,10 @@ locations:
       distance. Game trails double back when watched.
     tags: [outdoors, wild, forage]
     connections:
-      forest_clearing: { hours: 2, danger_dc: 0, awareness_delta: 0 }  # needs band
-      herb_glen: { hours: 1, danger_dc: 0, awareness_delta: 0 }  # needs band
-      old_barrows: { hours: 2, danger_dc: 0, awareness_delta: 2 }  # needs band
-      charcoal_burn: { hours: 1, danger_dc: 0, awareness_delta: 0 }  # needs band
+      forest_clearing: { hours: 2, danger_dc: 6, awareness_delta: 0 }
+      herb_glen: { hours: 1, danger_dc: 6, awareness_delta: 0 }
+      old_barrows: { hours: 2, danger_dc: 10, awareness_delta: 2 }
+      charcoal_burn: { hours: 1, danger_dc: 6, awareness_delta: 0 }
 
   herb_glen:
     name: "The Herb Glen"
@@ -136,8 +151,8 @@ locations:
       thicker than they have any right to. Somebody weeded it, once.
     tags: [outdoors, wild, forage, quiet]
     connections:
-      forest_clearing: { hours: 2, danger_dc: 0, awareness_delta: 0 }  # needs band
-      deeper_forest: { hours: 1, danger_dc: 0, awareness_delta: 0 }  # needs band
+      forest_clearing: { hours: 2, danger_dc: 6, awareness_delta: 0 }
+      deeper_forest: { hours: 1, danger_dc: 6, awareness_delta: 0 }
 
   old_barrows:
     name: "The Old Barrows"
@@ -148,8 +163,8 @@ locations:
       The village does not come here and does not discuss not coming here.
     tags: [outdoors, ruin, dangerous, quiet]
     connections:
-      deeper_forest: { hours: 2, danger_dc: 0, awareness_delta: 0 }  # needs band
-      tunnel_entrance: { hours: 1, danger_dc: 0, awareness_delta: 2 }  # needs band
+      deeper_forest: { hours: 2, danger_dc: 10, awareness_delta: 0 }
+      tunnel_entrance: { hours: 1, danger_dc: 10, awareness_delta: 2 }
 
   tunnel_entrance:
     name: "The Barrow Mouth"
@@ -160,7 +175,26 @@ locations:
       three paces in than the season allows.
     tags: [underground, ruin, dangerous, dark]
     connections:
-      old_barrows: { hours: 1, danger_dc: 0, awareness_delta: 0 }  # needs band
+      old_barrows: { hours: 1, danger_dc: 10, awareness_delta: 0 }
+
+  # SECRET (v0.25.0 §3.4). What the doom clock has made under the clearing: the
+  # `tunnels_open` beat (0.70) opens the sealed seam's riddle at the stump, and
+  # SOLVING it (`seam_opened`) is the way in. Not the barrow mouth: the two do not
+  # connect. The cold in the one and the oil under the other are the same weather
+  # from two directions.
+  the_works:
+    name: "The Works Below the Stump"
+    ring: 0
+    evil_multiplier: 1.6
+    secret: true
+    known_when: { flag: seam_opened }
+    summary: >-
+      Worked stone under the clearing, cut square and smooth, going down
+      further than the stump has roots. It smells of oil and old time, and
+      something below the last step keeps a slow, patient count.
+    tags: [underground, secret, dark]
+    connections:
+      forest_clearing: { hours: 1, danger_dc: 12, awareness_delta: 3 }
 
   charcoal_burn:
     name: "The Charcoal Burn"
@@ -171,7 +205,7 @@ locations:
       here in season and nobody knows their name in the village.
     tags: [outdoors, work, trade, safe_camp]
     connections:
-      deeper_forest: { hours: 1, danger_dc: 0, awareness_delta: 0 }  # needs band
+      deeper_forest: { hours: 1, danger_dc: 6, awareness_delta: 0 }
       edgewood_square: { hours: 2, danger_dc: 6, awareness_delta: 0 }
 
   # ==========================================================
@@ -195,8 +229,8 @@ locations:
       edgewood_shrine: { hours: 0, danger_dc: 0, awareness_delta: 0 }
       the_forge: { hours: 0, danger_dc: 0, awareness_delta: 0 }
       well_row: { hours: 0, danger_dc: 0, awareness_delta: 0 }
-      fallow_farm: { hours: 1, danger_dc: 0, awareness_delta: 0 }  # needs band
-      charcoal_burn: { hours: 2, danger_dc: 0, awareness_delta: 0 }  # needs band
+      fallow_farm: { hours: 1, danger_dc: 6, awareness_delta: 0 }
+      charcoal_burn: { hours: 2, danger_dc: 6, awareness_delta: 0 }
 
   edgewood_bakery:
     name: "Edgewood Bakery"
@@ -287,10 +321,10 @@ locations:
     tags: [town, gate, militia, uneasy]
     connections:
       edgewood_square: { hours: 4, danger_dc: 12, awareness_delta: 2 }
-      millhaven_market: { hours: 0, danger_dc: 0, awareness_delta: 1 }  # needs band
-      millhaven_barracks: { hours: 0, danger_dc: 0, awareness_delta: 2 }  # needs band
-      toll_bridge: { hours: 2, danger_dc: 0, awareness_delta: 1 }  # needs band
-      refugee_camp: { hours: 1, danger_dc: 0, awareness_delta: 2 }  # needs band
+      millhaven_market: { hours: 0, danger_dc: 0, awareness_delta: 1 }  # a door, not a road
+      millhaven_barracks: { hours: 0, danger_dc: 0, awareness_delta: 2 }  # a door, not a road
+      toll_bridge: { hours: 2, danger_dc: 10, awareness_delta: 1 }
+      refugee_camp: { hours: 1, danger_dc: 10, awareness_delta: 2 }
 
   millhaven_market:
     name: "Millhaven Market"
@@ -302,7 +336,7 @@ locations:
     tags: [town, trade, hub, uneasy]
     connections:
       millhaven_gate: { hours: 0, danger_dc: 8, awareness_delta: 0 }
-      millhaven_barracks: { hours: 0, danger_dc: 0, awareness_delta: 1 }  # needs band
+      millhaven_barracks: { hours: 0, danger_dc: 0, awareness_delta: 1 }  # a door, not a road
 
   millhaven_barracks:
     name: "Millhaven Barracks"
@@ -314,7 +348,7 @@ locations:
     tags: [town, interior, militia, dangerous]
     connections:
       millhaven_gate: { hours: 0, danger_dc: 8, awareness_delta: 0 }
-      millhaven_market: { hours: 0, danger_dc: 0, awareness_delta: 0 }  # needs band
+      millhaven_market: { hours: 0, danger_dc: 0, awareness_delta: 0 }  # a door, not a road
 
   toll_bridge:
     name: "The Toll Bridge"
@@ -326,8 +360,8 @@ locations:
     tags: [road, toll, militia, uneasy]
     connections:
       millhaven_gate: { hours: 2, danger_dc: 10, awareness_delta: 1 }
-      burned_farmstead: { hours: 2, danger_dc: 0, awareness_delta: 2 }  # needs band
-      heartland_road: { hours: 3, danger_dc: 0, awareness_delta: 3 }  # needs band
+      burned_farmstead: { hours: 2, danger_dc: 10, awareness_delta: 2 }
+      heartland_road: { hours: 3, danger_dc: 14, awareness_delta: 3 }
 
   refugee_camp:
     name: "The Ditch Camp"
@@ -339,7 +373,7 @@ locations:
     tags: [camp, refugees, uneasy]
     connections:
       millhaven_gate: { hours: 1, danger_dc: 8, awareness_delta: 1 }
-      burned_farmstead: { hours: 2, danger_dc: 0, awareness_delta: 2 }  # needs band
+      burned_farmstead: { hours: 2, danger_dc: 10, awareness_delta: 2 }
 
   burned_farmstead:
     name: "The Burned Farmstead"
@@ -350,8 +384,8 @@ locations:
       the byre. Nobody will write down why.
     tags: [ruin, farm, dangerous, quiet]
     connections:
-      toll_bridge: { hours: 2, danger_dc: 0, awareness_delta: 0 }  # needs band
-      refugee_camp: { hours: 2, danger_dc: 0, awareness_delta: 0 }  # needs band
+      toll_bridge: { hours: 2, danger_dc: 10, awareness_delta: 0 }
+      refugee_camp: { hours: 2, danger_dc: 10, awareness_delta: 0 }
 
   # ==========================================================
   # Ring 3 -- the road inward. The last thing on the map.
@@ -366,4 +400,24 @@ locations:
       other too exactly. Everything past here is rumour and refugee.
     tags: [road, frontier, dangerous, endgame]
     connections:
-      toll_bridge: { hours: 3, danger_dc: 0, awareness_delta: 0 }  # needs band
+      toll_bridge: { hours: 3, danger_dc: 14, awareness_delta: 0 }
+      the_join: { hours: 1, danger_dc: 14, awareness_delta: 3 }
+
+  # SECRET (v0.25.0 §3.4). Where the inward road's two ends were made to meet:
+  # known once the road is measured (`measure_it` done).
+  the_join:
+    name: "The Join"
+    ring: 3
+    evil_multiplier: 2.2
+    secret: true
+    known_when:
+      any:
+        - { quest_completed: the_heartland_road }
+        - { quest_state: { quest: the_heartland_road, stage_at_least: 1 } }
+    summary: >-
+      One road underfoot, and on either side hedgerows that belong to two
+      places four miles apart last spring, grown together along a seam you can
+      see if you stop looking for it.
+    tags: [outdoors, road, secret, uneasy]
+    connections:
+      heartland_road: { hours: 1, danger_dc: 14, awareness_delta: 4 }
