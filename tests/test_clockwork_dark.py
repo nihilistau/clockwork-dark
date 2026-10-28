@@ -365,8 +365,7 @@ def test_h1_is_not_dealt_while_the_named_wound_is_open(flagship) -> None:
 
     state = new_state()
     doors.named_wound_door(state)
-    at_stage = doors.at_stage
-    at_stage(state, "banking_the_fire", 1)
+    doors.at_stage(state, "banking_the_fire", 1)
     doors.flag(state, "nf_hearth_taking_stock")
     eligible, _ = deck_module.eligible_cards(state, deck_module.load_deck("the_morning_firing"))
     assert [c.id for c in eligible] == ["Q1_tell_her_or_dont"]
@@ -419,3 +418,17 @@ def test_every_tease_is_one_sentence_and_names_no_ending() -> None:
         assert tease.endswith(".") and tease.count(". ") == 0, ending_id
         assert not any(title in tease.lower() for title in titles), ending_id
         assert "clockwork" not in tease.lower(), ending_id    # the reveal word (spoilers.yaml)
+
+
+def test_no_tease_carries_a_term_the_spoilers_mask() -> None:
+    """The payload ships every tease at every tier (§8.4), so none may say what spoilers.yaml hides."""
+    endings_doc = yaml.safe_load((STORY / "data" / "rules" / "endings.yaml").read_text(encoding="utf-8"))
+    rows = yaml.safe_load((STORY / "data" / "rules" / "spoilers.yaml").read_text(encoding="utf-8"))["spoilers"]
+    assert rows
+    for ending_id, body in endings_doc["classes"].items():
+        tease = str(body.get("tease") or "")
+        assert tease, ending_id
+        for row in rows:
+            flags = 0 if row.get("case_sensitive") else re.IGNORECASE
+            pattern = r"\b" + re.escape(str(row["term"])) + r"\b"
+            assert not re.search(pattern, tease, flags), (ending_id, row["term"])

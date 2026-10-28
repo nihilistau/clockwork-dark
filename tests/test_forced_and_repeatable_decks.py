@@ -596,7 +596,7 @@ SHIPPED_REPEATABLE = {("hue-and-cry", "interrogation"), ("hue-and-cry", "lantern
                       ("clockwork-dark", "the_muster_roll")}
 
 
-def test_only_hue_and_crys_six_decks_opt_in() -> None:
+def test_only_the_shipped_repeatable_decks_opt_in() -> None:
     """Byte-identical by construction for every other story: nothing else
     shipped declares either key (HUE & CRY's six, READ RECEIPTS' six life-event moments: two since v0.23.0 T17, four since v0.24.0 T2,
     which only a story with `paths.social` can ever deal, and since v0.25.0 the flagship's decks, every one repeatable, §4.3)."""

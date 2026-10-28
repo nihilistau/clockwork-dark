@@ -73,7 +73,8 @@ def test_the_flagship_deals_nothing_at_its_opening() -> None:
 @pytest.mark.parametrize("slug", ["neon-city"])
 def test_a_story_with_no_decks_never_opens_a_scene(slug: str) -> None:
     """
-    THE COMPATIBILITY GATE for the three graph-shaped games.
+    THE COMPATIBILITY GATE for a graph-shaped story that declares no decks
+    (NEON CITY; the flagship left it in v0.25.0 T6, tested above).
 
     Not "the director is careful with them" -- it cannot see them at all.
     ``deck_ids()`` is empty, so ``due`` returns before reading any state.

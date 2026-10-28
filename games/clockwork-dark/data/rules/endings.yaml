@@ -17,16 +17,19 @@
 #   5  the_counted_march         the_muster_roll / M1_strike_the_name / strike_it
 #   6  the_named_wound           the_morning_firing / Q1_tell_her_or_dont / tell_her
 #   7  the_named_wound           the_morning_firing / Q1_tell_her_or_dont / say_nothing
-#   8  the_price_asked           the_price / S2_pay_it (one beat per thing paid)
-#   9  the_pin_and_the_join      the_join / J1_the_pin / set_it
-#  10  the_stopped_wheel         the_stopped_wheel / Z1_the_last_morning
+#   8  the_price_asked           the_price / S2_pay_it (one beat per thing paid) (T7)
+#   9  the_pin_and_the_join      the_join / J1_the_pin / set_it (T7)
+#  10  the_stopped_wheel         the_stopped_wheel / Z1_the_last_morning (T7)
+#
+# Doors 8-10 land in v0.25.0 T7; until then The Price Asked is still locked by
+# the_sacrifice's on_complete (below) and the other two have no door.
 #
 # Each door card is gated on its own ending (`{ending: {eligible: <id>}}`), so
 # a door and its gate cannot drift apart. The `score:` rows below no longer
 # pick an ending -- every lock names one -- and now only feed the gallery's
 # closeness band (engine/game/endings.py::to_client). Each class's `tease:`
 # is one sentence, shown in the client once its door is open; the payload
-# carries it at every tier, so each is written to be safe there (§8.4): it
+# carries it at every tier, so each is written to be spoiler-free (§8.4): it
 # names no ending and says nothing the reveal keeps back.
 #
 # TWO GATES, SEPARATE ON PURPOSE: `requires` is "you have earned this";
