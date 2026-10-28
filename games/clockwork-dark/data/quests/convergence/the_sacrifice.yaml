@@ -1,4 +1,4 @@
-# Version: v0.1.0 [2026-08-07]
+# Version: v0.2.0 [2026-10-29]
 #
 # The sacrifice quest. Note what the engine will and will not do: it checks
 # that a price was actually paid (an item gone, Focus spent, a wound taken), and
@@ -43,10 +43,11 @@ stages:
         - type: focus
           delta: -2
 
+  # Chosen on a card, not by the narrator (v0.25.0 §4.1): the_price's S1
+  # offers one beat per thing carried, each writing nf_sacrifice_chosen and
+  # its own sacrifice_offered_<item>.
   - id: choose_what
     objective: "Choose what you are giving up. Have it in your hands."
-    narrative_flags:
-      - nf_sacrifice_chosen
     expires_after_days: 4
     complete_when:
       all:
@@ -68,16 +69,16 @@ stages:
           text: "The like-for-like was not paid in time. The valley went."
           kind: event
 
+  # Paid on a card (v0.25.0 §4.1): the_price's S2 beat for the thing offered
+  # removes exactly that thing, writes nf_sacrifice_paid and locks The Price
+  # Asked. Bug 2: this stage removed the written name whatever was chosen.
+  # The engine checks that something real left the player, not that the
+  # narration said it did: only the card that takes the thing writes the flag.
   - id: pay_it
     objective: "Pay it."
-    narrative_flags:
-      - nf_sacrifice_paid
     complete_when:
       all:
         - flag: nf_sacrifice_paid
-        # The engine checks that something real left the player, not that the
-        # narration said it did.
-        - not_has_item: { id: the_written_name, qty: 1 }
     complete_text: >-
       There is no light and no sound. There is a table with nothing on it and a
       valley that goes on being a valley.
@@ -86,9 +87,6 @@ stages:
         # Progress is pushback too: a smaller earned reprieve (R-06).
         - type: doom_resistance
           delta: 8
-        - type: remove_item
-          item_id: the_written_name
-          qty: 1
         - type: focus
           delta: -4
         - type: wound
@@ -114,15 +112,9 @@ on_complete:
     - type: ledger_fact
       text: "You paid a like-for-like and one valley kept its own time."
       kind: secret
-    # THE PAID DOOR. The like-for-like is terminal by construction -- "you
-    # would want to be sure you had done the sum" -- so paying it locks the
-    # ending BY NAME (quest status is COMPLETED before on_complete runs, so
-    # the_price_asked's own gate on this quest already holds) and plays its
-    # Speak - Act - Seal. The run that wants the last morning at the ovens
-    # instead reaches the finale through what_edgewood_keeps or
-    # the_heartland_road and then the_last_quiet_thing.
-    - { type: ending_lock, ending: the_price_asked }
-    - { type: ending_module }
+    # THE PAID DOOR is the_price's S2 beat (data/scenes/the_price.yaml), which
+    # locks The Price Asked by name and plays its module on the same beat;
+    # this on_complete no longer locks (v0.25.0 §4.2).
 
 complete_text: >-
   One valley. Not the world, not the Heartlands, not the road. One valley, for

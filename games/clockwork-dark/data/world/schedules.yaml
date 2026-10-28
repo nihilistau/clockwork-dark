@@ -71,6 +71,16 @@ events:
     npc_ids: [npc_sera]
     text: "Sergeant Venn reads the levy notice in the square, twice, in case the first time was ignored."
 
+  # The stopped wheel's door (v0.25.0 §6.1, plan decision 15): a `when:`
+  # event, so fire-once and deterministic (no draw): the first day rolled with
+  # the reading at 1.0 starts it, and while it is active it owes the
+  # the_stopped_wheel deck (data/scenes/the_stopped_wheel.yaml).
+  the_last_hour:
+    when: { value: { name: evil_progress, min: 1.0 } }
+    duration_days: 60
+    forces_scene: the_stopped_wheel
+    text: "Nothing in Edgewood keeps time any more except the thing that took it."
+
 rumors:
   - "Odran swears the road to Millhaven took an extra hour though the sun said otherwise."
   - "A stillborn lamb was found with brass filings where its teeth should be."

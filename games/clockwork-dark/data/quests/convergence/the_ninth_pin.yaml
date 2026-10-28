@@ -1,4 +1,4 @@
-# Version: v0.1.0 [2026-08-07]
+# Version: v0.2.0 [2026-10-29]
 
 id: the_ninth_pin
 arc: convergence
@@ -68,11 +68,12 @@ stages:
           faction: tinkers
           delta: -5
 
+  # Taken or left on a card, not by the narrator (v0.25.0 §4.1): the deck
+  # beat `take_it` writes nf_ninth_taken and grants the pin; `leave_it`
+  # writes nf_ninth_left and grants nothing. Bug 1: this stage's on_complete
+  # granted the pin either way.
   - id: take_it_or_dont
     objective: "Take the ninth pin, or leave it on the felt."
-    narrative_flags:
-      - nf_ninth_taken
-      - nf_ninth_left
     complete_when:
       any:
         - flag: nf_ninth_taken
@@ -84,11 +85,6 @@ stages:
         # Progress is pushback too: a smaller earned reprieve (R-06).
         - type: doom_resistance
           delta: 8
-        - type: item
-          item_id: ninth_pin
-          name: "The ninth pin"
-          qty: 1
-          tags: [named, unsettling]
         - type: reputation
           faction: tinkers
           delta: 15

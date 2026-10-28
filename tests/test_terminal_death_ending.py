@@ -540,6 +540,21 @@ GOLDEN = {
 #: other byte of the death is still held to the recording.
 E1_EVENT_DRAWS = {"flagship_respawn": {"event.tinker_camp": 1}}
 
+#: The second sanctioned move (v0.25.0 T7, spec §6.3): the flagship's shipped
+#: `terminal:` names its ending (`ending: the_dark_keeps_its_hours`), so its
+#: second death now locks the fail-forward and plays its module. The
+#: `flagship_terminal` digest is taken with exactly that one key removed from
+#: the shipped rules, so every other byte of the legacy terminal is still held
+#: to the recording; `test_the_t7_sanction_is_exactly_the_terminals_ending`
+#: holds the shipped file to that one key more.
+T7_TERMINAL_ENDING = {"ending": "the_dark_keeps_its_hours"}
+
+
+def _without_t7_ending(rules: dict) -> dict:
+    """The shipped death rules with T7's one key taken back out of `terminal:`."""
+    terminal = {k: v for k, v in (rules.get("terminal") or {}).items() if k not in T7_TERMINAL_ENDING}
+    return {**rules, "terminal": terminal}
+
 
 def _death_digest(case: str) -> str:
     from engine.games import registry
@@ -550,8 +565,12 @@ def _death_digest(case: str) -> str:
         "neon_respawn": ("neon-city", "storm_front", "the_grid"),
     }[case]
     registry.activate(slug)
+    real_rules = encounter.load_death_rules
     try:
         terminal = case == "flagship_terminal"
+        if terminal:
+            recorded = _without_t7_ending(real_rules())
+            encounter.load_death_rules = lambda: recorded
         state = GameState(rng_seed=77, location_id=where, evil_progress=0.99 if terminal else 0.0)
         set_clock(state, day=3, hour=14)
         state.stats.gold = 40
@@ -573,7 +592,26 @@ def _death_digest(case: str) -> str:
                           sort_keys=True, default=str)
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()
     finally:
+        encounter.load_death_rules = real_rules
         registry.deactivate()
+
+
+def test_the_t7_sanction_is_exactly_the_terminals_ending() -> None:
+    """The flagship's death rules differ from the recorded ones by T7's one key and nothing else."""
+    from engine.games import registry
+
+    registry.activate("clockwork-dark")
+    try:
+        shipped = encounter.load_death_rules()
+    finally:
+        registry.deactivate()
+    terminal = shipped["terminal"]
+    assert {k: terminal[k] for k in T7_TERMINAL_ENDING} == T7_TERMINAL_ENDING
+    undone = _without_t7_ending(shipped)
+    assert set(terminal) - set(undone["terminal"]) == set(T7_TERMINAL_ENDING)
+    assert {k: v for k, v in shipped.items() if k != "terminal"} == {
+        k: v for k, v in undone.items() if k != "terminal"}
+    assert sorted(undone["terminal"]) == ["flag", "phases", "text"]
 
 
 @pytest.mark.parametrize("case", sorted(GOLDEN))
@@ -650,7 +688,10 @@ def test_a_held_respawn_without_the_opt_in_is_byte_identical(tmp_path: Path) -> 
     assert hashlib.sha256(blob.encode("utf-8")).hexdigest() == HELD_RESPAWN_GOLDEN
 
 
-def test_the_flagship_terminal_still_ends_without_an_ending() -> None:
+def test_the_flagship_terminal_ends_in_the_fail_forward() -> None:
+    """Since v0.25.0 T7 the shipped terminal names its ending: the second death in
+    `consuming` locks The Dark Keeps Its Hours and its epilogue shows (it was a
+    blank page: `state.ended` and nothing else)."""
     from engine.games import registry
 
     registry.activate("clockwork-dark")
@@ -660,10 +701,10 @@ def test_the_flagship_terminal_still_ends_without_an_ending() -> None:
         state.flags["saints_marked_you"] = True
         state.stats.hp = 0
         death = encounter.check_death(state)
-        assert death == {"died": True, "terminal": True, "ended": True,
-                         "text": death["text"]}
+        assert death["terminal"] is True and death["ending"] == "the_dark_keeps_its_hours"
         assert state.ended is True
-        assert epilogue.for_state(state) is None
+        assert endings.locked(state) == "the_dark_keeps_its_hours"
+        assert epilogue.for_state(state).ending_id == "the_dark_keeps_its_hours"
     finally:
         registry.deactivate()
 
@@ -718,16 +759,20 @@ def test_the_second_locks_its_ending_and_shows_its_epilogue(legacy_with_ending) 
     assert epilogue.for_state(state).ending_id == "the_dark_keeps_its_hours"
 
 
-def test_without_an_ending_the_legacy_terminal_is_unchanged() -> None:
+def test_without_an_ending_the_legacy_terminal_is_unchanged(monkeypatch) -> None:
+    """The engine's legacy path: the flagship's terminal with its `ending` taken out, as before T7."""
     from engine.games import registry
 
     registry.activate("clockwork-dark")
     try:
+        rules = _without_t7_ending(encounter.load_death_rules())
+        monkeypatch.setattr(encounter, "load_death_rules", lambda: rules)
         state = _consuming_state()
         _die(state)
         record = _die(state)
         assert record == {"died": True, "terminal": True, "ended": True, "text": record["text"]}
         assert endings.locked(state) == endings.NONE_ID
+        assert epilogue.for_state(state) is None
     finally:
         registry.deactivate()
 

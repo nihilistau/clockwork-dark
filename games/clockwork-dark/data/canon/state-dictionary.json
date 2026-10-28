@@ -17,6 +17,11 @@
     "stood_the_wall is the march ending's other way to `served`: read by",
     "data/rules/endings.yaml since v0.25.0 T6, written by Sera's bargain",
     "(v0.25.0 T8), canon so the gate's read is declared before its writer.",
+    "The sacrifice_offered_* flags are written by the_price's S1 beats",
+    "(data/scenes/the_price.yaml, v0.25.0 T7) and read by its S2: what was",
+    "put on Ilya's table, which S2 takes only while it is still held.",
+    "Four nf_* flags (nf_ninth_taken, nf_ninth_left, nf_sacrifice_chosen,",
+    "nf_sacrifice_paid) are no longer the narrator's: deck beats write them.",
     "ending_gallery_unlocked is the deliberately write-only case: every",
     "ending's Seal beat sets it and only the CLIENT reads it."
   ],
@@ -122,6 +127,11 @@
         "nf_lastquiet_showed_up",
         "nf_lastquiet_told_her",
         "nf_lastquiet_said_nothing"
+      ],
+      "sacrifice": [
+        "sacrifice_offered_the_written_name",
+        "sacrifice_offered_ninth_pin",
+        "sacrifice_offered_brass_shard"
       ],
       "mechanics": [
         "saints_marked_you",

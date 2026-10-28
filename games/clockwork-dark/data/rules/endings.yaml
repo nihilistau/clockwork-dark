@@ -17,12 +17,14 @@
 #   5  the_counted_march         the_muster_roll / M1_strike_the_name / strike_it
 #   6  the_named_wound           the_morning_firing / Q1_tell_her_or_dont / tell_her
 #   7  the_named_wound           the_morning_firing / Q1_tell_her_or_dont / say_nothing
-#   8  the_price_asked           the_price / S2_pay_it (one beat per thing paid) (T7)
-#   9  the_pin_and_the_join      the_join / J1_the_pin / set_it (T7)
-#  10  the_stopped_wheel         the_stopped_wheel / Z1_the_last_morning (T7)
+#   8  the_price_asked           the_price / S2_pay_it (one beat per thing paid)
+#   9  the_pin_and_the_join      the_join / J1_the_pin / set_it
+#  10  the_stopped_wheel         the_stopped_wheel / Z1_the_last_morning,
+#                                forced by the declared event the_last_hour
+#                                (data/world/schedules.yaml)
 #
-# Doors 8-10 land in v0.25.0 T7; until then The Price Asked is still locked by
-# the_sacrifice's on_complete (below) and the other two have no door.
+# The terminal death (door 3) names its ending in death.yaml's `terminal:`
+# (`ending: the_dark_keeps_its_hours`), so its epilogue shows.
 #
 # Each door card is gated on its own ending (`{ending: {eligible: <id>}}`), so
 # a door and its gate cannot drift apart. The `score:` rows below no longer
@@ -41,12 +43,12 @@
 # EVERY GATE IS ENGINE-EVALUABLE. quest_completed and quest_state read
 # progress records. The nf_* flags are narrative flags the quests declare;
 # the ones a gate reads are written by deck cards' beats too (the morning
-# firing's H0 here; the sacrifice's at T7), so no gate waits on the narrator; saints_marked_you is written by the
+# firing's H0; the price's S1 and S2), so no gate waits on the narrator; saints_marked_you is written by the
 # terminal-death rules (data/rules/death.yaml); evil_progress and
 # doom_resistance are declared in state.yaml. All of them are canon --
 # data/canon/state-dictionary.json is the vocabulary.
 #
-# Version: v0.2.0 [2026-10-28]
+# Version: v0.3.0 [2026-10-29]
 
 version: 1
 
@@ -331,10 +333,11 @@ classes:
               - { type: flag, flag: ending_gallery_unlocked }
 
   # ---------------------------------------------------------------------
-  # THE PRICE ASKED -- the sacrifice's ending, locked BY NAME from
-  # the_sacrifice's on_complete: paying the like-for-like is terminal by
-  # construction ("One valley. Not the world... You would want to be sure
-  # you had done the sum.").
+  # THE PRICE ASKED -- the sacrifice's ending, locked BY NAME at the_price's
+  # S2 (data/scenes/the_price.yaml), the beat for the thing offered: paying
+  # the like-for-like is terminal by construction ("One valley. Not the
+  # world... You would want to be sure you had done the sum."). The beat
+  # writes `paid` before it locks (plan decision 6).
   # ---------------------------------------------------------------------
   the_price_asked:
     label: "The Price Asked"
@@ -388,7 +391,8 @@ classes:
   # THE PIN AND THE JOIN -- the ninth pin carried to where the road's two
   # ends meet. The rarest gate in the table: the pin taken from Ilya's
   # felt, still held (not spent as the sacrifice), and the join walked so
-  # you know where the opposite of a ward belongs.
+  # you know where the opposite of a ward belongs. The door is the_join's
+  # J1 (`set_it`), at the join; its lock runs before the pin leaves the pack.
   # ---------------------------------------------------------------------
   the_pin_and_the_join:
     label: "The Pin and the Join"
@@ -452,7 +456,7 @@ classes:
   # to 1.0 and monotone (engine/game/evil_ticker.py), so this gate, once
   # true, stays true; the completable obstructions on the endings above
   # all close at the same reading. Its door is forced, not walked to: the
-  # declared event the_last_hour deals the_stopped_wheel's Z1 (v0.25.0 T7).
+  # declared event the_last_hour deals the_stopped_wheel's Z1.
   # ---------------------------------------------------------------------
   the_stopped_wheel:
     label: "The Stopped Wheel"

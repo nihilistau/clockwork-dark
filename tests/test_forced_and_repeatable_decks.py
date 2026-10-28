@@ -593,13 +593,16 @@ SHIPPED_REPEATABLE = {("hue-and-cry", "interrogation"), ("hue-and-cry", "lantern
                       ("read-receipts", "family_visit"), ("read-receipts", "wedding_invite"),
                       # v0.25.0 T6: the flagship's first three door decks (§4.3).
                       ("clockwork-dark", "the_morning_firing"), ("clockwork-dark", "the_count_kept"),
-                      ("clockwork-dark", "the_muster_roll")}
+                      ("clockwork-dark", "the_muster_roll"),
+                      # v0.25.0 T7: the price and the join (the stopped wheel is forced once, not repeatable).
+                      ("clockwork-dark", "the_price"), ("clockwork-dark", "the_join")}
 
 
 def test_only_the_shipped_repeatable_decks_opt_in() -> None:
     """Byte-identical by construction for every other story: nothing else
     shipped declares either key (HUE & CRY's six, READ RECEIPTS' six life-event moments: two since v0.23.0 T17, four since v0.24.0 T2,
-    which only a story with `paths.social` can ever deal, and since v0.25.0 the flagship's decks, every one repeatable, §4.3)."""
+    which only a story with `paths.social` can ever deal, and since v0.25.0 the flagship's decks, §4.3: every one
+    repeatable but the_stopped_wheel, forced once by `the_last_hour`)."""
     root = Path(__file__).resolve().parents[1] / "games"
     opted: set[tuple[str, str]] = set()
     for path in root.glob("*/data/**/*.yaml"):
@@ -613,8 +616,9 @@ def test_only_the_shipped_repeatable_decks_opt_in() -> None:
             assert path.parent.name == "scenes", path
             opted.add((path.relative_to(root).parts[0], path.stem))
     assert opted == SHIPPED_REPEATABLE
-    # An event that forces a scene: HUE & CRY's Hanging Fair (v0.17 T3), and
-    # nothing in any other story.
+    # An event that forces a scene: HUE & CRY's Hanging Fair (v0.17 T3), the
+    # flagship's last hour (v0.25.0 T7, plan decision 15), and nothing in any
+    # other story.
     forcing: set[tuple[str, str, str]] = set()
     for path in root.glob("*/data/world/schedules.yaml"):
         doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -622,7 +626,8 @@ def test_only_the_shipped_repeatable_decks_opt_in() -> None:
             if "forces_scene" in (spec or {}):
                 forcing.add((path.relative_to(root).parts[0], str(event_id),
                              str(spec["forces_scene"])))
-    assert forcing == {("hue-and-cry", "hanging_fair", "fair_day")}
+    assert forcing == {("hue-and-cry", "hanging_fair", "fair_day"),
+                       ("clockwork-dark", "the_last_hour", "the_stopped_wheel")}
 
 
 # -- validation ------------------------------------------------------------------

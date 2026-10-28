@@ -188,13 +188,13 @@ ending; they feed only the gallery's closeness band. Each ending carries a one-s
 | Ending | Door (deck / card / beat) | State |
 |---|---|---|
 | The Hearth Holds | `the_morning_firing` / `H1_the_question` / `stay` (the bakery 04-09, Maris there) | wired (T6) |
-| The Dark Keeps Its Hours | `H1_the_question` / `stay_anyway` (the Hearth's gate shut); the terminal death | wired (T6; the death since T3) |
+| The Dark Keeps Its Hours | `H1_the_question` / `stay_anyway` (the Hearth's gate shut); the terminal death (`death.yaml`'s `terminal.ending`) | wired (T6; the death since T7) |
 | The Long Witness | `the_count_kept` / `W1_the_list` / `give_it` (the shrine, Wenna there) | wired (T6) |
 | The Counted March | `the_muster_roll` / `M1_strike_the_name` / `strike_it` (the gate or the square, Sera there) | wired (T6) |
 | The Named Wound | `the_morning_firing` / `Q1_tell_her_or_dont` / `tell_her` or `say_nothing` | wired (T6) |
-| The Price Asked | `the_price` / `S2_pay_it` | **NOT WIRED** until v0.25.0 T7: locked today by `the_sacrifice`'s quest-level lock (`games/clockwork-dark/data/quests/convergence/the_sacrifice.yaml`) |
-| The Pin and the Join | `the_join` / `J1_the_pin` / `set_it` | **NOT WIRED** until v0.25.0 T7: no door locks it (`games/clockwork-dark/data/scenes/`) |
-| The Stopped Wheel | `the_stopped_wheel` / `Z1_the_last_morning`, forced by `the_last_hour` | **NOT WIRED** until v0.25.0 T7: no door locks it (`games/clockwork-dark/data/scenes/`) |
+| The Price Asked | `the_price` / `S2_pay_it` / the beat for the thing offered at `S1` (wherever Ilya is, the sacrifice open) | wired (T7) |
+| The Pin and the Join | `the_join` / `J1_the_pin` / `set_it` (at the Join) | wired (T7) |
+| The Stopped Wheel | `the_stopped_wheel` / `Z1_the_last_morning`, forced by the declared event `the_last_hour` (the reading at 1.0) | wired (T7) |
 
 ### The Assistant (Lore)
 
@@ -756,7 +756,9 @@ to close — and the evil kept its own hours the whole time you were down.
 already `consuming`, when there is no longer anyone left to come out and fetch
 you. Since v0.25.0 the legacy terminal locks the ending its story names
 (`terminal: {phases, flag, ending}`), so that second death shows that ending's
-epilogue; one that names none still shows no epilogue. A story whose terminal
+epilogue; one that names none still shows no epilogue. The flagship names the
+fail-forward: the second death in `consuming` locks The Dark Keeps Its Hours
+and shows its card. A story whose terminal
 death is some other condition declares `terminal: {when, ending}` instead —
 docs/AUTHORING.md §3.5.
 

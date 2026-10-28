@@ -76,6 +76,10 @@ respawn:
 terminal:
   phases: [consuming]
   flag: saints_marked_you
+  # Since v0.25.0 the second death locks the fail-forward by name and its
+  # epilogue shows (engine/game/encounter.py::_terminal_ending_death, E3).
+  # Before, it set state.ended and nothing else: a blank page.
+  ending: the_dark_keeps_its_hours
   text: >-
     Nobody comes. The square is quiet in the way a stopped mechanism is quiet,
     and the blanket over you is the one they use for the ones who do not get up.

@@ -1,0 +1,82 @@
+# The Clockwork Dark -- the join (v0.25.0 §4.2-§4.3).
+# ==========================================================================
+# The secret place where the inward road's two ends meet (data/world/
+# locations.yaml, known once the road is measured). Two cards:
+#   R2  the road walked at midday (`nf_road_walked`, which the_heartland_road's
+#       `walk_the_join` stage reads with the place and the hour)
+#   J1  The Pin and the Join (`set_it`), or `keep_it`, which ends nothing
+# REPEATABLE, draw 1: keeping the pin is never the last chance. The deck's
+# `when:` is the place and `any:` of its cards' own gates (plan decision 3),
+# so it is due only when a card can be dealt. J1's lock runs BEFORE its
+# `remove_item`: the ending's gate (`pin_held`) reads the pin. No beat
+# carries more than four effects.
+#
+# Version: v0.1.0 [2026-10-29]
+
+id: the_join
+repeatable: true
+draw: 1
+
+when:
+  all:
+    - { at_location: the_join }
+    - any:
+        - all:
+            - { quest_state: { quest: the_heartland_road, status: active } }
+            - { quest_state: { quest: the_heartland_road, stage_at_least: 1 } }
+            - none: [{ quest_state: { quest: the_heartland_road, stage_at_least: 2 } }]
+            - { hour_between: [10, 15] }
+        - { ending: { eligible: the_pin_and_the_join } }
+
+cards:
+  - id: R2_walk_the_join
+    title: "The join"
+    when:
+      all:
+        - { quest_state: { quest: the_heartland_road, status: active } }
+        - { quest_state: { quest: the_heartland_road, stage_at_least: 1 } }
+        - none: [{ quest_state: { quest: the_heartland_road, stage_at_least: 2 } }]
+        - { hour_between: [10, 15] }
+    tags: [road]
+    text: >-
+      INTENT: Midday on the place where the road's two ends meet. Underfoot it
+      is one road. CONSTRAINTS: Nothing moves that the player can see.
+    beats:
+      - id: walk_it
+        text: >-
+          Walk the seam where the hedgerows have grown together, end to end.
+        gate:
+          on_pass:
+            text: "Two places that were four miles apart last spring, and the ends match."
+            effects:
+              - { type: flag, flag: nf_road_walked }
+
+  - id: J1_the_pin
+    title: "Where it goes"
+    when: { ending: { eligible: the_pin_and_the_join } }
+    tags: [menu, road, door]
+    text: >-
+      INTENT: The join, and the ninth pin in the player's hand: the opposite
+      of a ward, and this is where an opposite belongs. CONSTRAINTS: Setting
+      it ends the story; keeping it ends nothing.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: set_it
+        label: "Set the pin into the join"
+        text: >-
+          Set the ninth pin into the join. This ends the story: The Pin and the Join.
+        gate:
+          on_pass:
+            text: "It goes in the way a nail goes into green wood, reluctant and then all at once."
+            effects:
+              - { type: ending_lock, ending: the_pin_and_the_join }
+              - { type: remove_item, item_id: ninth_pin, qty: 1 }
+              - { type: ending_module }
+              - { type: ledger_fact, kind: secret, text: "You set the ninth pin into the join, and the road stopped getting shorter." }
+      - id: keep_it
+        label: "Keep it"
+        text: >-
+          Keep the pin in your pocket and walk on.
+        gate:
+          on_pass:
+            text: "The hedgerows shiver in no wind at all, and are still."

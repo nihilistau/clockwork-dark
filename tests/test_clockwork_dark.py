@@ -432,3 +432,95 @@ def test_no_tease_carries_a_term_the_spoilers_mask() -> None:
             flags = 0 if row.get("case_sensitive") else re.IGNORECASE
             pattern = r"\b" + re.escape(str(row["term"])) + r"\b"
             assert not re.search(pattern, tease, flags), (ending_id, row["term"])
+
+
+# -- doors II (T7, §4.2-§4.3, §6.3) ------------------------------------------------------------------
+
+@pytest.mark.parametrize("item_id", ["the_written_name", "ninth_pin", "brass_shard"])
+def test_s2_takes_exactly_the_thing_offered_and_the_price_is_asked(item_id: str) -> None:
+    """Bug 2: the sacrifice took the written name whatever was chosen."""
+    others = [i for i in doors.PAID if i != item_id]
+
+    def setup(state):
+        doors.price_door_for(item_id)(state)
+        for other in others:
+            doors.effect(state, type="item", item_id=other, qty=1)
+
+    state = _drive("the_price_asked", Door.card("the_price", "S2_pay_it", doors.PAID[item_id]), setup)
+    held = {i.id for i in state.inventory if i.qty > 0}
+    assert item_id not in held and set(others) <= held
+
+
+def test_s1_offers_one_beat_per_thing_carried(flagship) -> None:
+    from engine.content import director
+
+    state = new_state()
+    doors.at_pay_it_by_the_narrator(state)        # a v0.24.0-shaped run: re-offered the choice (I1)
+    assert _deal(state, "the_price") == ["S1_choose_what"]
+    assert [o["id"] for o in director.options(state)] == ["offer_the_name", "offer_the_shard", "not_yet"]
+
+
+def test_a_thing_offered_and_then_sold_is_offered_again(flagship) -> None:
+    from engine.content import deck as deck_module
+
+    state = new_state()
+    doors.price_door_for("brass_shard")(state)
+    doors.effect(state, type="remove_item", item_id="brass_shard", qty=1)
+    doors.effect(state, type="item", item_id="the_written_name", qty=1)
+    eligible, _ = deck_module.eligible_cards(state, deck_module.load_deck("the_price"))
+    assert [c.id for c in eligible] == ["S1_choose_what"]
+
+
+def test_the_pin_is_set_at_the_join_and_leaves_the_pack() -> None:
+    state = _drive("the_pin_and_the_join", Door.card("the_join", "J1_the_pin", "set_it"), doors.pin_door)
+    assert not any(i.id == "ninth_pin" and i.qty > 0 for i in state.inventory)
+
+
+def test_the_last_hour_deals_the_last_morning() -> None:
+    _drive("the_stopped_wheel", Door.card("the_stopped_wheel", "Z1_the_last_morning"), doors.last_hour_door)
+
+
+def test_the_last_morning_waits_for_an_open_hand_then_is_dealt(flagship) -> None:
+    """Review Focus 4: an encounter open at the crossing keeps the turn; the wheel's scene comes after."""
+    from engine.content import director
+    from engine.game import encounter
+
+    state = new_state()
+    encounter.begin(state, "lost_child_at_the_treeline")
+    doors.last_hour_door(state)
+    assert director.ensure_scene(state) == []
+    encounter.end(state)
+    (receipt,) = director.ensure_scene(state)
+    assert receipt["result"]["deck_id"] == "the_stopped_wheel"
+
+
+def test_the_second_death_in_consuming_ends_in_the_fail_forward() -> None:
+    _drive("the_dark_keeps_its_hours", Door.death(), doors.second_death_door)
+
+
+def test_leaving_the_pin_grants_no_pin(flagship) -> None:
+    """Bug 1: `take_it_or_dont`'s on_complete granted the pin either way."""
+    from engine.game.quests import STATUS_COMPLETED, QuestEngine, progress_records
+
+    state = new_state()
+    state.arcs_unlocked.append("convergence")
+    doors.completed(state, "naming_the_wound")
+    doors.at_stage(state, "the_ninth_pin", 2)
+    doors.flag(state, "nf_ninth_left")
+    QuestEngine.evaluate(state)
+    assert progress_records(state)["the_ninth_pin"].status == STATUS_COMPLETED
+    assert not any(i.id == "ninth_pin" for i in state.inventory)
+
+
+@pytest.mark.parametrize("quest_id, index, flag_id", [
+    ("the_ninth_pin", 2, "nf_ninth_taken"),
+    ("the_ninth_pin", 2, "nf_ninth_left"),
+    ("the_sacrifice", 1, "nf_sacrifice_chosen"),
+    ("the_sacrifice", 2, "nf_sacrifice_paid"),
+])
+def test_the_narrator_cannot_raise_a_card_carried_flag(flagship, quest_id, index, flag_id) -> None:
+    from engine.game.quests import QuestEngine
+
+    state = new_state()
+    doors.at_stage(state, quest_id, index)
+    assert flag_id not in QuestEngine.allowed_narrative_flags(state)

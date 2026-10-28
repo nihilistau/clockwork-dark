@@ -26,7 +26,7 @@ items, standings and stats; ``advance_time`` for time, fed on the way;
 decision 18): a quest the door needs completed, or at a stage, is written
 through the quest module's own record writer, ``quests._write``.
 
-Version: v0.2.0 [2026-10-28]
+Version: v0.3.0 [2026-10-29]
 """
 
 from __future__ import annotations
@@ -34,8 +34,9 @@ from __future__ import annotations
 from typing import Any
 
 __all__ = [
-    "at_reading", "at_stage", "completed", "effect", "fed_until", "flag", "hearth_door",
-    "march_door", "named_wound_door", "stand", "stay_anyway_door", "witness_door",
+    "OFFERED", "PAID", "at_pay_it_by_the_narrator", "at_reading", "at_stage", "completed", "effect",
+    "fed_until", "flag", "hearth_door", "last_hour_door", "march_door", "named_wound_door", "pin_door",
+    "price_door_for", "second_death_door", "stand", "stay_anyway_door", "witness_door",
 ]
 
 
@@ -153,3 +154,70 @@ def march_door(state: Any) -> None:
     completed(state, "militia_press")
     stand(state, "millhaven_gate", 9)
     QuestEngine.evaluate(state)          # records the visit and opens the march arc, as a turn does
+
+
+# -- the price (S1, S2) ------------------------------------------------------------------------------
+
+OFFERED = {"the_written_name": "offer_the_name", "ninth_pin": "offer_the_pin", "brass_shard": "offer_the_shard"}
+PAID = {"the_written_name": "pay_the_name", "ninth_pin": "pay_the_pin", "brass_shard": "pay_the_shard"}
+
+
+def _with_ilya_in_the_square(state: Any) -> None:
+    """Spreading (the vines have moved Ilya to the square), naming done; the square at ten."""
+    at_reading(state, 0.55)                 # a world this far gone; its beats fired as the clock fires them
+    effect(state, type="awareness", delta=60)
+    completed(state, "naming_the_wound")
+    stand(state, "edgewood_square", 10)
+
+
+def price_door_for(item_id: str):
+    """The Price Asked, paying with `item_id`: offered at S1 (its flag and nf_sacrifice_chosen), held, at pay_it."""
+    def setup(state: Any) -> None:
+        _with_ilya_in_the_square(state)
+        effect(state, type="item", item_id=item_id, qty=1)
+        at_stage(state, "the_sacrifice", 2)
+        flag(state, "nf_sacrifice_understood")
+        flag(state, "nf_sacrifice_chosen")
+        flag(state, f"sacrifice_offered_{item_id}")
+    setup.__name__ = f"price_door_paying_{item_id}"
+    return setup
+
+
+def at_pay_it_by_the_narrator(state: Any) -> None:
+    """A v0.24.0-shaped run at pay_it: chosen through the narrator, nothing offered on a card, two things held."""
+    _with_ilya_in_the_square(state)
+    effect(state, type="item", item_id="the_written_name", qty=1)
+    effect(state, type="item", item_id="brass_shard", qty=1)
+    at_stage(state, "the_sacrifice", 2)
+    flag(state, "nf_sacrifice_understood")
+    flag(state, "nf_sacrifice_chosen")
+
+
+# -- the join (J1) -----------------------------------------------------------------------------------
+
+def pin_door(state: Any) -> None:
+    """The Pin and the Join: the pin taken and held, the join walked; standing at the join."""
+    completed(state, "naming_the_wound")
+    flag(state, "nf_ninth_taken")
+    effect(state, type="item", item_id="ninth_pin", name="The ninth pin", qty=1, tags=["named", "unsettling"])
+    at_stage(state, "the_heartland_road", 2)
+    stand(state, "the_join", 12)
+
+
+# -- the last hour (Z1) and the second death ----------------------------------------------------------
+
+def last_hour_door(state: Any) -> None:
+    """The Stopped Wheel: the reading at 1.0, then a day crossed, which fires `the_last_hour`
+    (a `when:` event: fire-once and deterministic, no draw)."""
+    at_reading(state, 1.0)
+    fed_until(state, state.world_day + 1, 6)
+
+
+def second_death_door(state: Any) -> None:
+    """The fail-forward's terminal: consuming, and marked by a first death there already."""
+    from engine.game import encounter
+
+    at_reading(state, 0.85)
+    effect(state, type="hp", delta=-int(state.stats.hp))
+    first = encounter.check_death(state)
+    assert first and not first.get("terminal"), first
