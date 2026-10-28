@@ -594,6 +594,17 @@ What cuts across:
   without a choice takes the first beat and logs a WARNING. `sequence` beats
   are steps, all resolved in order. Get this wrong and a decision card applies
   every branch of the decision at once.
+- **A menu beat may carry its own `when:`** (v0.25.0), a condition in the
+  shared grammar (§3.7): the beat is offered — in the narrator's options, the
+  intent enum and the player's chips — only while it holds, so one card can
+  hold a door that opens only for the player who has earned it. A pick made
+  while it held and sent after it stopped holding is refused at resolve ("is
+  not on this card"), writing nothing; a menu card resolved with no choice
+  takes its first OFFERED beat, never a filtered-out one. The validator
+  (`deck.beat_when_problems`) refuses a `when:` on a `sequence` card (its
+  beats are steps, not choices), a menu card whose every beat has one (it
+  could be dealt with nothing to answer: keep one without), and an unknown
+  predicate. A beat without one binds exactly as before.
 - **A menu beat's `text` is the narrator's; its `label` is the player's**
   (v0.21.0). The narrator is handed the full `text` ("render it, do not
   replace it"), and the intent enum names the beat by it. The player's chip,
@@ -895,9 +906,19 @@ dealt again: the stay never ended, so it never re-armed.
 `death.yaml`: `when` and `ending` come together, `ending` must be declared,
 `when` must use known predicates (and no combinator beside a sibling
 predicate), the block may not also carry the flagship's older
-`phases:`/`flag:` shape — that one (a second death while the world is
-`consuming`) still sets `state.ended` with no ending, unchanged — and
-`respawn.in_custody` is `true` or a mapping without `location_id`. Since
+`phases:`/`flag:` shape, and `respawn.in_custody` is `true` or a mapping
+without `location_id`.
+
+**The older shape may name an ending too** (v0.25.0). The flagship's
+`terminal: {phases, flag}` marks the first death in a listed phase (sets
+`flag`, then respawns as usual) and ends the run on the second. Give it an
+`ending:` beside `phases` and `flag` and that second death locks the ending
+(through the same guarded `terminal: true` lock as above, so its gate is
+skipped and its module plays, and `epilogue.for_state` shows its card);
+without one it still sets `state.ended` with no ending, unchanged. The two
+shapes are told apart by `when`: an `ending` with neither `when` nor both
+`phases` and `flag` is refused, and so is an `ending` that is not declared.
+HUE & CRY's `{when, ending}` is unchanged. Since
 v0.17 `registry.validate` runs the loader's checks (`encounter.
 death_file_problem`), so `activate` refuses a story whose death rules would
 raise, instead of the player's first death raising it; an unreadable
@@ -1108,6 +1129,16 @@ a condition names must be one the story raises** (v0.17): an `event_active`,
 no `events:` entry, engine slot block, procgen `festival` or `event_id` the
 story's own content emits is a validator error, because the predicate is
 false forever (`validation.check_event_references`).
+
+**Who is here: `npc_here`** (v0.25.0). `{npc_here: npc_maris}` is true while
+that person is at the player's place and can be spoken to: there by routine
+and awake, or there because an override flag (`npc_at_<id>`), an active
+event's `npc_ids` or a quest pin (`npc_pin_<id>`) put them there -- exactly
+what `npc_sim.resolve_npc` reports, the same answer the people strip and the
+narrator's presence block read, so a door and the person the player sees
+cannot disagree. Asleep is not here. A list (`{npc_here: [a, b]}`) asks for
+all of them; an id nobody resolves is never here. Read-only, for any `when:`,
+`requires:` or beat `when:`.
 
 **Road danger, by the hour.** A walk rolls for an encounter on ARRIVAL
 (`engine/game/engine.py::_roll_travel_encounter`, the ENCOUNTER stream). The
@@ -1665,9 +1696,10 @@ paying it and quashing the Wick's files together in `on_discharge` -- so a
 file gone before payday cannot be paid for. That is safe only because the
 bribe has no `on_break`: a refused discharge lets the thread come due, and a
 template whose break has teeth (`ardane_magpie_file` files a report and
-costs -10) must not gate its discharge on something the player can lose. There is
-no predicate for who else is standing there — see the NOT WIRED row in
-`docs/GOVERNANCE.md`.
+costs -10) must not gate its discharge on something the player can lose. Who
+else is standing there is `npc_here` (§3.7, v0.25.0); HUE & CRY's threads still
+gate on `at_location` and the `hour_between` their person's schedule has them
+there, awake.
 
 **Something to lose: `filed`.** `{filed: {jurisdiction, guise?, linked?}}`
 is true while any LIVE report row matches — read through the same matcher

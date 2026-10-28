@@ -666,3 +666,80 @@ def test_the_flagship_terminal_still_ends_without_an_ending() -> None:
         assert epilogue.for_state(state) is None
     finally:
         registry.deactivate()
+
+
+# -- the legacy terminal may lock an ending (v0.25.0 E3, spec §6.3) ---------------------------------
+
+
+@pytest.fixture
+def legacy_with_ending(monkeypatch):
+    """The flagship, its `phases`/`flag` terminal naming the fail-forward."""
+    from engine.games import registry
+
+    registry.activate("clockwork-dark")
+    try:
+        rules = dict(encounter.load_death_rules())
+        rules["terminal"] = {**rules["terminal"], "ending": "the_dark_keeps_its_hours"}
+        monkeypatch.setattr(encounter, "load_death_rules", lambda: rules)
+        yield rules
+    finally:
+        registry.deactivate()
+
+
+def _consuming_state():
+    """A seeded flagship run at reading 0.85: `consuming`, its beats fired (tests/clockwork_doors.py)."""
+    from engine.game.procgen import new_game_state
+    from tests.clockwork_doors import at_reading
+
+    state = at_reading(new_game_state(seed=7), 0.85)
+    assert state.evil_phase.value == "consuming"
+    return state
+
+
+def _die(state):
+    apply_effect(state, {"type": "hp", "delta": -int(state.stats.hp)})
+    return encounter.check_death(state)
+
+
+def test_the_first_death_in_a_listed_phase_only_marks_and_respawns(legacy_with_ending) -> None:
+    state = _consuming_state()
+    record = _die(state)
+    assert record and not record.get("terminal")
+    assert state.flags.get("saints_marked_you") and not state.ended
+    assert endings.locked(state) == endings.NONE_ID
+
+
+def test_the_second_locks_its_ending_and_shows_its_epilogue(legacy_with_ending) -> None:
+    state = _consuming_state()
+    _die(state)
+    record = _die(state)
+    assert record["terminal"] and state.ended and record["ending"] == "the_dark_keeps_its_hours"
+    assert endings.locked(state) == "the_dark_keeps_its_hours"
+    assert epilogue.for_state(state).ending_id == "the_dark_keeps_its_hours"
+
+
+def test_without_an_ending_the_legacy_terminal_is_unchanged() -> None:
+    from engine.games import registry
+
+    registry.activate("clockwork-dark")
+    try:
+        state = _consuming_state()
+        _die(state)
+        record = _die(state)
+        assert record == {"died": True, "terminal": True, "ended": True, "text": record["text"]}
+        assert endings.locked(state) == endings.NONE_ID
+    finally:
+        registry.deactivate()
+
+
+@pytest.mark.parametrize("terminal, words", [
+    ({"phases": ["consuming"], "flag": "m", "ending": "the_dark_keeps_its_hours"}, None),
+    ({"phases": ["consuming"], "flag": "m", "ending": "no_such_ending"}, "is not a declared ending"),
+    ({"ending": "the_dark_keeps_its_hours"}, "needs a `terminal.when`"),
+    ({"when": {"flag": "x"}, "ending": "the_dark_keeps_its_hours", "phases": ["consuming"]}, "mixes"),
+])
+def test_the_terminal_shapes_are_told_apart(terminal, words) -> None:
+    from engine.game.encounter import death_terminal_problem
+
+    problem = death_terminal_problem(terminal, {"the_dark_keeps_its_hours"})
+    assert (problem is None) if words is None else (words in (problem or ""))

@@ -159,11 +159,27 @@ def _item_fields(item_id: str) -> Optional[dict[str, str]]:
     }
 
 
+def _gallery_fields(gallery_key: str) -> Optional[dict[str, str]]:
+    """Prompt fields for an ending's plate, from the subjects file's ``gallery:`` block (v0.25.0 E7)."""
+    entry = (load_subjects().get("gallery", {}) or {}).get(gallery_key)
+    if not entry:
+        return None
+    return {
+        "subject": entry.get("subject", gallery_key.replace("_", " ")),
+        "details": entry.get("details", ""),
+        "setting": entry.get("setting", ""),
+        "light": entry.get("light", ""),
+        "style": entry.get("style", ""),
+    }
+
+
 def _fields(kind: str, subject_id: str, time_of_day: str) -> dict[str, str]:
     if kind == "item":
         fields = _item_fields(subject_id)
     elif kind == "portrait":
         fields = _portrait_fields(subject_id)
+    elif kind == "gallery":
+        fields = _gallery_fields(subject_id)
     else:
         fields = _location_fields(subject_id, time_of_day)
     if fields is None:

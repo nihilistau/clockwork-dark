@@ -22,7 +22,8 @@ encounter) and S10 (the pace slider's range, marks and hint), and v0.22.0
 adds S11 (READ RECEIPTS's row in the catalogue), and v0.24.0 adds S13 (the
 sound blueprint's three URL rules) and S12 (``paths.sounds`` in the catalogue rows
 of the stories that declare sounds: five rows, ``EXPECTED_SOUNDS_ROWS``), and
-v0.25.0 adds S14 (the overlay's route and socket handler). There are no others.
+v0.25.0 adds S14 (the overlay's route and socket handler) and S15 (the
+factions route). There are no others.
 
 The capture opens no socket (Flask's and Socket.IO's test clients), writes
 nothing outside the test's temp directory (asserted, by an audit hook), and
@@ -256,6 +257,21 @@ def with_overlay_door(value: Any) -> None:
 
 
 OVERLAY_SANCTION: tuple[str, Callable[[str], str]] = ("app_shape.json", json_sanction(with_overlay_door))
+
+
+def with_factions_route(value: Any) -> None:
+    """
+    S15 (v0.25.0 T3, spec §6.4): `url_map` gains exactly `/api/factions`, shaped
+    as the story blueprint's other session routes (`/api/clues` is the model).
+    """
+    rows = value["url_map"]
+    clues = next(row for row in rows if row[0] == "/api/clues")
+    assert not any(row[0] == "/api/factions" for row in rows)
+    rows.append(["/api/factions", list(clues[1]), clues[2].replace("api_clues", "api_factions")])
+    rows.sort()
+
+
+FACTIONS_SANCTION: tuple[str, Callable[[str], str]] = ("app_shape.json", json_sanction(with_factions_route))
 
 
 def with_turn_running(value: Any) -> None:
@@ -616,7 +632,8 @@ SOUNDS_SANCTION: list[tuple[str, Callable[[str], str]]] = [
 #: makes it. S1 since v0.20.0 T2, S2 since T3, S3-S10 since v0.21.0
 #: (spec §1.2; S7 added in T3 fix round 1, S8 in fix round 2, S9 in the
 #: encounter-resume fix, S10 in T13 fix round 1, S5 in T14), S11 since
-#: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10, S14 since v0.25.0 T2; there are no others.
+#: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10, S14 since v0.25.0 T2, S15 since
+#: v0.25.0 T3; there are no others.
 SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     BIND_SANCTION,
     *SAVES_SANCTION,
@@ -632,6 +649,7 @@ SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     SOUND_RULES_SANCTION,
     *SOUNDS_SANCTION,
     OVERLAY_SANCTION,
+    FACTIONS_SANCTION,
 ]
 
 
@@ -895,6 +913,12 @@ def test_the_v021_sanctions_are_exact() -> None:
     added = [row for row in after["url_map"] if row not in before["url_map"]]
     assert added == [["/api/intents/overlay", ["GET", "HEAD", "OPTIONS"], "default_story.api_overlay_intents"]]
     assert sorted(set(after["socketio_handlers"]["/"]) - set(before["socketio_handlers"]["/"])) == ["overlay_action"]
+
+    name, transform = FACTIONS_SANCTION
+    before, after = json.loads(recorded[name]), json.loads(transform(recorded[name]))
+    added = [row for row in after["url_map"] if row not in before["url_map"]]
+    assert added == [["/api/factions", ["GET", "HEAD", "OPTIONS"], "default_story.api_factions"]]
+    assert {k: v for k, v in after.items() if k != "url_map"} == {k: v for k, v in before.items() if k != "url_map"}
 
     for name, transform in JOIN_SANCTION:
         assert recorded[name].count('"game_started"') == 1, name

@@ -15,6 +15,7 @@ The engine's default story screens, as one Blueprint.
     GET /api/clues             the clue board: what the player has worked out
     GET /api/people            who is here (names and faces only once met)
     GET /api/intents/overlay   what an overlay may press now (v0.25.0 E2)
+    GET /api/factions          every faction, named, with its band (v0.25.0 E4)
 
 MOVED FROM ``content/scenes/clockwork/clockwork_api.py`` in v0.3.0. Every
 route here resolves through ``paths.*`` on the active manifest (the loaders
@@ -1033,6 +1034,26 @@ def overlay_offer(state: Any) -> dict[str, Any]:
     return {"scene_owns_turn": bool(intents.scene_owns_turn(state)), "actions": actions}
 
 
+def faction_rows(state: Any) -> list[dict[str, Any]]:
+    """
+    Every faction the story declares, in declared order: its name, its band
+    (the faction's own ``bands``, "kept in the count" included) and its score
+    (v0.25.0 E4). Read-only. A route, not a payload key, so every story's turn
+    payload stays byte-identical.
+    """
+    from engine.game import reputation
+
+    return [
+        {
+            "id": faction,
+            "name": reputation.faction_name(faction),
+            "band": {"id": reputation.standing_id(state, faction), "label": reputation.standing(state, faction)},
+            "score": int(reputation.get(state, faction)),
+        }
+        for faction in reputation.faction_ids()
+    ]
+
+
 # ---------------------------------------------------------------------------
 # the blueprint
 # ---------------------------------------------------------------------------
@@ -1201,6 +1222,15 @@ def story_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
             logger.exception("[api] Overlay offer failed (operation=api_overlay_intents)")
             return jsonify({"scene_owns_turn": True, "actions": {}})
 
+    @blueprint.get("/api/factions")
+    def api_factions() -> Any:
+        """The sheet's Standing rows, named. Session-required (a band is a run's)."""
+        try:
+            session = store.require(request.args.get("session_id", ""))
+        except KeyError:
+            return jsonify({"error": "session not found"}), 404
+        return jsonify(faction_rows(session.engine.state))
+
     return blueprint
 
 
@@ -1211,6 +1241,7 @@ __all__ = [
     "codex_places",
     "codex_souls",
     "codex_things",
+    "faction_rows",
     "item_catalog",
     "notice_board",
     "overlay_offer",

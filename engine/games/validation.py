@@ -1933,6 +1933,12 @@ class StoryValidator:
         exactly the defect a green suite keeps.
         """
         is_menu = "menu" in ((card or {}).get("tags") or [])
+        # A beat-level `when:` (v0.25.0 E5): menu cards only, one beat left
+        # without, each a condition the grammar reads.
+        from engine.content.deck import beat_when_problems
+
+        for problem in beat_when_problems(card):
+            self._add(source, card_id, problem)
         for beat in (card or {}).get("beats") or []:
             gate = (beat or {}).get("gate")
             ref = f"{card_id}/{(beat or {}).get('id') or '-'}"

@@ -7,6 +7,10 @@ Manifest art key -> served URL, and the bytes behind a story-owned URL.
     GET /api/art?id=&kind=&time_of_day=&evil_phase=
     GET /story-art/<path>
 
+``kind`` is one of ``location``, ``portrait``, ``item``, ``enemy`` and
+``gallery`` (an ending's plate, keyed by its epilogue's ``gallery_key``;
+v0.25.0 E7). Anything else resolves as a location.
+
 The client cannot read ``data/art/manifest.yaml``, so an encounter's
 ``art: "wolf"`` was unrenderable without the first route.
 

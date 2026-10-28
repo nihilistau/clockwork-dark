@@ -718,8 +718,11 @@ later at 35% hp, half your purse gone, carrying a −2 wound that takes five day
 to close — and the evil kept its own hours the whole time you were down.
 `state.ended` is set in exactly one case: a *second* death while the world is
 already `consuming`, when there is no longer anyone left to come out and fetch
-you. (That terminal locks no ending, so it shows no epilogue. A story wanting
-one declares `terminal: {when, ending}` instead — docs/AUTHORING.md §3.5.)
+you. Since v0.25.0 the legacy terminal locks the ending its story names
+(`terminal: {phases, flag, ending}`), so that second death shows that ending's
+epilogue; one that names none still shows no epilogue. A story whose terminal
+death is some other condition declares `terminal: {when, ending}` instead —
+docs/AUTHORING.md §3.5.
 
 ### Crafting & Professions
 

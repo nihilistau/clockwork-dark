@@ -252,6 +252,10 @@ def bound_beats(raw: Any, deck_id: str, card_id: str) -> list[dict[str, Any]]:
                       what="beat label")
         if label:
             beat["label"] = label
+        if "when" in raw_beat:
+            # A menu beat's own offer condition (v0.25.0 E5): kept only when
+            # authored, so a beat without one binds to exactly the dict it did.
+            beat["when"] = raw_beat["when"]
         if "gate" in raw_beat and isinstance(raw_beat["gate"], dict):
             beat["gate"] = _bound_gate(raw_beat["gate"], adjustments)
         if "band" in raw_beat and isinstance(raw_beat["band"], dict):
@@ -853,6 +857,34 @@ def chosen_beats(card: Card, chosen: Optional[str] = None) -> list[dict[str, Any
     return [card.beats[0]]
 
 
+def beat_when_problems(card: Any) -> list[str]:
+    """
+    What is wrong with a card's beat-level ``when:`` (v0.25.0 E5), for the
+    validator. Allowed only on a ``menu`` card (a sequence's beats are steps,
+    not choices); a menu card using one keeps at least one beat without one, so
+    it can never be dealt with nothing to answer; each is a condition the
+    shared grammar reads.
+    """
+    beats = [b for b in ((card or {}).get("beats") or []) if isinstance(b, dict)]
+    with_when = [b for b in beats if "when" in b]
+    if not with_when:
+        return []
+    if MENU_TAG not in ((card or {}).get("tags") or []):
+        return [f"beat `{with_when[0].get('id') or '-'}` has a `when:` on a card that is not a menu; "
+                "a sequence's beats are steps, not choices"]
+    from engine.game.quests import condition_problem
+
+    problems: list[str] = []
+    if len(with_when) == len(beats):
+        problems.append("every beat of this menu card has a `when:`; keep one without, or the card "
+                        "can be dealt with nothing to answer")
+    for beat in with_when:
+        problem = condition_problem(beat.get("when"), where=f"beat `{beat.get('id') or '-'}` when")
+        if problem:
+            problems.append(problem)
+    return problems
+
+
 def resolve_card(
     state: GameState,
     card: Card,
@@ -890,6 +922,7 @@ __all__ = [
     "Card",
     "Deck",
     "Hand",
+    "beat_when_problems",
     "chosen_beats",
     "deck_ids",
     "draw",

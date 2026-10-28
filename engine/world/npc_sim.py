@@ -367,6 +367,34 @@ def resolve_npc(state: GameState, npc_id: str) -> Optional[NPCPresence]:
     )
 
 
+def _p_npc_here(state: GameState, value: Any, ctx: Any) -> bool:
+    """
+    ``{npc_here: npc_maris}`` (v0.25.0 E6): that person is at the player's
+    place and can be spoken to -- awake, or there because of an event or a pin,
+    as ``resolve_npc`` already reports. It asks the same function the people
+    strip and the narrator's presence block ask, so a door and the person the
+    player sees cannot disagree. A list asks for all of them. Read-only.
+    """
+    wanted = value if isinstance(value, list) else [value]
+    if not wanted:
+        return False
+    for npc_id in wanted:
+        presence = resolve_npc(state, str(npc_id))
+        if presence is None or presence.location_id != state.location_id or not presence.available:
+            return False
+    return True
+
+
+def _register() -> None:
+    """Extend the shared condition grammar (engine/game/quests.py)."""
+    from engine.game.quests import register_predicate
+
+    register_predicate("npc_here", _p_npc_here)
+
+
+_register()
+
+
 def known_npc_ids(state: GameState) -> list[str]:
     """Every NPC id the sim can resolve, in stable order and deduplicated."""
     ordered: list[str] = []

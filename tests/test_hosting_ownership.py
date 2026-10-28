@@ -123,6 +123,8 @@ def test_every_http_door_answers_another_accounts_id_as_a_missing_one(
         "POST /api/voice/transcribe": lambda sid, _save: _voice(b.client, sid),
         "GET /api/intents/overlay": lambda sid, _save: b.client.get(
             "/api/intents/overlay", query_string={"session_id": sid}),
+        "GET /api/factions": lambda sid, _save: b.client.get(
+            "/api/factions", query_string={"session_id": sid}),
         "POST /api/game/choice overlay": lambda sid, _save: b.client.post(
             "/api/game/choice", json={"session_id": sid, "overlay_intent": {"action": "eat", "target": "loaf"}}),
     }

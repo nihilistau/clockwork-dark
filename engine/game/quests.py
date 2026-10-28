@@ -807,6 +807,7 @@ _GRAMMAR_MODULES = (
     "engine.world.jobs",  # premise_cased, premise_robbed, job
     "engine.world.agendas",  # wanted, reported_to, agenda_hit, alibi, agenda_role
     "engine.world.clues",  # clues_favour
+    "engine.world.npc_sim",  # npc_here
 )
 
 #: True once the import loop below has RUN (a failed import included: it is

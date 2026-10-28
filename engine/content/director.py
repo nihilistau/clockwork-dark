@@ -133,12 +133,22 @@ def current_card(state: GameState) -> Optional[deck_module.Card]:
     return None
 
 
+def _beat_offered(state: GameState, beat: dict[str, Any]) -> bool:
+    """A menu beat's own ``when:`` (v0.25.0 E5). A beat without one is always offered."""
+    if "when" not in beat:
+        return True
+    from engine.game.quests import evaluate_condition
+
+    return bool(evaluate_condition(state, beat.get("when")))
+
+
 def options(state: GameState) -> list[dict[str, str]]:
     """
     What the player may answer the current card with.
 
     A ``menu`` card offers one option per beat, because its beats are branches
-    of a single question. A ``sequence`` card offers a single "go on": its beats
+    of a single question -- each beat whose own ``when:`` holds (v0.25.0 E5;
+    a beat without one is always offered). A ``sequence`` card offers a single "go on": its beats
     are steps, and resolving them is not a choice. ``deck.chosen_beats`` owns
     the menu/sequence distinction and is called rather than reimplemented.
     """
@@ -150,7 +160,7 @@ def options(state: GameState) -> list[dict[str, str]]:
         rows: list[dict[str, str]] = []
         for beat in card.beats:
             beat_id = str(beat.get("id") or "")
-            if not beat_id:
+            if not beat_id or not _beat_offered(state, beat):
                 continue
             rows.append(
                 {"id": beat_id, "text": str(beat.get("text") or beat_id)}
@@ -211,7 +221,7 @@ def player_options(state: GameState) -> dict[str, str]:
         out = {
             str(beat.get("id") or ""): player_label(beat, fallback=card.title or "")
             for beat in card.beats
-            if str(beat.get("id") or "")
+            if str(beat.get("id") or "") and _beat_offered(state, beat)
         }
         if out:
             return out
@@ -676,6 +686,12 @@ def resolve(
     if card is None:
         return {"ok": False, "error": "no scene is open"}
 
+    if not chosen and deck_module.MENU_TAG in card.tags and any("when" in b for b in card.beats):
+        # The first OFFERED beat, never a filtered-out first beat (`chosen_beats`'
+        # no-choice fallback). Only for a card with a beat-level `when:`
+        # (v0.25.0 E5, Plan decision 5).
+        offered = options(state)
+        chosen = str(offered[0]["id"]) if offered else ""
     legal = {row["id"] for row in options(state)}
     if chosen and chosen not in legal:
         logger.info(
