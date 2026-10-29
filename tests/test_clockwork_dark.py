@@ -800,3 +800,92 @@ def _all_texts(node: Any, where: str = ""):
     elif isinstance(node, list):
         for i, item in enumerate(node):
             yield from _all_texts(item, f"{where}[{i}]")
+
+
+# -- card-only walks, presence, the static door check (T9, §12.2) -------------------------------------
+
+from tests import clockwork_walks  # noqa: E402
+
+
+@pytest.mark.parametrize("ending_id", sorted(clockwork_walks.WALKS))
+def test_each_ending_is_reached_by_cards_alone(flagship, monkeypatch, ending_id: str) -> None:
+    from engine.game import endings, epilogue
+    from engine.game.quests import QuestEngine
+    from engine.memory.ledger import StoryLedger
+
+    def no_narrator(*_a, **_k):
+        raise AssertionError("a narrative flag was raised by the narrator")
+
+    def no_disposition(*_a, **_k):
+        raise AssertionError("a disposition was written")
+
+    monkeypatch.setattr(QuestEngine, "set_narrative_flag", staticmethod(no_narrator))
+    monkeypatch.setattr(StoryLedger, "adjust_disposition", no_disposition)
+    walk, answers = clockwork_walks.WALKS[ending_id]
+    w = clockwork_walks.Walk(seed=7, answers=answers)
+    walk(w)
+    assert endings.locked(w.state) == ending_id
+    assert epilogue.for_state(w.state).ending_id == ending_id
+
+
+def test_every_door_deck_with_a_person_reads_npc_here() -> None:
+    for deck_id, npc_id in clockwork_walks.DOOR_DECKS.items():
+        deck = yaml.safe_load((SCENES / f"{deck_id}.yaml").read_text(encoding="utf-8"))
+        assert {"npc_here": npc_id} in deck["when"]["all"], deck_id
+
+
+DOOR_PLACES = {
+    "the_morning_firing": ["edgewood_bakery"], "the_count_kept": ["edgewood_shrine"],
+    "the_muster_roll": ["millhaven_gate", "edgewood_square"],
+    "the_price": ["edgewood_square", "tinker_caravan", "millhaven_gate", "edgewood_bakery"],
+}
+
+
+def _person_gate(deck_id: str) -> dict:
+    """The deck's real `when:` less its tail (`any:` of its cards) and any quest clause (ruling M12):
+    what is left is where and when, and who must be there."""
+    from engine.content import deck as deck_module
+
+    clauses = deck_module.load_deck(deck_id).when["all"][:-1]
+    return {"all": [c for c in clauses if not (isinstance(c, dict) and "quest_state" in c)]}
+
+
+@pytest.mark.slow   # M24: 1,440 hours x 8 gate reads a seed, ten seeds (about 9 s here): out of the fast tier
+@pytest.mark.parametrize("seed", range(10))
+def test_a_door_deck_is_due_only_where_its_person_is(flagship, seed: int) -> None:
+    """§12.2: every hour of days 1-60, with the tinker's camp, the press, the pin and the 0.50 and 0.88
+    moves each driven: the deck's person/place gate holds only where npc_sim places that person."""
+    from engine.game.clock import advance_time
+    from engine.game.effects import apply_effect
+    from engine.game.quests import evaluate_condition
+    from engine.world import npc_sim
+    from engine.world.world_sim import WorldSim
+
+    state = new_state(seed)
+    gates = {d: _person_gate(d) for d in clockwork_walks.DOOR_DECKS}
+    assert gates["the_price"] == {"all": [{"npc_here": "npc_ilya"}]}, gates["the_price"]
+    held: set[str] = set()
+    for _ in range(60 * 24):
+        day = state.world_day
+        if day == 10 and state.world_hour == 0:
+            WorldSim.on_tick(state, hours=0.0, force=["tinker_camp"])
+        if day == 15 and state.world_hour == 0:
+            WorldSim.on_tick(state, hours=0.0, force=["militia_press"])
+        if day == 20 and state.world_hour == 0:
+            apply_effect(state, {"type": "flag", "flag": "npc_pin_npc_ilya", "value": True})
+        if day == 30 and state.world_hour == 0:
+            apply_effect(state, {"type": "flag", "flag": "npc_pin_npc_ilya", "value": False})
+            doors.at_reading(state, max(state.evil_progress, 0.5))
+        if day == 45 and state.world_hour == 0:
+            doors.at_reading(state, max(state.evil_progress, 0.88))
+        for deck_id, npc_id in clockwork_walks.DOOR_DECKS.items():
+            for place in DOOR_PLACES[deck_id]:
+                state.location_id = place
+                if evaluate_condition(state, gates[deck_id]):
+                    presence = npc_sim.resolve_npc(state, npc_id)
+                    assert presence.location_id == place and presence.available, (deck_id, day, state.world_hour)
+                    held.add(deck_id)
+        if state.hunger > 0:
+            apply_effect(state, {"type": "hunger", "delta": -state.hunger})
+        advance_time(state, 1.0)
+    assert held == set(clockwork_walks.DOOR_DECKS), held      # never vacuous: every gate held somewhere

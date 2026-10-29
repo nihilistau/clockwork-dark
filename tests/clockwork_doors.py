@@ -26,7 +26,7 @@ items, standings and stats; ``advance_time`` for time, fed on the way;
 decision 18): a quest the door needs completed, or at a stage, is written
 through the quest module's own record writer, ``quests._write``.
 
-Version: v0.3.0 [2026-10-29]
+Version: v0.4.0 [2026-10-29]
 """
 
 from __future__ import annotations
@@ -37,6 +37,12 @@ __all__ = [
     "OFFERED", "PAID", "at_pay_it_by_the_narrator", "at_reading", "at_stage", "completed", "effect",
     "fed_until", "flag", "hearth_door", "last_hour_door", "march_door", "named_wound_door", "pin_door",
     "price_door_for", "second_death_door", "stand", "stay_anyway_door", "witness_door",
+    # unearned (T9)
+    "hearth_consumed", "hearth_knowing", "hearth_larder_unwalked", "hearth_unplaced", "march_marked",
+    "march_unmarched", "march_unserved", "march_uncounted", "named_too_late", "named_unbaked",
+    "named_undecided", "named_unnamed", "pin_spent", "pin_too_late", "pin_untaken", "pin_unwalked",
+    "price_nothing_offered", "price_nothing_open", "wheel_still_turning", "witness_blind", "witness_deaf",
+    "witness_early", "witness_too_late", "witness_uncounted",
 ]
 
 
@@ -221,3 +227,165 @@ def second_death_door(state: Any) -> None:
     effect(state, type="hp", delta=-int(state.stats.hp))
     first = encounter.check_death(state)
     assert first and not first.get("terminal"), first
+
+
+# -- unearned (v0.25.0 §12.1): each walks a real door with ONE clause unmet --------------------------
+#
+# A doom reading is set through `at_reading` (ruling B1), never a bare `state.evil_progress`.
+
+def hearth_unplaced(state: Any) -> None:            # a_place_here: no quiet-life quest done
+    stay_anyway_door(state)
+
+
+def hearth_larder_unwalked(state: Any) -> None:     # larder_kept: H0 never answered
+    completed(state, "bakery_apprentice")
+    at_stage(state, "banking_the_fire", 1)
+    stand(state, "edgewood_bakery", 5)
+
+
+def hearth_knowing(state: Any) -> None:              # unknowing: awareness past 40
+    hearth_door(state)
+    effect(state, type="awareness", delta=41)
+
+
+def hearth_consumed(state: Any) -> None:             # village_stands: the world consuming
+    hearth_door(state)
+    at_reading(state, 0.85)
+
+
+def _witness_but(state: Any, *, awareness: int = 50, saints: int = 30, day: int = 27,
+                 drawing: bool = False, doom: float = 0.0) -> None:
+    effect(state, type="awareness", delta=awareness)
+    effect(state, type="reputation", faction="unnamed_saints", delta=saints)
+    if drawing:
+        completed(state, "childs_drawing")
+    fed_until(state, day, 12)
+    stand(state, "edgewood_shrine", 18)
+    if doom:
+        at_reading(state, doom)
+
+
+def witness_blind(state: Any) -> None:               # eyes_open: awareness 20 (listened by the drawing)
+    _witness_but(state, awareness=20, drawing=True)
+
+
+def witness_deaf(state: Any) -> None:                # listened: awareness 40, no whisper quest
+    _witness_but(state, awareness=40)
+
+
+def witness_uncounted(state: Any) -> None:           # counted
+    _witness_but(state, saints=0)
+
+
+def witness_early(state: Any) -> None:               # stayed_three_counts: day 20
+    _witness_but(state, day=20)
+
+
+def witness_too_late(state: Any) -> None:            # world_still_turning
+    _witness_but(state, doom=1.0)
+
+
+def _march_but(state: Any, *, arc: bool = True, militia: int = 20, served: bool = True,
+               marked: bool = False) -> None:
+    from engine.game.quests import QuestEngine
+
+    effect(state, type="reputation", faction="militia", delta=militia)
+    if served:
+        completed(state, "militia_press")
+    if marked:
+        flag(state, "saints_marked_you")
+    if arc:
+        stand(state, "millhaven_gate", 9)
+        QuestEngine.evaluate(state)
+    else:
+        stand(state, "edgewood_square", 18)          # Sera's notice-board hours; the gate never visited
+
+
+def march_unmarched(state: Any) -> None:
+    _march_but(state, arc=False)
+
+
+def march_uncounted(state: Any) -> None:
+    _march_but(state, militia=10)
+
+
+def march_unserved(state: Any) -> None:
+    _march_but(state, served=False)
+
+
+def march_marked(state: Any) -> None:
+    _march_but(state, marked=True)
+
+
+def _named_but(state: Any, *, named: bool = True, decided: bool = True, stage: int = 2, doom: float = 0.0) -> None:
+    if named:
+        completed(state, "naming_the_wound")
+    if decided:
+        completed(state, "what_edgewood_keeps")
+    at_stage(state, "the_last_quiet_thing", stage)
+    stand(state, "edgewood_bakery", 5)
+    if doom:
+        at_reading(state, doom)
+
+
+def named_unnamed(state: Any) -> None:
+    _named_but(state, named=False)
+
+
+def named_undecided(state: Any) -> None:
+    _named_but(state, decided=False)
+
+
+def named_unbaked(state: Any) -> None:
+    _named_but(state, stage=1)
+
+
+def named_too_late(state: Any) -> None:
+    _named_but(state, doom=1.0)
+
+
+def price_nothing_open(state: Any) -> None:          # named, chose, paid: no sacrifice, nothing named
+    _with_ilya_in_the_square(state)
+    from engine.game.quests import progress_records
+
+    state.quests.pop("naming_the_wound", None)
+    assert "naming_the_wound" not in progress_records(state)
+
+
+def price_nothing_offered(state: Any) -> None:       # chose, paid: at choose_what, the name held, not offered
+    _with_ilya_in_the_square(state)
+    effect(state, type="item", item_id="the_written_name", qty=1)
+    at_stage(state, "the_sacrifice", 1)
+    flag(state, "nf_sacrifice_understood")
+
+
+def _pin_but(state: Any, *, taken: bool = True, held: bool = True, stage: int = 2, doom: float = 0.0) -> None:
+    completed(state, "naming_the_wound")
+    if taken:
+        flag(state, "nf_ninth_taken")
+    if held:
+        effect(state, type="item", item_id="ninth_pin", name="The ninth pin", qty=1, tags=["named", "unsettling"])
+    at_stage(state, "the_heartland_road", stage)
+    stand(state, "the_join", 12)
+    if doom:
+        at_reading(state, doom)
+
+
+def pin_untaken(state: Any) -> None:
+    _pin_but(state, taken=False)
+
+
+def pin_spent(state: Any) -> None:
+    _pin_but(state, held=False)
+
+
+def pin_unwalked(state: Any) -> None:                # join_walked: R2 is dealt, J1 is not
+    _pin_but(state, stage=1)
+
+
+def pin_too_late(state: Any) -> None:
+    _pin_but(state, doom=1.0)
+
+
+def wheel_still_turning(state: Any) -> None:         # wheel_stopped: 0.9, no last hour
+    at_reading(state, 0.9)

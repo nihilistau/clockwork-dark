@@ -49,6 +49,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `the_last_quiet_thing` opens on `what_edgewood_keeps` alone (with awareness 62): it no longer accepts `the_sacrifice` or `the_heartland_road`, which end the story at their own doors, so requiring either would leave The Named Wound unreachable.
 - The caravan, the tinker's camp and the militia press are declared `events:` (`data/world/schedules.yaml`), each rolled once per in-game day crossed on its own stream, at the legacy rates measured per eligible day (v0.25.0 T1): caravan 0.768 from day 5, tinker 0.00465, press 0.173 while awareness is 20 or more. Their rates no longer depend on how a day was cut into background ticks. Each carries its own line of text; the caravan's rumour is Odran's. The unread `goods:` lists are gone. The pre- and post-change tables are in the root CHANGELOG and the schedules file's header.
 
+### Tests
+
+- Every ending is reached through its door (v0.25.0 T9, spec §12.1): the flagship joins HUE & CRY in `tests/test_finales.py`'s `COMPLETE_DOORS`, with ten door rows (the morning firing's `stay`, `stay_anyway`, `tell_her` and `say_nothing`, the count kept's `give_it`, the muster roll's `strike_it`, the price's `pay_the_name`, the join's `set_it`, the stopped wheel's last morning, and the second death in `consuming`) and 24 unearned rows, one for every gate clause of every earned ending, each walking the real door with that one clause unmet (`tests/clockwork_doors.py`).
+- Every ending is reached by cards alone (§4.4, §12.2; `tests/clockwork_walks.py`): eight walks from a new game, the turn's own order an hour at a time, with the narrator's flag-raising and dispositions patched to fail; the presence sweep (`slow`, ten seeds, days 1-60) holds each door deck's person gate true only where npc_sim places that person, and a static check that each door deck with a person reads `npc_here`.
+- The nine v0.24.0 saves (§12.4, `tests/test_clockwork_dark_saves.py`): each plays a turn, saves and reloads; the caravan and Odran kept with no second caravan; the works known or the seam offered; H1 dealt at five; the price re-offered at S1 and paid; the old press's levy full on the first turn and the press dealt in the square (`8_old_press`); the locked Hearth kept.
+
 ## [0.24.0] — 2026-10-27
 
 ### Added

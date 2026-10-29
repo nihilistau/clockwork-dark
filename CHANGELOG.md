@@ -68,6 +68,7 @@ Written down as measured, not tuned (T10 owns the bands and the levers, §10.3 l
 ### Tests
 
 - Tests: v0.24.0 recordings for v0.25.0's byte-identity and save tests (`tests/fixtures/flagship_overhaul/`, `tests/fixtures/clockwork_dark_v0240/`), recorded from 3c6882f by `CLOCKWORK_FLAGSHIP_RECORD=1`.
+- Tests (v0.25.0 T9): `tests/test_finales.py`'s unearned-door rows carry a story (`UnearnedDoor` gains `slug` and `entry`, HUE & CRY's rows take the defaults), and the two unearned tests run over every story in `COMPLETE_DOORS`, now HUE & CRY and The Clockwork Dark (`UNFAILABLE` per story; the tests' ids gain the slug). `tests/clockwork_walks.py` is the flagship's card-only walk harness (`Walk`, `WALKS`, `DOOR_DECKS`, and the condition helpers T10's door simulator takes over). Test-only; the story's CHANGELOG has the rows.
 
 ## [0.24.1] — 2026-10-27
 
