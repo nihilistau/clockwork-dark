@@ -119,6 +119,20 @@ Encounters per danger leg, by the band file whose `triggers.edges` names the leg
 
 Card coverage: **34 of 34**. The pinner's 35 lost runs: 25 stopped at `the_heartland_road`'s `walk_the_join` (the Join, 10-15, six road hours past the gate), 8 at the pin's `pay_for_it`, two elsewhere; 11 dealt the Named Wound at the bakery's dawn door on the way, 23 locked the fail-forward in `consuming`. The levy row on this harness: the press dealt in 29 of 40 marcher runs, median day 25 (band 24-40, met). Witness: the Whisper by day 20 in 39 of 40 (band 80%, met). Encounters per danger leg on the new bands, from the pinner's walks: toll road 0.490 (49 legs; band 0.30-0.60, met), heartland 0.456 (160 legs; band 0.40-0.70, met); wood 0.244 (the five-policy pauper, met); barrows: no leg walked, unmeasured.
 
+**Lever 1, convergence timing (§10.3): tried, measured, REVERTED.** The pinner missed its own-ending band (12.5%). The gate every convergence step waits on, `min_phase: spreading`, was widened to `any: [{min_phase: spreading}, {min_awareness: 100}]` in all six places the naming and what follows it read it (`naming_the_wound`'s `say_it_aloud`, `the_naming`'s G1 and G2, `the_sacrifice`'s and `the_heartland_road`'s preconditions; N = 100, the awareness the door policies hold at the median day the pinner's band wants: they reach the cap by about day 30, and no flagship effect lowers it). All nine policies re-measured, the same command and seeds (0-39):
+
+| Policy | Own before -> with lever 1 | Other | Turns (band) |
+|---|---|---|---|
+| pinner | 12.5% -> 25% (toward, still missed) | 85% -> 75% | 620 -> 487 (400-750, met) |
+| namer | 100% -> 100% | 0% | 527 -> 471.5 (350-650, met) |
+| payer | 90% -> 95% | 7.5% -> 2.5% | 560 -> 537 (350-650, met) |
+| witness | 92.5% -> 92.5% | 7.5% | 381 -> **409 (200-400, moved OUT)** |
+| marcher | 87.5% -> 82.5% | 12.5% -> **17.5% (further out)** | 182 -> 194 (200-400) |
+| reckless | 100% -> 87.5% terminal (band 50%+) | 0% -> 12.5% (the naming completes) | 275.5 -> 280 |
+| baker, settler, drifter | unchanged | | |
+
+It moved the witness's turns out of their band and the marcher's other-locks further from theirs (the door policies raise the convergence's narrator flags as side quests, and an earlier convergence fills the witness's and the marcher's days), so by §10.3's rule it is not kept: the six gates are `min_phase: spreading` again, as shipped at C1, and the T9 soft-lock test stands unchanged. Lever 1's second half, `doom_resistance` grants on the convergence stages, is next in order: 22 of the pinner's 35 lost runs end in the fail-forward once the world reaches `consuming`, and a slower doom after the naming is time on the road to the Join.
+
 ### Tests
 
 - Tests: v0.24.0 recordings for v0.25.0's byte-identity and save tests (`tests/fixtures/flagship_overhaul/`, `tests/fixtures/clockwork_dark_v0240/`), recorded from 3c6882f by `CLOCKWORK_FLAGSHIP_RECORD=1`.
