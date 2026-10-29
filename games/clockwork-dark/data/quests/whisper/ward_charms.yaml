@@ -1,9 +1,14 @@
-# Version: v0.1.0 [2026-08-07]
+# Version: v0.1.1 [2026-10-30]
 #
-# Pins Ilya via the npc_pin flag that engine/world/npc_sim.py honours above his
-# hourly routine. A bare `true` means "hold them at home", which for Ilya is the
-# caravan -- the only location this quest can be finished in. Without it his
-# routine can walk him out of his own quest.
+# Pins NOBODY (v0.25.0 T10). It used to pin Ilya home on its start and unpin
+# him when it ended, completed or failed; but `npc_pin_npc_ilya` is one flag,
+# and `the_ninth_pin` pins him home through ITS whole quest (spec §6.6), which
+# is the only thing that holds him at the caravan after the 0.50 doom move
+# sends him to the square. A ward-charms ending inside the pin's quest unpinned
+# him there, so the pin's deck could never deal `T2_pay_for_it` and The Pin and
+# the Join was unreachable (the doors harness: 0 of 40 pinner runs). This
+# quest's stages ask only for the caravan, never for Ilya in it, and his
+# routine has him there all but three afternoon hours.
 
 id: ward_charms
 arc: whisper
@@ -22,14 +27,6 @@ preconditions:
 start_text: >-
   Pinned out on felt in rows: brass, bone, a wound copper thread. Twenty-five
   coppers each, which is a week of bread.
-
-on_start:
-  effects:
-    # A quest outranks the weather: npc_sim honours this pin over Ilya's
-    # routine, so the tinker is where the quest says he is.
-    - type: flag
-      flag: npc_pin_npc_ilya
-      value: true
 
 stages:
   - id: examine
@@ -104,9 +101,6 @@ on_complete:
     # doom clock and decays daily -- engine/game/evil_ticker.py.
     - type: doom_resistance
       delta: 12
-    - type: flag
-      flag: npc_pin_npc_ilya
-      value: false
     - type: awareness
       delta: 6
     - type: reputation
@@ -118,12 +112,6 @@ on_complete:
       text: "Ilya's ward charms carry a second binding underneath the sympathy work."
       subject_id: npc_ilya
       kind: secret
-
-on_fail:
-  effects:
-    - type: flag
-      flag: npc_pin_npc_ilya
-      value: false
 
 complete_text: >-
   Tinkers sell what sells. What sells this year is protection, and the tinkers

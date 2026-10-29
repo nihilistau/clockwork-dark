@@ -42,6 +42,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Nessa's surname corrected (bug 3): `childs_drawing.yaml`'s summary, its first objective and its ledger fact now call her Nessa Fallow, as the lore does. The other family's lines (`lost_goat`, `militia_press`) are unchanged.
 - Nessa is nine everywhere (bug 3's two extra lines, the controller's ruling): `childs_drawing.yaml`'s completion text and its "nine-year-old" ledger fact said six, against the cast line, the portrait and the lore table.
 - The doom clock's moves place people: Ilya reaches the square at 0.50 and Sera at 0.88 (the engine fix is in the root CHANGELOG); before, their routines kept them where they were.
+- The Pin and the Join is reachable again (v0.25.0 T10, found by the doors harness: 0 of 40 pinner runs). `ward_charms` pinned Ilya home on its start and unpinned him when it ended, completed or failed; the ninth pin's quest holds him at the caravan by the same flag (`npc_pin_npc_ilya`) through its whole quest, and after the 0.50 move it is the only thing keeping him there. A ward-charms ending inside the pin's quest unpinned him in the square, so `T2_pay_for_it` was never dealt. `ward_charms` now pins nobody: its stages ask only for the caravan, and his routine has him there all but three afternoon hours (`tests/test_clockwork_dark.py::test_the_ninth_pins_hold_on_ilya_survives_the_ward_charms_ending`).
 
 ### Changed
 

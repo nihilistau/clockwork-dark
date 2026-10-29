@@ -103,6 +103,22 @@ The event rates after the conversion (`--event-rates`, seeds 42-81) are T1's pos
 
 Encounters per danger leg, by the band file whose `triggers.edges` names the leg: wood 0.244 (386 legs, the pauper's foraging walks; band 0.15-0.40, met); forest 0.249, road 0.546 (the old bands, for scale); barrows, toll road and heartland: **no leg walked** by any policy, unmeasured.
 
+**After step 1: the harness's policy gaps and one content gap (no balance constant moved).** The same command, seeds 0-39, cap 1,000. The policies gained what the first runs showed missing (the report lists each): they keep what a door needs instead of selling it at the first counter (a pinner bought the road map and sold it back to Odran the next turn), carry six meals out of the bakery, wait out a goal's hours at the nearest place no deck names (not a four-hour walk home from the gate), earn at the nearest posting still hiring, follow a door's own gate (`{ending: {eligible: ...}}`) for the march's and the witness's standing, and stop chasing a quest that failed. The content gap: `ward_charms` unpinned Ilya when it ended, inside the ninth pin's quest, so `T2_pay_for_it` was never dealt (story CHANGELOG, Fixed).
+
+| Policy | Own (before) | Other | None | Turns (band) | Day | Doom | Deaths (starved) |
+|---|---|---|---|---|---|---|---|
+| baker | 100% (97.5%) | 0% | 0% | 138.5 (120-300, met) | 21 | 0.289 | 0 (0) |
+| settler | 100% (100%) | 0% | 0% | 184.5 (150-350, met) | 24.5 | 0.245 | 65 (64) |
+| witness | 92.5% (97.5%) | 7.5% | 0% | 381 (200-400, met) | 50 | 0.360 | 82 (79) |
+| marcher | 87.5% (55%), met | 12.5%, **missed** | 0% | 182 (200-400, **missed low**) | 33 | 0.342 | 86 (77) |
+| namer | 100% (97.5%) | 0% | 0% | 527 (350-650, met) | 68 | 0.562 | 13 (11) |
+| payer | 90% (92.5%) | 7.5% | 2.5% | 560 (350-650, met) | 70 | 0.562 | 108 (102) |
+| pinner | **12.5% (0%), missed** | **85%, missed** | 2.5% | 620 (400-750, met) | 87 | 0.661 | 181 (165) |
+| drifter | 100% (100%) | 0% | 0% | 491 (500-900, **missed**) | 72 | 1.0 | 0 (0) |
+| reckless | 100% (100%) | 0% | 0% | 275.5 | 72 | 0.856 | 1,210 (1,154) |
+
+Card coverage: **34 of 34**. The pinner's 35 lost runs: 25 stopped at `the_heartland_road`'s `walk_the_join` (the Join, 10-15, six road hours past the gate), 8 at the pin's `pay_for_it`, two elsewhere; 11 dealt the Named Wound at the bakery's dawn door on the way, 23 locked the fail-forward in `consuming`. The levy row on this harness: the press dealt in 29 of 40 marcher runs, median day 25 (band 24-40, met). Witness: the Whisper by day 20 in 39 of 40 (band 80%, met). Encounters per danger leg on the new bands, from the pinner's walks: toll road 0.490 (49 legs; band 0.30-0.60, met), heartland 0.456 (160 legs; band 0.40-0.70, met); wood 0.244 (the five-policy pauper, met); barrows: no leg walked, unmeasured.
+
 ### Tests
 
 - Tests: v0.24.0 recordings for v0.25.0's byte-identity and save tests (`tests/fixtures/flagship_overhaul/`, `tests/fixtures/clockwork_dark_v0240/`), recorded from 3c6882f by `CLOCKWORK_FLAGSHIP_RECORD=1`.

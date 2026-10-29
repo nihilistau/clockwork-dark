@@ -916,3 +916,23 @@ def test_a_door_deck_is_due_only_where_its_person_is(flagship, seed: int) -> Non
             apply_effect(state, {"type": "hunger", "delta": -state.hunger})
         advance_time(state, 1.0)
     assert held == set(clockwork_walks.DOOR_DECKS), held      # never vacuous: every gate held somewhere
+
+
+def test_the_ninth_pins_hold_on_ilya_survives_the_ward_charms_ending(flagship) -> None:
+    """v0.25.0 T10, found by the doors harness: `ward_charms` (whisper) used to unpin Ilya when it
+    ended, completed or failed. After the 0.50 doom move puts him in the square, only the ninth
+    pin's own pin (its `on_start`, spec §6.6: "for the whole quest") keeps him at the caravan where
+    its deck deals, so a ward-charms ending inside the pin's quest left `T2_pay_for_it` undealable
+    and the Pin and the Join unreachable (0 of 40 pinner runs)."""
+    from engine.game.quests import QuestEngine, load_quests
+    from engine.world import npc_sim, world_effects
+
+    quests = load_quests()
+    for hook in ("on_complete", "on_fail"):
+        state = new_state()
+        at_hour(state, 10)
+        world_effects.apply_beat(state, "vines_breach_forest")
+        QuestEngine._apply_hook(state, quests["the_ninth_pin"].get("on_start"), None)
+        assert npc_sim.resolve_npc(state, "npc_ilya").location_id == "tinker_caravan"
+        QuestEngine._apply_hook(state, quests["ward_charms"].get(hook), None)
+        assert npc_sim.resolve_npc(state, "npc_ilya").location_id == "tinker_caravan", hook

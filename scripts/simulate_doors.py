@@ -59,10 +59,25 @@ ROOT = _SCRIPTS.parent
 SCENES = ROOT / "games" / FLAGSHIP / "data" / "scenes"
 #: The press's card: the levy row is the day a run is first dealt it (§10.2).
 PRESS_CARD = "P1_a_name_on_the_list"
-#: Where a policy waits out the hours outside its goal's window: no deck's `when:` names it, so a
-#: repeatable deck at the goal's place sees its trigger fall and comes round again (the walks'
-#: ruling B2). A player who stood in the square all night would never be dealt the next card.
-AWAY = "well_row"
+#: Where a policy waits out the hours outside its goal's window: the nearest place (by road hours)
+#: that no deck's `at_location` names, so a repeatable deck at the goal's place sees its trigger
+#: fall and comes round again (the walks' ruling B2: a player who stood in the square all night
+#: would never be dealt the next card). well_row for the village, the market for the gate, the
+#: heartland road for the Join: a four-hour walk home from the gate every afternoon was measured
+#: starving the marcher.
+#: The village's postings where a policy short of coin goes to work, nearest the square first:
+#: the oven (5 and a loaf), the errands (3), then Ilya's bench (11) or the loading (8). Not the
+#: forge: its 9 for six hours feeds nobody, and a policy sent there first was measured starving;
+#: and not the caravan first, which kept the witness out of the square in Nessa's hours.
+EARN_AT = ("edgewood_bakery", "well_row", "tinker_caravan")
+#: Meals a policy carries out of the bakery when it can pay for them.
+STOCK = 6
+#: Things a door's path needs held, which `_common_upkeep` would otherwise sell at the first
+#: counter that buys them: the map the heartland road measures, the ration the Hearth banks, the
+#: naming's evidence and the price's three offerings. (Measured: a pinner bought the road map and
+#: sold it back to Odran the next turn, for sixty days.)
+KEEP = frozenset({"road_map", "winter_ration", "nessas_drawing", "brass_shard", "golden_ring",
+                  "copied_list", "fourth_verse", "the_written_name", "ninth_pin", "iron_key"})
 #: Where an item a goal buys is sold (economy.yaml).
 BUY_FROM = {"winter_ration": "npc_maris", "road_map": "npc_odran"}
 #: Every door card's NON-locking answer (a policy locks only by its own door).
@@ -97,11 +112,56 @@ def settled(quest: str, at_least: Optional[int] = None) -> dict:
     return {"any": [reached, {"quest_state": {"quest": quest, "status": "failed"}}]}
 
 
+def eligible(ending: str) -> dict:
+    """Every clause of ``ending``'s gate holds (its door may be dealt)."""
+    return {"ending": {"eligible": ending}}
+
+
 def inside_window(hour: int, start: int, end: int) -> bool:
     """Whether ``hour`` is in the half-open window ``[start, end)``, which may wrap midnight."""
     if start <= end:
         return start <= hour < end
     return hour >= start or hour < end
+
+
+def deck_places() -> frozenset[str]:
+    """Every place a flagship deck's or card's `at_location` names."""
+    out: set[str] = set()
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "at_location":
+                    out.update(str(v) for v in (value if isinstance(value, list) else [value]))
+                else:
+                    walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    for path in sorted(SCENES.glob("*.yaml")):
+        walk(yamlio.safe_load(path.read_text(encoding="utf-8")) or {})
+    return frozenset(out)
+
+
+def away_from(place: str, decks: frozenset[str]) -> str:
+    """The nearest place to `place`, by road hours, that no deck names (ties by id)."""
+    import heapq
+
+    best: dict[str, float] = {place: 0.0}
+    heap: list[tuple[float, str]] = [(0.0, place)]
+    while heap:
+        hours, node = heapq.heappop(heap)
+        if node not in decks and node != place:
+            return node
+        if hours > best.get(node, float("inf")):
+            continue
+        for neighbour, edge in sorted((sim.LOCATIONS.get(node, {}).get("connections") or {}).items()):
+            cost = hours + float((edge or {}).get("hours", 1) or 0) + 0.001
+            if cost < best.get(neighbour, float("inf")):
+                best[neighbour] = cost
+                heapq.heappush(heap, (cost, neighbour))
+    return ""
 
 
 def card_flags() -> frozenset[str]:
@@ -123,6 +183,8 @@ class Goal:
     hours: tuple[int, int] = (0, 24)
     work: bool = False
     buy: str = ""
+    #: The faction whose standing the goal's work should pay ("" = read a `reputation` goal's).
+    faction: str = ""
     #: Walk `cautious`'s circuit (the square, the bakery, the caravan, Millhaven by day) until
     #: `done` holds: the player who goes and listens, for a goal that waits on awareness.
     roam: bool = False
@@ -143,7 +205,7 @@ class DoorPolicy:
 #: asks), and awareness enough for `naming_the_wound`'s preconditions (52).
 NAMING = (
     Goal({"arc_unlocked": "whisper"}, roam=True),
-    Goal(done("childs_drawing"), place="edgewood_square", hours=(9, 17)),
+    Goal(settled("childs_drawing"), place="edgewood_square", hours=(9, 17)),
     Goal({"min_awareness": 52}, roam=True),
     Goal(stage("naming_the_wound", 1), place="edgewood_square", hours=(19, 23)),
     Goal({"min_phase": "spreading"}, place="edgewood_bakery", work=True),
@@ -154,16 +216,22 @@ NAMING = (
 #: The craft the batch asks (`the_last_quiet_thing`'s `the_batch`: 11). A wayfarer starts at 8,
 #: and three quiet-life quests pay +1 each: the apprenticeship, Teward's roof (the reeds cut
 #: in the clearing) and the shrine's mural (which itself asks 10). The namer does all three.
+#: A run that has not finished them by day 30 (a quest stuck below its craft) gives them up.
+def _craft_goal(condition: dict, **where: Any) -> Goal:
+    return Goal({"any": [condition, {"min_day": 30}]}, **where)
+
+
 CRAFT = (
-    Goal(settled("bakery_apprentice", 1), place="edgewood_bakery", hours=(7, 11)),
-    Goal(settled("bakery_apprentice", 2), place="edgewood_bakery", hours=(4, 7)),
-    Goal(settled("bakery_apprentice"), place="edgewood_bakery", hours=(8, 11), work=True),
-    Goal(settled("neighbours_roof", 1), place="edgewood_square", hours=(8, 18)),
-    Goal(settled("neighbours_roof", 2), place="forest_clearing", hours=(8, 18)),
-    Goal(settled("neighbours_roof"), place="edgewood_square", hours=(8, 18)),
-    Goal(settled("shrine_mural"), place="edgewood_square", hours=(8, 18)),
+    _craft_goal(settled("bakery_apprentice", 1), place="edgewood_bakery", hours=(7, 11)),
+    _craft_goal(settled("bakery_apprentice", 2), place="edgewood_bakery", hours=(4, 7)),
+    _craft_goal(settled("bakery_apprentice"), place="edgewood_bakery", hours=(8, 11), work=True),
+    _craft_goal(settled("neighbours_roof", 1), place="edgewood_square", hours=(8, 18)),
+    _craft_goal(settled("neighbours_roof", 2), place="forest_clearing", hours=(8, 18)),
+    _craft_goal(settled("neighbours_roof"), place="edgewood_square", hours=(8, 18)),
+    _craft_goal(settled("shrine_mural"), place="edgewood_square", hours=(8, 18)),
 )
 
+ROAD_MAP = Goal({"has_item": {"id": "road_map", "qty": 1}}, buy="road_map")
 TINKERS = Goal({"reputation": {"faction": "tinkers", "min": 10}}, place="tinker_caravan", work=True)
 
 POLICIES: dict[str, DoorPolicy] = {
@@ -185,16 +253,17 @@ POLICIES: dict[str, DoorPolicy] = {
     ), {"H1_the_question": "stay_anyway"}),
     "witness": DoorPolicy("the_long_witness", (
         Goal({"arc_unlocked": "whisper"}, roam=True),
-        Goal(done("childs_drawing"), place="edgewood_square", hours=(9, 17)),
-        Goal({"reputation": {"faction": "unnamed_saints", "min": 30}}, place="edgewood_shrine", work=True),
-        Goal({"min_day": 27}, place="edgewood_shrine", work=True),
+        Goal(settled("childs_drawing"), place="edgewood_square", hours=(9, 17)),
+        # The door's own gate (the saints' standing, the day), so a measured lever moving one of
+        # its numbers moves the policy with it: the shrine's shift is the saints' work.
+        Goal(eligible("the_long_witness"), place="edgewood_shrine", work=True, faction="unnamed_saints"),
         Goal(locked("the_long_witness"), place="edgewood_shrine", hours=(18, 22)),
     ), {"W1_the_list": "give_it"}),
     "marcher": DoorPolicy("the_counted_march", (
         Goal({"arc_unlocked": "march"}, place="millhaven_gate", hours=(8, 12)),
         Goal({"event_seen": "militia_press"}, place="edgewood_square", work=True),
-        Goal(done("militia_press"), npc="npc_sera", hours=(8, 12)),
-        Goal({"reputation": {"faction": "militia", "min": 20}}, place="millhaven_gate", work=True),
+        Goal(settled("militia_press"), npc="npc_sera", hours=(8, 12)),
+        Goal(eligible("the_counted_march"), place="millhaven_gate", work=True, faction="militia"),
         Goal(locked("the_counted_march"), place="millhaven_gate", hours=(8, 12)),
     ), {"M1_strike_the_name": "strike_it", "L2_the_weller_boy": "give_his_name"}),
     "namer": DoorPolicy("the_named_wound", CRAFT + NAMING + (
@@ -211,11 +280,13 @@ POLICIES: dict[str, DoorPolicy] = {
     # Ilya's standing first, before the naming: his bench takes one shift a day (+2 each), the
     # pin's `ask_for_it` card is dealt on the first visit after the naming, and `pay_for_it`,
     # which asks the tinkers at 10, expires five days after it.
-    "pinner": DoorPolicy("the_pin_and_the_join", (TINKERS,) + NAMING + (
+    # And the road map bought early too: by the convergence the bread costs 1.45-2x, and a
+    # pinner earning five or eleven a shift was measured never saving the map's fifteen.
+    "pinner": DoorPolicy("the_pin_and_the_join", (TINKERS, ROAD_MAP) + NAMING + (
         TINKERS,
         Goal(stage("the_ninth_pin", 1), place="tinker_caravan", hours=(9, 15)),
         Goal(done("the_ninth_pin"), place="tinker_caravan", hours=(9, 15)),
-        Goal({"has_item": {"id": "road_map", "qty": 1}}, buy="road_map"),
+        ROAD_MAP,
         Goal(stage("the_heartland_road", 1), place="millhaven_gate", hours=(10, 15)),
         Goal(stage("the_heartland_road", 2), place="the_join", hours=(10, 15)),
         Goal(locked("the_pin_and_the_join"), place="the_join", hours=(10, 15)),
@@ -245,6 +316,7 @@ class DoorRun(sim.Simulation):
         self.door_name = policy
         self.answers = {**SAFE, **self.door.answers}
         self.card_flags = card_flags()
+        self.deck_places = deck_places()
         self.dealt: set[str] = set()
         self.answered: set[str] = set()
         #: card id -> the in-game day it was first dealt (the levy row reads the press's).
@@ -329,7 +401,7 @@ class DoorRun(sim.Simulation):
 
     def _decide(self, state: Any) -> sim.Action:
         upkeep = sim._common_upkeep(state, self.door.style)
-        if upkeep:
+        if upkeep and not (upkeep[0] == "sell" and upkeep[1].get("item_id") in KEEP):
             return upkeep
         if state.stats.stamina < 50:
             return ("rest", {"kind": "sleep_bed"})
@@ -344,7 +416,7 @@ class DoorRun(sim.Simulation):
             return ("wait", {"hours": 1.0})
         if goal.buy:
             return self._buying(state, goal.buy)
-        restock = self._restock(state)
+        restock = self._stock_up(state) or self._restock(state)
         if restock:
             return restock
         if goal.roam:
@@ -356,18 +428,39 @@ class DoorRun(sim.Simulation):
         start, end = goal.hours
         inside = inside_window(state.world_hour, start, end)
         place = goal.place or self._where(goal.npc)
-        if not inside:
-            # Outside the window: away from every deck, so the goal's deck re-arms (B2).
-            place = AWAY
+        if not inside and place:
+            # Outside the window: near the goal's place but at none a deck names, so the goal's
+            # deck re-arms (B2).
+            place = away_from(place, self.deck_places) or place
         if place and state.location_id != place:
             hops = sim.route(state.location_id, place)
             if hops:
                 return ("travel", {"to": hops[0]})
         if inside and goal.work:
-            job = self._job_here(state, _faction_of(goal.done))
+            job = self._job_here(state, goal.faction or _faction_of(goal.done))
             if job:
                 return ("work", {"job_id": job})
         return ("wait", {"hours": 1.0})
+
+    def _carried_food(self, state: Any) -> int:
+        rules = sim.survival.load_rules()
+        return sum(int(i.qty) for i in state.inventory
+                   if i.qty > 0 and sim.survival.food_value(i.id, list(i.tags), rules) is not None)
+
+    def _stock_up(self, state: Any) -> Optional[sim.Action]:
+        """At the bakery's counter with fewer than `STOCK` meals and the coin: buy up to it. A
+        policy whose door is four hours from the nearest loaf (the gate, the Join) otherwise
+        spends its days walking back for bread (measured: the pinner reached the heartland road
+        on day 108)."""
+        vendor, food_id = sim.STAPLE_FOOD
+        if state.location_id != sim.vendor_locations().get(vendor):
+            return None
+        have = self._carried_food(state)
+        price = sim.trade_module.quote(state, vendor, food_id, sim.trade_module.BUY, 1).get("unit_price", 0)
+        if have >= STOCK or not price or state.stats.gold < price:
+            return None
+        return ("buy", {"npc_id": vendor, "item_id": food_id,
+                        "qty": min(STOCK - have, state.stats.gold // price)})
 
     def _restock(self, state: Any) -> Optional[sim.Action]:
         """Hungry, nothing carried and the price of a loaf in hand: walk to the bakery's counter
@@ -417,10 +510,14 @@ class DoorRun(sim.Simulation):
         return str(rows[0]["id"]) if rows else ""
 
     def _earn(self, state: Any) -> Optional[sim.Action]:
-        job = self._job_here(state)
-        if job:
-            return ("work", {"job_id": job})
-        hops = sim.route(state.location_id, "edgewood_bakery")
+        """Work the best-paid job here, else walk to the best-paid village posting still hiring
+        today (the bakery's one oven shift a day does not save fifteen gold for a road map)."""
+        rows = economy_module.available(state, state.location_id)
+        if rows:
+            best = max(rows, key=lambda r: int(r.get("expected_wage", 0) or 0))
+            return ("work", {"job_id": str(best["id"])})
+        where = sim._nearest_hiring(state, EARN_AT)
+        hops = sim.route(state.location_id, where) if where else []
         return ("travel", {"to": hops[0]}) if hops else None
 
     def _buying(self, state: Any, item_id: str) -> sim.Action:
