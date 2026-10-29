@@ -211,13 +211,13 @@ card-only run no longer needs it to. `the_ninth_pin`'s `pay_for_it` reads the ti
 `the_levy` (0-6; `state.yaml` and `data/rules/clocks.yaml`): +1 the first time the militia press
 is seen, then +1 at 3, 6, 9, 12 and 15 days after it. At 3 the "world moved" journal says the
 clerk has started a second page; full, it forces `the_press` (not repeatable, dealt once in the
-square 08:00-18:59; its `when:` names `forced_scene: the_press`, so it never schedules itself):
-`P1_a_name_on_the_list`, a boy's name read off the list, answered by speaking for him
+square 08:00-17:59; its `when:` names `forced_scene: the_press`, so it never schedules itself):
+`P1_a_name_on_the_list`, a boy's name read off the list by a corporal of the militia (Sera herself is at the gate in those hours, so the card does not name her), answered by speaking for him
 (persuasion, hard), getting him out of sight (stealth, standard) or letting it be, each moving
 the militia's and Edgewood's standing. **Sergeant Venn's bargain** (`data/rules/threads.yaml`,
-`seras_bargain`, a Contract) is struck at the gate 08:00-11:59 while the conscription list is
+`seras_bargain`, a Contract) is struck at the gate 08:00-10:59 while the conscription list is
 open: a night on the wall inside three days for one Edgewood name off the list. Discharged at the
-gate 22:00-04:59 it pays militia +6, costs 20 stamina and writes `stood_the_wall`, which The
+gate 22:00-03:59 it pays militia +6, costs 20 stamina and writes `stood_the_wall`, which The
 Counted March's `served` reads; unpaid on its day it breaks (militia -8). Every number is a first
 value, measured in the release's balance pass (§10).
 

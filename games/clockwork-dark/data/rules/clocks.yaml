@@ -4,7 +4,8 @@
 # values, UNMEASURED until T10 (rule 10); the levy's band is written from T10's
 # first measurement. A v0.24.0 save whose first press is fifteen or more days
 # old fills on its first turn and is dealt the press in the square in its hours
-# (accepted: the levy has been due for weeks in that world; pinned by save 8).
+# (accepted: the levy has been due for weeks in that world; v0.25.0 T9 pins it
+# with the v0.24.0 save fixture `8_old_press`).
 #
 # Version: v0.1.0 [2026-10-27]
 

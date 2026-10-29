@@ -1,6 +1,6 @@
 # The Clockwork Dark -- the press (v0.25.0 §5.1): the levy's forced deck.
 # ==========================================================================
-# The square, 08:00-18:59, while Sera's levy clock owes it
+# The square, 08:00-17:59, while Sera's levy clock owes it
 # (`forced_scene: the_press`, written by data/rules/clocks.yaml's `levy_full`
 # beat when the levy fills). One card:
 #   P1  a name on the list (menu): speak for him (persuasion, hard), hide him
@@ -11,6 +11,13 @@
 # no `forced_scene` clause the press would be dealt in the square in its hours
 # with no levy owed. No beat writes a flag (the first draft's `hid_the_boy`
 # had no reader) and none carries more than four effects.
+#
+# WHO READS THE LIST. A corporal of Sera's watch and her clerk, never the
+# sergeant in person (v0.25.0 T8 fix round 1, the controller's ruling): her
+# routine keeps her at Millhaven gate through these hours (the square's
+# notice board is hers only 18:00-20:59, data/world/npc_schedules.yaml), and
+# the deck's `when:` carries no `npc_here`, so the card names no one the
+# engine does not place here (tests/test_clockwork_dark.py holds it).
 #
 # Version: v0.1.0 [2026-10-29]
 
@@ -28,9 +35,10 @@ cards:
     title: "A name on the list"
     tags: [menu, levy]
     text: >-
-      INTENT: The square, the levy table, and Sergeant Venn reading a name off
-      her list: a boy the player knows, too young for the march. CONSTRAINTS:
-      She reads it twice. Nobody else steps forward.
+      INTENT: The square, the levy table, and a corporal of the militia
+      reading a name off the levy list while the clerk holds the book: a boy
+      the player knows, too young for the march. CONSTRAINTS: The corporal
+      reads it twice. Nobody else steps forward.
       MENU -- resolve exactly the beat the player chose.
     beats:
       - id: speak_for_him
@@ -40,12 +48,12 @@ cards:
         gate:
           check: { skill: persuasion, difficulty: hard }
           on_pass:
-            text: "Sera crosses him off, slowly, and writes something else in the margin."
+            text: "The clerk crosses him off, slowly, and writes something else in the margin."
             effects:
               - { type: reputation, faction: militia, delta: -4 }
               - { type: reputation, faction: edgewood, delta: 6 }
           on_fail:
-            text: "She hears you out and does not cross him off."
+            text: "The corporal hears you out and the clerk does not cross him off."
             effects:
               - { type: reputation, faction: militia, delta: -6 }
       - id: hide_him
@@ -58,7 +66,7 @@ cards:
             text: "By the time the name is read a third time there is nobody there to answer it."
             effects:
               - { type: reputation, faction: edgewood, delta: 4 }
-              - { type: ledger_fact, kind: event, text: "You hid a boy from Sera's levy, and the square saw you do it." }
+              - { type: ledger_fact, kind: event, text: "You hid a boy from the militia's levy, and the square saw you do it." }
           on_fail:
             text: "A corporal has him by the collar before you reach the lane."
             effects:

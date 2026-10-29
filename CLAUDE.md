@@ -979,6 +979,13 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   would put a social hook in `Engine.move_to`, every story's walk; a
   docs/GOVERNANCE.md NOT WIRED row.
 - A READ RECEIPTS save from a test earlier in the same xdist worker reached `tests/test_simulate_thief.py::test_the_hue_run_keeps_no_save` in v0.24.0 T15's full run (a `SaveStore.save` on another thread, `popen-gw1/guards/.../saves/read-receipts`): a thread some READ RECEIPTS test leaves running (the dirty saver or the world thread). The test now counts only its own thread's saves, which closes it; the leaking test was NOT found, so a test's leftover thread can still write a save into a later test's window. A hunt would start from `tests/social_fixtures.py::_stop_dirty_saver` and `receipts_active`'s teardown.
+- The quest predicates `event_seen`, `days_since_event` and `visited` read through
+  `engine/game/quests.py::_meta`, which get-or-creates `state.quests["_meta"]`: a read
+  writes an empty bookkeeping block outside `apply_effect` (rule 3). Pre-existing (every
+  quest pass does it first); since v0.25.0 T8 the flagship's levy clock reads `event_seen`
+  on every `advance_time`, so a run that advances before its first quest pass carries the
+  empty block (`tests/test_social_seam.py`'s S20). Left: a read-only `_meta` would move
+  other stories' recordings.
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 

@@ -768,4 +768,35 @@ def test_seras_bargain_strikes_discharges_on_the_wall_and_breaks_on_its_day(flag
     tid = _strike(broken)
     doors.fed_until(broken, broken.world_day + 4, 9)
     assert threads.get(broken, tid)["status"] == threads.STATUS_BROKEN
-    assert "night on the wall" in json.dumps(threads.get(broken, tid)) + json.dumps(broken.moved)
+    # broken_text's own sentence, in the "world moved" journal (the terms say "night on the wall" too)
+    assert "Sera has written that down too" in json.dumps(broken.moved)
+
+
+def test_the_press_names_no_one_the_engine_does_not_place_there(flagship) -> None:
+    """Review I2 (T8 fix round 1): every name in the press's text belongs to a person its `when:`
+    puts there (`npc_here`). It has none, and Sera is at the gate in its hours, so it names no one."""
+    from engine.world import npc_sim
+
+    deck = yaml.safe_load((SCENES / "the_press.yaml").read_text(encoding="utf-8"))
+    here = {str(c["npc_here"]) for c in deck["when"]["all"] if isinstance(c, dict) and "npc_here" in c}
+    texts = " ".join(text for _, text in _all_texts(deck))
+    state = new_state()
+    titles = {"Sergeant", "Old", "Mother", "Father", "Master"}
+    for npc_id in npc_sim.load_npc_schedules().get("npcs", {}):
+        if npc_id in here:
+            continue
+        words = {w for w in re.findall(r"[A-Z][a-z]{2,}", npc_sim.display_name(npc_id, state)) if w not in titles}
+        named = {w for w in words if re.search(r"\b" + w + r"\b", texts)}
+        assert not named, (npc_id, named)
+
+
+def _all_texts(node: Any, where: str = ""):
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key in ("text", "title", "label") and isinstance(value, str):
+                yield f"{where}.{key}", value
+            else:
+                yield from _all_texts(value, f"{where}.{key}")
+    elif isinstance(node, list):
+        for i, item in enumerate(node):
+            yield from _all_texts(item, f"{where}[{i}]")
