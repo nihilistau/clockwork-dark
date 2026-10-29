@@ -203,7 +203,9 @@ stage's other conditions hold: seven repeatable, draw-one decks, `the_bakehouse`
 `the_levy_table` (`L1`-`L7`), `the_ninth_pin` (`T1`-`T3`) and `the_inward_road` (`R1`). Each
 card is gated on its quest's stage (`quest_state` active, `stage_at_least` its index and not the
 next), and every deck's `when:` ends in `any:` of its cards' own gates (plan decision 3), so a
-deck is due only when a card can be dealt. The narrator may still raise the stages' flags; a
+deck is due only when a card can be dealt. `G1` also waits for `spreading` (T9 fix round 1):
+`say_it_aloud`, the next stage, needs `spreading` and fails for good four days after it opens,
+so a naming laid out earlier could only expire. The narrator may still raise the stages' flags; a
 card-only run no longer needs it to. `the_ninth_pin`'s `pay_for_it` reads the tinkers' standing
 (10), not Ilya's disposition, which only the model's patch writes.
 

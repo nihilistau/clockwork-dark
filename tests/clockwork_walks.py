@@ -22,7 +22,7 @@ The condition helpers (`stage`, `done`, `locked`) and `inside_window` are
 self-contained on purpose (ruling M13): T10 moves them into
 `scripts/simulate_doors.py` and re-points this module's import.
 
-Version: v0.1.0 [2026-10-29]
+Version: v0.1.1 [2026-10-29]
 """
 
 from __future__ import annotations
@@ -83,6 +83,7 @@ class Walk:
         self.state = new_game_state(seed=seed)
         self.ledger = StoryLedger()
         self.answers = {**DEFAULT_ANSWERS, **(answers or {})}
+        self.explicit = frozenset(answers or {})
         self.dealt: list[str] = []
 
     def give(self, **row: Any) -> None:
@@ -110,7 +111,10 @@ class Walk:
             card = director.current_card(self.state)
             offered = [o["id"] for o in director.options(self.state)]
             chosen = self.answers.get(card.id, "")
-            if chosen not in offered:
+            if card.id in self.explicit:
+                # A walk's own answer is the point of the walk: it must be on offer, never a fallback.
+                assert chosen in offered, f"{card.id}: the walk's answer {chosen!r} is not offered: {offered}"
+            elif chosen not in offered:
                 chosen = offered[-1] if card.id in DEFAULT_ANSWERS else ""
             out = director.resolve(self.state, chosen=chosen, ledger=self.ledger)
             assert out.get("ok"), out
@@ -188,10 +192,9 @@ def march(w: Walk) -> None:
 def _naming(w: Walk) -> None:
     w.give(type="awareness", delta=52)
     w.give(type="item", item_id="brass_shard", qty=1)                        # the works' find
-    # `say_it_aloud` expires four days after it opens and needs `spreading`, so the walk waits for
-    # the doom FIRST, where no deck deals (a naming card laid out before then would start that clock).
-    w.until({"min_phase": "spreading"}, at=AWAY, max_days=60)
-    w.until(stage("naming_the_wound", 1), at="edgewood_square", hours=(19, 23))
+    # G1 waits for `spreading` itself (T9 fix round 1), so the evenings in the square run until the
+    # doom gets there: up to 60 days.
+    w.until(stage("naming_the_wound", 1), at="edgewood_square", hours=(19, 23), max_days=60)
     w.until(stage("naming_the_wound", 2), at="edgewood_square", hours=(19, 23))
     w.until(done("naming_the_wound"), at="edgewood_square", hours=(19, 23))
 
@@ -203,7 +206,10 @@ def named_wound(w: Walk) -> None:
     w.until(stage("what_edgewood_keeps", 2), at="edgewood_square", hours=(10, 16))
     w.until(done("what_edgewood_keeps"), at="edgewood_square", hours=(10, 16))
     w.until(stage("the_last_quiet_thing", 1), at="edgewood_bakery", hours=(4, 7))
-    w.give(type="craft", delta=max(0, 11 - w.state.stats.craft))             # the batch asks craft 11
+    # The batch asks craft 11. Seed 7 reaches it holding 9 (the wayfarer's 8, plus one gain on the
+    # way not traced here): pinned, so a drift in the run's craft fails here rather than being topped up.
+    assert w.state.stats.craft == 9, w.state.stats.craft
+    w.give(type="craft", delta=2)
     w.until(stage("the_last_quiet_thing", 2), at="edgewood_bakery", hours=(8, 12))
     w.until(locked("the_named_wound"), at="edgewood_bakery", hours=(4, 10))
 

@@ -337,21 +337,52 @@ def test_no_test_imports_llm_golden_inside_a_function() -> None:
     yet pinned ``NativeClient.is_available``; imported inside a test body it
     fails ("imported under a pin") whenever no earlier file imported it at
     module level -- as ``test_llm_ollama.py`` did, run alone (v0.21.1 T3b).
+
+    INDIRECTLY TOO (v0.25.0 T9 fix round 1): ``tests/test_social_seam.py``
+    imported ``tests.test_local_mode_golden`` in a test body, which imports
+    ``tests.local_golden``, which imports ``llm_golden`` -- so it failed run
+    alone. Every tests module that reaches ``llm_golden`` through its own
+    module-level imports counts as ``llm_golden`` here.
     """
     import ast
 
+    def _names(node: ast.AST) -> list[str]:
+        if isinstance(node, ast.ImportFrom) and node.module:
+            # `from tests import llm_golden` names the module in its alias, not in `module`.
+            return [node.module] + [f"{node.module}.{alias.name}" for alias in node.names]
+        if isinstance(node, ast.Import):
+            return [alias.name for alias in node.names]
+        return []
+
+    def _module_level(tree: ast.Module) -> set[str]:
+        """Imports outside every function body, as bare tests-module names."""
+        out: set[str] = set()
+        stack: list[ast.AST] = list(tree.body)
+        while stack:
+            node = stack.pop()
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                continue
+            out.update(n.removeprefix("tests.") for n in _names(node))
+            stack.extend(ast.iter_child_nodes(node))
+        return out
+
+    trees = {path: ast.parse(path.read_text(encoding="utf-8"))
+             for path in sorted(Path(__file__).resolve().parent.glob("*.py"))}
+    imports = {path.stem: _module_level(tree) for path, tree in trees.items()}
+    tainted = {"llm_golden"}
+    while True:
+        more = {mod for mod, deps in imports.items() if deps & tainted} - tainted
+        if not more:
+            break
+        tainted |= more
+
     offenders: list[str] = []
-    for path in sorted(Path(__file__).resolve().parent.glob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+    for path, tree in trees.items():
         for func in ast.walk(tree):
             if not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             for node in ast.walk(func):
-                names: list[str] = []
-                if isinstance(node, ast.ImportFrom) and node.module:
-                    names = [node.module]
-                elif isinstance(node, ast.Import):
-                    names = [alias.name for alias in node.names]
-                if any(n in ("tests.llm_golden", "llm_golden") for n in names):
+                if any(n.removeprefix("tests.") in tainted for n in _names(node)):
                     offenders.append(f"{path.name}:{node.lineno}")
-    assert not offenders, f"import tests.llm_golden at module level: {offenders}"
+    assert {"local_golden", "test_local_mode_golden"} <= tainted, sorted(tainted)
+    assert not offenders, f"import these at module level (they reach tests.llm_golden): {offenders}"

@@ -261,8 +261,9 @@ def test_save_7_is_re_offered_the_choice_then_pays(flagship) -> None:
 
     state = load_fixture("7_at_pay_it_by_narrator")
     # A v0.24.0 world past 0.50 fired the vines before a doom move placed anyone (plan decision 1):
-    # Ilya keeps his routine, the square from three to six. (At the caravan the pin's own deck, first
-    # by deck id, would be dealt before the price: a known order, left for T10.)
+    # Ilya keeps his routine, the square from three to six. Played in the square, not at the caravan,
+    # because of the parked deck order (T8 m1, left for T10): when two decks are due, the first by
+    # deck id is dealt, and at the caravan `the_ninth_pin` comes before `the_price`.
     _play(state, "edgewood_square", 15)
     assert director.current_card(state).id == "S1_choose_what"
     assert director.resolve(state, chosen="offer_the_shard")["ok"]

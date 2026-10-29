@@ -4,7 +4,11 @@
 # `write_it_down` accepts), in the evening, 19:00-22:59. Three cards, one per
 # stage of naming_the_wound:
 #   G1  lay it out (`nf_naming_laid_it_out`; the stage's wits and evidence
-#       clauses stay the stage's own)
+#       clauses stay the stage's own), once the doom is `spreading` (T9 fix
+#       round 1): the next stage, say_it_aloud, needs `spreading` and expires
+#       four days after it opens, a failure that is terminal, and G1's own
+#       stage pushes the doom back (+8 resistance). Laid out in `stirring`, the
+#       naming could only expire, and four endings with it.
 #   G2  say it aloud (`nf_naming_spoke_it`), once the doom is `spreading`,
 #       which the stage itself requires
 #   G3  write it down (`nf_naming_wrote_it_down`)
@@ -13,7 +17,7 @@
 # gates (plan decision 3), so it is due only when a card can be dealt. The
 # deck puts no one there, so no card names anyone.
 #
-# Version: v0.1.0 [2026-10-29]
+# Version: v0.1.1 [2026-10-29]
 
 id: the_naming
 repeatable: true
@@ -28,6 +32,7 @@ when:
             - { quest_state: { quest: naming_the_wound, status: active } }
             - { quest_state: { quest: naming_the_wound, stage_at_least: 0 } }
             - none: [{ quest_state: { quest: naming_the_wound, stage_at_least: 1 } }]
+            - { min_phase: spreading }
         - all:
             - { quest_state: { quest: naming_the_wound, status: active } }
             - { quest_state: { quest: naming_the_wound, stage_at_least: 1 } }
@@ -46,6 +51,7 @@ cards:
         - { quest_state: { quest: naming_the_wound, status: active } }
         - { quest_state: { quest: naming_the_wound, stage_at_least: 0 } }
         - none: [{ quest_state: { quest: naming_the_wound, stage_at_least: 1 } }]
+        - { min_phase: spreading }
     tags: [naming]
     text: >-
       INTENT: Evening, a table, and every wrong thing the player has seen laid

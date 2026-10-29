@@ -17,6 +17,9 @@ from typing import Any
 import pytest
 
 from tests.social_fixtures import receipts_active  # noqa: F401  (test_every_social_kind_has_a_handler)
+# At module level, never in a test body: it imports tests/llm_golden.py, which refuses to be first
+# imported under the conftest's pins ("imported under a pin"); T9 fix round 1.
+from tests.test_local_mode_golden import levy_and_bargain_state, named_doors_gallery
 
 SIX = ["clockwork-dark", "wicked-garden", "neon-city", "the-long-con", "dev-story", "hue-and-cry"]
 
@@ -90,8 +93,6 @@ def _sanctioned(slug: str, payload: str) -> str:
     """
     if slug != "clockwork-dark":
         return payload
-    from tests.test_local_mode_golden import levy_and_bargain_state, named_doors_gallery
-
     body = json.loads(payload)
     named_doors_gallery(body["endings"]["gallery"])
     levy_and_bargain_state(body)

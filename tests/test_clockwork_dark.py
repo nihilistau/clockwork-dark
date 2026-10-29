@@ -605,7 +605,7 @@ CARDS = [
     ("nessas_drawings", "N1_see_it", "", "childs_drawing", 0, "edgewood_square", 10, None, "nf_drawing_seen"),
     ("nessas_drawings", "N2_ask_her", "", "childs_drawing", 1, "edgewood_square", 10, None, "nf_drawing_asked"),
     ("nessas_drawings", "N3_keep_one", "", "childs_drawing", 2, "edgewood_bakery", 10, None, "nf_drawing_kept"),
-    ("the_naming", "G1_lay_it_out", "", "naming_the_wound", 0, "edgewood_square", 20, None, "nf_naming_laid_it_out"),
+    ("the_naming", "G1_lay_it_out", "", "naming_the_wound", 0, "edgewood_square", 20, _phase(0.55), "nf_naming_laid_it_out"),
     ("the_naming", "G2_say_it_aloud", "", "naming_the_wound", 1, "tinker_caravan", 20, _phase(0.55), "nf_naming_spoke_it"),
     ("the_naming", "G3_write_it_down", "", "naming_the_wound", 2, "edgewood_bakery", 20, None, "nf_naming_wrote_it_down"),
     ("the_village_meeting", "V1_call_the_meeting", "", "what_edgewood_keeps", 0, "edgewood_square", 12, None, "nf_edgewood_called_it"),
@@ -645,6 +645,33 @@ def test_each_critical_path_card_is_dealt_at_its_stage_and_writes_its_flag(flags
     out = director.resolve(state, chosen=beat)
     assert out["ok"], out
     assert state.flags.get(flag_id), flag_id
+
+
+@pytest.mark.parametrize("reading", [0.0, 0.3])
+def test_g1_waits_for_spreading_whatever_the_awareness(flagship, reading: float) -> None:
+    """T9 fix round 1 (review Important 1): laid out before `spreading`, the naming could only expire
+    (`say_it_aloud` needs `spreading`, expires in four days, and G1's stage pushes the doom back), and
+    four endings with it. G1 is not dealt before `spreading`, awareness 60 or not; at `spreading` it is."""
+    from engine.content import deck as deck_module
+    from engine.content import director
+    from engine.game.quests import evaluate_condition
+
+    state = new_state()
+    doors.at_reading(state, reading)
+    assert state.evil_phase.value in ("dormant", "stirring"), state.evil_phase
+    doors.effect(state, type="awareness", delta=60)
+    doors.at_stage(state, "naming_the_wound", 0)
+    doors.stand(state, "edgewood_square", 20)
+    deck = deck_module.load_deck("the_naming")
+    eligible, _rejected = deck_module.eligible_cards(state, deck)
+    assert "G1_lay_it_out" not in [c.id for c in eligible]
+    assert not evaluate_condition(state, deck.when)
+    assert director.due(state)[0] != "the_naming"
+    doors.at_reading(state, 0.55)
+    assert state.evil_phase.value == "spreading", state.evil_phase
+    assert director.due(state)[0] == "the_naming"
+    eligible, rejected = deck_module.eligible_cards(state, deck)
+    assert "G1_lay_it_out" in [c.id for c in eligible], rejected
 
 
 def test_l4_copies_the_list_on_a_pass_and_costs_standing_on_a_fail(flagship, monkeypatch) -> None:

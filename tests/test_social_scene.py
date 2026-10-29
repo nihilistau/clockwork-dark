@@ -19,6 +19,9 @@ from typing import Any
 
 import pytest
 
+# At module level (T9 fix round 1): tests/test_social_seam.py imports tests/llm_golden.py, which
+# refuses to be first imported inside a test body.
+from tests.test_social_seam import SIX, _social_names
 from tests.social_fixtures import (  # noqa: F401
     _force_stage, _live_session, _matched_in, _set_person, matched, numbers_pid, matched_numbers,
     receipts_active, receipts_state, there_already,
@@ -474,7 +477,6 @@ def test_no_other_story_imports_social_through_scene_owns_turn() -> None:
     from engine.game import procgen
     from engine.game.intents import legal_intents, scene_owns_turn
     from engine.games import registry
-    from tests.test_social_seam import SIX, _social_names
 
     for slug in SIX:
         before = set(sys.modules)
