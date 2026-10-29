@@ -65,6 +65,44 @@ Spec §6.1's DERIVED rates, for comparison (worked out from the legacy roll per 
 
 Written down as measured, not tuned (T10 owns the bands and the levers, §10.3 lever 5). The reckless policy's caravan and press sit outside the band because they collapse UP to the shared rate: its long turns cut its days into the fewest ticks, so it had the lowest legacy rates, and that spread was the wall-clock dependence the conversion removes. The tinker's moves rest on 6-9 starts per policy over 40 seeds, too few to separate from noise.
 
+**The first measurement of the overhaul (v0.25.0 T10, rule 10), BEFORE any constant moved.** Commands, from the repository root: `scripts/simulate_doors.py --seeds 40 --json` (seeds 0-39, cap 1,000 turns, 51 min); `scripts/simulate.py --policy all --turns 200 --seed 42 --json` (seed 42); `scripts/simulate.py --policy all --turns 200 --seed 42 --seeds 40` (seeds 42-81, 14 min); the same with `--event-rates --json` (14 min). Each row stands beside its spec §10.2 band.
+
+The doors table (40 seeds, cap 1,000; turns, day and doom are the medians of the runs reaching their own ending; deaths are summed over the 40 runs):
+
+| Policy (ending) | Own | Other | None | Turns (band) | Day | Doom | Deaths (starved) |
+|---|---|---|---|---|---|---|---|
+| baker (Hearth) | 97.5% | 2.5% | 0% | 170 (120-300, met) | 25 | 0.347 | 3 (3) |
+| settler (Dark, stay anyway) | 100% | 0% | 0% | 218.5 (150-350, met) | 32.5 | 0.243 | 75 (75) |
+| witness (Long Witness) | 97.5% | 2.5% | 0% | 400 (200-400, met) | 56 | 0.356 | 130 (127) |
+| marcher (Counted March) | **55%, missed** | **45%, missed** | 0% | 301.5 (200-400, met) | 48 | 0.560 | 252 (249) |
+| namer (Named Wound) | 97.5% | 2.5% | 0% | 506 (350-650, met) | 63 | 0.544 | 11 (11) |
+| payer (Price Asked) | 92.5% | 7.5% | 0% | 569 (350-650, met) | 74 | 0.557 | 131 (128) |
+| pinner (Pin and Join) | **0%, missed** | **100%, missed** | 0% | none (400-750, missed) | | | 197 (190) |
+| drifter (Stopped Wheel) | 100% | 0% | 0% | 485 (500-900, **missed**) | 72 | 1.0 | 1 (1) |
+| reckless (terminal death) | 100% (band 50%+, met) | 0% | 0% | 275.5 | 72 | 0.856 | 1,210 (1,154) |
+
+Where the misses went: the marcher's eighteen lost runs all stopped at the Counted March's `counted` clause (the militia at 20, which the gate's one shift a day earns +3 at a time between four-hour walks back to the bakery for bread; seed 3 held 17 at day 66), and then the world reached `consuming` and a second death there locked the fail-forward (13 runs); or the wheel stopped, 2; or the bakery's dawn door dealt the Named Wound, 3). Every pinner run stopped at `the_ninth_pin`'s `pay_for_it`: `T2_pay_for_it` was never dealt (a content gap, below). Card coverage: **31 of 34** answered; never dealt: `J1_the_pin`, `R1_measure_it`, `R2_walk_the_join`, the pinner's last three.
+
+The levy (the press dealt to the `marcher`): in 37 of 40 runs, median **day 32**; its band, written now from this first measurement as the median ±25% (§10.2), is **day 24-40**. The Whisper open for `witness`: 40 of 40 runs by day 20 (median day 8; band 80%, met).
+
+Parked from T8 and T9, measured: (a) two decks due at one place deal by deck id (`the_levy_table` before `the_muster_roll` at the gate; `the_ninth_pin` before `the_price` at the caravan): no own-ending run was lost to it, each costs the turn its card takes; (b) a card whose stage waits is dealt again on each rising edge of its deck: `H1_the_question` up to 34 times in one namer run (the bakery at dawn with the Hearth's quest open, answered "not yet"), `S1_choose_what` up to 11 in a marcher run (Ilya in the square after 0.50); recorded, not changed; (c) the batch's craft 11 (`the_last_quiet_thing`): a wayfarer starts at 8 and three quiet-life quests pay +1 each (the apprenticeship, Teward's roof, the shrine's mural, which itself asks 10), so the `namer` does all three before the naming; without them, two of three seeds stopped at the batch with craft 9.
+
+The five-policy table at 200 turns against docs/DESIGN.md § EvilTicker's (±25%):
+
+| Policy | DESIGN h/turn, doom | Seed 42 h/turn, doom (deaths) | 40 seeds: median h/turn, doom (deaths summed, starved) |
+|---|---|---|---|
+| hero | 3.00, 0.176 | 2.58, 0.178 (0), met | 2.68, 0.160 (33, 27), met |
+| cautious | 3.21, 0.183 | **4.57, 0.254 (14), missed (+42%, +39%)** | 3.66, 0.206 (249, 248), met |
+| baker | 4.16, 0.501 | 4.24, 0.511 (0), met | 4.25, 0.511 (0, 0), met |
+| pauper | 3.56, 0.560 | 4.03, 0.530 (2; starved 0, met) | 3.85, 0.580 (8; starved 0, met) |
+| reckless | 5.62, 0.699 | 5.92, 0.694 (24, met: at most 30) | 5.81, 0.652 (942, 877; 23.6 a run) |
+
+The cautious policy's seed-42 miss is new in this release: at v0.24.0 (3c6882f, the same command) it played 2.91 h/turn to 0.176 with no death. The five policies never answer a dealt card, and v0.25.0 moved the march's and the whisper's stage completions onto cards, so at seed 42 cautious completes 6 quests, not 9, earns 17 gold, not 52, works 27 shifts, not 11, and starves 14 times. No §10.3 lever addresses a policy that does not play cards; recorded.
+
+The event rates after the conversion (`--event-rates`, seeds 42-81) are T1's post-change table to the start, but for the pauper's caravan (510 / 662, 0.7704). Against the pre-change MEANS (§10.2: ±20%, the five policies' spread excepted): caravan 0.767 (pre 0.768, met), tinker 0.00557 (pre 0.00465, +19.9%, met), press 0.180 (pre 0.173, +4.0%, met). First caravan: median day 5 for every policy (T1's 5; band ±1, met). `--game clockwork-dark` measures the same rates byte for byte; without it the levy's `value` effects are logged as unknown and ignored (no state schema is built without an activation), which moves no number in this table.
+
+Encounters per danger leg, by the band file whose `triggers.edges` names the leg: wood 0.244 (386 legs, the pauper's foraging walks; band 0.15-0.40, met); forest 0.249, road 0.546 (the old bands, for scale); barrows, toll road and heartland: **no leg walked** by any policy, unmeasured.
+
 ### Tests
 
 - Tests: v0.24.0 recordings for v0.25.0's byte-identity and save tests (`tests/fixtures/flagship_overhaul/`, `tests/fixtures/clockwork_dark_v0240/`), recorded from 3c6882f by `CLOCKWORK_FLAGSHIP_RECORD=1`.

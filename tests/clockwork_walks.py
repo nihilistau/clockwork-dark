@@ -18,16 +18,18 @@ Outside its hours a walk steps to a place no deck reads (`AWAY`) and takes a
 turn there before it jumps the clock (ruling B2), so `director.rearm` sees a
 repeatable door deck's trigger fall and the deck comes round again.
 
-The condition helpers (`stage`, `done`, `locked`) and `inside_window` are
-self-contained on purpose (ruling M13): T10 moves them into
-`scripts/simulate_doors.py` and re-points this module's import.
+The condition helpers (`stage`, `done`, `locked`) and `inside_window` live
+once, in `scripts/simulate_doors.py` (ruling M13, moved there in v0.25.0
+T10), and are imported from it here.
 
-Version: v0.1.1 [2026-10-29]
+Version: v0.1.2 [2026-10-30]
 """
 
 from __future__ import annotations
 
 from typing import Any, Callable, Optional
+
+from scripts.simulate_doors import done, inside_window, locked, stage
 
 #: Every door card's NON-locking answer: a walk never locks by an unlisted card.
 DEFAULT_ANSWERS = {
@@ -45,30 +47,6 @@ DOOR_DECKS = {
 
 #: Where a walk waits out the hours outside its window: no deck's `when:` names it (ruling B2).
 AWAY = "well_row"
-
-
-# -- the condition helpers (M13: self-contained, importable) -------------------------------------------
-
-def stage(quest: str, index: int) -> dict:
-    """``quest`` at stage ``index`` or later."""
-    return {"quest_state": {"quest": quest, "stage_at_least": index}}
-
-
-def done(quest: str) -> dict:
-    """``quest`` completed."""
-    return {"quest_completed": quest}
-
-
-def locked(ending: str) -> dict:
-    """The run locked to ``ending``."""
-    return {"ending": {"locked": ending}}
-
-
-def inside_window(hour: int, start: int, end: int) -> bool:
-    """Whether ``hour`` is in the half-open window ``[start, end)``, which may wrap midnight."""
-    if start <= end:
-        return start <= hour < end
-    return hour >= start or hour < end
 
 
 # -- the walk ------------------------------------------------------------------------------------------
