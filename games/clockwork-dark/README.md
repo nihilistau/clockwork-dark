@@ -29,6 +29,8 @@ A graph story, and the one every other graph story was measured against:
 | The **evil clock**: `dormant`, `stirring`, `spreading`, `consuming`, advancing whatever you do; pushing back buys reprieve (`doom_resistance`) | `data/rules/doom_effects.yaml`, `state.yaml` |
 | 26 quests in four arcs (`quiet_life`, `whisper`, `march`, `convergence`) that open on **awareness**, a hidden stat, so a baker who never listens stays a baker | `data/quests/` |
 | Eight ending classes and their epilogue cards, each locked BY NAME at its own door since v0.25.0 (a deck card where its person is, or the terminal death); each has a one-line `tease` | `data/rules/endings.yaml`, `data/epilogues/`, `data/scenes/` |
+| The critical path on cards since v0.25.0: every quest stage on an ending's path that waited on the narrator has a card that settles it, dealt where and when the stage can complete (seven repeatable decks: the bakehouse, Nessa's drawings, the naming, the village meeting, the levy table, the ninth pin, the inward road) | `data/scenes/` |
+| **Sera's levy** (v0.25.0): a hidden clock that fills from the first militia press seen over fifteen days and then deals the press in the square (a boy's name on the list: speak for him, hide him, or let it be); and **Sergeant Venn's bargain**, a night on the wall at the gate for one Edgewood name off her list, struck in the morning while the conscription list is open | `data/rules/clocks.yaml`, `data/rules/threads.yaml`, `data/scenes/the_press.yaml` |
 | Three archetypes: Wayfarer, Hearthkeeper, Tinker-apprentice | `data/rules/archetypes.yaml` |
 | Survival (stamina, hunger, hp; rest is never gated) and death rules: you are carried back to the square, and only a second death while the world is `consuming` ends the run | `data/rules/survival.yaml`, `data/rules/death.yaml` |
 | Trade with three vendors, paid work, foraging, boons and complications, collectable sets | `data/economy.yaml`, `data/tables/` |
@@ -60,10 +62,10 @@ round again on the next visit, so "not yet" is never the last chance.
 | The Hearth Holds | a place in Edgewood (one of six quiet-life quests done), the larder walked (`H0`), awareness 40 or less | the bakery 04-09, Maris there: `the_morning_firing` / `H1` / `stay` |
 | The Dark Keeps Its Hours (the fail-forward) | none | the same card's `stay_anyway`, offered when the Hearth's gate is shut; and the terminal death (a second death while the world is `consuming`; `data/rules/death.yaml`'s `terminal.ending`), which shows its card |
 | The Long Witness | awareness 30, listened (a whisper quest, or awareness 50), the Unnamed Saints at 30, day 27 | the shrine while old Wenna is there (06-07, 18-21): `the_count_kept` / `W1` / `give_it` |
-| The Counted March | the march arc open, the militia at 20, a levy seen through (a march quest, or a night on the wall) | the gate or the square while Sera is there: `the_muster_roll` / `M1` / `strike_it` |
+| The Counted March | the march arc open, the militia at 20, a levy seen through (a march quest, or a night on the wall: Sergeant Venn's bargain kept) | the gate or the square while Sera is there: `the_muster_roll` / `M1` / `strike_it` |
 | The Named Wound | named, decided, and the last quiet morning at its third stage | the bakery 04-09, Maris there: `the_morning_firing` / `Q1` / `tell_her` or `say_nothing` |
 | The Price Asked | named, chose (a thing offered at `S1`), paid | wherever Ilya is while the sacrifice is open: `the_price` / `S2` / the beat for the thing offered, which takes exactly that thing |
-| The Pin and the Join | the ninth pin taken and held, the join walked | at the Join: `the_join` / `J1` / `set_it`. **NOT WIRED** until v0.25.0 T8: nothing yet writes `nf_ninth_taken`/`nf_ninth_left` or grants the pin (T8's `T3_take_it_or_dont` card), so neither this door nor paying the price with the pin can be reached in play |
+| The Pin and the Join | the ninth pin taken and held, the join walked | at the Join: `the_join` / `J1` / `set_it`. The pin is taken on Ilya's felt (`the_ninth_pin` / `T3` / `take_it`, once the tinkers' standing is 10) |
 | The Stopped Wheel | the doom reading at 1.0 | forced, not walked to: the declared event `the_last_hour` deals `the_stopped_wheel` / `Z1` once an open encounter or hand is done |
 
 ## Art

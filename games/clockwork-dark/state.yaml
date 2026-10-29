@@ -16,7 +16,7 @@
 # everywhere: empty means engine-only. A story has to say a value is
 # agent-writable, rather than forgetting to say it is not.
 #
-# Version: v0.1.0 [2026-08-08]
+# Version: v0.2.0 [2026-10-29]
 
 version: 1
 slug: clockwork-dark
@@ -154,3 +154,13 @@ meters:
     max: 1.0
     default: 0.0
     visibility: hidden
+
+clocks:
+  # Sera's levy (v0.25.0 §5.1). Its beats and pressure live in data/rules/clocks.yaml.
+  the_levy:
+    backing: bag
+    min: 0
+    max: 6
+    default: 0
+    visibility: hidden
+    label: "The levy"

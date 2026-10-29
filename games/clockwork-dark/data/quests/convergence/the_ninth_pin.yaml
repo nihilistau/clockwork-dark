@@ -1,4 +1,4 @@
-# Version: v0.2.0 [2026-10-29]
+# Version: v0.3.0 [2026-10-29]
 
 id: the_ninth_pin
 arc: convergence
@@ -45,7 +45,12 @@ stages:
       all:
         - flag: nf_ninth_earned
         - at_location: tinker_caravan
-        - disposition: { npc: npc_ilya, min: 20 }
+        # The tinkers' standing (v0.25.0 §4.3; first value, unmeasured until
+        # T10). Disposition is written only by the model's `npc_disposition`
+        # patch (engine/memory/ledger.py), so no card-only run could pass it;
+        # the tinkers' standing is engine-written (the tinker shift, trade,
+        # collections, encounters).
+        - reputation: { faction: tinkers, min: 10 }
     complete_text: >-
       He wants a true name of yours. Not the one Edgewood uses. He waits, and he
       does not fill the silence, which is how you know he has done this before.
@@ -69,11 +74,10 @@ stages:
           delta: -5
 
   # Taken or left on a card, not by the narrator (v0.25.0 §4.1). Bug 1: this
-  # stage's on_complete granted the pin either way. NOT WIRED until v0.25.0
-  # T8: the card is T8's `T3_take_it_or_dont` (data/scenes/), whose `take_it`
-  # beat will write nf_ninth_taken and grant the pin and whose `leave_it` will
-  # write nf_ninth_left and grant nothing. Until it lands nothing writes
-  # either flag, so this stage does not complete.
+  # stage's on_complete granted the pin either way. The card is
+  # `T3_take_it_or_dont` (data/scenes/the_ninth_pin.yaml): its `take_it` beat
+  # writes nf_ninth_taken and grants the pin, its `leave_it` writes
+  # nf_ninth_left and grants nothing.
   - id: take_it_or_dont
     objective: "Take the ninth pin, or leave it on the felt."
     complete_when:

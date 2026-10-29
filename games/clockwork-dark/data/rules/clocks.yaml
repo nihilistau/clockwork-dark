@@ -1,0 +1,30 @@
+# The Clockwork Dark -- one progress clock (v0.25.0 §5.1): Sera's levy.
+# +1 the first time the press is seen, then +1 at 3, 6, 9, 12 and 15 days after
+# it: full at fifteen days, when it forces `the_press` in the square. First
+# values, UNMEASURED until T10 (rule 10); the levy's band is written from T10's
+# first measurement. A v0.24.0 save whose first press is fifteen or more days
+# old fills on its first turn and is dealt the press in the square in its hours
+# (accepted: the levy has been due for weeks in that world; pinned by save 8).
+#
+# Version: v0.1.0 [2026-10-27]
+
+version: 1
+
+clocks:
+  the_levy:
+    label: "How long Sera's list has been growing"
+    advance_when:
+      - { id: levy_first_press, when: { event_seen: militia_press }, by: 1 }
+      - { id: levy_day_3, when: { days_since_event: { event: militia_press, days: 3 } }, by: 1 }
+      - { id: levy_day_6, when: { days_since_event: { event: militia_press, days: 6 } }, by: 1 }
+      - { id: levy_day_9, when: { days_since_event: { event: militia_press, days: 9 } }, by: 1 }
+      - { id: levy_day_12, when: { days_since_event: { event: militia_press, days: 12 } }, by: 1 }
+      - { id: levy_day_15, when: { days_since_event: { event: militia_press, days: 15 } }, by: 1 }
+    beats:
+      - id: levy_second_page
+        at: 3
+        text: "Sera's clerk has started a second page."
+      - id: levy_full
+        at: max
+        forces_scene: the_press
+        text: "Sera's list has an Edgewood name on it."

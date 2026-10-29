@@ -1,0 +1,107 @@
+# The Clockwork Dark -- the naming (v0.25.0 §4.3, critical path).
+# ==========================================================================
+# The square, the bakery or the caravan (the three places naming_the_wound's
+# `write_it_down` accepts), in the evening, 19:00-23:59. Three cards, one per
+# stage of naming_the_wound:
+#   G1  lay it out (`nf_naming_laid_it_out`; the stage's wits and evidence
+#       clauses stay the stage's own)
+#   G2  say it aloud (`nf_naming_spoke_it`), once the doom is `spreading`,
+#       which the stage itself requires
+#   G3  write it down (`nf_naming_wrote_it_down`)
+# Critical-path cards: four endings run through the naming (§4.4).
+# REPEATABLE, draw 1. The deck's `when:` ends in `any:` of its cards' own
+# gates (plan decision 3), so it is due only when a card can be dealt. The
+# deck puts no one there, so no card names anyone.
+#
+# Version: v0.1.0 [2026-10-29]
+
+id: the_naming
+repeatable: true
+draw: 1
+
+when:
+  all:
+    - { at_location: [edgewood_square, edgewood_bakery, tinker_caravan] }
+    - { hour_between: [19, 23] }
+    - any:
+        - all:
+            - { quest_state: { quest: naming_the_wound, status: active } }
+            - { quest_state: { quest: naming_the_wound, stage_at_least: 0 } }
+            - none: [{ quest_state: { quest: naming_the_wound, stage_at_least: 1 } }]
+        - all:
+            - { quest_state: { quest: naming_the_wound, status: active } }
+            - { quest_state: { quest: naming_the_wound, stage_at_least: 1 } }
+            - none: [{ quest_state: { quest: naming_the_wound, stage_at_least: 2 } }]
+            - { min_phase: spreading }
+        - all:
+            - { quest_state: { quest: naming_the_wound, status: active } }
+            - { quest_state: { quest: naming_the_wound, stage_at_least: 2 } }
+            - none: [{ quest_state: { quest: naming_the_wound, stage_at_least: 3 } }]
+
+cards:
+  - id: G1_lay_it_out
+    title: "Side by side"
+    when:
+      all:
+        - { quest_state: { quest: naming_the_wound, status: active } }
+        - { quest_state: { quest: naming_the_wound, stage_at_least: 0 } }
+        - none: [{ quest_state: { quest: naming_the_wound, stage_at_least: 1 } }]
+    tags: [naming]
+    text: >-
+      INTENT: Evening, a table, and every wrong thing the player has seen laid
+      out side by side. CONSTRAINTS: The shape is there or it is not; the
+      prose does not decide it for them.
+    beats:
+      - id: lay_it_out
+        text: >-
+          Put every wrong thing you have seen side by side and look at the shape.
+        gate:
+          on_pass:
+            text: "One mechanism, seen at different magnifications."
+            effects:
+              - { type: flag, flag: nf_naming_laid_it_out }
+
+  - id: G2_say_it_aloud
+    title: "Out loud"
+    when:
+      all:
+        - { quest_state: { quest: naming_the_wound, status: active } }
+        - { quest_state: { quest: naming_the_wound, stage_at_least: 1 } }
+        - none: [{ quest_state: { quest: naming_the_wound, stage_at_least: 2 } }]
+        - { min_phase: spreading }
+    tags: [naming]
+    text: >-
+      INTENT: The shape has a name, and the player says it out loud, once,
+      where somebody can hear. CONSTRAINTS: Saying it costs something that
+      does not come back with the breath.
+    beats:
+      - id: say_it
+        text: >-
+          Say what it is, out loud, once.
+        gate:
+          on_pass:
+            text: "Something goes out of you into the saying."
+            effects:
+              - { type: flag, flag: nf_naming_spoke_it }
+
+  - id: G3_write_it_down
+    title: "Where someone will find it"
+    when:
+      all:
+        - { quest_state: { quest: naming_the_wound, status: active } }
+        - { quest_state: { quest: naming_the_wound, stage_at_least: 2 } }
+        - none: [{ quest_state: { quest: naming_the_wound, stage_at_least: 3 } }]
+    tags: [naming]
+    text: >-
+      INTENT: A scrap of paper and a stub of pencil, and a place where someone
+      who is not the player will find what they write. CONSTRAINTS: Written,
+      it costs less to say twice.
+    beats:
+      - id: write_it
+        text: >-
+          Write the name down where somebody who is not you will find it.
+        gate:
+          on_pass:
+            text: "The letters sit on the paper and do not move, which is something."
+            effects:
+              - { type: flag, flag: nf_naming_wrote_it_down }

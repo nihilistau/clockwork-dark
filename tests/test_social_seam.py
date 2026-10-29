@@ -70,19 +70,33 @@ def test_a_story_without_paths_social_carries_no_phone_and_imports_nothing(slug:
     assert added == [], added
 
 
+#: S20 here (v0.25.0 T8): the quest module's empty bookkeeping block. The levy clock
+#: (data/rules/clocks.yaml) reads `event_seen` and `days_since_event` on every
+#: `advance_time`, and those predicates get-or-create `quests["_meta"]`
+#: (engine/game/quests.py::_meta), so this payload -- three hours advanced with no
+#: quest pass, which in play every turn runs and which creates the block itself --
+#: now carries it, empty.
+S20_EMPTY_META = {"events_seen": {}, "visited": []}
+
+
 def _sanctioned(slug: str, payload: str) -> str:
     """
     The recording as the flagship's own overhaul makes it (v0.25.0). S19 (T6,
     tests/test_local_mode_golden.py, asserted exact there): the flagship's gallery
-    block reads its rewritten gates and lock reasons and gains its teases -- story
-    content, not a social seam. Nothing else, and no other story, moves.
+    block reads its rewritten gates and lock reasons and gains its teases. S20 (T8,
+    asserted exact there and below): it declares threads, so it carries an empty
+    `threads` list, and its levy clock's reads leave an empty `quests["_meta"]`.
+    Story content, not a social seam. Nothing else, and no other story, moves.
     """
     if slug != "clockwork-dark":
         return payload
-    from tests.test_local_mode_golden import named_doors_gallery
+    from tests.test_local_mode_golden import levy_and_bargain_state, named_doors_gallery
 
     body = json.loads(payload)
     named_doors_gallery(body["endings"]["gallery"])
+    levy_and_bargain_state(body)
+    assert "_meta" not in body["quests"], "S20 applied twice"
+    body["quests"]["_meta"] = dict(S20_EMPTY_META)
     return json.dumps(body, sort_keys=True)
 
 
@@ -92,11 +106,13 @@ def test_the_payload_is_byte_identical_to_v0211(slug: str) -> None:
     assert _payload(slug, tuple(recorded["volatile"])) == _sanctioned(slug, recorded["payloads"][slug])
 
 
-def test_the_flagships_payload_sanction_moves_only_its_gallery() -> None:
+def test_the_flagships_payload_sanction_moves_only_its_gallery_threads_and_meta() -> None:
     recorded = json.loads(PAYLOADS.read_text(encoding="utf-8"))["payloads"]["clockwork-dark"]
     before, after = json.loads(recorded), json.loads(_sanctioned("clockwork-dark", recorded))
     assert after != before
     after["endings"]["gallery"] = before["endings"]["gallery"]
+    assert after.pop("threads") == []
+    assert after["quests"].pop("_meta") == S20_EMPTY_META
     assert after == before
 
 

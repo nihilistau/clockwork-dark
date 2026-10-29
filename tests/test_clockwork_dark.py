@@ -557,3 +557,215 @@ def test_the_narrator_cannot_raise_a_card_carried_flag(flagship, quest_id, index
     state = new_state()
     doors.at_stage(state, quest_id, index)
     assert flag_id not in QuestEngine.allowed_narrative_flags(state)
+
+
+# -- the critical path, the levy, the bargain (T8, §4.3-§5.1) -------------------------------------
+
+def test_every_deck_is_due_only_when_a_card_can_be_dealt() -> None:
+    """Plan decision 3: a deck with a `when:` ends it with `any:` of its cards' own gates, in card order."""
+    for path in sorted(SCENES.glob("*.yaml")):
+        deck = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert deck.get("draw") == 1, path.name
+        if "when" not in deck or path.stem == "the_press":
+            continue
+        tail = deck["when"]["all"][-1]
+        assert list(tail) == ["any"], path.name
+        assert tail["any"] == [card["when"] for card in deck["cards"]], path.name
+
+
+def test_fourteen_decks_and_thirty_four_cards() -> None:
+    decks = [yaml.safe_load(p.read_text(encoding="utf-8")) for p in SCENES.glob("*.yaml")]
+    assert len(decks) == 14 and sum(len(d["cards"]) for d in decks) == 34
+
+
+def _rep(faction: str, n: int):
+    return lambda s: doors.effect(s, type="reputation", faction=faction, delta=n)
+
+
+def _item(item_id: str):
+    return lambda s: doors.effect(s, type="item", item_id=item_id, qty=1)
+
+
+def _phase(progress: float):
+    """The reading set the engine's way (ruling B1: `doors.at_reading`, never a bare write)."""
+    return lambda s: doors.at_reading(s, progress)
+
+
+def _pin_ilya(s):
+    doors.flag(s, "npc_pin_npc_ilya")
+
+
+def _pin_sera(s):
+    doors.flag(s, "npc_pin_npc_sera")
+
+
+#: (deck, card, beat or "", quest, stage index, place, hour, extra setup, flag the beat writes)
+CARDS = [
+    ("the_bakehouse", "B1_ask_for_work", "", "bakery_apprentice", 0, "edgewood_bakery", 9, None, "nf_bakery_asked_for_work"),
+    ("nessas_drawings", "N1_see_it", "", "childs_drawing", 0, "edgewood_square", 10, None, "nf_drawing_seen"),
+    ("nessas_drawings", "N2_ask_her", "", "childs_drawing", 1, "edgewood_square", 10, None, "nf_drawing_asked"),
+    ("nessas_drawings", "N3_keep_one", "", "childs_drawing", 2, "edgewood_bakery", 10, None, "nf_drawing_kept"),
+    ("the_naming", "G1_lay_it_out", "", "naming_the_wound", 0, "edgewood_square", 20, None, "nf_naming_laid_it_out"),
+    ("the_naming", "G2_say_it_aloud", "", "naming_the_wound", 1, "tinker_caravan", 20, _phase(0.55), "nf_naming_spoke_it"),
+    ("the_naming", "G3_write_it_down", "", "naming_the_wound", 2, "edgewood_bakery", 20, None, "nf_naming_wrote_it_down"),
+    ("the_village_meeting", "V1_call_the_meeting", "", "what_edgewood_keeps", 0, "edgewood_square", 12, None, "nf_edgewood_called_it"),
+    ("the_village_meeting", "V2_the_vote", "split", "what_edgewood_keeps", 1, "edgewood_square", 12, None, "nf_edgewood_split"),
+    ("the_village_meeting", "V3_warn_them", "", "conscription_list", 2, "edgewood_square", 12, _item("copied_list"), "nf_list_warned_edgewood"),
+    ("the_levy_table", "L1_watch_them_choose", "", "militia_press", 0, "millhaven_gate", 9, None, "nf_press_watched"),
+    ("the_levy_table", "L2_the_weller_boy", "speak_up", "militia_press", 1, "millhaven_gate", 9, None, "nf_press_spoke_up"),
+    ("the_levy_table", "L3_get_near_it", "", "conscription_list", 0, "millhaven_gate", 9, None, "nf_list_glimpsed"),
+    ("the_levy_table", "L5_ask_her_straight", "", "seras_compromise", 0, "millhaven_gate", 9, _pin_sera, "nf_sera_asked"),
+    ("the_levy_table", "L6_hear_the_number", "", "seras_compromise", 1, "millhaven_gate", 9, _pin_sera, "nf_sera_heard_out"),
+    ("the_levy_table", "L7_answer_her", "refuse", "seras_compromise", 2, "millhaven_gate", 9, _pin_sera, "nf_sera_refused"),
+    ("the_ninth_pin", "T1_ask_for_it", "", "the_ninth_pin", 0, "tinker_caravan", 10, _pin_ilya, "nf_ninth_asked"),
+    ("the_ninth_pin", "T2_pay_for_it", "", "the_ninth_pin", 1, "tinker_caravan", 10,
+     lambda s: (_pin_ilya(s), _rep("tinkers", 10)(s)), "nf_ninth_earned"),
+    ("the_ninth_pin", "T3_take_it_or_dont", "leave_it", "the_ninth_pin", 2, "tinker_caravan", 10, _pin_ilya, "nf_ninth_left"),
+    ("the_inward_road", "R1_measure_it", "", "the_heartland_road", 0, "millhaven_gate", 12, _item("road_map"), "nf_road_measured"),
+]
+
+
+@pytest.mark.parametrize("row", CARDS, ids=[r[1] for r in CARDS])
+def test_each_critical_path_card_is_dealt_at_its_stage_and_writes_its_flag(flagship, row) -> None:
+    from engine.content import deck as deck_module
+    from engine.content import director
+    from engine.game.quests import evaluate_condition
+
+    deck_id, card_id, beat, quest, index, place, hour, extra, flag_id = row
+    state = new_state()
+    doors.at_stage(state, quest, index)
+    if extra is not None:
+        extra(state)
+    doors.stand(state, place, hour)
+    deck = deck_module.load_deck(deck_id)
+    assert evaluate_condition(state, deck.when), f"{deck_id} is not due at {place} at {hour}"
+    eligible, rejected = deck_module.eligible_cards(state, deck)
+    assert card_id in [c.id for c in eligible], rejected
+    assert director.begin(state, deck_id, forced_card=card_id)["ok"]
+    out = director.resolve(state, chosen=beat)
+    assert out["ok"], out
+    assert state.flags.get(flag_id), flag_id
+
+
+def test_l4_copies_the_list_on_a_pass_and_costs_standing_on_a_fail(flagship, monkeypatch) -> None:
+    """A stealth roll (`checks.resolve`, which a beat's skill gate calls), forced both ways."""
+    from types import SimpleNamespace
+
+    from engine.content import director
+    from engine.game import checks, reputation
+
+    for passed in (True, False):
+        state = new_state()
+        doors.at_stage(state, "conscription_list", 1)
+        doors.stand(state, "millhaven_gate", 9)
+        outcome = SimpleNamespace(skill="stealth", difficulty="standard", dc=12, total=12 if passed else 4,
+                                  margin=0, degree="success" if passed else "failure", summary="",
+                                  success=passed)
+        monkeypatch.setattr(checks, "resolve", lambda *a, outcome=outcome, **k: outcome)
+        before = reputation.get(state, "militia")
+        assert director.begin(state, "the_levy_table", forced_card="L4_copy_it")["ok"]
+        assert director.resolve(state, chosen="")["ok"]
+        assert bool(state.flags.get("nf_list_copied")) is passed
+        assert reputation.get(state, "militia") == (before if passed else before - 4)
+
+
+def test_the_pin_is_earned_by_the_tinkers_standing_not_a_disposition(flagship) -> None:
+    from engine.game.quests import QuestEngine, progress_records
+
+    state = new_state()
+    state.arcs_unlocked.append("convergence")
+    doors.completed(state, "naming_the_wound")
+    doors.at_stage(state, "the_ninth_pin", 1)
+    doors.flag(state, "nf_ninth_earned")
+    doors.stand(state, "tinker_caravan", 10)
+    QuestEngine.evaluate(state)
+    assert progress_records(state)["the_ninth_pin"].stage_index == 1     # tinkers 0
+    doors.effect(state, type="reputation", faction="tinkers", delta=10)
+    QuestEngine.evaluate(state)
+    assert progress_records(state)["the_ninth_pin"].stage_index == 2
+
+
+def test_taking_the_pin_on_its_card_completes_the_quest_and_opens_the_join(flagship) -> None:
+    """The Pin and the Join, reached in play: T3's `take_it` grants the pin and writes its flag, the
+    quest completes through `QuestEngine.evaluate`, and with the road walked the join's door is dealt."""
+    from engine.content import deck as deck_module
+    from engine.content import director
+    from engine.game.quests import STATUS_COMPLETED, QuestEngine, evaluate_condition, progress_records
+
+    state = new_state()
+    state.arcs_unlocked.append("convergence")
+    doors.completed(state, "naming_the_wound")
+    doors.at_stage(state, "the_ninth_pin", 2)
+    _pin_ilya(state)
+    doors.stand(state, "tinker_caravan", 10)
+    assert director.due(state)[0] == "the_ninth_pin"
+    assert director.begin(state, "the_ninth_pin", forced_card="T3_take_it_or_dont")["ok"]
+    assert director.resolve(state, chosen="take_it")["ok"]
+    QuestEngine.evaluate(state)
+    assert progress_records(state)["the_ninth_pin"].status == STATUS_COMPLETED
+    assert state.flags.get("nf_ninth_taken")
+    assert sum(i.qty for i in state.inventory if i.id == "ninth_pin") == 1
+    doors.at_stage(state, "the_heartland_road", 2)
+    doors.stand(state, "the_join", 12)
+    assert evaluate_condition(state, {"ending": {"eligible": "the_pin_and_the_join"}})
+    eligible, rejected = deck_module.eligible_cards(state, deck_module.load_deck("the_join"))
+    assert "J1_the_pin" in [c.id for c in eligible], rejected
+
+
+def test_the_levy_fills_on_its_days_and_forces_the_press_in_the_square(flagship) -> None:
+    from engine.content import director
+    from engine.game import clocks
+    from engine.game.quests import QuestEngine
+    from engine.world.world_sim import WorldSim
+
+    state = new_state()
+    doors.effect(state, type="awareness", delta=25)
+    doors.fed_until(state, 3, 9)
+    WorldSim.on_tick(state, hours=0.0, force=["militia_press"])
+    QuestEngine.evaluate(state)                                   # records the press as seen
+    doors.fed_until(state, 3 + 9, 9)
+    assert clocks.value_of(state, "the_levy") == 4                # +1 seen, then days 3, 6, 9
+    doors.fed_until(state, 3 + 15, 7)
+    assert clocks.value_of(state, "the_levy") == 6
+    doors.stand(state, "edgewood_square", 9)
+    deck_id, _card, source = director.due(state)
+    assert (deck_id, source) == ("the_press", "forced")
+
+
+def test_the_press_never_schedules_itself(flagship) -> None:
+    """Plan decision 4: in the square in its hours, with no levy owed, it is not due."""
+    from engine.content import director
+
+    state = new_state()
+    doors.stand(state, "edgewood_square", 9)
+    assert director.due(state)[0] != "the_press"
+
+
+def _strike(state):
+    """`strike_bargain`'s own two steps: offer, then seal (engine/skills/builtin/scenes.py)."""
+    from engine.game import threads
+
+    assert not threads.strike_refusal(state, "seras_bargain")
+    threads.seal(state, threads.offer(state, "seras_bargain"))
+    return threads.active(state)[-1]["id"]
+
+
+def test_seras_bargain_strikes_discharges_on_the_wall_and_breaks_on_its_day(flagship) -> None:
+    import json
+
+    from engine.game import threads
+
+    state = new_state()
+    doors.at_stage(state, "conscription_list", 0)
+    doors.stand(state, "millhaven_gate", 9)
+    tid = _strike(state)
+    doors.stand(state, "millhaven_gate", 23)
+    assert threads.discharge(state, tid)["ok"]
+    assert state.flags.get("stood_the_wall")
+    broken = new_state()
+    doors.at_stage(broken, "conscription_list", 0)
+    doors.stand(broken, "millhaven_gate", 9)
+    tid = _strike(broken)
+    doors.fed_until(broken, broken.world_day + 4, 9)
+    assert threads.get(broken, tid)["status"] == threads.STATUS_BROKEN
+    assert "night on the wall" in json.dumps(threads.get(broken, tid)) + json.dumps(broken.moved)

@@ -1,0 +1,126 @@
+# The Clockwork Dark -- the village meeting (v0.25.0 §4.3, critical path).
+# ==========================================================================
+# The square. Three cards:
+#   V1  call the meeting (what_edgewood_keeps `call_the_meeting`,
+#       `nf_edgewood_called_it`), by day or at dusk, the stage's own hours
+#   V2  the vote (`the_vote`; menu: stay, go or split, each its flag)
+#   V3  warn them (conscription_list `warn_them`, `nf_list_warned_edgewood`),
+#       with the copied list in hand
+# Critical-path cards: The Named Wound runs through the meeting, and the
+# march's list ends here (§4.4). REPEATABLE, draw 1. The deck's `when:` ends
+# in `any:` of its cards' own gates (plan decision 3), so it is due only when
+# a card can be dealt. The deck puts no one there, so no card names anyone.
+#
+# Version: v0.1.0 [2026-10-29]
+
+id: the_village_meeting
+repeatable: true
+draw: 1
+
+when:
+  all:
+    - { at_location: edgewood_square }
+    - any:
+        - all:
+            - { quest_state: { quest: what_edgewood_keeps, status: active } }
+            - { quest_state: { quest: what_edgewood_keeps, stage_at_least: 0 } }
+            - none: [{ quest_state: { quest: what_edgewood_keeps, stage_at_least: 1 } }]
+            - { time_of_day: [dusk, day] }
+        - all:
+            - { quest_state: { quest: what_edgewood_keeps, status: active } }
+            - { quest_state: { quest: what_edgewood_keeps, stage_at_least: 1 } }
+            - none: [{ quest_state: { quest: what_edgewood_keeps, stage_at_least: 2 } }]
+        - all:
+            - { quest_state: { quest: conscription_list, status: active } }
+            - { quest_state: { quest: conscription_list, stage_at_least: 2 } }
+            - none: [{ quest_state: { quest: conscription_list, stage_at_least: 3 } }]
+            - { has_item: { id: copied_list, qty: 1 } }
+
+cards:
+  - id: V1_call_the_meeting
+    title: "Everyone, in the square"
+    when:
+      all:
+        - { quest_state: { quest: what_edgewood_keeps, status: active } }
+        - { quest_state: { quest: what_edgewood_keeps, stage_at_least: 0 } }
+        - none: [{ quest_state: { quest: what_edgewood_keeps, stage_at_least: 1 } }]
+        - { time_of_day: [dusk, day] }
+    tags: [edgewood]
+    text: >-
+      INTENT: The square, and the player calling Edgewood together to tell
+      them what they know. CONSTRAINTS: People come because they are asked,
+      not because they believe yet.
+    beats:
+      - id: call_it
+        text: >-
+          Call Edgewood together and tell them what you know.
+        gate:
+          on_pass:
+            text: "They come out of doorways wiping their hands, and they stay to listen."
+            effects:
+              - { type: flag, flag: nf_edgewood_called_it }
+
+  - id: V2_the_vote
+    title: "What Edgewood keeps"
+    when:
+      all:
+        - { quest_state: { quest: what_edgewood_keeps, status: active } }
+        - { quest_state: { quest: what_edgewood_keeps, stage_at_least: 1 } }
+        - none: [{ quest_state: { quest: what_edgewood_keeps, stage_at_least: 2 } }]
+    tags: [menu, edgewood]
+    text: >-
+      INTENT: The square again, everyone there, and a choice nobody wants:
+      hold the village, empty it, or split it. CONSTRAINTS: The player's
+      voice carries; it does not decide alone.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: stay
+        label: "Stay and hold the village"
+        text: >-
+          Argue that Edgewood stays, all of it, and holds.
+        gate:
+          on_pass:
+            text: "The ones with the least to move vote first, and they vote to stay."
+            effects:
+              - { type: flag, flag: nf_edgewood_stay }
+      - id: go
+        label: "Go, all of us, while there is a road"
+        text: >-
+          Argue that Edgewood goes, everyone, while there is still a road.
+        gate:
+          on_pass:
+            text: "Carts are counted before the meeting is over."
+            effects:
+              - { type: flag, flag: nf_edgewood_go }
+      - id: split
+        label: "Split: the children go, the rest hold"
+        text: >-
+          Argue for the split: the children go, and the rest hold.
+        gate:
+          on_pass:
+            text: "It is decided the way these things are, by the people with the most to lose."
+            effects:
+              - { type: flag, flag: nf_edgewood_split }
+
+  - id: V3_warn_them
+    title: "Four names"
+    when:
+      all:
+        - { quest_state: { quest: conscription_list, status: active } }
+        - { quest_state: { quest: conscription_list, stage_at_least: 2 } }
+        - none: [{ quest_state: { quest: conscription_list, stage_at_least: 3 } }]
+        - { has_item: { id: copied_list, qty: 1 } }
+    tags: [edgewood, levy]
+    text: >-
+      INTENT: The copied list in the player's hand, and the four households
+      it names somewhere in the square. CONSTRAINTS: The column has not come
+      yet. It will.
+    beats:
+      - id: warn_them
+        text: >-
+          Find the four households on the list and tell them before the column does.
+        gate:
+          on_pass:
+            text: "Four doors, four faces, and none of them surprised enough."
+            effects:
+              - { type: flag, flag: nf_list_warned_edgewood }

@@ -685,7 +685,7 @@ def test_the_doctor_reports_every_shipped_story_s_state() -> None:
     The two shipped stories describe their state in opposite ways, and the
     doctor's whole job here is that the difference is visible at a glance.
 
-    The flagship's fifteen values are every one FIELD-backed: the schema
+    The flagship's first fifteen values are every one FIELD-backed: the schema
     describes attributes `GameState` already had, which is the only reason the
     layer was safe to land over a game people were mid-run on. The Garden's
     thirteen are every one BAG-backed and mostly veiled or hidden, because none
@@ -698,6 +698,9 @@ def test_the_doctor_reports_every_shipped_story_s_state() -> None:
     nothing, silently. It is FIELD-backed like its siblings (the attribute has
     existed on `GameState` since R-06) and hidden like awareness, which is why
     the hidden count moves with it.
+
+    Sixteen since v0.25.0 T8: Sera's levy (`the_levy`), the flagship's first
+    clock and its first BAG-backed value, hidden like the levy it counts.
     """
     doctor = _doctor()
     report = doctor.Report()
@@ -706,9 +709,9 @@ def test_the_doctor_reports_every_shipped_story_s_state() -> None:
     rows = {name: (status, detail) for section, name, status, detail in report.rows}
     flagship = next(v for k, v in rows.items() if k.startswith(CLOCKWORK))
     assert flagship[0] == doctor.OK
-    assert "15 values" in flagship[1]
-    assert "15 field, 0 bag" in flagship[1]
-    assert "5 hidden" in flagship[1]
+    assert "16 values" in flagship[1]
+    assert "15 field, 1 bag" in flagship[1]
+    assert "6 hidden" in flagship[1]
 
     garden_row = next(v for k, v in rows.items() if k.startswith(GARDEN))
     assert garden_row[0] == doctor.OK

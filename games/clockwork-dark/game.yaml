@@ -24,7 +24,17 @@
 #                  index.json has always had. A story with no doom clock and no
 #                  archetypes names its own columns here instead.
 #
-# Version: v0.3.0 [2026-09-20]
+# THE PATHS IT DOES NOT DECLARE (v0.25.0 §5.2), each a system with no use here:
+#
+#   law:           no crimes to witness and no watch to report them; the
+#                  militia counts people, it does not arrest them.
+#   premises:      no thief, so no houses to case.
+#   jobs:          no thief, so no burglary walked stage by stage.
+#   agendas:       their selectors (premise, fence, witness) are none of this
+#                  story's, and the antagonist is a pattern, not a person.
+#   social:        the phone is another story's.
+#
+# Version: v0.4.0 [2026-10-29]
 
 id: clockwork-dark
 title: "The Clockwork Dark"
@@ -106,7 +116,8 @@ paths:
   challenges: "games/clockwork-dark/data/challenges"
   # The finale. Every ending is locked BY NAME at its own door, a deck card
   # (v0.25.0 §4.2): the morning firing's H1 and Q1, the count kept's W1, the
-  # muster roll's M1, and the rest as they land -- plus the terminal death,
+  # muster roll's M1, the price's S2, the join's J1 and the stopped wheel's
+  # Z1 -- plus the terminal death,
   # the fail-forward's second door. No quest carries an id-less lock any
   # more. Each locked ending plays its module and shows its card in
   # data/epilogues/. See the header of data/rules/endings.yaml for the shape.
@@ -117,6 +128,12 @@ paths:
   # levy's forced one. Every deck draws one card, and every one not forced
   # is repeatable.
   decks: "games/clockwork-dark/data/scenes"
+  # Sera's levy (v0.25.0 §5.1): one hidden clock, filled by the press and the
+  # days after it, which forces `the_press` in the square when full.
+  clocks: "games/clockwork-dark/data/rules/clocks.yaml"
+  # Sergeant Venn's bargain (v0.25.0 §5.1): a night on the wall for a name off
+  # her list, the one thread template.
+  threads: "games/clockwork-dark/data/rules/threads.yaml"
   sounds: "games/clockwork-dark/data/sounds"   # the palette: brass and gears (v0.24.0 spec §9.2)
 
 entry:

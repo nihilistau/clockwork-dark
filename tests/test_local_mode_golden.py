@@ -26,8 +26,10 @@ v0.25.0 adds S14 (the overlay's route and socket handler), S15 (the
 factions route), S16 (the codex's declared souls), S17 (Nessa met in the
 flagship's recorded run), S18 (the flagship's banded roads and its two
 secret places on the no-session map) and S19 (the flagship's doors named: its
-gallery's gates, lock reasons and teases, and its `paths.decks`). There are no
-others.
+gallery's gates, lock reasons and teases, and its `paths.decks`) and S20 (the
+flagship's levy and bargain declared: an empty `threads` list in each of its
+state blocks, and `paths.clocks` and `paths.threads` in its catalogue rows).
+There are no others.
 
 The capture opens no socket (Flask's and Socket.IO's test clients), writes
 nothing outside the test's temp directory (asserted, by an audit hook), and
@@ -932,13 +934,85 @@ DOORS_SANCTION: list[tuple[str, Callable[[str], str]]] = [
 ]
 
 
+#: S20's payload fixtures and how many flagship state blocks each carries (v0.25.0 T8,
+#: §5.1): the same fixtures, and the same counts, as S19's galleries, because each
+#: flagship payload carries one state block beside each gallery.
+S20_STATES: dict[str, int] = {
+    "clockwork-dark/http_turns.json": 2, "clockwork-dark/join_live.json": 2,
+    "clockwork-dark/new_game.json": 2, "clockwork-dark/save_load.json": 1,
+    "clockwork-dark/socket_resume.json": 2, "clockwork-dark/socket_stream_turn.json": 3,
+    "clockwork-dark/socket_turns.json": 2, "clockwork-dark/state.json": 1,
+}
+#: S20's catalogue rows: the flagship's row gains these two paths.
+S20_PATHS: dict[str, str] = {
+    "clocks": "games/clockwork-dark/data/rules/clocks.yaml",
+    "threads": "games/clockwork-dark/data/rules/threads.yaml",
+}
+
+
+def _states(value: Any) -> list[dict[str, Any]]:
+    """Every state block in a fixture (a dict carrying ``turn_number`` and ``stats``), in document order."""
+    found: list[dict[str, Any]] = []
+    if isinstance(value, dict):
+        if "turn_number" in value and "stats" in value:
+            found.append(value)
+        for item in value.values():
+            found.extend(_states(item))
+    elif isinstance(value, list):
+        for item in value:
+            found.extend(_states(item))
+    return found
+
+
+def levy_and_bargain_state(state: dict[str, Any]) -> None:
+    """
+    S20's change to one flagship state block (v0.25.0 T8, §5.1): it gains
+    ``threads: []``. The flagship declares `paths.threads` (Sergeant Venn's bargain),
+    and a state that declares threads carries their summary
+    (engine/game/state.py, `threads_module.is_declared()`): empty, because no recorded
+    run strikes one. The levy clock is `visibility: hidden`, so no payload shows it.
+    Shared with tests/test_social_seam.py. Nothing else in the block moves.
+    """
+    assert "threads" not in state, "S20 applied twice"
+    state["threads"] = []
+
+
+def with_levy_and_bargain(expected: int) -> Callable[[str], str]:
+    """S20 on a payload fixture: exactly ``expected`` state blocks, each by ``levy_and_bargain_state``."""
+
+    def transform(value: Any) -> None:
+        blocks = _states(value)
+        assert len(blocks) == expected, (len(blocks), expected)
+        for block in blocks:
+            levy_and_bargain_state(block)
+
+    return json_sanction(transform)
+
+
+def with_flagship_clocks_and_threads(value: Any) -> None:
+    """S20 on a catalogue fixture: the flagship's row (and only it) gains `paths.clocks` and `paths.threads`."""
+    body = value["json"]
+    rows = body["games"] if "games" in body else [body["manifest"]] if "manifest" in body else [body]
+    flagship = [row for row in rows if row.get("id") == "clockwork-dark"]
+    assert len(flagship) == 1, len(flagship)
+    paths = flagship[0]["paths"]
+    assert not set(S20_PATHS) & set(paths), "S20 applied twice"
+    paths.update(S20_PATHS)
+
+
+LEVY_SANCTION: list[tuple[str, Callable[[str], str]]] = [
+    *((name, with_levy_and_bargain(count)) for name, count in S20_STATES.items()),
+    *((name, json_sanction(with_flagship_clocks_and_threads)) for name in S19_CATALOGUES),
+]
+
+
 #: ``(fixture name, transform)``: the recording, as the sanctioned change
 #: makes it. S1 since v0.20.0 T2, S2 since T3, S3-S10 since v0.21.0
 #: (spec §1.2; S7 added in T3 fix round 1, S8 in fix round 2, S9 in the
 #: encounter-resume fix, S10 in T13 fix round 1, S5 in T14), S11 since
 #: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10, S14 since v0.25.0 T2, S15 since
-#: v0.25.0 T3, S16 and S17 since v0.25.0 T4, S18 since v0.25.0 T5, S19 since v0.25.0 T6;
-#: there are no others.
+#: v0.25.0 T3, S16 and S17 since v0.25.0 T4, S18 since v0.25.0 T5, S19 since v0.25.0 T6,
+#: S20 since v0.25.0 T8; there are no others.
 SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     BIND_SANCTION,
     *SAVES_SANCTION,
@@ -959,6 +1033,7 @@ SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     NESSA_SANCTION,
     MAP_SANCTION,
     *DOORS_SANCTION,
+    *LEVY_SANCTION,
 ]
 
 
@@ -1498,4 +1573,31 @@ def test_the_doors_sanction_is_exact() -> None:
             assert next(r for r in rows if r.get("id") == "clockwork-dark")["paths"].pop("decks") == S19_DECKS
         assert after == before, name
         with pytest.raises(AssertionError, match="S19 applied twice"):
+            sanction(sanction(recorded[name]))
+
+
+def test_the_levy_sanction_is_exact() -> None:
+    """
+    S20 adds, in each flagship payload fixture, exactly an empty `threads` list to
+    each state block, and in each catalogue fixture exactly the flagship row's
+    `paths.clocks` and `paths.threads`; undone, every fixture is the recording again,
+    and it cannot apply twice.
+    """
+    recorded = _recorded()
+    for name, sanction in LEVY_SANCTION:
+        before = json.loads(recorded[name])
+        after = json.loads(sanction(recorded[name]))
+        assert after != before, name
+        if name in S20_STATES:
+            blocks = _states(after)
+            assert len(blocks) == S20_STATES[name], name
+            for block in blocks:
+                assert block.pop("threads") == []
+        else:
+            body = after["json"]
+            rows = body["games"] if "games" in body else [body["manifest"]] if "manifest" in body else [body]
+            paths = next(r for r in rows if r.get("id") == "clockwork-dark")["paths"]
+            assert {key: paths.pop(key) for key in S20_PATHS} == S20_PATHS
+        assert after == before, name
+        with pytest.raises(AssertionError, match="S20 applied twice"):
             sanction(sanction(recorded[name]))

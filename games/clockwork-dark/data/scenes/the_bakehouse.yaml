@@ -1,0 +1,49 @@
+# The Clockwork Dark -- the bakehouse (v0.25.0 §4.3, critical path).
+# ==========================================================================
+# The bakery, while Maris is there (`npc_here`, which asks npc_sim: her
+# baking hours and the counter, npc_schedules.yaml). One card:
+#   B1  ask for work (`nf_bakery_asked_for_work`, which bakery_apprentice's
+#       `ask_for_work` stage reads with the place)
+# A critical-path card: the stage used to complete only when the narrator
+# raised its flag, and The Hearth Holds runs through it (§4.4). REPEATABLE,
+# draw 1. The deck's `when:` ends in `any:` of its card's own gate (plan
+# decision 3), so it is due only when the card can be dealt.
+#
+# Version: v0.1.0 [2026-10-29]
+
+id: the_bakehouse
+repeatable: true
+draw: 1
+
+when:
+  all:
+    - { at_location: edgewood_bakery }
+    - { npc_here: npc_maris }
+    - any:
+        - all:
+            - { quest_state: { quest: bakery_apprentice, status: active } }
+            - { quest_state: { quest: bakery_apprentice, stage_at_least: 0 } }
+            - none: [{ quest_state: { quest: bakery_apprentice, stage_at_least: 1 } }]
+
+cards:
+  - id: B1_ask_for_work
+    title: "Hands"
+    when:
+      all:
+        - { quest_state: { quest: bakery_apprentice, status: active } }
+        - { quest_state: { quest: bakery_apprentice, stage_at_least: 0 } }
+        - none: [{ quest_state: { quest: bakery_apprentice, stage_at_least: 1 } }]
+    tags: [bakery]
+    text: >-
+      INTENT: The bakery's back room, flour in the air, and Maris working the
+      dough without looking up. The player asks whether she needs hands.
+      CONSTRAINTS: She answers with a look at their hands, not a speech.
+    beats:
+      - id: ask
+        text: >-
+          Ask Maris, plainly, whether she could use another pair of hands.
+        gate:
+          on_pass:
+            text: "She looks at your hands rather than your face, and decides something."
+            effects:
+              - { type: flag, flag: nf_bakery_asked_for_work }

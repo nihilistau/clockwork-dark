@@ -139,20 +139,24 @@ def test_a_story_with_no_endings_cannot_softlock_its_finale(
     assert endings.resolve(GameState()) == ""
 
 
-def test_the_flagship_declares_decks_but_still_no_clocks_or_threads() -> None:
+def test_the_flagship_declares_decks_clocks_and_threads() -> None:
     """
     What the flagship's compatibility bar actually is, now that it has a finale.
 
     Since v0.25.0 T6 its endings are locked at their doors, deck cards
-    (`paths.decks`, spec §4.3), so decks are no longer inert for it; its
-    doors' measured cost is the release's balance pass (`scripts/simulate_doors.py`,
-    v0.25.0 §10). Clocks and threads are still inert. If either fails, the
-    flagship has grown a system whose cost has to be measured against
-    `scripts/simulate.py` before it ships.
+    (`paths.decks`, spec §4.3), so decks are no longer inert for it; since T8
+    it declares one clock (Sera's levy, `paths.clocks`) and one thread
+    template (Sergeant Venn's bargain, `paths.threads`, spec §5.1). Their
+    measured cost is the release's balance pass (`scripts/simulate_doors.py`
+    and `scripts/simulate.py`, v0.25.0 §10). A fresh run owes nothing: the
+    levy at 0, no bargain struck, no scene forced.
     """
-    assert clocks.load_clocks() == {}
-    assert threads.templates() == {}
-    assert {"the_morning_firing", "the_count_kept", "the_muster_roll"} <= set(deck_module.deck_ids())
+    assert set(clocks.load_clocks()) == {"the_levy"}
+    assert set(threads.templates()) == {"seras_bargain"}
+    assert {"the_morning_firing", "the_count_kept", "the_muster_roll", "the_press"} <= set(deck_module.deck_ids())
+    fresh = GameState()
+    assert clocks.forced_scenes(fresh) == []
+    assert threads.active(fresh) == []
 
     # ...and the one it DOES declare is real: eight endings, a declared
     # fail-forward, and never an empty eligible set.

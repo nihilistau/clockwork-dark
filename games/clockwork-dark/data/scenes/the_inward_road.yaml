@@ -1,0 +1,50 @@
+# The Clockwork Dark -- the inward road (v0.25.0 §4.3, critical path).
+# ==========================================================================
+# Millhaven gate. One card:
+#   R1  measure it (the_heartland_road `measure_it`, `nf_road_measured`),
+#       with a road map in hand, which the stage itself requires
+# A critical-path card: The Pin and the Join runs through the road, and
+# measuring it is what makes the join known (data/world/locations.yaml,
+# §4.4). REPEATABLE, draw 1. The deck's `when:` ends in `any:` of its card's
+# own gate (plan decision 3), so it is due only when the card can be dealt.
+# The deck puts no one there, so the card names no one.
+#
+# Version: v0.1.0 [2026-10-29]
+
+id: the_inward_road
+repeatable: true
+draw: 1
+
+when:
+  all:
+    - { at_location: millhaven_gate }
+    - any:
+        - all:
+            - { quest_state: { quest: the_heartland_road, status: active } }
+            - { quest_state: { quest: the_heartland_road, stage_at_least: 0 } }
+            - none: [{ quest_state: { quest: the_heartland_road, stage_at_least: 1 } }]
+            - { has_item: { id: road_map, qty: 1 } }
+
+cards:
+  - id: R1_measure_it
+    title: "Paced out"
+    when:
+      all:
+        - { quest_state: { quest: the_heartland_road, status: active } }
+        - { quest_state: { quest: the_heartland_road, stage_at_least: 0 } }
+        - none: [{ quest_state: { quest: the_heartland_road, stage_at_least: 1 } }]
+        - { has_item: { id: road_map, qty: 1 } }
+    tags: [road]
+    text: >-
+      INTENT: The gate's milestone, the road map unfolded against it, and the
+      inward road paced out against what the map says. CONSTRAINTS: The map
+      is right. The road is shorter.
+    beats:
+      - id: measure
+        text: >-
+          Pace the inward road out against the map, milestone to milestone.
+        gate:
+          on_pass:
+            text: "The map is right, and the road is shorter than it was."
+            effects:
+              - { type: flag, flag: nf_road_measured }

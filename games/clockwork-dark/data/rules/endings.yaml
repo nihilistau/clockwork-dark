@@ -18,11 +18,8 @@
 #   6  the_named_wound           the_morning_firing / Q1_tell_her_or_dont / tell_her
 #   7  the_named_wound           the_morning_firing / Q1_tell_her_or_dont / say_nothing
 #   8  the_price_asked           the_price / S2_pay_it (one beat per thing paid)
-#   9  the_pin_and_the_join      the_join / J1_the_pin / set_it -- NOT WIRED
-#                                until v0.25.0 T8: nothing writes nf_ninth_taken
-#                                or nf_ninth_left or grants the pin (T8's
-#                                T3_take_it_or_dont card); the_price's
-#                                pay_the_pin waits on the same card
+#   9  the_pin_and_the_join      the_join / J1_the_pin / set_it (the pin taken
+#                                on the_ninth_pin / T3_take_it_or_dont / take_it)
 #  10  the_stopped_wheel         the_stopped_wheel / Z1_the_last_morning,
 #                                forced by the declared event the_last_hour
 #                                (data/world/schedules.yaml)

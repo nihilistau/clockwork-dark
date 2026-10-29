@@ -16,7 +16,7 @@
     "written by the collections engine off data/tables/collections.yaml.",
     "stood_the_wall is the march ending's other way to `served`: read by",
     "data/rules/endings.yaml since v0.25.0 T6, written by Sera's bargain",
-    "(v0.25.0 T8), canon so the gate's read is declared before its writer.",
+    "(data/rules/threads.yaml, `seras_bargain`, since v0.25.0 T8).",
     "The sacrifice_offered_* flags are written by the_price's S1 beats",
     "(data/scenes/the_price.yaml, v0.25.0 T7) and read by its S2: what was",
     "put on Ilya's table, which S2 takes only while it is still held.",

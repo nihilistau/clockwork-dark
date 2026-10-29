@@ -1,0 +1,262 @@
+# The Clockwork Dark -- the levy table (v0.25.0 §4.3, critical path).
+# ==========================================================================
+# Millhaven gate or Edgewood square, while Sergeant Sera Venn is there
+# (`npc_here`, which asks npc_sim: the gate by day, the square's notice board
+# in the evening, the square for good once the doom moves her there; a quest
+# pin brings her to seras_compromise). Seven cards across three quests:
+#   L1  militia_press `watch_it_happen` (`nf_press_watched`)
+#   L2  militia_press `the_weller_boy` (menu: speak up, give his name, or say
+#       nothing, which leaves the stage to its own two days)
+#   L3  conscription_list `get_near_it` (`nf_list_glimpsed`), at the gate
+#   L4  conscription_list `copy_it`: a stealth roll, standard; a pass writes
+#       `nf_list_copied`, a fail costs the militia's standing
+#   L5  seras_compromise `ask_her_straight` (`nf_sera_asked`), at the gate
+#   L6  seras_compromise `hear_the_number` (`nf_sera_heard_out`), at the gate
+#   L7  seras_compromise `answer_her` (menu: agree or refuse, each its flag)
+# Critical-path cards: The Counted March runs through the press, and the
+# list's copy is evidence for the naming (§4.4). REPEATABLE, draw 1. The
+# deck's `when:` ends in `any:` of its cards' own gates (plan decision 3), so
+# it is due only when a card can be dealt. L2 is the only beat with more than
+# one effect, and none carries more than four.
+#
+# Version: v0.1.0 [2026-10-29]
+
+id: the_levy_table
+repeatable: true
+draw: 1
+
+when:
+  all:
+    - { at_location: [edgewood_square, millhaven_gate] }
+    - { npc_here: npc_sera }
+    - any:
+        - all:
+            - { quest_state: { quest: militia_press, status: active } }
+            - { quest_state: { quest: militia_press, stage_at_least: 0 } }
+            - none: [{ quest_state: { quest: militia_press, stage_at_least: 1 } }]
+        - all:
+            - { quest_state: { quest: militia_press, status: active } }
+            - { quest_state: { quest: militia_press, stage_at_least: 1 } }
+            - none: [{ quest_state: { quest: militia_press, stage_at_least: 2 } }]
+        - all:
+            - { quest_state: { quest: conscription_list, status: active } }
+            - { quest_state: { quest: conscription_list, stage_at_least: 0 } }
+            - none: [{ quest_state: { quest: conscription_list, stage_at_least: 1 } }]
+            - { at_location: millhaven_gate }
+        - all:
+            - { quest_state: { quest: conscription_list, status: active } }
+            - { quest_state: { quest: conscription_list, stage_at_least: 1 } }
+            - none: [{ quest_state: { quest: conscription_list, stage_at_least: 2 } }]
+            - { at_location: millhaven_gate }
+        - all:
+            - { quest_state: { quest: seras_compromise, status: active } }
+            - { quest_state: { quest: seras_compromise, stage_at_least: 0 } }
+            - none: [{ quest_state: { quest: seras_compromise, stage_at_least: 1 } }]
+            - { at_location: millhaven_gate }
+        - all:
+            - { quest_state: { quest: seras_compromise, status: active } }
+            - { quest_state: { quest: seras_compromise, stage_at_least: 1 } }
+            - none: [{ quest_state: { quest: seras_compromise, stage_at_least: 2 } }]
+            - { at_location: millhaven_gate }
+        - all:
+            - { quest_state: { quest: seras_compromise, status: active } }
+            - { quest_state: { quest: seras_compromise, stage_at_least: 2 } }
+            - none: [{ quest_state: { quest: seras_compromise, stage_at_least: 3 } }]
+
+cards:
+  - id: L1_watch_them_choose
+    title: "How they choose"
+    when:
+      all:
+        - { quest_state: { quest: militia_press, status: active } }
+        - { quest_state: { quest: militia_press, stage_at_least: 0 } }
+        - none: [{ quest_state: { quest: militia_press, stage_at_least: 1 } }]
+    tags: [levy]
+    text: >-
+      INTENT: Sergeant Venn's levy at work, a table, a list, a queue of
+      people who were not asked whether to queue. CONSTRAINTS: Nobody is
+      cruel. It is worse than that; it is efficient.
+    beats:
+      - id: watch
+        text: >-
+          Stand back and watch how the levy chooses.
+        gate:
+          on_pass:
+            text: "They choose by who has nobody standing behind them."
+            effects:
+              - { type: flag, flag: nf_press_watched }
+
+  - id: L2_the_weller_boy
+    title: "The Weller boy"
+    when:
+      all:
+        - { quest_state: { quest: militia_press, status: active } }
+        - { quest_state: { quest: militia_press, stage_at_least: 1 } }
+        - none: [{ quest_state: { quest: militia_press, stage_at_least: 2 } }]
+    tags: [menu, levy]
+    text: >-
+      INTENT: The Weller boy's name on Sergeant Venn's list, and the boy
+      somewhere nearby pretending not to hear it. CONSTRAINTS: She is waiting
+      to see whether it is anyone's business.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: speak_up
+        label: "Speak up for him"
+        text: >-
+          Speak up for the Weller boy, in front of the table.
+        gate:
+          on_pass:
+            text: "Sera writes something down. The boy stays, for now."
+            effects:
+              - { type: flag, flag: nf_press_spoke_up }
+              - { type: reputation, faction: militia, delta: -4 }
+              - { type: reputation, faction: edgewood, delta: 6 }
+      - id: give_his_name
+        label: "Tell her where he sleeps"
+        text: >-
+          Tell the sergeant where the Weller boy sleeps.
+        gate:
+          on_pass:
+            text: "Sera writes something down, and thanks you, which is the worst part."
+            effects:
+              - { type: flag, flag: nf_press_gave_name }
+              - { type: reputation, faction: militia, delta: 4 }
+              - { type: reputation, faction: edgewood, delta: -6 }
+      - id: say_nothing
+        label: "Say nothing"
+        text: >-
+          Say nothing. It is not your list.
+        gate:
+          on_pass:
+            text: "The sergeant moves on to the next name."
+
+  - id: L3_get_near_it
+    title: "Page three"
+    when:
+      all:
+        - { quest_state: { quest: conscription_list, status: active } }
+        - { quest_state: { quest: conscription_list, stage_at_least: 0 } }
+        - none: [{ quest_state: { quest: conscription_list, stage_at_least: 1 } }]
+        - { at_location: millhaven_gate }
+    tags: [levy]
+    text: >-
+      INTENT: The muster clerk's book open on the gate table, Sergeant Venn
+      beside it. CONSTRAINTS: Close enough to read is closer than anyone is
+      meant to stand.
+    beats:
+      - id: get_near
+        text: >-
+          Get close enough to the clerk's book to read it.
+        gate:
+          on_pass:
+            text: "Edgewood is on page three, with a four beside it."
+            effects:
+              - { type: flag, flag: nf_list_glimpsed }
+
+  # A sequence card whose one beat is a roll: pass copies the names (the
+  # stage then grants `copied_list`), fail costs the militia's standing.
+  - id: L4_copy_it
+    title: "Before the book shuts"
+    when:
+      all:
+        - { quest_state: { quest: conscription_list, status: active } }
+        - { quest_state: { quest: conscription_list, stage_at_least: 1 } }
+        - none: [{ quest_state: { quest: conscription_list, stage_at_least: 2 } }]
+        - { at_location: millhaven_gate }
+    tags: [levy]
+    text: >-
+      INTENT: The clerk's book, the Edgewood page, and a moment while
+      Sergeant Venn's back is turned. CONSTRAINTS: Copying it is a stealth
+      roll; the book shuts either way.
+    beats:
+      - id: copy_it
+        text: >-
+          Copy the Edgewood names before the clerk closes the book.
+        gate:
+          check: { skill: stealth, difficulty: standard }
+          on_pass:
+            text: "Four names, and a second column you do not have time to understand."
+            effects:
+              - { type: flag, flag: nf_list_copied }
+          on_fail:
+            text: "The book shuts on your fingers' shadow, and the clerk remembers your face."
+            effects:
+              - { type: reputation, faction: militia, delta: -4 }
+
+  - id: L5_ask_her_straight
+    title: "Straight"
+    when:
+      all:
+        - { quest_state: { quest: seras_compromise, status: active } }
+        - { quest_state: { quest: seras_compromise, stage_at_least: 0 } }
+        - none: [{ quest_state: { quest: seras_compromise, stage_at_least: 1 } }]
+        - { at_location: millhaven_gate }
+    tags: [levy, sera]
+    text: >-
+      INTENT: Sergeant Venn at the gate, between names. The player asks her
+      straight what the levy is for. CONSTRAINTS: She answers questions she
+      respects, and only those.
+    beats:
+      - id: ask
+        text: >-
+          Ask Sera, straight, what the levy is really for.
+        gate:
+          on_pass:
+            text: "She looks at you a long moment, and puts the pen down."
+            effects:
+              - { type: flag, flag: nf_sera_asked }
+
+  - id: L6_hear_the_number
+    title: "The number"
+    when:
+      all:
+        - { quest_state: { quest: seras_compromise, status: active } }
+        - { quest_state: { quest: seras_compromise, stage_at_least: 1 } }
+        - none: [{ quest_state: { quest: seras_compromise, stage_at_least: 2 } }]
+        - { at_location: millhaven_gate }
+    tags: [levy, sera]
+    text: >-
+      INTENT: Sergeant Venn telling the player the number she has been given,
+      and the number she thinks it will take. CONSTRAINTS: She does not ask
+      for sympathy, and does not want it.
+    beats:
+      - id: hear_it
+        text: >-
+          Hear her out, all of it, without interrupting.
+        gate:
+          on_pass:
+            text: "Two numbers, and the space between them is Edgewood."
+            effects:
+              - { type: flag, flag: nf_sera_heard_out }
+
+  - id: L7_answer_her
+    title: "Her offer"
+    when:
+      all:
+        - { quest_state: { quest: seras_compromise, status: active } }
+        - { quest_state: { quest: seras_compromise, stage_at_least: 2 } }
+        - none: [{ quest_state: { quest: seras_compromise, stage_at_least: 3 } }]
+    tags: [menu, levy, sera]
+    text: >-
+      INTENT: Sergeant Venn waiting for an answer to what she offered.
+      CONSTRAINTS: She will write down whichever it is.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: agree
+        label: "Agree to her terms"
+        text: >-
+          Agree to Sera's compromise.
+        gate:
+          on_pass:
+            text: "She nods once and writes it down."
+            effects:
+              - { type: flag, flag: nf_sera_agreed }
+      - id: refuse
+        label: "Refuse her"
+        text: >-
+          Refuse Sera's compromise, to her face.
+        gate:
+          on_pass:
+            text: "She writes that down too."
+            effects:
+              - { type: flag, flag: nf_sera_refused }

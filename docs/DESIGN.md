@@ -193,8 +193,33 @@ ending; they feed only the gallery's closeness band. Each ending carries a one-s
 | The Counted March | `the_muster_roll` / `M1_strike_the_name` / `strike_it` (the gate or the square, Sera there) | wired (T6) |
 | The Named Wound | `the_morning_firing` / `Q1_tell_her_or_dont` / `tell_her` or `say_nothing` | wired (T6) |
 | The Price Asked | `the_price` / `S2_pay_it` / the beat for the thing offered at `S1` (wherever Ilya is, the sacrifice open) | wired (T7) |
-| The Pin and the Join | `the_join` / `J1_the_pin` / `set_it` (at the Join) | the door is T7's; **NOT WIRED** until v0.25.0 T8: nothing writes `nf_ninth_taken`/`nf_ninth_left` or grants the ninth pin, so `the_ninth_pin` stalls at `take_it_or_dont` (`games/clockwork-dark/data/scenes/`, T8's `T3_take_it_or_dont`). Paying the price with the pin (`the_price` / `S2` / `pay_the_pin`) waits on the same card |
+| The Pin and the Join | `the_join` / `J1_the_pin` / `set_it` (at the Join) | wired (T7; the pin since T8: taken on Ilya's felt, `the_ninth_pin` / `T3_take_it_or_dont` / `take_it`, which writes `nf_ninth_taken` and grants it, after `T2_pay_for_it` with the tinkers at 10; `leave_it` grants nothing; the same pin pays the price, `the_price` / `S2` / `pay_the_pin`) |
 | The Stopped Wheel | `the_stopped_wheel` / `Z1_the_last_morning`, forced by the declared event `the_last_hour` (the reading at 1.0) | wired (T7) |
+
+**The critical path** (v0.25.0 T8, spec §4.3-§4.4). Every quest stage on an ending's path that
+completed on a narrative flag alone has a card that writes the flag, dealt where and when the
+stage's other conditions hold: seven repeatable, draw-one decks, `the_bakehouse` (`B1`),
+`nessas_drawings` (`N1`-`N3`), `the_naming` (`G1`-`G3`), `the_village_meeting` (`V1`-`V3`),
+`the_levy_table` (`L1`-`L7`), `the_ninth_pin` (`T1`-`T3`) and `the_inward_road` (`R1`). Each
+card is gated on its quest's stage (`quest_state` active, `stage_at_least` its index and not the
+next), and every deck's `when:` ends in `any:` of its cards' own gates (plan decision 3), so a
+deck is due only when a card can be dealt. The narrator may still raise the stages' flags; a
+card-only run no longer needs it to. `the_ninth_pin`'s `pay_for_it` reads the tinkers' standing
+(10), not Ilya's disposition, which only the model's patch writes.
+
+**The levy and the press** (v0.25.0 T8, spec §5.1). Sergeant Sera Venn's levy is a hidden clock,
+`the_levy` (0-6; `state.yaml` and `data/rules/clocks.yaml`): +1 the first time the militia press
+is seen, then +1 at 3, 6, 9, 12 and 15 days after it. At 3 the "world moved" journal says the
+clerk has started a second page; full, it forces `the_press` (not repeatable, dealt once in the
+square 08:00-18:59; its `when:` names `forced_scene: the_press`, so it never schedules itself):
+`P1_a_name_on_the_list`, a boy's name read off the list, answered by speaking for him
+(persuasion, hard), getting him out of sight (stealth, standard) or letting it be, each moving
+the militia's and Edgewood's standing. **Sergeant Venn's bargain** (`data/rules/threads.yaml`,
+`seras_bargain`, a Contract) is struck at the gate 08:00-11:59 while the conscription list is
+open: a night on the wall inside three days for one Edgewood name off the list. Discharged at the
+gate 22:00-04:59 it pays militia +6, costs 20 stamina and writes `stood_the_wall`, which The
+Counted March's `served` reads; unpaid on its day it breaks (militia -8). Every number is a first
+value, measured in the release's balance pass (§10).
 
 ### The Assistant (Lore)
 
