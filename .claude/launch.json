@@ -50,6 +50,12 @@
       "port": 5605
     },
     {
+      "name": "read-receipts",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
+      "runtimeArgs": ["launcher.py", "--game", "read-receipts", "--port", "5606"],
+      "port": 5606
+    },
+    {
       "name": "studio",
       "runtimeExecutable": ".venv\\Scripts\\python.exe",
       "runtimeArgs": ["launcher.py", "--game", "dev-story", "--studio", "--port", "5610"],

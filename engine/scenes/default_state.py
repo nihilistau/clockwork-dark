@@ -1556,6 +1556,14 @@ def run_turn(
     # narrator was told after it has already written.
     quest_events = _evaluate_quests(session)
 
+    choices = _label_intents(state, merge_choices(agreed, storyteller_result.choices))
+    if social.declared():
+        # READ RECEIPTS: the world's own choices follow the narrator's, so a turn whose choices carry no
+        # intent never leaves the player with nothing that passes time. Every other story's row is unchanged.
+        from engine.social import away
+
+        choices = away.with_world_choices(state, choices)
+
     turn_payload = {
         "session_id": state.session_id,
         "save_id": session.save_id,
@@ -1567,7 +1575,7 @@ def run_turn(
         # `_label_intents` adds the player-facing consequence to any option
         # that declared one, so a choice that will move or spend says so on
         # the chip instead of only in the save file afterwards.
-        "choices": _label_intents(state, merge_choices(agreed, storyteller_result.choices)),
+        "choices": choices,
         "state": state.to_client_dict(),
         "tool_receipts": storyteller_result.tool_receipts,
         "evaluation": storyteller_result.evaluation.to_dict(),

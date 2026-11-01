@@ -11,6 +11,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- A narrated world turn whose choices carried no intent left nothing on screen that passes time, so the world stopped. The world's own choices (Read, Watch something, the rooms and places) now follow the narrator's, any it already offered left out (`tests/test_social_world.py::test_a_narrated_world_turn_keeps_the_worlds_choices`).
+
 ## [0.24.0] — 2026-10-27
 
 ### Added

@@ -842,3 +842,44 @@ def test_a_narrators_choice_runs_after_put_down(receipts_active) -> None:
     resp = scene.app.test_client().post("/api/game/choice", json={"session_id": session.session_id,
                                                                   "choice_id": narrated["id"]})
     assert resp.status_code == 200, resp.get_data(as_text=True)
+
+
+class _IntentlessNarrator(StubNarrator):
+    """A narrator that offers only talk: every choice's `intent` dropped (measured live, 2026-10-30: the owner's
+    model answered a world turn with "Open Natter", "Check Matchstick" and "Check Front Porch", none of them an
+    intent, so nothing on screen could move the clock)."""
+
+    def turn(self, prompt: str) -> str:
+        import json
+
+        payload = json.loads(super().turn(prompt))
+        for row in payload["choices"]:
+            row.pop("intent", None)
+        return json.dumps(payload)
+
+
+def test_a_narrated_world_turn_keeps_the_worlds_choices(receipts_active) -> None:
+    """A narrated world turn never strands the player: after the narrator's choices come the engine's own
+    (`away.world_choices`), so Read, Watch something and the rooms and places are still there to pass time."""
+    from engine.social import away
+
+    scene, session = _live_session(llm_fn=_IntentlessNarrator())
+    _phone(scene, session, "put_down")
+    resp = _choose(scene, session, "Tidy up a bit")
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+    body = resp.get_json()
+    state = session.engine.state
+    world = {(c["intent"]["action"], c["intent"]["target"])
+             for c in away.world_choices(state, prefix="world") if c.get("intent")}
+    shown = {(c["intent"]["action"], c["intent"]["target"]) for c in body["choices"] if c.get("intent")}
+    assert ("do", "read") in shown and world <= shown
+    assert body["choices"][0]["text"] == "Stay where you are" or not body["choices"][0].get("intent")  # theirs first
+    assert body["choices"] == session.last_turn["choices"]
+    assert len({c["id"] for c in body["choices"]}) == len(body["choices"])
+    # and one of the engine's rows runs, moving the clock
+    before = state.world_clock_hours
+    read = next(c for c in body["choices"] if c.get("intent") == {"action": "do", "target": "read"})
+    resp = scene.app.test_client().post("/api/game/choice", json={"session_id": session.session_id,
+                                                                  "choice_id": read["id"]})
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+    assert state.world_clock_hours > before
