@@ -134,6 +134,28 @@ Card coverage: **34 of 34**. The pinner's 35 lost runs: 25 stopped at `the_heart
 
 It moved the witness's turns out of their band and the marcher's other-locks further from theirs (the door policies raise the convergence's narrator flags as side quests, and an earlier convergence fills the witness's and the marcher's days), so by §10.3's rule it is not kept: the six gates are `min_phase: spreading` again, as shipped at C1, and the T9 soft-lock test stands unchanged. Lever 1's second half, `doom_resistance` grants on the convergence stages, is next in order: 22 of the pinner's 35 lost runs end in the fail-forward once the world reaches `consuming`, and a slower doom after the naming is time on the road to the Join.
 
+**Lever 1, second half: `doom_resistance` on the convergence stages: tried, measured, REVERTED.** Every stage grant of the six convergence quests (`naming_the_wound`, `what_edgewood_keeps`, `the_last_quiet_thing`, `the_sacrifice`, `the_ninth_pin`, `the_heartland_road`) doubled, 8 to 16; the quests' completion grants (25) unchanged. All nine re-measured (seeds 0-39): the pinner stayed at 12.5% own (other 85% -> 87.5%; 26 runs still stop at `walk_the_join`); the marcher moved 87.5% -> 92.5% own (other 12.5% -> 7.5%); every other row unchanged to the digit. It did not move the row it addresses, so it is not kept: the grants are 8 again.
+
+**Lever 2, the march's `counted` (§10.3): tried, measured, REVERTED for the golden.** The marcher's other-locks missed their band (12.5%: five runs; four stopped at `counted`, the militia at 20, holding -6 to 16 on days 81-85, and one held 20 and never stood at the gate in the roll's hours; every own run locked holding 30-33). `the_counted_march`'s `counted` lowered 20 -> 16 and re-measured (marcher, seeds 0-39): own 87.5% -> 95%, other 12.5% -> 5% (into its band), median turns 182 -> 152 (further below its band), the press dealt in 52.5% of runs (was 72.5%; median day 24). But the lowered number is in the endings' gate text every turn payload carries, so it moves the local-mode golden's flagship recordings (`http_turns.json`, `join_live.json`, outside sanction S19), and a lever may not move a golden: the gate is 20 again, and the row is recorded as missed.
+
+Levers 3-5 were not moved for the pinner or the marcher. Lever 3 (the new roads): the pinner's runs stop on the heartland road, but its rate is in band (0.456 a leg, band 0.40-0.70); a lower `danger_dc` would take the rate out of its band (it scales with the DC), and the weights choose which encounter, not how often. Lever 4 (the levy): its row is met. Lever 5 (the events' rates): every rate row is met.
+
+**The final measurement** is the step-1 table above: no lever was kept, so the content measured there is the content that ships (seeds 0-39, cap 1,000; the nine policies re-run side by side at the end, 25 min, every row but the lever's marcher identical to the digit):
+
+| Policy | Own (band 80%+) | Other (band 10% or less) | None | Median turns (band) | Day | Doom | Deaths (starved) |
+|---|---|---|---|---|---|---|---|
+| baker | 100%, met | 0%, met | 0% | 138.5 (120-300, met) | 21 | 0.289 | 0 (0) |
+| settler | 100%, met | 0%, met | 0% | 184.5 (150-350, met) | 24.5 | 0.245 | 65 (64) |
+| witness | 92.5%, met | 7.5%, met | 0% | 381 (200-400, met) | 50 | 0.360 | 82 (79) |
+| marcher | 87.5%, met | **12.5%, missed** | 0% | 182 (200-400, **missed**) | 33 | 0.342 | 86 (77) |
+| namer | 100%, met | 0%, met | 0% | 527 (350-650, met) | 68 | 0.562 | 13 (11) |
+| payer | 90%, met | 7.5%, met | 2.5% | 560 (350-650, met) | 70 | 0.562 | 108 (102) |
+| pinner | **12.5%, missed** | **85%, missed** | 2.5% | 620 (400-750, met) | 87 | 0.661 | 181 (165) |
+| drifter | 100%, met | 0%, met | 0% | 491 (500-900, **missed**) | 72 | 1.0 | 0 (0) |
+| reckless (terminal death) | 100% (band 50%+, met) | 0% | 0% | 275.5 | 72 | 0.856 | 1,210 (1,154) |
+
+Card coverage 34 of 34. The Whisper open for `witness` by day 20 in 39 of 40 runs (met; median day 11). The levy: the press dealt to the marcher in 29 of 40 runs, median day 25 (band 24-40, met). Encounters per danger leg on the new bands: wood 0.244 (met), toll road 0.490 (met), heartland 0.456 (met), barrows unmeasured (no policy walks it). The five-policy table, re-run at the end with every change in place, is the first measurement's to the digit (seed 42: cautious 4.57 h/turn and 0.254 doom, missed; the rest met; 40 seeds: all met; deaths per seed, median and most: reckless 24 and 27, at most 30, met; pauper starvation 0, met). Missed and recorded (CLAUDE.md, deferred): the pinner's own-ending and other-lock rows, the marcher's other-lock row and its turns, the drifter's turns, cautious at seed 42, barrows unmeasured.
+
 ### Tests
 
 - Tests: v0.24.0 recordings for v0.25.0's byte-identity and save tests (`tests/fixtures/flagship_overhaul/`, `tests/fixtures/clockwork_dark_v0240/`), recorded from 3c6882f by `CLOCKWORK_FLAGSHIP_RECORD=1`.

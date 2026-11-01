@@ -35,6 +35,13 @@
 # to the shared rate: its long turns gave it the fewest ticks a day, so the
 # lowest legacy rates. The tinker's 6-9 starts a policy are too few to read.
 #
+# T10's BANDS (spec §10.2: within +-20% of the pre-change measurement, the five
+# policies' spread excepted, so read on the means; measured in T10 before any
+# constant moved, seeds 42-81): caravan 0.767 (pre 0.768), tinker 0.00557 (pre
+# 0.00465, +19.9%), press 0.180 (pre 0.173, +4.0%), all met; the first caravan's
+# median day 5 for every policy (pre 5; band +-1), met. No rate moved (lever 5
+# unused).
+#
 # From v0.25.0 the three are declared `events:`, rolled once per in-game day
 # crossed on their own streams (`event.<id>`), so their rates no longer depend
 # on how a day was cut into wall-clock ticks. The per-day numbers are the

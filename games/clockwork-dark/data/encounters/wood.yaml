@@ -2,7 +2,8 @@
 # deeper wood, the herb glen and the charcoal burn, both ways where both are
 # banded, and the square's walk out to the burn. (The burn's walk back to the
 # square arrives in the square, and village.yaml has it.)
-# First values, unmeasured until T10 (rule 10).
+# Measured in v0.25.0 T10 (rule 10): 0.244 encounters a danger leg (386 legs,
+# the five-policy pauper's walks to forage; seeds 42-81); band 0.15-0.40, met.
 band: wood
 
 encounters:

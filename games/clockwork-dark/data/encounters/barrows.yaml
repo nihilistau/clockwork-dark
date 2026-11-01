@@ -1,6 +1,7 @@
 # The Barrows (v0.25.0 §5.3): the four danger_dc 10 lines, deeper wood<->old
 # barrows and old barrows<->the barrow mouth.
-# First values, unmeasured until T10 (rule 10).
+# Not measured in v0.25.0 T10 (rule 10): no scripted policy walks the barrows (a
+# CLAUDE.md deferred row); band 0.30-0.60.
 band: barrows
 
 encounters:

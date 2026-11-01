@@ -2,7 +2,8 @@
 # the gate out to the toll bridge and to the ditch camp, and the bridge, the
 # camp and the burned farmstead between themselves. (The walks back to the gate
 # arrive at the gate, and marches.yaml has them.)
-# First values, unmeasured until T10 (rule 10).
+# Measured in v0.25.0 T10 (rule 10): 0.490 encounters a danger leg (49 legs, the
+# doors harness's pinner; seeds 0-39); band 0.30-0.60, met.
 band: toll_road
 
 encounters:

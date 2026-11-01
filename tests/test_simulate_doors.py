@@ -17,16 +17,17 @@ import pytest
 
 from scripts import simulate_doors as doors
 
-#: Per policy: (the floor of own-ending runs of seeds 0-2, as T10 measured them, and its §10.2 row).
+#: Per policy: (the floor of own-ending runs of seeds 0-2 in T10's final measurement, and its §10.2
+#: row). `own` is rounded to three places, so two of three is written 0.66.
 SMOKE_FLOORS: dict[str, tuple[float, str]] = {
     "baker": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
     "settler": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
-    "witness": (2 / 3, "each door policy reaches its own ending: at least 80% (40 seeds)"),
-    "marcher": (2 / 3, "each door policy reaches its own ending: at least 80% (40 seeds)"),
+    "witness": (0.66, "each door policy reaches its own ending: at least 80% (40 seeds)"),
+    "marcher": (0.66, "each door policy reaches its own ending: at least 80% (40 seeds)"),
     "namer": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
     "payer": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
-    "pinner": (0.0, "each door policy reaches its own ending: at least 80% (40 seeds); MISSED: 0% at "
-                    "T10's first measurement, 12.5% after the ward-charms fix (seeds 0-2 all miss)"),
+    "pinner": (0.0, "each door policy reaches its own ending: at least 80% (40 seeds); MISSED: 12.5% after "
+                    "every lever tried (T10), seeds 0-2 all miss; a CLAUDE.md deferred row"),
     "drifter": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
 }
 

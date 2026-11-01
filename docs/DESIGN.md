@@ -998,6 +998,27 @@ Reproduce with:
 .\.venv\Scripts\python.exe scripts\simulate.py --turns 200 --seed 42 --policy all
 ```
 
+**Re-measured, v0.25.0 T10 (2026-11-02)**, after the overhaul's content, at seed 42 and as
+the medians over seeds 42-81 (`scripts/simulate.py --policy all --turns 200 --seed 42 --seeds 40`;
+deaths summed over the 40, then the median and most in one run). Spec §10.2 holds each row within
+±25% of the table above:
+
+| Policy | Seed 42: h/turn, doom, deaths | 40 seeds: h/turn, doom | Deaths (starved), median and most a run |
+|--------|------|------|------|
+| hero | 2.58, 0.178, 0 | 2.68, 0.160 | 33 (27), 0 and 7 |
+| cautious | **4.57, 0.254, 14** (+42%, +39%: out) | 3.66, 0.206 | 249 (248), 7 and 14 |
+| baker | 4.24, 0.511, 0 | 4.25, 0.511 | 0 (0) |
+| pauper | 4.03, 0.530, 2 (none starved) | 3.85, 0.580 | 8 (0), 0 and 2 |
+| reckless | 5.92, 0.694, 24 | 5.81, 0.652 | 942 (877), 24 and 27 |
+
+Every 40-seed median is inside the band; `cautious` at seed 42 is not. It played 2.91 h/turn to
+0.176 with no death at v0.24.0: the five policies never answer a dealt card, and v0.25.0 moved the
+march's and the whisper's stage completions onto cards, so it finishes fewer quests (6, not 9, at
+seed 42), earns less (17 gold, not 52) and starves between shifts. No §10.3 lever addresses a
+policy that does not play cards; recorded (CLAUDE.md). The doors harness
+(`scripts/simulate_doors.py`, `simulate.py --policy doors`) measures the policies that do, one per
+ending; its table is in the root CHANGELOG.
+
 ---
 
 ## Procgen World

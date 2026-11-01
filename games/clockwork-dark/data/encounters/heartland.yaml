@@ -1,6 +1,7 @@
 # The Heartland Road (v0.25.0 §5.3): the four danger_dc 14 lines, the toll
 # bridge<->the heartland road and the heartland road<->the Join.
-# First values, unmeasured until T10 (rule 10).
+# Measured in v0.25.0 T10 (rule 10): 0.456 encounters a danger leg (160 legs,
+# the doors harness's pinner; seeds 0-39); band 0.40-0.70, met.
 band: heartland
 
 encounters:

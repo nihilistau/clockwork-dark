@@ -986,6 +986,30 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   on every `advance_time`, so a run that advances before its first quest pass carries the
   empty block (`tests/test_social_seam.py`'s S20). Left: a read-only `_meta` would move
   other stories' recordings.
+- **The Clockwork Dark's balance pass (v0.25.0 T10; `scripts/simulate_doors.py`, seeds 0-39, cap 1,000;
+  the root CHANGELOG has every table and lever) left five rows missed, measured and deferred by data,
+  never widened:**
+  - The Pin and the Join: the `pinner` reaches it in 12.5% of runs (band 80%+) and another ending in 85%
+    (band 10% or less). 25 of its 35 lost runs stop at `the_heartland_road`'s `walk_the_join` (the Join,
+    10-15, six road hours past the gate, no bread on the way) and 23 lock the fail-forward once the world
+    is `consuming`. Tried: the convergence gate widened to awareness 100 (pinner 25%, but the witness's
+    turns left their band; reverted), the convergence stages' `doom_resistance` doubled (no move;
+    reverted). Lever 3 would take the heartland's encounter rate (0.456, in band) out of its band.
+  - The Counted March: the `marcher` locks another ending in 12.5% of runs (band 10% or less) and
+    reaches its own in a median 182 turns (band 200-400). Lever 2 (`counted` 20 -> 16) took it to 5%
+    but moved the local-mode golden (the gate text rides every turn payload; no sanction names it), so
+    it was reverted.
+  - The Stopped Wheel's `drifter`: 491 turns (band 500-900); the doom's pace is a non-goal.
+  - `simulate.py`'s `cautious` at seed 42: 4.57 h/turn and 0.254 doom (+42%, +39% of DESIGN.md's
+    table; 0 deaths at v0.24.0, 14 now): the five policies answer no card, and v0.25.0 moved stage
+    completions onto cards. Its 40-seed medians are in band.
+  - The barrows' encounter rate is unmeasured: no scripted policy walks them.
+  Also measured and left: a card whose stage waits is dealt again on each visit (`H1_the_question` up
+  to 24 times in one namer run at the end of the pass, `S1_choose_what` up to 11 at the first); two decks due at one place deal by deck id
+  (no run lost to it); a wayfarer reaches the batch's craft 11 only through all three quiet-life craft
+  quests. And `scripts/simulate.py` without `--game` builds no state schema, so the levy clock's
+  `value` effects are logged as unknown and ignored there (no number moves; `--game clockwork-dark`
+  measures the same).
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 
