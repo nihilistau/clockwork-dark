@@ -20,7 +20,10 @@ repeatable door deck's trigger fall and the deck comes round again.
 
 The condition helpers (`stage`, `done`, `locked`) and `inside_window` live
 once, in `scripts/simulate_doors.py` (ruling M13, moved there in v0.25.0
-T10), and are imported from it here.
+T10), and are imported from it here. That import loads all of
+`scripts/simulate.py` (the door harness reuses its `Simulation`) and puts
+`scripts/` on `sys.path`, so every walk test pays for it; accepted (T10's
+review, Minor 7).
 
 Version: v0.1.2 [2026-10-30]
 """

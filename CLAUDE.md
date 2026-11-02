@@ -753,8 +753,44 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   WIRED row names the files). The flagship's four overlays press intents since
   v0.25.0 T11 (`GET /api/intents/overlay`, `overlay_action`); the others are the
   v0.28.0 (NEON CITY) and v0.27.0 (Garden) overhauls' work. The flagship's
-  barter cannot press a row at a trader not yet met (a GOVERNANCE row), and it
-  buys one thing a press (no multi-item bargain, a GOVERNANCE row).
+  barter buys one thing a press (no multi-item bargain, a GOVERNANCE row).
+- At a trader the player has not met, the flagship's barter rows cannot be pressed
+  until the first turn played at that counter: `/api/trade` names an unmet vendor by
+  an opaque `v<index>` (`engine/scenes/default_api.py::trade_offer`) while
+  `/api/intents/overlay`'s `buy`/`sell` targets carry the real `npc_id/item_id`
+  (`overlay_offer`), so no row matches a listed pair (the overlay says they do not
+  know you yet). The overlay's rows also already carry that vendor's real id and
+  name, which `/api/trade` withholds. The fix is one opaque token shared by both
+  routes, which moves the local-mode golden (a named sanction): v0.26.0, beside the
+  no-session atlas row below (v0.25.0 T11; a GOVERNANCE row).
+- The no-session atlas route lists secret places: `/api/codex/places` with no session
+  calls `engine/scenes/default_api.py::codex_places(None)`, which does not filter
+  them, and `ui/src/core/screens/Map.jsx` asks it with no session before a run has
+  one, so a sessionless map names the flagship's `the_works` and `the_join` (and HUE
+  & CRY's secrets, which share the route). Not fixed in v0.25.0: the fix moves HUE &
+  CRY's recording. Candidate for v0.26.0 (v0.25.0 T5).
+- The narrator can raise `nf_naming_laid_it_out` before `spreading`
+  (`games/clockwork-dark/data/quests/convergence/naming_the_wound.yaml`, `lay_it_out`
+  keeps it in `narrative_flags`): the card, `the_naming`'s `G1`, waits for `spreading`
+  (v0.25.0 T9 fix round 1) because `say_it_aloud` needs it and fails four days after it
+  opens, so a narrated run can still lay the naming out early and lose The Named
+  Wound, The Price Asked and The Pin and the Join with it. The card path is the
+  designed one; T10's harness raises only flags no card writes, so it does not
+  measure around it. Candidate for v0.26.0.
+- A fire-once `when:` declared event inside one multi-day step:
+  `engine/world/schedules.py::declared_events_due` evaluates a fire-once `when:` event
+  against a multi-day step's end and appends it once per day crossed, `apply_events`
+  keeping the last and journalling its text each time; not changed, other stories'
+  saves would move (v0.25.0 spec §14; the flagship's `the_last_hour`; a GOVERNANCE row).
+- The doom beats' moves and old saves (v0.25.0 Plan decision 1,
+  `engine/game/clocks.py::_apply_npc_moves`): a v0.24.0 save already past 0.50 or 0.88
+  fired those beats before a doom move placed anyone, so Ilya and Sera keep their
+  routines there. No migration.
+- HUE & CRY's threads still find their person by place and hour, not `npc_here`
+  (v0.25.0 T3 removed the GOVERNANCE `npc_present` row when the predicate landed):
+  `brask_bribe` (`games/hue-and-cry/data/rules/threads.yaml`) can be struck while Brask is
+  out, and the squeezes and the fences' credit use the `hour_between` proxy of their
+  person's schedule. Content debt, recorded in docs/AUTHORING.md's threads paragraph.
 - Under 640px tall, with the people strip in the stage, the scene plate gives
   way to the strip entirely (HUE & CRY at 900x600 and 844x390), so the log
   keeps three lines and the choices two rows (v0.21.0 final fix wave).
@@ -1010,9 +1046,10 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
     table; 0 deaths at v0.24.0, 14 now): the five policies answer no card, and v0.25.0 moved stage
     completions onto cards. Its 40-seed medians are in band.
   - The barrows' encounter rate is unmeasured: no scripted policy walks them.
-  Also measured and left: a card whose stage waits is dealt again on each visit (`H1_the_question` up
-  to 24 times in one namer run at the end of the pass, `S1_choose_what` up to 11 at the first, `Q1_tell_her_or_dont`
-  up to 14 in one payer run since its `not_yet`); two decks due at one place deal by deck id
+  Also measured and left: a card whose stage waits is dealt again on each visit (in the final
+  measurement `H1_the_question` up to 24 times in one namer run, `S1_choose_what` up to 3 in one pinner
+  run, `Q1_tell_her_or_dont` up to 14 in one payer run since its `not_yet`; the first measurement, before
+  the fix rounds, had H1 at 34 and S1 at 11); two decks due at one place deal by deck id
   (no run lost to it); a wayfarer reaches the batch's craft 11 only through all three quiet-life craft
   quests. And `scripts/simulate.py` without `--game` builds no state schema, so the levy clock's
   `value` effects are logged as unknown and ignored there (no number moves; `--game clockwork-dark`

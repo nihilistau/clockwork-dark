@@ -133,7 +133,7 @@ because the fiction cannot un-happen.
 | Arc | Gate (as implemented) | Player experience |
 |-----|-----------------------|-------------------|
 | **Quiet Life** | default | Forest, bakery apprenticeship, festivals; Awareness stays <15 |
-| **Whisper** | `caravan_arrival` seen **AND** 3 days since **AND** Awareness ≥15 | Maps sold, songs with wrong lyrics, child draws gears |
+| **Whisper** | `caravan_arrival` seen **AND** 3 days since the FIRST one (`days_since_event` counts from the day the quest pass first recorded it, `quests["_meta"]["events_seen"]`, never from a later caravan) **AND** Awareness ≥15 | Maps sold, songs with wrong lyrics, child draws gears |
 | **March** | visited `millhaven_gate` **OR** Awareness ≥25 | Militia, tolls, burned farmstead quests |
 | **Convergence** | Awareness ≥50 **OR** evil_phase ≥ SPREADING | Name the wound, choose sacrifice, world-scale choices |
 
@@ -162,7 +162,9 @@ game never punishes the baker for baking.
 
 Four more people the lore already named, placed since v0.25.0. They are declared in
 `games/clockwork-dark/data/world/npc_schedules.yaml` only, never in the procgen template (its
-named list is drawn on the `PROCGEN` stream, so adding to it would regenerate every seed's village):
+named list is drawn on the `PROCGEN` stream, so adding to it would regenerate every seed's village).
+A routine is a list of hours, so each range below is inclusive ("06-18" is 06:00 to 18:59), and
+each person covers the day exactly once:
 
 | ID | Name | Where (hours) |
 |----|------|---------------|
@@ -172,8 +174,16 @@ named list is drawn on the `PROCGEN` stream, so adding to it would regenerate ev
 | `npc_edrin` | Edrin Fallow, Nessa's father | the Fallow holding 05-19; asleep there 20-04 |
 
 The doom clock moves people (`doom_effects.yaml` `npc_moves`): Ilya to the square at 0.50,
-and at 0.88 Sera to the square and Edrin and Nessa to the ditch camp (`refugee_camp`). A move is
-the override flag `npc_at_<id>`, which outranks a routine (below an event and a quest pin).
+and at 0.88 Sera to the square and Edrin and Nessa to the ditch camp (`refugee_camp`). Since
+v0.25.0 a move writes the override flag `npc_at_<id>` (through `apply_effect`), which outranks a
+routine and stays below an event and a quest pin, and it accepts a person declared only in
+`npc_schedules.yaml` (`engine/game/clocks.py::_apply_npc_moves`). Before, it rewrote only the
+procgen row's `location_id`, which `npc_sim.resolve_npc` reads for a person with no routine slot,
+so Ilya and Sera stayed where their routines put them, and a person with no procgen row was
+skipped. An override moves a person; it does not wake them: their routine's `available` for the
+hour still decides whether `npc_here` counts them. A v0.24.0 save already past 0.50 or 0.88 fired
+those beats before a move placed anyone, so Ilya and Sera keep their routines there (no
+migration; CLAUDE.md, deferred).
 
 ### Endings and their doors (v0.25.0)
 
@@ -191,7 +201,7 @@ ending; they feed only the gallery's closeness band. Each ending carries a one-s
 | The Dark Keeps Its Hours | `H1_the_question` / `stay_anyway` (the Hearth's gate shut); the terminal death (`death.yaml`'s `terminal.ending`) | wired (T6; the death since T7) |
 | The Long Witness | `the_count_kept` / `W1_the_list` / `give_it` (the shrine, Wenna there) | wired (T6) |
 | The Counted March | `the_muster_roll` / `M1_strike_the_name` / `strike_it` (the gate or the square, Sera there) | wired (T6) |
-| The Named Wound | `the_morning_firing` / `Q1_tell_her_or_dont` / `tell_her` or `say_nothing` | wired (T6) |
+| The Named Wound | `the_morning_firing` / `Q1_tell_her_or_dont` / `tell_her` or `say_nothing` (the bakery 04-09, Maris there; `not_yet` ends nothing, since T10) | wired (T6) |
 | The Price Asked | `the_price` / `S2_pay_it` / the beat for the thing offered at `S1` (wherever Ilya is, the sacrifice open) | wired (T7) |
 | The Pin and the Join | `the_join` / `J1_the_pin` / `set_it` (at the Join) | wired (T7; the pin since T8: taken on Ilya's felt, `the_ninth_pin` / `T3_take_it_or_dont` / `take_it`, which writes `nf_ninth_taken` and grants it, after `T2_pay_for_it` with the tinkers at 10; `leave_it` grants nothing; the same pin pays the price, `the_price` / `S2` / `pay_the_pin`) |
 | The Stopped Wheel | `the_stopped_wheel` / `Z1_the_last_morning`, forced by the declared event `the_last_hour` (the reading at 1.0) | wired (T7) |
@@ -220,8 +230,10 @@ the militia's and Edgewood's standing. **Sergeant Venn's bargain** (`data/rules/
 `seras_bargain`, a Contract) is struck at the gate 08:00-10:59 while the conscription list is
 open: a night on the wall inside three days for one Edgewood name off the list. Discharged at the
 gate 22:00-03:59 it pays militia +6, costs 20 stamina and writes `stood_the_wall`, which The
-Counted March's `served` reads; unpaid on its day it breaks (militia -8). Every number is a first
-value, measured in the release's balance pass (§10).
+Counted March's `served` reads; unpaid on its day it breaks (militia -8). Every number was a first
+value; v0.25.0's balance pass (T10, `scripts/simulate_doors.py`, seeds 0-39) measured the press
+dealt to the `marcher` in 28 of 40 runs, median day 27.5, inside the levy's band (day 24-40,
+written from the first measurement's median, day 32), and changed none of them.
 
 ### The Assistant (Lore)
 
@@ -1061,6 +1073,10 @@ five policies' mean; the tables are in the schedules file's header and the CHANG
 | `caravan_arrival` | 0.768 per eligible day, from day 5, lasts 2 days | Odran at Edgewood Square + a rumour attributed to him |
 | `tinker_camp` | 0.00465 per eligible day, lasts 3 days | Ilya at the caravan + knowledge trade |
 | `militia_press` | 0.173 per eligible day, **only while Awareness ≥20**, lasts 1 day | Sergeant Sera visits the square |
+| `the_last_hour` | none: a fire-once `when:` event, the first day rolled with the doom reading at 1.0, lasts 60 days | forces `the_stopped_wheel` (The Stopped Wheel's door) |
+
+Measured after the conversion (T10, seeds 42-81): caravan 0.767, tinker 0.00557, press 0.180 per
+eligible day, each within ±20% of the pre-change mean; the first caravan comes on day 5.
 
 World events expire from `state.world_events` after their duration, so the quest
 engine writes down the **day they were first seen** (`quests["_meta"]`) — the

@@ -333,8 +333,9 @@ class DoorRun(sim.Simulation):
         self.answered: set[str] = set()
         #: card id -> the in-game day it was first dealt (the levy row reads the press's).
         self.first_dealt: dict[str, int] = {}
-        #: card id -> how many times it was dealt (a stage that waits re-deals its card).
+        #: card id -> how many times a menu with no policy answer took the director's first offered beat.
         self.fallbacks: dict[str, int] = {}
+        #: card id -> how many times it was dealt (a stage that waits re-deals its card).
         self.deal_counts: dict[str, int] = {}
         self.lock: Optional[dict[str, Any]] = None
         #: `--trace`: per turn, the goal pursued and the standings (off for a table run).

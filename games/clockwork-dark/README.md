@@ -48,12 +48,15 @@ participant (`pipeline: false`), so turns do not negotiate. Its hints are in
 `data/assistant/hints.yaml`.
 
 **Its own UI plugin** — `ui.plugin: clockwork-dark`
-(`ui/src/stories/clockwork-dark/`), including the notice-board overlay (`n`).
-Since v0.25.0 its four overlays (barter `b`, the pack and its recipes `i`, the
-notice board `n`) press engine intents, not typed words: each button is a pair
+(`ui/src/stories/clockwork-dark/`), with six overlays: the pack (`i`), the
+journal (`j`), the codex (`c`), the notice board (`n`), barter (`b`) and, since
+v0.25.0, **The ways it ends** (`e`).
+Since v0.25.0 the overlays that act (barter, the pack and its recipes, the
+notice board) press engine intents, not typed words: each button is a pair
 the server lists (`GET /api/intents/overlay`) and the engine runs before the
 narrator speaks, one thing a press; a pair not on offer is drawn and not
 pressable, and nothing is while a card or an encounter owns the turn.
+Examine stays typed text (it moves nothing).
 Since v0.25.0 the encounter draws an approach not offered this turn unlit and
 binds keys 1-9 to the offered ones while the choice row is empty; the sheet
 names each faction and its standing's word; **The ways it ends** (`e`) lists
@@ -103,7 +106,17 @@ and `scripts/generate_art.py` (the default plan is this story's) fills it.
 .venv/bin/python scripts/simulate.py --policy all --turns 200 --seed 42   # Linux
 ```
 
-Run it before changing a balance constant (AGENTS.md rule 10).
+Since v0.25.0 `scripts/simulate_doors.py` (or `simulate.py --policy doors`)
+measures the doors: one scripted policy per ending (`baker`, `settler`,
+`witness`, `marcher`, `namer`, `payer`, `pinner`, `drifter`, `reckless`),
+every dealt card answered through the director, no model. v0.25.0's table
+(seeds 0-39) is in the root CHANGELOG.
+
+```powershell
+.\.venv\Scripts\python.exe scripts\simulate_doors.py --seeds 40
+```
+
+Run them before changing a balance constant (AGENTS.md rule 10).
 
 ## Sounds
 
@@ -123,17 +136,53 @@ The phase badge, the Stage and the DiceToast fire the cues in `ui/src/stories/cl
 
 ## Tests
 
-The flagship has a row in every per-story test (`tests/test_finales.py`
-plays it to an ending), and `scripts/simulate.py`'s policies drive it
-headless. `tests/test_no_flagship_nouns_in_engine.py`
+The flagship has a row in every per-story test, and `scripts/simulate.py`'s
+policies drive it headless. Since v0.25.0 `tests/test_finales.py` reaches every
+ending through its door and walks every gate clause unmet
+(`tests/clockwork_doors.py`), `tests/test_clockwork_dark.py` holds the story
+(its decks, cards, cast and doors, and every ending reached by cards alone
+through `tests/clockwork_walks.py`), and `tests/test_clockwork_dark_saves.py`
+loads and plays nine v0.24.0 saves. `tests/test_no_flagship_nouns_in_engine.py`
 and `tests/test_no_flagship_content_literals.py` keep its nouns out of the
 engine.
 
 ## Known gaps
 
-From CLAUDE.md's "Deliberately deferred" list, the rows that touch this story:
+From CLAUDE.md's "Deliberately deferred" list and docs/GOVERNANCE.md's NOT
+WIRED table, the rows that touch this story:
 
-- Set pieces (`paths.challenges`, which only this story declares) are not
-  checked by `scripts/doctor.py` or `scripts/validate_content.py`.
 - Survival's hunger and death are not cut-invariant: how in-game time is cut
-  into turns can change the outcome.
+  into turns can change the outcome (`engine/game/survival.py`; ruled out of
+  v0.25.0: engine-wide).
+- The balance pass left five rows missed and recorded (CLAUDE.md): the
+  `pinner` reaches The Pin and the Join in 57.5% of runs (band 80%), the
+  `marcher`'s and the `drifter`'s median turns sit just under their bands,
+  `scripts/simulate.py`'s `cautious` misses at seed 42, and no policy walks
+  the barrows (`scripts/simulate_doors.py`).
+- A card whose stage waits is dealt again on each visit (the bakery's
+  `H1_the_question` up to 24 times in one run of the doors harness) and costs
+  that turn (`data/scenes/`).
+- On turn one, **The ways it ends** says "Nothing here is decided yet.": the
+  only open door is the fail-forward, which the overlay hides until it is the
+  locked ending, by design (`ui/src/stories/clockwork-dark/screens/Ends.jsx`).
+  The overlay's hiding is the client's: the payload's endings block ships
+  every tier (`engine/game/endings.py::to_client`).
+- At a trader the player has not met, barter's rows cannot be pressed until
+  the first turn played at that counter, and the overlay's list already
+  carries that trader's real id and name (`engine/scenes/default_api.py`,
+  `trade_offer` and `overlay_offer`; v0.26.0).
+- With no session, the atlas route lists the works and the Join
+  (`engine/scenes/default_api.py::codex_places`; v0.26.0).
+- The narrator can raise `nf_naming_laid_it_out` before `spreading`, laying
+  the naming out before its card would (`data/quests/convergence/naming_the_wound.yaml`;
+  the card, `G1`, waits for `spreading`; v0.26.0).
+- A v0.24.0 save already past 0.50 or 0.88 keeps Ilya and Sera on their
+  routines: those doom beats fired before a move placed anyone
+  (`engine/game/clocks.py::_apply_npc_moves`).
+- `the_last_hour`, a fire-once `when:` event, is journalled once per day
+  crossed inside one multi-day step
+  (`engine/world/schedules.py::declared_events_due`).
+- No verb gives or drops a thing, and barter buys one row a press
+  (`ui/src/stories/clockwork-dark/parts/Inventory.jsx`,
+  `ui/src/stories/clockwork-dark/screens/Trade.jsx`); the caravan brings no
+  goods of its own (`engine/world/schedules.py`).

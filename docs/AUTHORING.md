@@ -307,7 +307,7 @@ match. The client contract (slug, `theme()`, `initialState`/`reduce`/
 of the story's own words on a save row; since v0.21.0 core prints none of
 its own), and the component
 slots: `Mark`, `HeaderBadge`, `Aside`, `Ledger`, `Stage`, `Toast`,
-`MenuBanner`, `Wrap`, `StartIntro`, `Wordmark`, `Ending`, `onboarding`,
+`MenuBanner`, `Wrap`, `StartIntro`, `Wordmark`, `Ending`, `EndingArt` (v0.25.0), `onboarding`,
 `overlays`, `hideChoices`, and since v0.22.0 the two whole-screen slots
 `PlayScreen` and `NewRun`, below) is documented at the top of `ui/src/core/story.js`;
 every field is optional and core has a working default for all of them, so a
@@ -360,6 +360,22 @@ before a turn runs (`turn_error` with `stale_choice`, nothing changed). A press
 while a dealt card, an encounter, a set-piece or a job owns the turn runs the
 turn and is refused in the prose ("That will have to wait: what is in front
 of you comes first."), the scene left as it was.
+
+On the client the path is core's (v0.25.0 T11): an overlay's `onAct(act)`
+takes either a string, the player's typed words as before, or an
+`{action, target, label}` intent, which core sends as `overlay_action`
+(`ui/src/core/overlayAct.js::routeOverlayAct`, `App.jsx::sendOverlay`).
+`useOverlayIntents(sessionId, turnKey)` (`ui/src/core/hooks/`) reads the list
+and fetches it again on a new turn, a busy flip and a refusal; draw a pair it
+does not list, but do not let it be pressed, and say why where you can. The
+flagship's barter, pack, recipes and notice board are the worked example
+(`ui/src/stories/clockwork-dark/`, `parts/ActionButton.jsx`). A string still
+declares no intent, so an overlay that sends words moves nothing in the save
+(NEON CITY's paper and The Wicked Garden's contracts overlay still do: a
+docs/GOVERNANCE.md NOT WIRED row). Since v0.25.0 a plugin may also export
+`EndingArt({ending})`, which core's ending screen draws for the
+`gallery_unlock` block in place of its "Added to the gallery" line (the
+flagship's draws the ending's `gallery` plate).
 
 **Borrowing does not lend overlays, and that is deliberate.** An overlay looks
 like a visual slot and is not — it is a whole screen written against one
@@ -705,7 +721,6 @@ What cuts across:
   `once` cards stay spent across re-deals; give a repeatable deck cards that
   can be dealt again. `repeatable` must be a bool — the validator reports
   `repeatable: "yes"`, which would otherwise load as one-shot.
-
   ```yaml
   # data/scenes/the_cells.yaml
   id: the_cells
@@ -725,6 +740,22 @@ What cuts across:
   a hand. A deck scheduled on custody deals on the same turn an arrest closes
   the arrest encounter, and the re-arm is read before any guard, so a release
   seen only under a later encounter still counts.
+- **A deck due with no card it can deal is spent with a failed receipt**
+  (`director.begin`: "no cards were eligible"; marked played until its
+  `when:` is seen false). So a repeatable deck whose `when:` is only its
+  place, hour and person -- a door that stands wherever someone is -- would be
+  spent on every visit where none of its cards applies, and hand the narrator
+  a failure line. Give such a deck an `any:` tail of its cards' own `when:`
+  conditions, copied in card order, so it is due only when a card can be
+  dealt. The flagship's decks are the worked example (v0.25.0, every deck in
+  `games/clockwork-dark/data/scenes/` with a `when:` but the forced
+  `the_press`):
+  `the_morning_firing.yaml` is `all: [{at_location: edgewood_bakery},
+  {hour_between: [4, 10]}, {npc_here: npc_maris}, {any: [<H0's when>, <H1's>,
+  <Q0's>, <Q1's>]}]`, and `tests/test_clockwork_dark.py::
+  test_every_deck_is_due_only_when_a_card_can_be_dealt` holds the shape. The
+  cost is that the two copies must move together: change a card's `when:`
+  and change its line in the tail.
 
 ### 3.4 Clocks and threads
 
@@ -1117,6 +1148,14 @@ hook (`WorldSim.on_tick(force=[...])`, `advance_world_day(force_events=...)`)
 starts a declared event today with no probability draw, while its `min_day` and
 `when:` hold and it is not already active.
 
+**A fire-once `when:` event inside one multi-day step** (the flagship's
+`the_last_hour`, which forces the last morning once the doom reading is 1.0)
+is NOT WIRED to fire once there: `declared_events_due` reads its `when:`
+against the state as the step ends and appends it once per day crossed, and
+`apply_events` keeps the last instance and journals its `text` each time. It
+was found in v0.25.0 and left, because changing it moves other stories' saves
+(docs/GOVERNANCE.md).
+
 The shipped example is HUE & CRY's `hanging_fair` (`data/world/schedules.yaml`,
 v0.17): `on_day: 10`, `duration_days: 3`, on Gallows Green, forcing
 `fair_day` — a deck whose own `when:` names the event AND the Green, so the
@@ -1131,12 +1170,15 @@ story's own content emits is a validator error, because the predicate is
 false forever (`validation.check_event_references`).
 
 **Who is here: `npc_here`** (v0.25.0). `{npc_here: npc_maris}` is true while
-that person is at the player's place and can be spoken to: there by routine
-and awake, or there because an override flag (`npc_at_<id>`), an active
-event's `npc_ids` or a quest pin (`npc_pin_<id>`) put them there -- exactly
-what `npc_sim.resolve_npc` reports, the same answer the people strip and the
+that person is at the player's place and can be spoken to -- exactly what
+`npc_sim.resolve_npc` reports, the same answer the people strip and the
 narrator's presence block read, so a door and the person the player sees
-cannot disagree. Asleep is not here. A list (`{npc_here: [a, b]}`) asks for
+cannot disagree. Their routine, or an override flag (`npc_at_<id>`, which a
+doom beat's `npc_moves` writes), puts them there, and then they count only
+while their routine slot for the hour has them awake: an override MOVES a
+person, it does not wake them, so someone moved to the square is not here in
+their sleeping hours. An active event's `npc_ids` or a quest pin
+(`npc_pin_<id>`) puts them there awake. Asleep is not here. A list (`{npc_here: [a, b]}`) asks for
 all of them; an id nobody resolves is never here. Read-only, for any `when:`,
 `requires:` or beat `when:`.
 

@@ -33,7 +33,7 @@ settles the result, and a model on your own machine writes the prose.
   shipped art packs mean scenes have pictures without any of them. Serving
   it to other people, with accounts, is opt-in (hosted mode).
 
-**Status:** **v0.24.0** is the current release: **sound effects** for the engine and every story (button presses, choices, rolls, alerts, ringtones, each from data and played in the browser, with a Sound fieldset in Settings and an audition page), plus READ RECEIPTS' morning after a stay-over and four more life-event decks. READ RECEIPTS is the dating story played on a phone (new in v0.22.0, reworked in v0.23.0) -- people who grow closer at their own pace, no set time on dating, phone numbers that work, a world outside the phone (your flat and 28 places with 48 plates, meet-ups played in person) and life events. Its full balance pass ran in v0.24.0 at 10 seeds (not the 40 the v0.23.0 plan named; the owner chose the scale); live play with a model has not been done (the owner deferred it again on 2026-10-26). Seven stories ship. Six
+**Status:** **v0.24.1** is the current release, a repair (the GOVERNANCE file check left the gitignored `config/local.yaml` out, found by CI on Linux), on **v0.24.0**: **sound effects** for the engine and every story (button presses, choices, rolls, alerts, ringtones, each from data and played in the browser, with a Sound fieldset in Settings and an audition page), plus READ RECEIPTS' morning after a stay-over and four more life-event decks. READ RECEIPTS is the dating story played on a phone (new in v0.22.0, reworked in v0.23.0) -- people who grow closer at their own pace, no set time on dating, phone numbers that work, a world outside the phone (your flat and 28 places with 48 plates, meet-ups played in person) and life events. Its full balance pass ran in v0.24.0 at 10 seeds (not the 40 the v0.23.0 plan named; the owner chose the scale); live play with a model has not been done (the owner deferred it again on 2026-10-26). **v0.25.0, The Clockwork Dark's overhaul, is in progress** (CHANGELOG.md's `[Unreleased]`): every ending at a door, a card dealt where its person is; the critical path on cards; Sera's levy; four people placed; two secret places; the overlays pressing engine intents. Seven stories ship. Six
 can be played to an ending (HUE & CRY eight ways); READ RECEIPTS is endless
 (`endless: true`, no ending, by the owner's brief). The engine
 is model-server agnostic: LM Studio stays the default, and llama-server,
@@ -96,7 +96,12 @@ who never listens to the caravan master stays a baker. It has 26 quests,
 survival with rest that is never gated, crafting and recipes, trade, encounters
 played as scenes rather than a combat system, death rules, and an in-world
 companion (the Assistant) whose trust you earn. It has the largest shipped art
-pack and its own UI plugin.
+pack and its own UI plugin. Since v0.25.0 (in progress) each of its eight
+endings is locked at a **door**, a card dealt where and when its person is
+(Maris at the bakery at dawn, old Wenna at the shrine, Sera at the gate), the
+stages on every ending's path have cards of their own, Sera's levy fills and
+forces a press in the square, and its barter, pack and notice board press
+engine intents.
 
 | Title screen | The map |
 |---|---|
@@ -310,8 +315,18 @@ declared meters and clocks.
   `clock.advance_time`, charged as the cost of whatever spent them. A
   background tick drives world schedules.
 - **Schedules and presence.** NPCs keep hour-by-hour schedules. Traders and
-  caravans arrive on their own timetables. Who is present decides who can
-  speak.
+  caravans arrive on their own timetables: since v0.25.0 a declared world
+  event may roll a chance per in-game day crossed, on the day roll and its own
+  random stream, so a caravan's day replays from the seed and the days crossed,
+  never from how long a turn took. Who is present decides who can speak, and
+  `npc_here` lets a card, a thread or a quest stand where its person is.
+- **Doors** (v0.25.0, the flagship): an ending locked by name at a card dealt
+  where its person is, gated on that ending, so a door and its gate cannot
+  drift apart; the second death in `consuming` can lock an ending too.
+- **Overlays that act** (v0.25.0): a story's overlay presses an engine intent
+  from a list the server keeps (`GET /api/intents/overlay`), never the
+  player's typed words, so buying, eating, making or working from a screen
+  runs the skill before the narrator speaks.
 - **Procgen** villages and districts from a seed, with **secret places** that
   stay off the map until you find them.
 - **Factions and reputation**, **gossip** that travels between venues, and
