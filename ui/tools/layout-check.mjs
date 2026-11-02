@@ -227,8 +227,9 @@ export const OVERLAY_PROBES = { "clockwork-dark": ["i", "b", "n", "e"] };
 
 /**
  * Each of the story's probed overlays, opened by its key from the play screen: a dialog must open, no
- * control in it may be cut off unreachably (`clippedControlsIn`), and it is photographed as
- * `...-<size>-overlay-<key>.png`. Escape closes it before the next.
+ * control in it, scrolled to, may lie outside the window or the dialog (`unreachableInDialog`), and it is
+ * photographed as `...-<size>-overlay-<key>.png`. A dialog already open before the first key fails the run,
+ * and Escape must close each one before the next.
  */
 async function overlayScreens(page, opts, tag, size) {
   const failures = [];

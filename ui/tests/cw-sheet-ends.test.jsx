@@ -75,6 +75,10 @@ describe("the ending's plate", () => {
     await view.renderAsync(<Ending ending={ending} story={{}} onNewRun={() => {}} onOpenSaves={() => {}} />);
     expect(view.host.textContent).toContain("some_key");
   });
+  it("draws nothing for an ending with no gallery key", () => {
+    view.render(<EndingPlate ending={{ ending_id: "x", title: "X" }} />);
+    expect(view.host.innerHTML).toBe("");
+  });
   it("is the plugin's EndingArt", () => {
     expect(flagship.EndingArt).toBe(EndingPlate);
   });

@@ -20,6 +20,7 @@ export default function EndingPlate({ ending }) {
       live = false;
     };
   }, [ending?.gallery_key]);
+  if (!ending?.gallery_key) return null;
   return (
     <PaintFrame size="tile" className="finale__plate">
       {url && <img className="paint__img is-loaded" src={url} alt="" />}

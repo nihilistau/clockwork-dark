@@ -110,7 +110,7 @@ function PhaseBadge({ state, onOpenMenu }) {
  * mounts only while an encounter exists, and a hook is silent on its first render (spec §6.3 rule 2), so a cue
  * inside it would never play. The Stage is always mounted.
  */
-function FlagshipStage({ state, onChoose, controlsOff }) {
+function FlagshipStage({ state, onChoose, controlsOff, blocked = false }) {
   const encounter = state.world?.encounter || {};
   const live = Object.keys(encounter).length > 0 && !encounter.resolved;
   useSoundOnChange(live, "encounter.start", { when: (a, b) => !a && b });
@@ -119,7 +119,9 @@ function FlagshipStage({ state, onChoose, controlsOff }) {
     // True exactly when `hideChoices` (core's rule, below) hides every choice:
     // only then do the digits belong to the approaches (v0.25.0 §8.2).
     const hidden = matchedChoiceIds(encounter, state.choices);
-    const choiceRowEmpty = (state.choices || []).every((c) => hidden.has(c.id));
+    // Core's rule (Play.jsx `allMatched`): no choices at all is not an empty row.
+    const choices = state.choices || [];
+    const choiceRowEmpty = choices.length > 0 && choices.every((c) => hidden.has(c.id));
     return (
       <EncounterPanel
         encounter={encounter}
@@ -131,6 +133,8 @@ function FlagshipStage({ state, onChoose, controlsOff }) {
         busy={controlsOff}
         offered={offered}
         choiceRowEmpty={choiceRowEmpty}
+        // An overlay, the menu or a cutscene is up: the digits stand down.
+        blocked={blocked}
         // An approach is pressed as the narrator's intent-bearing choice
         // (spec §2.3, rule 1): the engine runs encounter_approach before
         // narration. One the narrator did not offer is not pressable.

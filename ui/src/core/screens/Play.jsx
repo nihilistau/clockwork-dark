@@ -170,6 +170,10 @@ export default function Play({
     // controls read this, aria-disabled while it is true (§8.2): the
     // flagship's and NEON CITY's encounter approaches (their Stage slots).
     controlsOff: off,
+    // True while core's menu, settings, an overlay or a cutscene is up: a
+    // slot's own window-level keys stand down (the flagship's approach
+    // digits, v0.25.0 §8.2), as the choice row's do.
+    blocked,
     onCustom,
     onChoose,
     onOpenOverlay,

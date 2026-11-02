@@ -151,8 +151,11 @@
  * SLOT PROPS. Every slot is a React component and receives the same object, so
  * a story can ignore the ones it does not care about:
  *
- *     {state, busy, onChoose, onCustom, onOpenOverlay, onOpenMenu,
- *      showDiceBreakdown}
+ *     {state, busy, controlsOff, blocked, onChoose, onCustom, onOpenOverlay,
+ *      onOpenMenu, showDiceBreakdown}
+ *
+ * `blocked` is true while core's menu, settings, an overlay or a cutscene is
+ * up: a slot's own window-level keys stand down (v0.25.0 §8.2).
  *
  * A story-owned `PlayScreen` (not a slot) takes `{state, sessionId, busy, onAct, onChoose, onCustom, onOpenMenu,
  * onOpenSaves, blocked, prefs, onPrefs}`; `onCustom(text)` sends typed words as core's own compose box does (READ RECEIPTS'

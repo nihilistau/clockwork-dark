@@ -18,7 +18,8 @@
  *
  * Keys 1-9 press the pressable approaches in order, but only when the choice
  * row below is empty (`choiceRowEmpty`: `hideChoices` hid every choice), so
- * two lists never bind one digit (v0.25.0 §8.2), and never while a turn runs.
+ * two lists never bind one digit (v0.25.0 §8.2), and never while a turn runs
+ * or core has a dialog up (`blocked`: an overlay, the menu, a cutscene).
  */
 import React from "react";
 import useArtUrl from "@core/hooks/useArtUrl.js";
@@ -110,6 +111,7 @@ export default function EncounterPanel({
   busy,
   offered = new Map(),
   choiceRowEmpty = false,
+  blocked = false,
   onTake,
 }) {
   const artUrl = useArtUrl(encounter.art, encounter.art_kind || "enemy");
@@ -119,7 +121,7 @@ export default function EncounterPanel({
   const round = Number(encounter.round) || 0;
   const pressable = approaches.filter((a) => offered.has(a.id));
   const numbered = Boolean(choiceRowEmpty);
-  useDigitKeys(pressable, (approach) => onTake?.(approach), numbered && !busy);
+  useDigitKeys(pressable, (approach) => onTake?.(approach), numbered && !busy && !blocked);
 
   return (
     <section className="encounter" aria-labelledby="encounter-threat">
