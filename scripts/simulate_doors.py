@@ -164,6 +164,15 @@ def away_from(place: str, decks: frozenset[str]) -> str:
     return ""
 
 
+def _far(place: str) -> bool:
+    """A place three or more road hours from the square: the gate and everything past it."""
+    hours, here = 0.0, "edgewood_square"
+    for hop in sim.route(here, place):
+        hours += float((sim.get_edge(here, hop) or {}).get("hours", 0) or 0)
+        here = hop
+    return hours >= 3
+
+
 def card_flags() -> frozenset[str]:
     """Every flag a flagship deck beat writes: never raised as a 'pending narrative flag'."""
     out: set[str] = set()
@@ -287,8 +296,9 @@ POLICIES: dict[str, DoorPolicy] = {
         Goal(stage("the_ninth_pin", 1), place="tinker_caravan", hours=(9, 15)),
         Goal(done("the_ninth_pin"), place="tinker_caravan", hours=(9, 15)),
         ROAD_MAP,
-        Goal(stage("the_heartland_road", 1), place="millhaven_gate", hours=(10, 15)),
-        Goal(stage("the_heartland_road", 2), place="the_join", hours=(10, 15)),
+        Goal(settled("the_heartland_road", 1), place="millhaven_gate", hours=(10, 15)),
+        # `settled`: a walk that expired is counted as expired, not chased for the rest of the run.
+        Goal(settled("the_heartland_road", 2), place="the_join", hours=(10, 15)),
         Goal(locked("the_pin_and_the_join"), place="the_join", hours=(10, 15)),
     ), {"T3_take_it_or_dont": "take_it", "J1_the_pin": "set_it"}),
     "drifter": DoorPolicy("the_stopped_wheel", (
@@ -322,6 +332,7 @@ class DoorRun(sim.Simulation):
         #: card id -> the in-game day it was first dealt (the levy row reads the press's).
         self.first_dealt: dict[str, int] = {}
         #: card id -> how many times it was dealt (a stage that waits re-deals its card).
+        self.fallbacks: dict[str, int] = {}
         self.deal_counts: dict[str, int] = {}
         self.lock: Optional[dict[str, Any]] = None
         #: `--trace`: per turn, the goal pursued and the standings (off for a table run).
@@ -357,6 +368,10 @@ class DoorRun(sim.Simulation):
             chosen = self.answers.get(card.id, "")
             if chosen not in offered:
                 chosen = offered[-1] if card.id in SAFE else ""
+            if not chosen and len(offered) > 1:
+                # A menu the policy has no answer for takes the director's first offered beat: counted,
+                # so a lock it makes (Q1's two locking beats) shows as forced, not chosen.
+                self.fallbacks[card.id] = self.fallbacks.get(card.id, 0) + 1
             out = director.resolve(self.state, chosen=chosen, ledger=self.ledger)
             if out.get("ok"):
                 self.answered.add(card.id)
@@ -416,6 +431,9 @@ class DoorRun(sim.Simulation):
             return ("wait", {"hours": 1.0})
         if goal.buy:
             return self._buying(state, goal.buy)
+        provision = self._provision(state, goal.place or self._where(goal.npc))
+        if provision:
+            return provision
         restock = self._stock_up(state) or self._restock(state)
         if restock:
             return restock
@@ -441,6 +459,23 @@ class DoorRun(sim.Simulation):
             if job:
                 return ("work", {"job_id": job})
         return ("wait", {"hours": 1.0})
+
+    def _provision(self, state: Any, place: str) -> Optional[sim.Action]:
+        """Bound for a place a road away from the bakery (the gate and past it) and still in the
+        village, carrying fewer than `STOCK` meals and the price of one: go by the bakery first.
+        (Measured in T10's review: a pinner left the square for the gate with no bread, turned back
+        hungry from the gate, and missed the Join's window; `_stock_up` alone fires only at the
+        counter, which the road to the gate never passes.)"""
+        if not place or not _far(place) or _far(state.location_id):
+            return None
+        vendor, food_id = sim.STAPLE_FOOD
+        where = sim.vendor_locations().get(vendor, "")
+        price = sim.trade_module.quote(state, vendor, food_id, sim.trade_module.BUY, 1).get("unit_price", 0)
+        if (not where or self._carried_food(state) >= STOCK or not price or state.stats.gold < price
+                or state.location_id == where):
+            return None
+        hops = sim.route(state.location_id, where)
+        return ("travel", {"to": hops[0]}) if hops else None
 
     def _carried_food(self, state: Any) -> int:
         rules = sim.survival.load_rules()
@@ -546,6 +581,7 @@ def run_policy(name: str, seeds: list[int], cap: int = CAP_TURNS) -> dict[str, A
     whisper_days: list[Optional[int]] = []
     press_days: list[int] = []
     deal_counts: dict[str, list[int]] = {}
+    fallbacks: dict[str, int] = {}
     results: list[sim.RunResult] = []
     details: list[dict[str, Any]] = []
     ending = POLICIES[name].ending
@@ -557,6 +593,8 @@ def run_policy(name: str, seeds: list[int], cap: int = CAP_TURNS) -> dict[str, A
         whisper_days.append(run.arc_day("whisper"))
         if PRESS_CARD in run.first_dealt:
             press_days.append(run.first_dealt[PRESS_CARD])
+        for card_id, count in run.fallbacks.items():
+            fallbacks[card_id] = fallbacks.get(card_id, 0) + count
         for card_id, count in run.deal_counts.items():
             deal_counts.setdefault(card_id, []).append(count)
         deaths += run.result.deaths
@@ -590,6 +628,8 @@ def run_policy(name: str, seeds: list[int], cap: int = CAP_TURNS) -> dict[str, A
         "bands": sim.band_rates(results),
         #: per card, the most times one run dealt it (a waiting stage re-deals its card).
         "max_deals": {c: max(v) for c, v in sorted(deal_counts.items())},
+        #: per menu card, the times it was resolved with no answer of the policy's (the first beat).
+        "fallback_answers": dict(sorted(fallbacks.items())),
         "dealt": sorted(dealt), "answered": sorted(answered), "errors": errors[:10],
         "runs_detail": details,
     }

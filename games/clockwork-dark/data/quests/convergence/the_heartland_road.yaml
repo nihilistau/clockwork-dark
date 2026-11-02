@@ -1,4 +1,8 @@
-# Version: v0.1.0 [2026-08-07]
+# Version: v0.1.1 [2026-11-02]
+#
+# `walk_the_join` names midday and gives five days (v0.25.0 T10 fix round 1, a
+# measured lever): its 10-15 window was said only by the R2 card dealt inside
+# it, and three days were too few for the six road hours past the last bed.
 
 id: the_heartland_road
 arc: convergence
@@ -42,10 +46,10 @@ stages:
           kind: secret
 
   - id: walk_the_join
-    objective: "Walk the place where the two ends meet. Past the heartland road, where the hedges grow together."
+    objective: "Walk the place where the two ends meet, at midday. Past the heartland road, where the hedges grow together."
     narrative_flags:
       - nf_road_walked
-    expires_after_days: 3
+    expires_after_days: 5
     complete_when:
       all:
         - flag: nf_road_walked

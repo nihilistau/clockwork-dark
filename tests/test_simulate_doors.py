@@ -23,11 +23,11 @@ SMOKE_FLOORS: dict[str, tuple[float, str]] = {
     "baker": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
     "settler": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
     "witness": (0.66, "each door policy reaches its own ending: at least 80% (40 seeds)"),
-    "marcher": (0.66, "each door policy reaches its own ending: at least 80% (40 seeds)"),
+    "marcher": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
     "namer": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
     "payer": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
-    "pinner": (0.0, "each door policy reaches its own ending: at least 80% (40 seeds); MISSED: 12.5% after "
-                    "every lever tried (T10), seeds 0-2 all miss; a CLAUDE.md deferred row"),
+    "pinner": (0.33, "each door policy reaches its own ending: at least 80% (40 seeds); MISSED: 42.5% after "
+                     "T10 fix round 1 (seed 0 of 0-2 reaches it); a CLAUDE.md deferred row"),
     "drifter": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
 }
 
@@ -51,11 +51,26 @@ def test_three_seeds_reach_their_own_ending_at_the_measured_floor(policy: str) -
                                  f"(§10.2: {band_row}); runs {row['runs_detail']}")
 
 
+#: The pin's path, card by card, past the gap T10 found: `ward_charms` unpinned Ilya inside the
+#: ninth pin's quest, so `T2_pay_for_it` was never dealt and nothing after it either.
+PIN_PATH = ("T1_ask_for_it", "T2_pay_for_it", "T3_take_it_or_dont", "R1_measure_it")
+
+
+@pytest.mark.slow
+def test_the_pinner_is_dealt_and_answers_the_pin_and_the_road() -> None:
+    """Review Important 2 (T10 fix round 1): the pinner's own-ending floor names the missed band, so
+    this holds the path itself, end to end: over seeds 0-2 the ninth pin's cards and the inward
+    road's measure are dealt and answered (a canary re-breaking `ward_charms` fails it)."""
+    row = _row("pinner", [0, 1, 2])
+    missing = [c for c in PIN_PATH if c not in row["answered"]]
+    assert not missing, (missing, row["runs_detail"])
+
+
 @pytest.mark.slow
 def test_the_reckless_die_into_the_fail_forward() -> None:
     """§10.2: `reckless` ends in the terminal death in at least 50% of runs."""
     row = _row("reckless", [0, 1, 2])
-    assert row["own"] >= 1 / 3 and row["other"] == 0.0, row
+    assert row["own"] >= 0.33 and row["other"] == 0.0, row     # `own` is rounded to three places
 
 
 def test_the_condition_helpers_live_once_and_the_walks_import_them() -> None:

@@ -989,16 +989,20 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
 - **The Clockwork Dark's balance pass (v0.25.0 T10; `scripts/simulate_doors.py`, seeds 0-39, cap 1,000;
   the root CHANGELOG has every table and lever) left five rows missed, measured and deferred by data,
   never widened:**
-  - The Pin and the Join: the `pinner` reaches it in 12.5% of runs (band 80%+) and another ending in 85%
-    (band 10% or less). 25 of its 35 lost runs stop at `the_heartland_road`'s `walk_the_join` (the Join,
-    10-15, six road hours past the gate, no bread on the way) and 23 lock the fail-forward once the world
-    is `consuming`. Tried: the convergence gate widened to awareness 100 (pinner 25%, but the witness's
-    turns left their band; reverted), the convergence stages' `doom_resistance` doubled (no move;
-    reverted). Lever 3 would take the heartland's encounter rate (0.456, in band) out of its band.
-  - The Counted March: the `marcher` locks another ending in 12.5% of runs (band 10% or less) and
-    reaches its own in a median 182 turns (band 200-400). Lever 2 (`counted` 20 -> 16) took it to 5%
-    but moved the local-mode golden (the gate text rides every turn payload; no sanction names it), so
-    it was reverted.
+  - The Pin and the Join: the `pinner` reaches it in 42.5% of runs (band 80%+) and another ending in 55%
+    (band 10% or less), after T10 fix round 1: the harness's pinner now buys bread before the road to the
+    gate (it left unprovisioned and turned back hungry; 12.5% -> 37.5%), and `walk_the_join` names midday
+    and gives 5 days, not 3 (a kept lever; 37.5% -> 42.5%). Of its 23 lost runs 15 lock the fail-forward
+    once the world is `consuming` and 8 the Named Wound, all forced: `Q1_tell_her_or_dont` is dealt at
+    the bakery's dawn door while it works its shift, and both its beats lock (a dealt card is the whole
+    turn, `engine/game/intents.py`, so a player standing there has no other answer either). Tried and
+    reverted: the convergence gate widened to awareness 100 (pinner 25%, but the witness's turns left
+    their band), the convergence stages' `doom_resistance` doubled (no move). Lever 3 would take the
+    heartland's encounter rate (0.438, in band) out of its band.
+  - The Counted March: the `marcher` reaches its own in a median 186.5 turns (band 200-400); its
+    other-locks are 10% since fix round 1's provisioning (band 10% or less, met). Lever 2 (`counted` 20
+    -> 16) was reverted: it moved the local-mode golden (the gate text rides every turn payload), and
+    took the turns further below the band.
   - The Stopped Wheel's `drifter`: 491 turns (band 500-900); the doom's pace is a non-goal.
   - `simulate.py`'s `cautious` at seed 42: 4.57 h/turn and 0.254 doom (+42%, +39% of DESIGN.md's
     table; 0 deaths at v0.24.0, 14 now): the five policies answer no card, and v0.25.0 moved stage
