@@ -401,6 +401,38 @@ def test_not_yet_locks_nothing_and_the_deck_comes_round_again(flagship) -> None:
     assert deck_id == "the_morning_firing"
 
 
+def test_q1_offers_an_answer_that_ends_nothing(flagship) -> None:
+    """T10 fix round 2: Q1 is dealt at the dawn bakery once The Named Wound is eligible, and a dealt
+    card is the whole turn, so with only `tell_her` and `say_nothing` a player working the shift was
+    made to end the story. A third answer locks nothing, writes no flag and runs no module, and the
+    card comes round again on a later visit."""
+    from engine.content import deck as deck_module
+    from engine.content import director
+    from engine.game import endings
+
+    q1 = next(c for c in deck_module.load_deck("the_morning_firing").cards if c.id == "Q1_tell_her_or_dont")
+    quiet = [b for b in q1.beats if not any(
+        e.get("type") in ("ending_lock", "ending_module")
+        for e in (((b.get("gate") or {}).get("on_pass") or {}).get("effects") or []))]
+    assert [b["id"] for b in quiet] == ["not_yet"], [b["id"] for b in q1.beats]
+    assert not (quiet[0]["gate"]["on_pass"].get("effects") or []), quiet[0]   # costs only the moment
+    assert "when" not in quiet[0]                                             # always offered
+
+    state = new_state()
+    doors.named_wound_door(state)
+    assert _deal(state, "the_morning_firing") == ["Q1_tell_her_or_dont"]
+    assert [o["id"] for o in director.options(state)] == ["tell_her", "say_nothing", "not_yet"]
+    flags_before = dict(state.flags)
+    assert director.resolve(state, chosen="not_yet")["ok"]
+    assert endings.locked(state) == endings.NONE_ID
+    assert dict(state.flags) == flags_before
+    assert not director.active(state)
+    doors.stand(state, "edgewood_square", 12)
+    director.rearm(state)
+    doors.stand(state, "edgewood_bakery", 5)
+    assert director.due(state)[0] == "the_morning_firing"
+
+
 def test_no_id_less_ending_lock_remains_in_the_story() -> None:
     from engine.games.validation import walk
 

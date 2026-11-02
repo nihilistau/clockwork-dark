@@ -7,7 +7,9 @@
 #   H1  The Hearth Holds (`stay`) or, its gate shut, the fail-forward's
 #       morning door (`stay_anyway`); offered by beat-level `when:` (E5)
 #   Q0  the_last_quiet_thing's `show_up`, in its own hours (4-7)
-#   Q1  The Named Wound (`tell_her` / `say_nothing`)
+#   Q1  The Named Wound (`tell_her` / `say_nothing`), or `not_yet`, which
+#       ends nothing (T10 fix round 2: a dealt card is the whole turn, so
+#       a player working the dawn shift needs an answer that does not end it)
 # H1 is not dealt while The Named Wound is eligible, so H1 and Q1 never
 # compete for one arming. REPEATABLE, draw 1: one card a morning, and "not
 # yet" is never the last chance (director.rearm deals again on the next
@@ -15,7 +17,7 @@
 # decision 3), so it is due only when a card can be dealt. Each lock runs
 # before its module; no beat carries more than four effects.
 #
-# Version: v0.1.0 [2026-10-27]
+# Version: v0.1.1 [2026-11-02]
 
 id: the_morning_firing
 repeatable: true
@@ -157,8 +159,9 @@ cards:
     text: >-
       INTENT: The last quiet morning's batch is out. Maris is shaping the
       next, and the player could tell her what naming the thing cost, or let
-      the morning be a morning. CONSTRAINTS: She says "I know" either way.
-      Both choices end the story.
+      the morning be a morning, or keep it for another morning. CONSTRAINTS:
+      She says "I know" if told or not. Telling and saying nothing end the
+      story; not yet ends nothing.
       MENU -- resolve exactly the beat the player chose.
     beats:
       - id: tell_her
@@ -185,3 +188,12 @@ cards:
               - { type: flag, flag: nf_lastquiet_said_nothing }
               - { type: ending_lock, ending: the_named_wound }
               - { type: ending_module }
+      - id: not_yet
+        label: "Not this morning"
+        text: >-
+          Take the peel and keep what you paid to yourself for one more
+          morning.
+        gate:
+          on_pass:
+            text: >-
+              She does not look up. The next batch wants shaping, and you shape it.

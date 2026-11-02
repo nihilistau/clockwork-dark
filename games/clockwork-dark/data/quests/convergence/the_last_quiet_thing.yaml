@@ -12,7 +12,8 @@
 # morning firing's Q1_tell_her_or_dont (data/scenes/the_morning_firing.yaml),
 # dealt at the bakery while Maris is there once The Named Wound is eligible --
 # which its `baked` clause makes true at this quest's third stage,
-# `tell_her_or_dont`. Both of Q1's beats lock The Named Wound BY NAME. Q0 sets
+# `tell_her_or_dont`. Two of Q1's beats lock The Named Wound BY NAME; its
+# third, `not_yet`, ends nothing and the card comes round again. Q0 sets
 # `show_up`'s flag in that stage's own hours. The quest opens on
 # what_edgewood_keeps alone: the_sacrifice and the_heartland_road end the
 # story at their own doors, so requiring either would make The Named Wound

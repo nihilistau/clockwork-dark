@@ -26,8 +26,8 @@ SMOKE_FLOORS: dict[str, tuple[float, str]] = {
     "marcher": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
     "namer": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
     "payer": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
-    "pinner": (0.33, "each door policy reaches its own ending: at least 80% (40 seeds); MISSED: 42.5% after "
-                     "T10 fix round 1 (seed 0 of 0-2 reaches it); a CLAUDE.md deferred row"),
+    "pinner": (0.33, "each door policy reaches its own ending: at least 80% (40 seeds); MISSED: 57.5% after "
+                     "T10 fix round 2 (seed 0 of 0-2 reaches it); a CLAUDE.md deferred row"),
     "drifter": (1.0, "each door policy reaches its own ending: at least 80% (40 seeds)"),
 }
 

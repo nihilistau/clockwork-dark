@@ -989,16 +989,14 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
 - **The Clockwork Dark's balance pass (v0.25.0 T10; `scripts/simulate_doors.py`, seeds 0-39, cap 1,000;
   the root CHANGELOG has every table and lever) left five rows missed, measured and deferred by data,
   never widened:**
-  - The Pin and the Join: the `pinner` reaches it in 42.5% of runs (band 80%+) and another ending in 55%
-    (band 10% or less), after T10 fix round 1: the harness's pinner now buys bread before the road to the
-    gate (it left unprovisioned and turned back hungry; 12.5% -> 37.5%), and `walk_the_join` names midday
-    and gives 5 days, not 3 (a kept lever; 37.5% -> 42.5%). Of its 23 lost runs 15 lock the fail-forward
-    once the world is `consuming` and 8 the Named Wound, all forced: `Q1_tell_her_or_dont` is dealt at
-    the bakery's dawn door while it works its shift, and both its beats lock (a dealt card is the whole
-    turn, `engine/game/intents.py`, so a player standing there has no other answer either). Tried and
-    reverted: the convergence gate widened to awareness 100 (pinner 25%, but the witness's turns left
-    their band), the convergence stages' `doom_resistance` doubled (no move). Lever 3 would take the
-    heartland's encounter rate (0.438, in band) out of its band.
+  - The Pin and the Join: the `pinner` reaches it in 57.5% of runs (band 80%+) and another ending in 40%
+    (band 10% or less), after T10's fix rounds: the harness's pinner buys bread before the road to the
+    gate (12.5% -> 37.5%), `walk_the_join` names midday and gives 5 days, not 3 (a kept lever; 42.5%),
+    and the Named Wound's dawn card `Q1` gained a `not_yet` that ends nothing (57.5%). All 17 lost runs
+    are in `consuming` (16 the fail-forward). Tried and reverted: the convergence gate widened to
+    awareness 100 (pinner 25%, but the witness's turns left their band), the convergence stages'
+    `doom_resistance` doubled (no move). Lever 3 would take the heartland's encounter rate (0.475, in
+    band) out of its band.
   - The Counted March: the `marcher` reaches its own in a median 186.5 turns (band 200-400); its
     other-locks are 10% since fix round 1's provisioning (band 10% or less, met). Lever 2 (`counted` 20
     -> 16) was reverted: it moved the local-mode golden (the gate text rides every turn payload), and
@@ -1009,7 +1007,8 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
     completions onto cards. Its 40-seed medians are in band.
   - The barrows' encounter rate is unmeasured: no scripted policy walks them.
   Also measured and left: a card whose stage waits is dealt again on each visit (`H1_the_question` up
-  to 24 times in one namer run at the end of the pass, `S1_choose_what` up to 11 at the first); two decks due at one place deal by deck id
+  to 24 times in one namer run at the end of the pass, `S1_choose_what` up to 11 at the first, `Q1_tell_her_or_dont`
+  up to 14 in one payer run since its `not_yet`); two decks due at one place deal by deck id
   (no run lost to it); a wayfarer reaches the batch's craft 11 only through all three quiet-life craft
   quests. And `scripts/simulate.py` without `--game` builds no state schema, so the levy clock's
   `value` effects are logged as unknown and ignored there (no number moves; `--game clockwork-dark`

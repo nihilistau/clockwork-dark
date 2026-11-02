@@ -86,6 +86,8 @@ SAFE = {
     "S1_choose_what": "not_yet", "S2_pay_it": "not_yet", "J1_the_pin": "keep_it",
     "T3_take_it_or_dont": "leave_it", "L2_the_weller_boy": "speak_up", "V2_the_vote": "stay",
     "L7_answer_her": "refuse", "P1_a_name_on_the_list": "let_it_be",
+    # T10 fix round 2: Q1 gained a third answer; a policy whose door is not The Named Wound declines.
+    "Q1_tell_her_or_dont": "not_yet",
 }
 
 
@@ -370,7 +372,7 @@ class DoorRun(sim.Simulation):
                 chosen = offered[-1] if card.id in SAFE else ""
             if not chosen and len(offered) > 1:
                 # A menu the policy has no answer for takes the director's first offered beat: counted,
-                # so a lock it makes (Q1's two locking beats) shows as forced, not chosen.
+                # so a lock it makes shows as forced, not chosen (Q1 before fix round 2's `not_yet`).
                 self.fallbacks[card.id] = self.fallbacks.get(card.id, 0) + 1
             out = director.resolve(self.state, chosen=chosen, ledger=self.ledger)
             if out.get("ok"):
