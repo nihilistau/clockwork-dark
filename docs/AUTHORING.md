@@ -1740,8 +1740,10 @@ bribe has no `on_break`: a refused discharge lets the thread come due, and a
 template whose break has teeth (`ardane_magpie_file` files a report and
 costs -10) must not gate its discharge on something the player can lose. Who
 else is standing there is `npc_here` (§3.7, v0.25.0); HUE & CRY's threads still
-gate on `at_location` and the `hour_between` their person's schedule has them
-there, awake.
+gate on place and hour, not on `npc_here`: `brask_bribe` on `at_location`
+alone (so it can be struck while Brask is out), the squeezes and the fences'
+credit on `at_location` and the `hour_between` their person's schedule has
+them there, awake (CLAUDE.md, deferred).
 
 **Something to lose: `filed`.** `{filed: {jurisdiction, guise?, linked?}}`
 is true while any LIVE report row matches — read through the same matcher

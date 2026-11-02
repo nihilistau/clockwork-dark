@@ -1101,7 +1101,7 @@ class QuestEngine:
         World events expire from ``state.world_events`` after a couple of days
         (``WorldSim.expire_events``), so "the caravan came on day six" is gone
         from state by day eight -- and the Whisper arc gate needs exactly that,
-        ten days later. This writes it down while it is still true.
+        three days later. This writes it down while it is still true.
 
         Args:
             state: Mutable game state.

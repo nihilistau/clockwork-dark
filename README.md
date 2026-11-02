@@ -955,7 +955,7 @@ fixed; details may change as each release lands.
 | v0.22.0 | **A new story: READ RECEIPTS**, a dating simulation played through a phone of apps -- two dating apps, texts and a messenger, photos, voice notes and videos, meet-ups, two two-player games -- with a cast the engine runs and no endgame | **shipped** |
 | v0.23.0 | **READ RECEIPTS rework**: people who grow closer at their own pace, no set time on dating, phone numbers that work, places (the player's apartment, the cast's homes) with art, and real-life events and meet-ups outside the phone -- and, after the owner's first playtest, a world you can type into and people who turn up where you wait for them (staff at venues, a contact you run into; no strangers yet) | **shipped** (its balance pass and docs pass ran in v0.24.0; live play with a model was deferred by the owner and has not been done) |
 | v0.24.0 | **Sound effects** for the engine and every story: alerts, ringtones, button presses -- with READ RECEIPTS' morning scene, four more life-event decks, and the v0.23.0 tail (the full balance pass, the docs pass and the whole-branch review; live play with a model was deferred by the owner, 2026-10-26) | **shipped** (live play with a model was deferred by the owner, 2026-10-26) |
-| v0.25.0 | **The Clockwork Dark overhaul** | **next** |
+| v0.25.0 | **The Clockwork Dark overhaul** | **in progress** |
 | v0.26.0 | **Engine correctness and tools**: negations read across a whole clause, ranked intent options, a faster test suite, counterfactual echoes in epilogues, a replay inspector in Studio, a per-model compliance report | planned |
 | v0.27.0 | **The Wicked Garden overhaul** | planned |
 | v0.28.0 | **NEON CITY overhaul** | planned |
