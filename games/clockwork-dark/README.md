@@ -49,6 +49,11 @@ participant (`pipeline: false`), so turns do not negotiate. Its hints are in
 
 **Its own UI plugin** — `ui.plugin: clockwork-dark`
 (`ui/src/stories/clockwork-dark/`), including the notice-board overlay (`n`).
+Since v0.25.0 its four overlays (barter `b`, the pack and its recipes `i`, the
+notice board `n`) press engine intents, not typed words: each button is a pair
+the server lists (`GET /api/intents/overlay`) and the engine runs before the
+narrator speaks, one thing a press; a pair not on offer is drawn and not
+pressable, and nothing is while a card or an encounter owns the turn.
 
 ## The endings and their doors
 

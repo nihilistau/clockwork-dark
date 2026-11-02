@@ -5,17 +5,20 @@
  * This is the missing client: what is posted here, what is posted elsewhere
  * (a reason to travel), and a button that takes a shift.
  *
- * NOT WIRED (docs/GOVERNANCE.md, v0.21.0 final review finding 9): "Take the
- * work" sends the player's words as TYPED TEXT (`onAct`), which carries no
- * intent, so no `work` skill runs from it -- only the narrator reads it.
- * The intent path for overlays is the v0.25.0 flagship overhaul's.
+ * "Take the shift" presses a `work` INTENT (v0.25.0 §7.3, §8.1): the pair comes
+ * from `GET /api/intents/overlay`, core emits it as `overlay_action`, and the
+ * engine re-checks it under the turn lock and runs the `work` skill before the
+ * narrator speaks (rule 1). A shift posted elsewhere has no button, only where
+ * it is: it can be taken only by going there.
  */
 import React, { useEffect, useState } from "react";
 import Modal from "@core/parts/Modal.jsx";
 import { fetchNotices, fetchPlaces } from "@core/api.js";
 import { prettyPlace } from "@core/parts/Chrome.jsx";
+import { overlayTurnKey, useOverlayIntents } from "@core/hooks/useOverlayIntents.js";
+import ActionButton, { SceneOwnsTurn } from "../parts/ActionButton.jsx";
 
-function Notice({ row, busy, onTake }) {
+function Notice({ row, offer, busy, onAct }) {
   const wage = Number(row.expected_wage) || 0;
   return (
     <li className="notice">
@@ -29,20 +32,17 @@ function Notice({ row, busy, onTake }) {
         {row.skill ? ` · ${row.skill}` : ""}
         {row.difficulty ? ` · ${row.difficulty}` : ""}
       </p>
-      <button
-        type="button"
-        className="btn btn--sm"
-        disabled={busy}
-        onClick={() => onTake(row)}
-      >
-        Take the work
-      </button>
+      <ActionButton offer={offer} action="work" target={row.id} busy={busy} onAct={onAct}
+        why="Not now: the shift is full, out of its hours or done for today.">
+        Take the shift
+      </ActionButton>
     </li>
   );
 }
 
-export default function Notices({ sessionId, busy, onAct, onClose }) {
+export default function Notices({ state, sessionId, busy, onAct, onClose }) {
   const [data, setData] = useState(null);
+  const { offer } = useOverlayIntents(sessionId, overlayTurnKey(state));
   const [error, setError] = useState("");
   // A place's name, never its id: the atlas names the places this run knows
   // (final review finding 4); the rest fall back to a readable id.
@@ -82,6 +82,7 @@ export default function Notices({ sessionId, busy, onAct, onClose }) {
 
   return (
     <Modal title="Notice board" onClose={onClose}>
+      <SceneOwnsTurn offer={offer} />
       {error && <p className="overlay__error">{error}</p>}
       {!data && !error && <p className="overlay__empty">Reading the pins…</p>}
 
@@ -104,8 +105,12 @@ export default function Notices({ sessionId, busy, onAct, onClose }) {
                 <Notice
                   key={row.id}
                   row={row}
+                  offer={offer}
                   busy={busy}
-                  onTake={(job) => onAct(`Take the ${job.name} work posted on the board`)}
+                  onAct={(intent) => {
+                    onAct(intent);
+                    onClose();
+                  }}
                 />
               ))}
             </ul>
@@ -119,7 +124,7 @@ export default function Notices({ sessionId, busy, onAct, onClose }) {
                   <li key={row.id} className="notice notice--away">
                     <span className="notice__title">{row.name}</span>
                     <span className="notice__meta">
-                      {names[row.location_id] || prettyPlace(row.location_id || "")}
+                      at {names[row.location_id] || prettyPlace(row.location_id || "")}
                       {row.hiring === false ? " · not hiring" : ""}
                     </span>
                   </li>

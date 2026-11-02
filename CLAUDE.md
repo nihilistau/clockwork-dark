@@ -747,12 +747,14 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
 - THE LONG CON has no stage, so on desktop the roll card's one line covers
   one log line for its 6 s (v0.21.0; Dev Story's engine skin has a stage, and
   its card sits on the plate, re-measured in the final fix wave).
-- The flagship's and NEON CITY's overlays (barter, item use, crafting, posted
-  work, a thread's paper) send the player's words as typed text, which carries
-  no intent, so no skill runs from them and the prose can tell of a trade the
-  save never made (a GOVERNANCE NOT WIRED row names the five files). The
-  overlay-to-intent path is the v0.25.0 (flagship) and v0.28.0 (NEON CITY)
-  overhauls' work, not a fix (v0.21.0 final review, controller ruling).
+- NEON CITY's paper and The Wicked Garden's contracts overlay send the
+  player's words as typed text, which carries no intent, so no skill runs from
+  them and the prose can tell of a thing the save never did (a GOVERNANCE NOT
+  WIRED row names the files). The flagship's four overlays press intents since
+  v0.25.0 T11 (`GET /api/intents/overlay`, `overlay_action`); the others are the
+  v0.28.0 (NEON CITY) and v0.27.0 (Garden) overhauls' work. The flagship's
+  barter cannot press a row at a trader not yet met (a GOVERNANCE row), and it
+  buys one thing a press (no multi-item bargain, a GOVERNANCE row).
 - Under 640px tall, with the people strip in the stage, the scene plate gives
   way to the strip entirely (HUE & CRY at 900x600 and 844x390), so the log
   keeps three lines and the choices two rows (v0.21.0 final fix wave).

@@ -242,9 +242,10 @@ export default {
       key: "b",
       label: "Barter",
       Icon: ScalesIcon,
-      // Core hands every overlay the same `onAct`; barter calls its own verb.
-      Component: ({ sessionId, busy, onAct, onClose }) => (
-        <Trade sessionId={sessionId} busy={busy} onStrike={onAct} onClose={onClose} />
+      // Core hands every overlay the same `onAct`: each barter row presses one
+      // `buy` or `sell` intent through it (v0.25.0 §7.3).
+      Component: ({ state, sessionId, busy, onAct, onClose }) => (
+        <Trade state={state} sessionId={sessionId} busy={busy} onAct={onAct} onClose={onClose} />
       ),
     },
   ],

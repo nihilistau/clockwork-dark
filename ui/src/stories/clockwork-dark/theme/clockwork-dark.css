@@ -1452,7 +1452,9 @@
 
 /* ---------- barter ----------
    Ported from Screens.jsx::TradeScreen. Presentation only: the engine's
-   `trade` skill is the single writer of gold and inventory. */
+   `trade` skill is the single writer of gold and inventory, and each row's
+   button presses one buy or sell intent (v0.25.0 §8.1). The balance beam is
+   retired with the multi-item bargain. */
 
 .barter__columns {
   display: grid;
@@ -1474,12 +1476,6 @@
   border-radius: var(--radius-sm);
   color: var(--text-body);
   text-align: left;
-}
-
-
-.barter.is-on {
-  border-color: var(--accent-candle);
-  background: var(--surface-card);
 }
 
 
@@ -1522,14 +1518,6 @@
 }
 
 
-.barter__worth {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--text-candlelight);
-  font-variant-numeric: tabular-nums;
-}
-
-
 .barter__hint {
   margin: var(--space-1) 0 0;
   font-family: var(--font-narration);
@@ -1539,83 +1527,31 @@
 }
 
 
-.beam {
-  margin-top: var(--space-5);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-panel);
-  border: var(--border-hair) solid var(--line-soft);
-  border-radius: var(--radius-sm);
+/* An overlay action (v0.25.0 §8.1, parts/ActionButton.jsx) is `aria-disabled`,
+   never `disabled`, while a turn runs, a scene owns the turn or the server does
+   not list the pair: focus stays on it. Dimmed through its colour and its
+   fill, never `opacity` on the control, which would dim its focus ring too
+   (the chip's rule, styles/index.css). */
+.btn[aria-disabled="true"] {
+  cursor: not-allowed;
+  background: var(--surface-card);
+  color: var(--text-disabled);
+  box-shadow: none;
+  filter: none;
+  transform: none;
 }
 
-
-.beam__row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-3);
+.barter .btn {
+  flex: none;
 }
 
-
-.beam__label {
-  font-size: var(--text-xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--text-muted);
+.overlay__hold {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-narration);
+  font-style: italic;
+  color: var(--text-candlelight);
 }
 
-
-.beam__value {
-  font-family: var(--font-mono);
-  font-size: var(--text-md);
-}
-
-
-.beam__value.is-fair {
-  color: var(--text-affirm);
-}
-
-
-.beam__value.is-short {
-  color: var(--text-danger);
-}
-
-
-.beam__track {
-  position: relative;
-  height: 8px;
-  margin-top: var(--space-2);
-  background: var(--line-ink);
-  border-radius: var(--radius-pill);
-  overflow: hidden;
-}
-
-
-.beam__pivot {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--accent-brass);
-}
-
-
-.beam__weight {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  transition: width var(--dur-base) var(--ease-quiet);
-}
-
-
-.beam__weight.is-fair {
-  background: var(--text-affirm);
-}
-
-
-.beam__weight.is-short {
-  background: var(--status-danger);
-}
 
 
 /* ============================================================

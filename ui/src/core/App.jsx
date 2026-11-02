@@ -28,6 +28,7 @@ import { createLink } from "./link.js";
 import { installClickSounds, loadCatalog, playSound, turnSent, useSoundLevels, useSoundOnChange } from "./sound/index.js";
 import { narrationVolume, useLinkSounds, useTurnSounds } from "./sound/hooks.js";
 import { controlsLive, createStore } from "./store.js";
+import { routeOverlayAct } from "./overlayAct.js";
 
 // The last line of defence against a server that dies without emitting
 // anything: the old client left every control disabled forever with nothing on
@@ -338,6 +339,30 @@ export default function App({ story }) {
       // an id that frame does not hold (final review finding 8).
       again.current = () => emit("", againRef.current || choiceId);
       emit(echo, choiceId, { choiceId, custom: customText || "", intent: choice?.intent || null });
+    },
+    // `state` is read only through link, busy and sessionId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.link, state.busy, state.sessionId]
+  );
+
+  // An overlay's intent (v0.25.0 §7.1): emitted as `overlay_action`; the server re-checks it against its
+  // overlay list under the turn lock, and a pair no longer on offer comes back as a stale refusal.
+  const sendOverlay = useCallback(
+    ({ action, target, label }) => {
+      if (!controlsLive(state) || !state.sessionId) return;
+      const emit = (spoken) => {
+        turnSent();
+        phoneUpRefusal.current = false;
+        // `move: null`: an overlay press is no narrator choice, so a retry has no choice to re-target.
+        dispatch({ type: "SUBMIT", text: spoken, move: null });
+        socketRef.current?.emit("overlay_action", {
+          session_id: sessionRef.current || state.sessionId,
+          intent: { action, target },
+          label: label || "",
+        });
+      };
+      again.current = () => emit("");
+      emit(label || "");
     },
     // `state` is read only through link, busy and sessionId.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -722,12 +747,15 @@ export default function App({ story }) {
           // an overlay's act buttons are turns too, and `send` would drop a
           // press made offline without a word.
           busy={!controlsLive(state)}
-          // Using an item, crafting, dropping, striking a bargain, taking
-          // posted work: each is sent as the player's TYPED words, which carry
-          // no intent -- so no skill runs from it, and only the narrator reads
-          // it (NOT WIRED, docs/GOVERNANCE.md; v0.21.0 final review finding 9).
-          // The overlay-to-intent path is the v0.25.0 and v0.28.0 overhauls'.
-          onAct={(text) => send("custom", text, text)}
+          // A string is typed text (NEON CITY's paper, the Garden's contracts:
+          // theirs are the v0.28.0 and v0.27.0 overhauls'); an `{action,
+          // target}` is an intent the server checks (v0.25.0 §7.4).
+          onAct={(act) =>
+            routeOverlayAct(act, {
+              sendText: (text) => send("custom", text, text),
+              sendIntent: sendOverlay,
+            })
+          }
           onClose={() => setOverlay(null)}
         />
       )}

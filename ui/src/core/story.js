@@ -160,6 +160,11 @@
  *
  *     {state, sessionId, busy, onAct, onClose}
  *
+ * `onAct(act)`: a string (typed text) or `{action, target, label}` (an overlay
+ * intent, v0.25.0 §7.4), which the server checks against `GET
+ * /api/intents/overlay`'s list under the turn lock (`@core/overlayAct.js`,
+ * `@core/hooks/useOverlayIntents.js`).
+ *
  * There is deliberately no `dispatch`. This paragraph used to say there was,
  * and `Play.jsx` has never passed one -- so the Garden reached for a
  * plugin-local React context and the doc quietly described a client that does
