@@ -54,6 +54,12 @@ notice board `n`) press engine intents, not typed words: each button is a pair
 the server lists (`GET /api/intents/overlay`) and the engine runs before the
 narrator speaks, one thing a press; a pair not on offer is drawn and not
 pressable, and nothing is while a card or an encounter owns the turn.
+Since v0.25.0 the encounter draws an approach not offered this turn unlit and
+binds keys 1-9 to the offered ones while the choice row is empty; the sheet
+names each faction and its standing's word; **The ways it ends** (`e`) lists
+the doors open now (title, tease, how close), never a locked one; who is here
+is listed under the sheet; and the ending screen shows the ending's gallery
+plate.
 
 ## The endings and their doors
 

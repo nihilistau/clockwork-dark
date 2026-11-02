@@ -183,6 +183,32 @@ describe("contrast", () => {
   }
 });
 
+describe("the flagship's unlit approach (v0.25.0 §8.2)", () => {
+  // An approach not offered this turn is drawn dashed on the bar's card, in
+  // the phase's muted ink: its edge is a mark (3:1), its words are text (4.5:1).
+  const UNLIT = [
+    ["--approach-unlit-border", "--surface-card", 3],
+    ["--approach-unlit-ink", "--surface-card", 4.5],
+  ];
+  const files = THEMES["clockwork-dark"];
+  const phases = variants(files);
+  it("is defined for each of the four phases", () => {
+    expect(Object.keys(phases).sort()).toEqual(["consuming", "dormant", "spreading", "stirring"]);
+  });
+  for (const [phase, decls] of Object.entries(phases)) {
+    it(`[${phase}]: the unlit border and ink on the card`, () => {
+      const table = { ...palette(CORE), ...palette(files), ...decls };
+      const scene = over(resolveValue("var(--surface-scene)", table, "--surface-scene"), [0, 0, 0, 1]);
+      for (const [fgName, bgName, floor] of UNLIT) {
+        const bg = over(resolveValue(`var(${bgName})`, table, bgName), scene);
+        const fg = over(resolveValue(`var(${fgName})`, table, fgName), bg);
+        const measured = ratio(fg, bg);
+        expect(measured, `${phase}: ${fgName} on ${bgName} is ${measured.toFixed(2)}:1, under ${floor}:1`).toBeGreaterThanOrEqual(floor);
+      }
+    });
+  }
+});
+
 describe("text on a panel's paper reads the panel's tokens", () => {
   // The contrast pairs above hold --panel-ink and --panel-muted on
   // --panel-paper; a core rule colouring a panel's text with a --text-*

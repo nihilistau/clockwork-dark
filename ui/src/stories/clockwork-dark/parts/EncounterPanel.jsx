@@ -13,11 +13,16 @@
  *    never synthesize an option — an invented approach is one the engine will
  *    refuse, which reads to the player as the game lying.
  *  - Taking an approach presses the narrator's choice that carries its intent
- *    (`offered`, spec §2.3); one not offered this turn is drawn and not
- *    pressable.
+ *    (`offered`, spec §2.3); one not offered this turn is drawn UNLIT (dashed,
+ *    muted, "not offered this turn"), unnumbered and not pressable.
+ *
+ * Keys 1-9 press the pressable approaches in order, but only when the choice
+ * row below is empty (`choiceRowEmpty`: `hideChoices` hid every choice), so
+ * two lists never bind one digit (v0.25.0 §8.2), and never while a turn runs.
  */
 import React from "react";
 import useArtUrl from "@core/hooks/useArtUrl.js";
+import { useDigitKeys } from "@core/hooks/useDigitKeys.js";
 import SceneVisual from "./SceneVisual.jsx";
 
 const DIFFICULTY_LABEL = {
@@ -56,14 +61,14 @@ function Resolve({ threat }) {
   );
 }
 
-function Approach({ approach, busy, offered, onTake }) {
+function Approach({ approach, busy, offered, index, numbered, onTake }) {
   const difficulty = DIFFICULTY_LABEL[approach.difficulty] || approach.difficulty;
   const cost = Number(approach.cost_gold) || 0;
 
   return (
     <button
       type="button"
-      className="approach"
+      className={offered ? "approach" : "approach is-unlit"}
       // aria-disabled, never `disabled`, while a turn runs: a disabled button
       // throws its focus to <body> mid-turn (spec §8.2, F9).
       aria-disabled={busy || !offered ? "true" : undefined}
@@ -71,7 +76,14 @@ function Approach({ approach, busy, offered, onTake }) {
         if (offered && !busy) onTake(approach);
       }}
     >
-      <span className="approach__text">{approach.text}</span>
+      <span className="approach__text">
+        {offered && numbered && index >= 0 && index < 9 && (
+          <span className="approach__key" aria-hidden="true">
+            {index + 1}
+          </span>
+        )}
+        {approach.text}
+      </span>
       <span className="approach__meta">
         {/* An automatic approach makes no roll at all. Showing a difficulty
             beside it would promise a check the engine is not going to make. */}
@@ -90,12 +102,24 @@ function Approach({ approach, busy, offered, onTake }) {
   );
 }
 
-export default function EncounterPanel({ encounter, world, phase, sceneImage, busy, offered = new Map(), onTake }) {
+export default function EncounterPanel({
+  encounter,
+  world,
+  phase,
+  sceneImage,
+  busy,
+  offered = new Map(),
+  choiceRowEmpty = false,
+  onTake,
+}) {
   const artUrl = useArtUrl(encounter.art, encounter.art_kind || "enemy");
   const threat = encounter.threat || {};
   const log = encounter.log || [];
   const approaches = encounter.approaches || [];
   const round = Number(encounter.round) || 0;
+  const pressable = approaches.filter((a) => offered.has(a.id));
+  const numbered = Boolean(choiceRowEmpty);
+  useDigitKeys(pressable, (approach) => onTake?.(approach), numbered && !busy);
 
   return (
     <section className="encounter" aria-labelledby="encounter-threat">
@@ -148,7 +172,15 @@ export default function EncounterPanel({ encounter, world, phase, sceneImage, bu
 
       <div className="encounter__approaches" role="group" aria-label="Approaches">
         {approaches.map((approach) => (
-          <Approach key={approach.id} approach={approach} busy={busy} offered={offered.has(approach.id)} onTake={onTake} />
+          <Approach
+            key={approach.id}
+            approach={approach}
+            busy={busy}
+            offered={offered.has(approach.id)}
+            index={pressable.indexOf(approach)}
+            numbered={numbered}
+            onTake={onTake}
+          />
         ))}
         {approaches.length === 0 && (
           <p className="encounter__none">

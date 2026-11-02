@@ -585,6 +585,14 @@ export default function App({ story }) {
   useEffect(() => {
     function onKey(event) {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
+      // A key a dialog already answered (its focus trap's Escape) or a digit
+      // the choice row took is not a shortcut. `blocked` alone cannot hold
+      // this: a real browser flushes the dialog's close in a microtask before
+      // the event reaches window, so this listener is re-bound with `blocked`
+      // false and saw the same Escape -- the press that closed an overlay
+      // opened the pause menu, and the press that closed the menu re-opened
+      // it (v0.25.0 T12, ui/tests/app-escape.test.jsx).
+      if (event.defaultPrevented) return;
       const tag = event.target?.tagName;
       const typing = tag === "INPUT" || tag === "TEXTAREA" || event.target?.isContentEditable;
 

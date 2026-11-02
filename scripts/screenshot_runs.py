@@ -76,6 +76,7 @@ PLAYERS: dict[str, str] = {
     "media": "Wren Fairley",
     "world": "Wren Vesper",
     "scene": "Wren Larkin",
+    "barter": "Wren Cooper",
 }
 #: Each story's archetype, named rather than left to the manifest's default.
 ARCHETYPES: dict[str, str] = {
@@ -121,6 +122,9 @@ RUNS: dict[str, dict[str, tuple[Step, ...]]] = {
             ("alternate", "travel", "forest_clearing|edgewood_square", "24"),
             ("offer", "encounter"),
         ),
+        # The layout's overlay check (v0.25.0 §8): the square holds vendors,
+        # so the barter overlay opens on a counter with rows to press.
+        "barter": (("intent", "travel", "edgewood_square"),),
     },
     # Stepping through the gate deals the ten-card prologue: "deck" stops on
     # its first card, "play" deals it out to the garden beyond.

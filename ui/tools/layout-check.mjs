@@ -35,6 +35,10 @@
  * also gates the log's whole lines (`logLines`) and the people strip
  * (`people`: inside the window, no card cut at its edge).
  *
+ * The story's overlays named in `OVERLAY_PROBES` (v0.25.0 §8) are opened by
+ * their keys after the main probe, each gated like a dialog (no control cut
+ * off) and photographed as `...-<size>-overlay-<key>.png`.
+ *
  * The shelf region's panels must show their heading inside the shelf and the
  * viewport, scrolled to if need be (T9: the job panel at 844x390). The
  * ledger region's panels (the sheet column, under the Ledger) are gated
@@ -183,10 +187,75 @@ async function probe(browser, opts, tag, player, size) {
     if (ledger.clipped?.length) result.failures.push(`ledger controls cut off unreachably: ${ledger.clipped.join("; ")}`);
     const sound = await soundSettings(page);
     for (const failure of sound.failures) result.failures.push(`settings: ${failure}`);
-    return { ...result, shelf, roll, ledger, sound, png: file, override: opts.panels ? { panels: opts.panels } : null };
+    const overlays = await overlayScreens(page, opts, tag, size);
+    for (const failure of overlays) result.failures.push(failure);
+    return { ...result, shelf, roll, ledger, sound, overlays, png: file, override: opts.panels ? { panels: opts.panels } : null };
   } finally {
     await context.close();
   }
+}
+
+/**
+ * Every control of the open dialog, scrolled to (`block: "nearest"`, as a player's scroll would), must lie
+ * wholly inside the window and the dialog's own card. `clippedControlsIn` reads a control below a scrolling
+ * body inside a clipping card as cut, though the body scrolls it into reach, so a dialog is walked this way.
+ */
+export function unreachableInDialog() {
+  const root = document.querySelector("[role=dialog]");
+  if (!root) return ["no dialog"];
+  const out = [];
+  for (const el of root.querySelectorAll("button, a[href], input, select, textarea")) {
+    const st = getComputedStyle(el);
+    if (st.visibility === "hidden" || st.display === "none") continue;
+    if (el.getBoundingClientRect().width <= 0) continue;
+    el.scrollIntoView({ block: "nearest" });
+    const b = el.getBoundingClientRect();
+    const c = root.getBoundingClientRect();
+    const inside =
+      b.top >= Math.max(0, c.top) - 0.5 && b.bottom <= Math.min(innerHeight, c.bottom) + 0.5 &&
+      b.left >= Math.max(0, c.left) - 0.5 && b.right <= Math.min(innerWidth, c.right) + 0.5;
+    if (!inside) {
+      const name = (typeof el.className === "string" && el.className.trim()) || el.tagName.toLowerCase();
+      out.push(`${name}: ${(el.textContent || el.getAttribute("aria-label") || "").trim().slice(0, 40)}`);
+    }
+  }
+  return out;
+}
+
+/** Overlays opened and probed per story run (v0.25.0 §8): each by its key, gated like a dialog. */
+export const OVERLAY_PROBES = { "clockwork-dark": ["i", "b", "n", "e"] };
+
+/**
+ * Each of the story's probed overlays, opened by its key from the play screen: a dialog must open, no
+ * control in it may be cut off unreachably (`clippedControlsIn`), and it is photographed as
+ * `...-<size>-overlay-<key>.png`. Escape closes it before the next.
+ */
+async function overlayScreens(page, opts, tag, size) {
+  const failures = [];
+  const keys = OVERLAY_PROBES[opts.story] || [];
+  if (keys.length && (await page.locator("[role=dialog]").count())) {
+    failures.push("overlays: a dialog was already open before the first key");
+    return failures;
+  }
+  for (const k of keys) {
+    // A key typed into the compose box is a letter, not a shortcut.
+    await page.evaluate(() => document.activeElement?.blur?.());
+    await page.keyboard.press(k);
+    const dialog = await page.waitForSelector("[role=dialog]", { timeout: 5000 }).catch(() => null);
+    if (!dialog) {
+      failures.push(`overlay ${k}: no dialog opened`);
+      continue;
+    }
+    await page.waitForTimeout(400);
+    const clipped = await page.evaluate(unreachableInDialog);
+    if (clipped.length) failures.push(`overlay ${k}: ${clipped.length} control(s) cut off: ${clipped.join(", ")}`);
+    await page.screenshot({ path: join(opts.out, `${opts.story}-${tag}-${size.name}-overlay-${k}${opts.suffix}.png`) });
+    await page.keyboard.press("Escape");
+    await page.waitForSelector("[role=dialog]", { state: "detached", timeout: 5000 }).catch(() => {
+      failures.push(`overlay ${k}: Escape did not close it`);
+    });
+  }
+  return failures;
 }
 
 /**

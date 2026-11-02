@@ -14,15 +14,18 @@
 import React from "react";
 
 import { matchApproaches, matchedChoiceIds } from "@core/panels/approaches.js";
+import PeopleStrip from "@core/panels/PeopleStrip.jsx";
 import { useSoundOnChange } from "@core/sound/index.js";
 
 import AssistantColumn from "./parts/AssistantColumn.jsx";
 import DiceToast from "./parts/DiceToast.jsx";
 import EncounterPanel from "./parts/EncounterPanel.jsx";
+import EndingPlate from "./parts/EndingPlate.jsx";
 import Inventory from "./parts/Inventory.jsx";
 import SceneVisual from "./parts/SceneVisual.jsx";
 import Sheet from "./parts/Sheet.jsx";
 import Codex from "./screens/Codex.jsx";
+import Ends from "./screens/Ends.jsx";
 import Journal from "./screens/Journal.jsx";
 import Notices from "./screens/Notices.jsx";
 import Trade from "./screens/Trade.jsx";
@@ -113,6 +116,10 @@ function FlagshipStage({ state, onChoose, controlsOff }) {
   useSoundOnChange(live, "encounter.start", { when: (a, b) => !a && b });
   if (Object.keys(encounter).length > 0) {
     const offered = matchApproaches(encounter, state.choices);
+    // True exactly when `hideChoices` (core's rule, below) hides every choice:
+    // only then do the digits belong to the approaches (v0.25.0 §8.2).
+    const hidden = matchedChoiceIds(encounter, state.choices);
+    const choiceRowEmpty = (state.choices || []).every((c) => hidden.has(c.id));
     return (
       <EncounterPanel
         encounter={encounter}
@@ -123,6 +130,7 @@ function FlagshipStage({ state, onChoose, controlsOff }) {
         // while offline would reach nothing.
         busy={controlsOff}
         offered={offered}
+        choiceRowEmpty={choiceRowEmpty}
         // An approach is pressed as the narrator's intent-bearing choice
         // (spec §2.3, rule 1): the engine runs encounter_approach before
         // narration. One the narrator did not offer is not pressable.
@@ -205,17 +213,30 @@ export default {
    */
   Stage: FlagshipStage,
 
+  // The sheet, then who is here (v0.25.0 §8.5): core's people strip in its
+  // ledger shape, drawn by the plugin rather than declared in game.yaml's
+  // `ui.panels`, because the declaration rides the catalogue (`/api/games`)
+  // and would move the local-mode golden's recording (ruling M8: gate, never
+  // re-record). The strip draws nothing when nobody is here.
   Ledger: ({ state, onOpenOverlay }) => (
-    <Sheet
-      world={state.world}
-      sessionId={state.sessionId}
-      onOpenPack={() => onOpenOverlay("pack")}
-    />
+    <>
+      <Sheet
+        world={state.world}
+        sessionId={state.sessionId}
+        onOpenPack={() => onOpenOverlay("pack")}
+      />
+      <div className="ledger-panels">
+        <PeopleStrip state={state} region="ledger" />
+      </div>
+    </>
   ),
 
   Toast: ({ state, showDiceBreakdown }) => (
     <DiceToast dice={state.dice} showBreakdown={showDiceBreakdown} />
   ),
+
+  // The ending's gallery plate in place of core's gallery line (v0.25.0 §8.6).
+  EndingArt: EndingPlate,
 
   // Its DiceToast and EncounterPanel draw these two systems (spec §2.3), so
   // core's own rolls and encounter panels stand down.
@@ -230,6 +251,16 @@ export default {
     { id: "pack", key: "i", label: "The pack", Icon: PackIcon, Component: Inventory },
     { id: "journal", key: "j", label: "Journal", Icon: JournalIcon, Component: Journal },
     { id: "codex", key: "c", label: "Codex", Icon: AtlasIcon, Component: Codex },
+    // Only the doors open now (v0.25.0 §8.4); the hiding is cosmetic (Ends.jsx).
+    {
+      id: "ends",
+      key: "e",
+      label: "The ways it ends",
+      Icon: JournalIcon,
+      Component: Ends,
+      // The payload carries `endings` only for a story with an endings table.
+      when: (state) => Array.isArray(state.world?.endings?.gallery),
+    },
     {
       id: "notices",
       key: "n",

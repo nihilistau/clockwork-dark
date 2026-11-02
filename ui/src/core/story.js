@@ -98,6 +98,9 @@
  *                 payload's render order and draws any story correctly; a
  *                 story overrides it only when its last page is typeset rather
  *                 than listed, which is the Garden's case and nobody else's.
+ *   EndingArt     EndingArt({ending}): draws the ending's gallery plate in place
+ *                 of core's gallery line (optional; v0.25.0 §8.6). Read by
+ *                 core's Ending only, so a story with its own `Ending` ignores it.
  *   PlayScreen    v0.22.0 (spec §18.1). Replaces core's whole play screen
  *                 (`Play`): {state, sessionId, busy, onAct, onOpenMenu,
  *                 onOpenSaves, blocked} -- `blocked` is true while core's

@@ -769,8 +769,10 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   in the people strip (`PeopleStrip.jsx`), which jurisdiction the poster
   stands in (`_law_block`), the prose of a turn finished across a server
   restart, a story switched in another tab then a reconnect, a player's
-  place in the queue, and the flagship's and NEON CITY's encounter look
-  (theirs to restyle in v0.25.0 and v0.28.0).
+  place in the queue, and NEON CITY's encounter look (its to restyle in
+  v0.28.0; the flagship's was restyled in v0.25.0 T12). Since v0.25.0 T12 also
+  the endings block below `unlocked` (`endings.py::to_client` ships every tier;
+  the flagship's "The ways it ends" hides them in the client only).
 - The `process` guard (`tests/tier_plugin.py`, v0.21.1) sees only the
   suite's direct `subprocess.Popen` children. A grandchild interpreter (an
   `sh`, or on Windows a `cmd /c`, that starts python) and a start that

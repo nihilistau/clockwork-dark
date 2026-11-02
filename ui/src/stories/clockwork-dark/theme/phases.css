@@ -15,6 +15,8 @@
   --surface-narrative: #1b1f1a;
   --accent-candle:     #d6b26c;
   --corruption-reveal: 0; /* @kind other */ /* corruption motifs hidden */
+  --approach-unlit-border: #6c726a; /* an approach not offered this turn: dashed, 3:1 on the card (v0.25.0 §8.2) */
+  --approach-unlit-ink:    #959b91; /* its muted words, 4.5:1 on the card */
 }
 
 /* STIRRING — brass creeps warmer; shadows slightly too long. */
@@ -26,6 +28,8 @@
   --accent-brass:      #b8863f;
   --line-soft:         rgba(190, 118, 58, 0.18); /* brass-tinted rules */
   --corruption-reveal: 0.25; /* @kind other */
+  --approach-unlit-border: #76705d; /* an approach not offered this turn: dashed, 3:1 on the card (v0.25.0 §8.2) */
+  --approach-unlit-ink:    #a39c86; /* its muted words, 4.5:1 on the card */
 }
 
 /* SPREADING — sickly chartreuse bleeds into the cold. */
@@ -39,6 +43,8 @@
   --line-soft:         rgba(122, 158, 79, 0.22);
   --line-brass:        var(--corruption);
   --corruption-reveal: 0.6; /* @kind other */
+  --approach-unlit-border: #6e7a58; /* an approach not offered this turn: dashed, 3:1 on the card (v0.25.0 §8.2) */
+  --approach-unlit-ink:    #9aa586; /* its muted words, 4.5:1 on the card */
 }
 
 /* CONSUMING — near-black, high contrast, clockwork filigree. */
@@ -52,4 +58,6 @@
   --line-ink:          #020302;
   --status-corruption: #9bb862;
   --corruption-reveal: 1; /* @kind other */
+  --approach-unlit-border: #6a7457; /* an approach not offered this turn: dashed, 3:1 on the card (v0.25.0 §8.2) */
+  --approach-unlit-ink:    #a3aa8f; /* its muted words, 4.5:1 on the card */
 }
