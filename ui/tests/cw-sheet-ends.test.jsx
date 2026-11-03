@@ -46,6 +46,12 @@ describe("the ways it ends", () => {
     expect(ends.key).toBe("e");
     expect(ends.label).toBe("The ways it ends");
   });
+  it("has its own icon, no other overlay's (T14)", () => {
+    const ends = flagship.overlays.find((o) => o.id === "ends");
+    for (const other of flagship.overlays.filter((o) => o.id !== "ends")) {
+      expect(other.Icon).not.toBe(ends.Icon);
+    }
+  });
 });
 
 describe("the sheet's standing", () => {

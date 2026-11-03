@@ -381,6 +381,12 @@ def test_a_dealt_door_stays_answerable_after_its_person_leaves(flagship) -> None
     doors.hearth_door(state)
     _deal(state, "the_morning_firing")
     advance_time(state, 8.0)                       # 05:00 -> 13:00
+    # Non-vacuous only while she has gone (T14 review, d2): the door's own predicate and her place.
+    from engine.game.quests import evaluate_condition
+    from engine.world import npc_sim
+
+    assert not evaluate_condition(state, {"npc_here": "npc_maris"})
+    assert npc_sim.resolve_npc(state, "npc_maris").location_id != "edgewood_bakery"
     assert director.resolve(state, chosen="stay")["ok"]
     assert endings.locked(state) == "the_hearth_holds"
 
@@ -582,6 +588,9 @@ def test_leaving_the_pin_grants_no_pin(flagship) -> None:
     ("the_ninth_pin", 2, "nf_ninth_left"),
     ("the_sacrifice", 1, "nf_sacrifice_chosen"),
     ("the_sacrifice", 2, "nf_sacrifice_paid"),
+    ("banking_the_fire", 1, "nf_hearth_book_closed"),
+    ("militia_press", 1, "nf_press_spoke_up"),
+    ("militia_press", 1, "nf_press_gave_name"),
 ])
 def test_the_narrator_cannot_raise_a_card_carried_flag(flagship, quest_id, index, flag_id) -> None:
     from engine.game.quests import QuestEngine

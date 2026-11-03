@@ -42,3 +42,17 @@ def test_it_writes_nothing_and_needs_a_session(client) -> None:
     http.get("/api/factions", query_string={"session_id": session_id})
     assert state.to_save_dict() == before
     assert http.get("/api/factions").status_code == 404
+
+
+def test_a_failed_read_answers_no_rows_not_a_500(client, monkeypatch) -> None:
+    """T14 (review a5): a malformed band or a read that meets a turn answers `[]`, as /api/people does."""
+    from engine.scenes import default_api
+
+    _scene, http, session_id = client
+
+    def broken(_state):
+        raise ValueError("a band with no number")
+
+    monkeypatch.setattr(default_api, "faction_rows", broken)
+    answer = http.get("/api/factions", query_string={"session_id": session_id})
+    assert answer.status_code == 200 and answer.get_json() == []

@@ -252,6 +252,22 @@ def test_the_route_lists_every_verb_and_whether_a_scene_owns_the_turn(game) -> N
     assert http.get("/api/intents/overlay", query_string={"session_id": "000000000000"}).status_code == 404
 
 
+def test_a_failed_offer_read_is_not_a_scene_owning_the_turn(game, monkeypatch) -> None:
+    """T14 (review c-m5): a failed read answers nothing pressable, never `scene_owns_turn: true`, so no
+    overlay says "Answer what is in front of you first" with nothing in front of the player."""
+    from engine.scenes import default_api
+
+    _scene, _app, http, session = game
+
+    def broken(_state):
+        raise RuntimeError("a half-moved world")
+
+    monkeypatch.setattr(default_api, "overlay_offer", broken)
+    answer = http.get("/api/intents/overlay", query_string={"session_id": session.session_id})
+    assert answer.status_code == 200
+    assert answer.get_json() == {"scene_owns_turn": False, "actions": {}}
+
+
 def test_an_unknown_action_is_refused_before_any_turn(game) -> None:
     scene, app, _http, session = game
     sio = scene.socketio.test_client(app)
@@ -270,6 +286,29 @@ def test_an_overlay_pair_stale_before_the_turn_is_refused_with_nothing_run(game)
         "session_id": session.session_id, "overlay_intent": {"action": "buy", "target": "npc_maris/no_such_loaf"}})
     assert answer.status_code == 409 and answer.get_json()["stale_choice"] is True
     assert session.engine.state.stats.gold == gold and not PROMPTS
+
+
+def test_a_pair_listed_a_turn_ago_and_gone_now_is_refused_with_nothing_run(game) -> None:
+    """Review Focus 2, exactly (T14 review, d4): a pair the overlay list held, pressed after the world
+    moved under it (the coin spent elsewhere), is refused before any turn: 409, stale, nothing run."""
+    from engine.game import intents, inventory
+    from engine.game.effects import apply_effect
+
+    _scene, _app, http, session = game
+    state = session.engine.state
+    _at(state, "edgewood_bakery", 9)
+    listed = http.get("/api/intents/overlay", query_string={"session_id": session.session_id}).get_json()
+    target = listed["actions"]["buy"][0]["target"]
+    assert target in [t for t, _ in intents.overlay_targets(state)["buy"]]
+    apply_effect(state, {"type": "gold", "delta": -state.stats.gold})     # the coin spent since
+    assert target not in [t for t, _ in intents.overlay_targets(state)["buy"]]
+    item_id = target.split("/", 1)[1]
+    carried, turn = inventory.quantity(state, item_id), state.turn_number
+    answer = http.post("/api/game/choice", json={
+        "session_id": session.session_id, "overlay_intent": {"action": "buy", "target": target}})
+    assert answer.status_code == 409 and answer.get_json()["stale_choice"] is True
+    assert state.stats.gold == 0 and inventory.quantity(state, item_id) == carried
+    assert state.turn_number == turn and not PROMPTS
 
 
 def test_a_pair_made_stale_under_the_lock_reaches_the_prose(game) -> None:
@@ -324,16 +363,30 @@ def test_a_legal_press_runs_its_skill_and_the_turn_carries_it(game) -> None:
 
 
 def test_a_second_overlay_press_while_a_turn_runs_is_busy(game) -> None:
+    """Review Focus 3 (T14 review, d5): a real listed purchase pressed while a turn holds the lock is
+    answered busy and buys nothing; pressed again once the lock is free, it buys once."""
+    from engine.game import intents, inventory
+
     scene, app, _http, session = game
+    state = session.engine.state
+    _at(state, "edgewood_bakery", 9)
+    target = intents.overlay_targets(state)["buy"][0][0]
+    item_id = target.split("/", 1)[1]
+    gold, carried = state.stats.gold, inventory.quantity(state, item_id)
+    press = {"session_id": session.session_id, "intent": {"action": "buy", "target": target}}
     sio = scene.socketio.test_client(app)
     sio.get_received()
     assert session.lock.acquire(blocking=False)
     try:
-        sio.emit("overlay_action", {"session_id": session.session_id, "intent": {"action": "eat", "target": "x"}})
+        sio.emit("overlay_action", press)
     finally:
         session.lock.release()
     (event,) = [e for e in sio.get_received() if e["name"] == "turn_error"]
     assert event["args"][0]["busy"] is True and not PROMPTS
+    assert state.stats.gold == gold and inventory.quantity(state, item_id) == carried
+    sio.emit("overlay_action", press)
+    assert inventory.quantity(state, item_id) == carried + 1
+    assert 0 < gold - state.stats.gold                  # one price paid, once
 
 
 def test_typed_text_still_carries_no_intent(game) -> None:

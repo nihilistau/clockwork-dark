@@ -134,7 +134,7 @@ export default function Trade({ state, sessionId, busy, onAct, onClose }) {
               {vendor.buys.map((item) => (
                 <Row key={item.id} item={item}>
                   <ActionButton offer={offer} action="sell" target={`${vendor.npc_id}/${item.id}`}
-                    busy={busy} onAct={press} why={stranger || "They buy none of it."}>
+                    busy={busy} onAct={press} verb="Sell" why={stranger || "They buy none of it."}>
                     Sell · {item.price}c
                   </ActionButton>
                 </Row>
@@ -149,7 +149,7 @@ export default function Trade({ state, sessionId, busy, onAct, onClose }) {
               {vendor.sells.map((item) => (
                 <Row key={item.id} item={item}>
                   <ActionButton offer={offer} action="buy" target={`${vendor.npc_id}/${item.id}`}
-                    busy={busy} onAct={press} why={stranger || "Not affordable."}>
+                    busy={busy} onAct={press} verb="Buy" why={stranger || "Not affordable."}>
                     Buy · {item.price}c
                   </ActionButton>
                 </Row>

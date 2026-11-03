@@ -583,3 +583,66 @@ def test_concurrent_polls_naming_one_session_each_count(  # T14 fix round 1, I1
     assert holds.of_account("u_a") == 1  # the WebSocket alone
     assert [holds.try_take("u_a", "sid1") for _ in range(4)] == ["", "", "", ACCOUNT]
     assert holds.of_account("u_a") == 4
+
+
+# -- an overlay's press (v0.25.0 T14, review a1) --------------------------------
+
+
+def test_an_overlay_press_spends_from_the_actions_bucket(
+    hosted: Hosted, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    ``overlay_action`` runs a whole narrated turn, so it is an action event:
+    with the bucket spent by a ``player_choice``, the press is refused
+    ``turn_error`` ``busy: false`` and its handler never runs. Failed before
+    T14 (the event was not in ``ACTION_EVENTS``: the press ran).
+    """
+    account, client, opened = _player(hosted)
+    session_id = opened["session_id"]
+    sio = _sio(hosted, client)
+    sio.emit("join_session", {"session_id": session_id})
+    sio.get_received()
+    _one_token(hosted)
+    sio.emit("player_choice", {"session_id": session_id, "choice_id": "a"})
+    first = [e["name"] for e in sio.get_received()]
+    assert first and "turn_error" not in first, first
+    before = _turn_number(hosted, account, session_id)
+    ran: list[Any] = []
+    import engine.scenes.default_scene as default_scene
+
+    real = default_scene.resolve_overlay_intent
+    monkeypatch.setattr(default_scene, "resolve_overlay_intent", lambda *a, **k: ran.append(a) or real(*a, **k))
+    sio.emit("overlay_action", {"session_id": session_id, "intent": {"action": "eat", "target": "x"}})
+    assert sio.get_received() == [SLOW]
+    assert ran == []
+    assert _turn_number(hosted, account, session_id) == before
+    sio.disconnect()
+
+
+@pytest.mark.parametrize("field", ["target", "label"])
+def test_an_overlay_press_over_the_cap_is_refused_not_cut(hosted: Hosted, field: str) -> None:
+    """The overlay's intent target and its echoed label are held to ``max_input_chars`` (T14, a1)."""
+    account, client, opened = _player(hosted)
+    session_id = opened["session_id"]
+    sio = _sio(hosted, client)
+    sio.emit("join_session", {"session_id": session_id})
+    sio.get_received()
+    before = _turn_number(hosted, account, session_id)
+    body: dict[str, Any] = {"session_id": session_id, "intent": {"action": "eat", "target": "t"}, "label": ""}
+    if field == "target":
+        body["intent"]["target"] = "x" * (CAP + 1)
+    else:
+        body["label"] = "x" * (CAP + 1)
+    sio.emit("overlay_action", body)
+    assert sio.get_received() == [
+        {"name": "turn_error", "args": [{"message": too_long(CAP), "busy": False}], "namespace": "/"}
+    ]
+    assert _turn_number(hosted, account, session_id) == before
+    # The REST twin's nested intent is held to the same cap.
+    refused = client.post(
+        "/api/game/choice",
+        json={"session_id": session_id, "overlay_intent": {"action": "eat", "target": "x" * (CAP + 1)}},
+    )
+    assert refused.status_code == 400
+    assert refused.get_json() == {"error": too_long(CAP)}
+    sio.disconnect()

@@ -38,6 +38,47 @@ LEGACY_SLOT_STORIES = ("wicked-garden", "dev-story")
 LEGACY_STREAMS = ("schedule.caravan", "schedule.tinker", "schedule.militia")
 LEGACY_SLOT_IDS = ("caravan_arrival", "tinker_camp", "militia_press")
 LEGACY_TICKS = 120
+#: The trees a recording reads: a change in either makes the recording not v0.24.0's.
+RECORDED_TREES = ("engine", "games")
+_REPO = Path(__file__).resolve().parents[1]
+
+
+def dirty_recorded_paths(porcelain: str) -> list[str]:
+    """The paths under ``RECORDED_TREES`` a ``git status --porcelain`` listing names."""
+    out: list[str] = []
+    for line in porcelain.splitlines():
+        path = line[3:].strip().strip('"').replace("\\", "/")
+        if " -> " in path:
+            path = path.split(" -> ", 1)[1]
+        if path.split("/", 1)[0] in RECORDED_TREES:
+            out.append(path)
+    return out
+
+
+def refuse_a_dirty_tree(status: Any = None) -> None:
+    """
+    ``CLOCKWORK_FLAGSHIP_RECORD=1`` re-records from whatever tree it runs in, and every
+    byte-identity test then passes against that tree (T14 review, d6). So it refuses a tree whose
+    ``engine/`` or ``games/`` carries uncommitted changes: the recording is meaningful only from a
+    clean v0.24.0 worktree (3c6882f, plan T0). ``status`` returns the porcelain text (a test's fake).
+    """
+    if status is None:
+        import subprocess
+
+        def status() -> str:
+            return subprocess.run(
+                ["git", "status", "--porcelain", "--", *RECORDED_TREES],
+                cwd=_REPO, capture_output=True, text=True, check=True,
+            ).stdout
+
+    dirty = dirty_recorded_paths(status())
+    if dirty:
+        pytest.fail(
+            "CLOCKWORK_FLAGSHIP_RECORD=1 refuses to record from a dirty tree: "
+            f"{', '.join(dirty[:8])}{' ...' if len(dirty) > 8 else ''} carry uncommitted changes. "
+            "Record from a clean git worktree at 3c6882f (v0.24.0, plan T0).",
+            pytrace=False,
+        )
 #: Save keys that differ between two runs of one seed (wall clock, minted ids).
 #: Step 4 records twice and adds any key that differed, with a comment saying why.
 #: Plan T0's two recordings differed in exactly these two (the saves' fixtures

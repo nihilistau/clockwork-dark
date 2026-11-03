@@ -220,6 +220,23 @@ class WorldSim:
             )
 
     @staticmethod
+    def apply_started(state: GameState, events: list[SimEvent]) -> None:
+        """
+        ``apply_events``, then each fire-once event's ``event_fired_`` flag
+        (its payload's ``fired_flag``) through ``effects.apply_effect``: the
+        one pair the day roll (``clock.advance_time``) and the force hook
+        (``on_tick(force=...)``) both use, so a forced fire-once event is not
+        started again by its still-true ``when:`` (v0.25.0 T14).
+        """
+        from engine.game import effects as effects_module
+
+        WorldSim.apply_events(state, events)
+        for event in events:
+            flag = event.payload.get("fired_flag")
+            if flag:
+                effects_module.apply_effect(state, {"type": "flag", "flag": flag, "value": True})
+
+    @staticmethod
     def on_tick(
         state: GameState,
         *,
@@ -296,5 +313,5 @@ class WorldSim:
             ):
                 events.append(force_declared(state, event_id, spec))
 
-        WorldSim.apply_events(state, events)
+        WorldSim.apply_started(state, events)
         return events

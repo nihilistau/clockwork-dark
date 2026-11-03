@@ -343,7 +343,6 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
             _in_death_check() and schedules_module.declares_probabilistic()
         ):
             try:
-                from engine.game import effects as effects_module
                 from engine.world.world_sim import WorldSim
 
                 # A probabilistic declared event reads its activity per day from
@@ -354,13 +353,7 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
                     state, from_day, to_day, active_before=active_before
                 )
                 if due:
-                    WorldSim.apply_events(state, due)
-                    for event in due:
-                        flag = event.payload.get("fired_flag")
-                        if flag:
-                            effects_module.apply_effect(
-                                state, {"type": "flag", "flag": flag, "value": True}
-                            )
+                    WorldSim.apply_started(state, due)
             except ImportError:
                 pass
 

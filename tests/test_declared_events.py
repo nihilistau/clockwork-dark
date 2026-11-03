@@ -375,6 +375,22 @@ def test_a_forced_declared_event_starts_today_with_no_draw(certain) -> None:
     assert state.rng_counters.get("event.caravan_arrival", 0) == before.get("event.caravan_arrival", 0)
 
 
+def test_a_forced_fire_once_event_is_not_started_again_by_its_when(declared) -> None:
+    """T14 (review a2): forced, a `when:`-gated fixed event writes its `event_fired_` flag as the day
+    roll's start does, so once it ends its still-true `when:` does not start it a second time."""
+    from engine.game.effects import apply_effect
+
+    state = GameState(rng_seed=1)
+    _to_day(state, 2)
+    apply_effect(state, {"type": "flag", "flag": "curfew_called", "value": True})
+    events = WorldSim.on_tick(state, hours=0.0, force=["curfew"])
+    assert [e.event_id for e in events] == ["curfew"]
+    assert state.flags.get(f"{schedules.EVENT_FIRED_PREFIX}curfew")
+    _to_day(state, 6)
+    assert sum(1 for e in state.moved if "Lanterns out" in e["text"]) == 1
+    assert "curfew" not in _ids(state)
+
+
 def test_a_forced_event_with_a_rumour_draws_only_the_rumour(probabilistic) -> None:
     state = GameState(rng_seed=3)
     set_clock(state, day=2, hour=8)          # its min_day, with no day rolled (no draw)

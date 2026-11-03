@@ -26,8 +26,9 @@
     "The sacrifice_offered_* flags are written by the_price's S1 beats",
     "(data/scenes/the_price.yaml, v0.25.0 T7) and read by its S2: what was",
     "put on Ilya's table, which S2 takes only while it is still held.",
-    "Four nf_* flags (nf_ninth_taken, nf_ninth_left, nf_sacrifice_chosen,",
-    "nf_sacrifice_paid) are no longer the narrator's at all: they left their",
+    "Seven nf_* flags (nf_ninth_taken, nf_ninth_left, nf_sacrifice_chosen,",
+    "nf_sacrifice_paid, nf_hearth_book_closed, nf_press_spoke_up,",
+    "nf_press_gave_name) are no longer the narrator's at all: they left their",
     "stages' narrative_flags, and only deck beats write them.",
     "ending_gallery_unlocked is the deliberately write-only case: every",
     "ending's Seal beat sets it and only the CLIENT reads it."

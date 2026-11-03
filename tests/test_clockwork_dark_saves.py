@@ -167,6 +167,9 @@ def flagship():
 def test_the_v0240_saves_exist_or_are_made_now(flagship) -> None:
     """Under CLOCKWORK_FLAGSHIP_RECORD=1 (plan T0, in the v0.24.0 worktree) this WRITES the nine."""
     if RECORD:
+        from tests import flagship_overhaul_recorder as rec
+
+        rec.refuse_a_dirty_tree()
         SAVES.mkdir(parents=True, exist_ok=True)
         for name, build in BUILDERS.items():
             state = _new()
@@ -225,7 +228,13 @@ def test_save_2_keeps_its_caravan_and_odran(flagship) -> None:
     state = load_fixture("2_caravan_active")
     first = [e for e in state.world_events if e["event_id"] == "caravan_arrival"]
     assert first and "goods" in first[0]["payload"]
+    assert "declared" not in first[0]["payload"]          # the legacy shape, not a declared event's
     state.location_id = "edgewood_square"
+    # Why 05:00 proves it (T14 review, d3): Odran's routine has him at the gate at 05-07 and in the
+    # square from 08, so at the fixture's hour only the legacy caravan can put him in the square.
+    assert 5 <= state.world_hour <= 7, state.world_hour
+    slot = npc_sim._routine_slot(npc_sim.load_npc_schedules()["npcs"]["npc_odran"], state.world_hour)
+    assert slot and slot["location"] != "edgewood_square", slot
     assert npc_sim.resolve_npc(state, "npc_odran").location_id == "edgewood_square"
     expires = int(first[0]["expires_day"])
     # Ruling I2: to the caravan's last active day, 23:00 -- an hour at a time, fed and rested on the way

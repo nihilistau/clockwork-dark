@@ -32,7 +32,7 @@ function Notice({ row, offer, busy, onAct }) {
         {row.skill ? ` · ${row.skill}` : ""}
         {row.difficulty ? ` · ${row.difficulty}` : ""}
       </p>
-      <ActionButton offer={offer} action="work" target={row.id} busy={busy} onAct={onAct}
+      <ActionButton offer={offer} action="work" target={row.id} busy={busy} onAct={onAct} verb="Work"
         why="Not now: the shift is full, out of its hours or done for today.">
         Take the shift
       </ActionButton>

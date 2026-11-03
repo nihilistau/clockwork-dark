@@ -33,6 +33,7 @@ import { ONBOARDING } from "./onboarding.js";
 import {
   AtlasIcon,
   BoardIcon,
+  DoorIcon,
   GearMark,
   JournalIcon,
   PackIcon,
@@ -260,7 +261,7 @@ export default {
       id: "ends",
       key: "e",
       label: "The ways it ends",
-      Icon: JournalIcon,
+      Icon: DoorIcon,
       Component: Ends,
       // The payload carries `endings` only for a story with an endings table.
       when: (state) => Array.isArray(state.world?.endings?.gallery),

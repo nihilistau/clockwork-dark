@@ -976,15 +976,19 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   - The replay (`tests/test_rr_playtest_replay.py`) drives the engine with the stub narrator; the real model's
     words, the 80-200 word length and the pane's layout were to be played by hand in
     live play, which is deferred (above).
-- **Live play with a model was never done (v0.23.0's T31, v0.24.0's T12; the owner
-  deferred it again on 2026-10-26).** v0.23.0 shipped without its last four tasks,
+- **Scripted live play with a model was never done (v0.23.0's T31, v0.24.0's T12; the
+  owner deferred it again on 2026-10-26).** v0.23.0 shipped without its last four tasks,
   moved to the end of v0.24.0: T29b ran there as T11 (above, at the owner's 10-seed
   scale, not the 40-seed confirmation), T32 as T13 (the docs pass) and T33 is T14;
-  T31 did not run. Never verified live:
-  - no live model has narrated a scene, a world turn or a typed line (READ RECEIPTS'
-    world narration, scene prose checks and the `xai` image provider are stub- and
-    test-verified only), and the addendum-4 meet-up walk was not played in the
-    browser pane;
+  T31 did not run. One live world turn was played: on 2026-10-30 the owner played a
+  READ RECEIPTS world turn on a live model (ad hoc, not T31's walk), which found the
+  narrator's choices carrying no intent ("Open Natter", "Check Matchstick"), fixed by
+  6510adc (`engine/social/away.py::with_world_choices`; root CHANGELOG, v0.25.0).
+  Never verified live:
+  - no live model has narrated a scene or a typed line, and beyond that one world
+    turn READ RECEIPTS' world narration, scene prose checks and the `xai` image
+    provider are stub- and test-verified only; the addendum-4 meet-up walk was not
+    played in the browser pane;
   - nobody has LISTENED to the sounds (every palette, the audition page);
   - one click giving exactly one sound is shown by jsdom tests only: jsdom cannot show
     the click deferral's ordering in a real browser;
@@ -1046,7 +1050,8 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
     table; 0 deaths at v0.24.0, 14 now): the five policies answer no card, and v0.25.0 moved stage
     completions onto cards. Its 40-seed medians are in band.
   - The barrows' encounter rate is unmeasured: no scripted policy walks them.
-  Also measured and left: a card whose stage waits is dealt again on each visit (in the final
+  Also measured and left: a card whose stage waits is dealt again on each visit, and `S1_choose_what`,
+  dealt to a player at `choose_what` carrying none of the three things, offers only "Not yet" (in the final
   measurement `H1_the_question` up to 24 times in one namer run, `S1_choose_what` up to 3 in one pinner
   run, `Q1_tell_her_or_dont` up to 14 in one payer run since its `not_yet`; the first measurement, before
   the fix rounds, had H1 at 34 and S1 at 11); two decks due at one place deal by deck id

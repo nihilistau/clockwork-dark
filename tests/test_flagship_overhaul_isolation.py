@@ -22,10 +22,19 @@ RECORD = os.environ.get("CLOCKWORK_FLAGSHIP_RECORD") == "1"
 def test_the_v0240_recording_exists_or_is_made_now() -> None:
     """Under CLOCKWORK_FLAGSHIP_RECORD=1 (plan T0, in the v0.24.0 worktree) this WRITES the recording."""
     if RECORD:
+        rec.refuse_a_dirty_tree()
         rec.FIXTURE.parent.mkdir(parents=True, exist_ok=True)
         rec.FIXTURE.write_text(json.dumps(rec.record_all(), indent=1, sort_keys=True) + "\n",
                                encoding="utf-8")
     assert rec.FIXTURE.is_file(), "plan T0 records this from 3c6882f"
+
+
+def test_the_recorder_refuses_a_dirty_tree() -> None:
+    """T14 review (d6): an uncommitted change under engine/ or games/ stops a re-recording, by name."""
+    with pytest.raises(pytest.fail.Exception, match="engine/game/clock.py"):
+        rec.refuse_a_dirty_tree(lambda: " M engine/game/clock.py\n?? games/x/new.yaml\n")
+    rec.refuse_a_dirty_tree(lambda: " M docs/GOVERNANCE.md\n?? tests/new_test.py\n")   # outside: passes
+    rec.refuse_a_dirty_tree(lambda: "")
 
 
 @pytest.fixture(scope="module")

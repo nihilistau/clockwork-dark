@@ -198,8 +198,12 @@ def too_long(limit: int) -> str:
 #: the engine, held to ``hosting.max_input_chars`` (T9 fix round 1): the typed
 #: action, the chosen option's id (an unknown one becomes a sentence in the
 #: prompt), a manual save's label (written into the save index), the
-#: archetype and the seed.
-TEXT_FIELDS = ("custom_text", "choice_id", "slot", "archetype", "seed")
+#: archetype, the seed and an overlay press's echoed ``label``.
+TEXT_FIELDS = ("custom_text", "choice_id", "slot", "archetype", "seed", "label")
+
+#: The nested intent of an overlay's press (v0.25.0 T14): every string value
+#: in it (the action, the target, an equip's slot) is held to the same cap.
+INTENT_FIELDS = ("intent", "overlay_intent")
 
 
 def over_cap(body: Any, max_input_chars: int) -> Optional[str]:
@@ -215,10 +219,16 @@ def over_cap(body: Any, max_input_chars: int) -> Optional[str]:
     """
     if not isinstance(body, dict):
         return None
-    caps = [(key, int(max_input_chars)) for key in TEXT_FIELDS]
-    caps.append(("player_name", PLAYER_NAME_MAX_CHARS))
-    for key, limit in caps:
-        value = body.get(key)
+    caps = [(body.get(key), int(max_input_chars)) for key in TEXT_FIELDS]
+    caps.append((body.get("player_name"), PLAYER_NAME_MAX_CHARS))
+    # An overlay's press (v0.25.0 T14, a1): the socket's `overlay_action`
+    # carries `{intent: {action, target, slot}}`, the REST twin
+    # `{overlay_intent: {...}}`; each string in it is held to the cap too.
+    for key in INTENT_FIELDS:
+        intent = body.get(key)
+        if isinstance(intent, dict):
+            caps.extend((v, int(max_input_chars)) for v in intent.values() if isinstance(v, str))
+    for value, limit in caps:
         if value is not None and len(value if isinstance(value, str) else str(value)) > limit:
             return too_long(limit)
     return None

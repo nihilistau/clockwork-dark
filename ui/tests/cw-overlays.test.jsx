@@ -8,6 +8,8 @@
  * `vendors[].npc_id` and `sells[].id`, `/api/notices`' `notices` and `elsewhere`.
  */
 import React from "react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { button, click, mount } from "./helpers/dom.js";
@@ -81,7 +83,7 @@ describe("the pack", () => {
     await view.renderAsync(<Inventory {...props(onAct)} />);
     click(tile("Loaf"));
     click(button(view.host, "Eat"));
-    expect(onAct).toHaveBeenCalledWith({ action: "eat", target: "loaf", label: "Loaf" });
+    expect(onAct).toHaveBeenCalledWith({ action: "eat", target: "loaf", label: "Eat: Loaf" });
   });
   it("says Wear for a worn slot, from the list, not from tags", async () => {
     serve();
@@ -90,7 +92,16 @@ describe("the pack", () => {
     await view.renderAsync(<Inventory {...props(onAct)} />);
     click(tile("Wool cloak"));
     click(button(view.host, "Wear"));
-    expect(onAct).toHaveBeenCalledWith({ action: "equip", target: "wool_cloak", label: "Wool cloak" });
+    expect(onAct).toHaveBeenCalledWith({ action: "equip", target: "wool_cloak", label: "Wear: Wool cloak" });
+  });
+  it("logs the verb with the thing: Take off is not Wear (T14)", async () => {
+    serve({ ...OFFER, actions: { ...OFFER.actions, equip: [], unequip: [{ target: "wool_cloak", label: "Wool cloak" }] } });
+    const onAct = vi.fn();
+    await view.renderAsync(<Inventory {...props(onAct)} />);
+    await view.renderAsync(<Inventory {...props(onAct)} />);
+    click(tile("Wool cloak"));
+    click(button(view.host, "Take off"));
+    expect(onAct).toHaveBeenCalledWith({ action: "unequip", target: "wool_cloak", label: "Take off: Wool cloak" });
   });
   it("draws food the server does not list and does not press it", async () => {
     serve();
@@ -132,7 +143,7 @@ describe("the pack", () => {
     await view.renderAsync(<Inventory {...props(onAct)} />);
     click(button(view.host, "Making"));
     click(button(view.host, "Make it"));
-    expect(onAct).toHaveBeenCalledWith({ action: "craft", target: "bread", label: "Bread" });
+    expect(onAct).toHaveBeenCalledWith({ action: "craft", target: "bread", label: "Make: Bread" });
   });
   it("keeps Examine as typed text and has no Offer or Drop", async () => {
     serve();
@@ -173,7 +184,7 @@ describe("barter and the board", () => {
     await view.renderAsync(<Trade {...props(onAct)} />);
     await view.renderAsync(<Trade {...props(onAct)} />);
     click(button(view.host, /Buy · 2c/));
-    expect(onAct).toHaveBeenCalledWith({ action: "buy", target: "npc_maris/loaf", label: "Loaf from Maris, 2c" });
+    expect(onAct).toHaveBeenCalledWith({ action: "buy", target: "npc_maris/loaf", label: "Buy: Loaf from Maris, 2c" });
     expect(button(view.host, /Buy · 9c/).getAttribute("aria-disabled")).toBe("true");
     expect(button(view.host, "Strike the bargain")).toBeNull();
   });
@@ -183,7 +194,7 @@ describe("barter and the board", () => {
     await view.renderAsync(<Notices {...props(onAct)} />);
     await view.renderAsync(<Notices {...props(onAct)} />);
     click(button(view.host, "Take the shift"));
-    expect(onAct).toHaveBeenCalledWith({ action: "work", target: "bakery_morning", label: "Morning at the ovens" });
+    expect(onAct).toHaveBeenCalledWith({ action: "work", target: "bakery_morning", label: "Work: Morning at the ovens" });
     expect(view.host.textContent).toContain("Gate watch");
     expect(view.host.textContent).toContain("at Millhaven Gate");
     expect(view.host.querySelectorAll("button").length).toBe(2); // the close button and the one shift
@@ -197,5 +208,19 @@ describe("barter and the board", () => {
     await view.renderAsync(<Notices {...props(onAct)} state={{ world: { turn_number: 4 }, error: "That is not on offer here and now." }} />);
     const after = globalThis.fetch.mock.calls.filter(([u]) => String(u).startsWith("/api/intents/overlay")).length;
     expect(after).toBe(before + 2);
+  });
+});
+
+describe("an unpressable button (T14)", () => {
+  it("neither glows nor sinks: its hover and press rows outrank core's", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/stories/clockwork-dark/theme/clockwork-dark.css"), "utf8");
+    // Core's `.btn:hover:not(:disabled)` and `.btn:active:not(:disabled)` are 0,3,0 and match an
+    // aria-disabled button; the flagship's rows add the attribute (0,4,0).
+    const rule = css.slice(css.indexOf('.btn[aria-disabled="true"],'));
+    const head = rule.slice(0, rule.indexOf("{"));
+    expect(head).toContain('.btn[aria-disabled="true"]:hover:not(:disabled)');
+    expect(head).toContain('.btn[aria-disabled="true"]:active:not(:disabled)');
+    const body = rule.slice(rule.indexOf("{"), rule.indexOf("}"));
+    for (const decl of ["box-shadow: none", "filter: none", "transform: none"]) expect(body).toContain(decl);
   });
 });

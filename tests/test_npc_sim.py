@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from engine.game.clock import set_clock
@@ -230,3 +232,35 @@ def test_missing_schedule_file_falls_back_to_procgen_homes(monkeypatch, tmp_path
         assert presence.location_id == "edgewood_bakery"
     finally:
         npc_sim.reset_schedule_cache()
+
+
+def _flagship_errors_with_decks(decks: Path) -> list[str]:
+    """Every validator ERROR for the flagship with its decks directory swapped for ``decks``."""
+    from engine.games import registry, validation
+
+    manifest = registry.get("clockwork-dark")
+    patched = type(manifest)(**{**manifest.__dict__, "paths": {**manifest.paths, "decks": str(decks)}})
+    return [f"{i.source}|{i.ref_id}|{i.message}"
+            for i in validation.errors_only(validation.validate_story(patched))]
+
+
+def test_the_validator_names_an_npc_here_for_a_person_never_declared(tmp_path: Path) -> None:
+    """T14 (review a3): `{npc_here: npc_marris}` loads and is false forever; the validator says so as an
+    ERROR, naming the person, and the shipped decks (every `npc_here` a declared person) report none."""
+    from engine.games import registry
+
+    real = Path(registry.get("clockwork-dark").paths["decks"])
+    if not real.is_absolute():
+        real = Path(__file__).resolve().parents[1] / real
+    bad = tmp_path / "decks"
+    bad.mkdir()
+    for path in real.glob("*.yaml"):
+        text = path.read_text(encoding="utf-8")
+        if path.name == "the_bakehouse.yaml":
+            assert "npc_here: npc_maris" in text
+            text = text.replace("npc_here: npc_maris", "npc_here: npc_marris")
+        (bad / path.name).write_text(text, encoding="utf-8")
+    errors = _flagship_errors_with_decks(bad)
+    mine = [e for e in errors if "npc_here" in e]
+    assert len(mine) == 1 and "|npc_marris|" in mine[0] and mine[0].split("|")[0].endswith("the_bakehouse.yaml"), errors
+    assert not [e for e in _flagship_errors_with_decks(real) if "npc_here" in e]

@@ -1566,8 +1566,12 @@
    never `disabled`, while a turn runs, a scene owns the turn or the server does
    not list the pair: focus stays on it. Dimmed through its colour and its
    fill, never `opacity` on the control, which would dim its focus ring too
-   (the chip's rule, styles/index.css). */
-.btn[aria-disabled="true"] {
+   (the chip's rule, styles/index.css). The hover and press rows outrank core's
+   `.btn:hover:not(:disabled)` and `.btn:active:not(:disabled)` (0,3,0), which
+   still match an aria-disabled button, so it neither glows nor sinks (T14). */
+.btn[aria-disabled="true"],
+.btn[aria-disabled="true"]:hover:not(:disabled),
+.btn[aria-disabled="true"]:active:not(:disabled) {
   cursor: not-allowed;
   background: var(--surface-card);
   color: var(--text-disabled);

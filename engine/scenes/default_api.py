@@ -1237,7 +1237,9 @@ def story_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
             return jsonify(overlay_offer(session.engine.state))
         except Exception:  # noqa: BLE001 -- the /api/people convention: a mid-turn read answers empty
             logger.exception("[api] Overlay offer failed (operation=api_overlay_intents)")
-            return jsonify({"scene_owns_turn": True, "actions": {}})
+            # Nothing pressable, and no false "answer what is in front of you
+            # first": a failed read is not a scene holding the turn (T14).
+            return jsonify({"scene_owns_turn": False, "actions": {}})
 
     @blueprint.get("/api/factions")
     def api_factions() -> Any:
@@ -1246,7 +1248,11 @@ def story_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
             session = store.require(request.args.get("session_id", ""))
         except KeyError:
             return jsonify({"error": "session not found"}), 404
-        return jsonify(faction_rows(session.engine.state))
+        try:
+            return jsonify(faction_rows(session.engine.state))
+        except Exception:  # noqa: BLE001 -- the /api/people convention: a failed read answers empty (T14)
+            logger.exception("[api] Faction rows failed (operation=api_factions)")
+            return jsonify([])
 
     return blueprint
 

@@ -50,22 +50,26 @@
 # data/canon/state-dictionary.json is the vocabulary.
 #
 # MEASURED (v0.25.0 T10, rule 10; `scripts/simulate_doors.py --policy <name> --seeds 40`, seeds 0-39,
-# cap 1,000 turns; one scripted policy per door). Own ending / another / none, and the median turns
-# to the lock against spec §10.2 (own 80%+, another 10% or less):
+# cap 1,000 turns; one scripted policy per door). The final measurement, after T10's two fix rounds.
+# Own ending / another / none, and the median turns to the lock against spec §10.2 (own 80%+,
+# another 10% or less):
 #   baker      Hearth            100%  / 0%    / 0%     138.5  (120-300)
 #   settler    Dark (stay)       100%  / 0%    / 0%     184.5  (150-350)
 #   witness    Long Witness      92.5% / 7.5%  / 0%     381    (200-400)
-#   marcher    Counted March     87.5% / 12.5% / 0%     182    (other and turns MISSED)
+#   marcher    Counted March     90%   / 10%   / 0%     186.5  (200-400; turns MISSED low)
 #   namer      Named Wound       100%  / 0%    / 0%     527    (350-650)
 #   payer      Price Asked       90%   / 7.5%  / 2.5%   560    (350-650)
-#   pinner     Pin and Join      12.5% / 85%   / 2.5%   620    (400-750; own and other MISSED)
+#   pinner     Pin and Join      57.5% / 40%   / 2.5%   617    (400-750; own and other MISSED)
 #   drifter    Stopped Wheel     100%  / 0%    / 0%     491    (500-900, MISSED low)
 #   reckless   terminal death    100% (band 50%+)
-# No gate moved. `counted` at 16 took the marcher to 95% / 5% but moved the local-mode golden (the
-# gate text rides every payload), so it is 20 still. The pinner's runs stop on the road to the Join.
-# The levers tried, and the misses left, are in the root CHANGELOG and CLAUDE.md's deferred list.
+# No gate moved. Two content changes were kept: `the_heartland_road`'s `walk_the_join` names midday
+# and expires after 5 days, not 3 (pinner 37.5% -> 42.5%), and the Named Wound's `Q1` gained a
+# `not_yet` that ends nothing (pinner 42.5% -> 57.5%). The rest of the pinner's rise is the harness's
+# provisioning (12.5% -> 37.5%). Its 17 lost runs are all in `consuming`. `counted` at 16 moved the
+# local-mode golden (the gate text rides every payload), so it is 20 still. The levers tried, and the
+# misses left, are in the root CHANGELOG and CLAUDE.md's deferred list.
 #
-# Version: v0.3.1 [2026-11-02]
+# Version: v0.3.2 [2026-11-03]
 
 version: 1
 

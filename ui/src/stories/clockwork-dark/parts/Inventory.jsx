@@ -117,23 +117,24 @@ function Detail({ item, offer, busy, onAct }) {
       {held ? (
         <div className="packactions">
           {(offerRow(offer, "eat", item.id) || item.tags?.includes("food")) && (
-            <ActionButton offer={offer} action="eat" target={item.id} busy={busy} onAct={onAct}
+            <ActionButton offer={offer} action="eat" target={item.id} busy={busy} onAct={onAct} verb="Eat"
               why="Not something that will fill you.">
               Eat
             </ActionButton>
           )}
           {offerRow(offer, "use", item.id) && (
-            <ActionButton offer={offer} action="use" target={item.id} busy={busy} onAct={onAct}>
+            <ActionButton offer={offer} action="use" target={item.id} busy={busy} onAct={onAct} verb="Use">
               Use
             </ActionButton>
           )}
           {offerRow(offer, "equip", item.id) && (
-            <ActionButton offer={offer} action="equip" target={item.id} busy={busy} onAct={onAct}>
+            <ActionButton offer={offer} action="equip" target={item.id} busy={busy} onAct={onAct}
+              verb={HELD_SLOTS.includes(offerRow(offer, "equip", item.id).slot) ? "Ready" : "Wear"}>
               {HELD_SLOTS.includes(offerRow(offer, "equip", item.id).slot) ? "Ready" : "Wear"}
             </ActionButton>
           )}
           {offerRow(offer, "unequip", item.id) && (
-            <ActionButton offer={offer} action="unequip" target={item.id} busy={busy} onAct={onAct}>
+            <ActionButton offer={offer} action="unequip" target={item.id} busy={busy} onAct={onAct} verb="Take off">
               Take off
             </ActionButton>
           )}
@@ -218,7 +219,7 @@ function Recipe({ recipe, offer, busy, onAct }) {
 
       <div className="recipe__foot">
         <span className="recipe__why">{why}</span>
-        <ActionButton offer={offer} action="craft" target={recipe.id} busy={busy} onAct={onAct} why={why}>
+        <ActionButton offer={offer} action="craft" target={recipe.id} busy={busy} onAct={onAct} why={why} verb="Make">
           Make it
         </ActionButton>
       </div>

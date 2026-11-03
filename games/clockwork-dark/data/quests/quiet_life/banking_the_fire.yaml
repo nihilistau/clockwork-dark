@@ -70,8 +70,11 @@ stages:
       Decide what this place is to you. Say it at the bakery, at the morning
       firing, where saying it counts -- or let the season turn and keep the
       question.
-    narrative_flags:
-      - nf_hearth_book_closed
+    # Answered on a card, not by the narrator (v0.25.0 §4.1, T14): the
+    # morning firing's H1 `stay` and `stay_anyway` beats write
+    # nf_hearth_book_closed as they lock The Hearth Holds. Offered to the
+    # model, the flag completed this stage with no lock, and H1's door (the
+    # fail-forward's morning door too) never came again.
     complete_when:
       all:
         - flag: nf_hearth_book_closed

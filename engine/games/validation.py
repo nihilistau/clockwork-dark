@@ -666,6 +666,7 @@ class StoryValidator:
         self.check_declared_event_scenes()
         self.check_declared_events()
         self.check_event_references()
+        self.check_npc_here_references()
         self.check_endings_and_epilogues()
         self.check_endless()
         self.check_social()
@@ -1913,6 +1914,56 @@ class StoryValidator:
                             "never raises (no `world_schedules` event, engine slot "
                             "or `event_id` declares it), so it is false forever",
                         )
+
+    def check_npc_here_references(self) -> None:
+        """
+        Every person an ``npc_here`` condition names is one the story declares
+        (v0.25.0 T14). ``{npc_here: npc_marris}`` loads and validates, and
+        ``resolve_npc`` answers None for it forever, so the door it gates never
+        opens and nothing says so. The people a story declares are its
+        ``npc_schedules`` file's ``npcs``, its procgen templates' ``canon_npcs``
+        and every ``npc_ids`` row its own content names (an event's cast).
+        """
+        files = self._story_yaml_files()
+        docs = [(path, _read_yaml(path)) for path in files]
+        uses = [
+            (path, node["npc_here"])
+            for path, doc in docs
+            for node in walk(doc)
+            if "npc_here" in node
+        ]
+        if not uses:
+            return
+        known: set[str] = set()
+        sched_path = self._file("npc_schedules")
+        if sched_path is not None and sched_path.is_file():
+            sched = _read_yaml(sched_path)
+            if isinstance(sched, dict):
+                known |= {str(k) for k in (sched.get("npcs") or {})}
+        templates = self._file("procgen_templates")
+        if templates is not None and templates.is_file():
+            doc = _read_yaml(templates)
+            if isinstance(doc, dict):
+                known |= {
+                    str(row.get("id"))
+                    for row in (doc.get("canon_npcs") or [])
+                    if isinstance(row, dict) and row.get("id")
+                }
+        for _path, doc in docs:
+            for node in walk(doc):
+                ids = node.get("npc_ids")
+                if isinstance(ids, list):
+                    known |= {str(i) for i in ids}
+        for path, value in uses:
+            for npc_id in (value if isinstance(value, list) else [value]):
+                if str(npc_id) not in known:
+                    self._add(
+                        self._rel(path),
+                        str(npc_id),
+                        f"a condition asks `npc_here: {npc_id}`, a person the story "
+                        "never declares (no `npc_schedules` row, canon procgen NPC or "
+                        "event cast), so it is false forever",
+                    )
 
     def _check_beat_shapes(self, source: str, card_id: str, card: Any) -> None:
         """
