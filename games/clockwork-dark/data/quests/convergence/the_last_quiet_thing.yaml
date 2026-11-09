@@ -81,9 +81,11 @@ stages:
 
   - id: tell_her_or_dont
     objective: "Tell Maris what you have paid, or let the morning be a morning."
-    narrative_flags:
-      - nf_lastquiet_said_nothing
-      - nf_lastquiet_told_her
+    # Answered on a card, not by the narrator (v0.25.0 §4.1, T14 follow-up):
+    # the morning firing's Q1 `tell_her` and `say_nothing` beats write these
+    # flags as they lock The Named Wound. Offered to the model, either flag
+    # completed this stage and the quest with no lock, over prose that said
+    # the story had ended. `days_in_stage: 2` still closes the stage.
     complete_when:
       any:
         - flag: nf_lastquiet_told_her

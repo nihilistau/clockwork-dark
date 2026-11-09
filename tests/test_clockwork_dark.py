@@ -591,6 +591,8 @@ def test_leaving_the_pin_grants_no_pin(flagship) -> None:
     ("banking_the_fire", 1, "nf_hearth_book_closed"),
     ("militia_press", 1, "nf_press_spoke_up"),
     ("militia_press", 1, "nf_press_gave_name"),
+    ("the_last_quiet_thing", 2, "nf_lastquiet_told_her"),
+    ("the_last_quiet_thing", 2, "nf_lastquiet_said_nothing"),
 ])
 def test_the_narrator_cannot_raise_a_card_carried_flag(flagship, quest_id, index, flag_id) -> None:
     from engine.game.quests import QuestEngine
