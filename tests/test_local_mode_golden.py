@@ -1111,13 +1111,90 @@ SCENE_CHOICES_SANCTION: list[tuple[str, Callable[[str], str]]] = [
 ]
 
 
+#: S23's nine roads out of Edgewood Square, as ``intents._travel`` lists them
+#: (sorted by id) and ``_label_intents`` chips them.
+S23_ROADS: list[dict[str, Any]] = [
+    {
+        "id": f"road_{target}",
+        "intent": {"action": "travel", "target": target},
+        "intent_label": hours,
+        "text": f"Set out for {name}",
+    }
+    for target, hours, name in (
+        ("charcoal_burn", "2h", "The Charcoal Burn"),
+        ("edgewood_bakery", "0h", "Edgewood Bakery"),
+        ("edgewood_shrine", "0h", "The Shrine of the Unnamed"),
+        ("fallow_farm", "1h", "The Fallow Holding"),
+        ("forest_clearing", "1h", "Forest Clearing"),
+        ("millhaven_gate", "4h", "Millhaven Gate"),
+        ("the_forge", "0h", "Hallam's Forge"),
+        ("tinker_caravan", "0h", "Tinker Caravan"),
+        ("well_row", "0h", "Well Row"),
+    )
+]
+#: S23's exact effect per fixture: the flagship's narrated turns, every one
+#: in Edgewood Square with no scene open and no intent on the stub's choices.
+S23_COUNTS: dict[str, int] = {
+    "clockwork-dark/http_turns.json": 2,
+    "clockwork-dark/join_live.json": 1,
+    "clockwork-dark/socket_stream_turn.json": 1,
+    "clockwork-dark/socket_turns.json": 2,
+}
+
+
+def narrated_turn_offers_the_roads(count: int) -> Callable[[str], str]:
+    """
+    S23 (v0.25.0 T16 fix round 1, found in live play): a narrated turn with no
+    scene, card or cell holding the player and no ``travel`` intent on the
+    narrator's row gets every legal road after it
+    (``default_state._with_scene_choices``). The flagship's recorded narrated
+    turns stand in Edgewood Square with the stub's intentless choices; each
+    now ends with the square's nine roads. A frame whose choices carry an
+    intent (the opening, a resume) is not a narrated intentless turn and is
+    left alone. Raises unless exactly ``count`` turns are touched.
+    """
+
+    def transform(value: Any) -> None:
+        touched = 0
+
+        def walk(node: Any) -> None:
+            nonlocal touched
+            if isinstance(node, dict):
+                choices = node.get("choices")
+                state = node.get("state")
+                if (
+                    isinstance(choices, list)
+                    and isinstance(state, dict)
+                    and not any(c.get("intent") for c in choices)
+                ):
+                    assert (state.get("location_id") or state.get("location")) == "edgewood_square", state
+                    assert not state.get("encounter"), state.get("encounter")
+                    choices.extend(copy.deepcopy(S23_ROADS))
+                    touched += 1
+                for child in node.values():
+                    walk(child)
+            elif isinstance(node, list):
+                for child in node:
+                    walk(child)
+
+        walk(value)
+        assert touched == count, f"S23 touched {touched} turns, not {count}"
+
+    return json_sanction(transform)
+
+
+ROADS_SANCTION: list[tuple[str, Callable[[str], str]]] = [
+    (name, narrated_turn_offers_the_roads(count)) for name, count in S23_COUNTS.items()
+]
+
+
 #: ``(fixture name, transform)``: the recording, as the sanctioned change
 #: makes it. S1 since v0.20.0 T2, S2 since T3, S3-S10 since v0.21.0
 #: (spec §1.2; S7 added in T3 fix round 1, S8 in fix round 2, S9 in the
 #: encounter-resume fix, S10 in T13 fix round 1, S5 in T14), S11 since
 #: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10, S14 since v0.25.0 T2, S15 since
 #: v0.25.0 T3, S16 and S17 since v0.25.0 T4, S18 since v0.25.0 T5, S19 since v0.25.0 T6,
-#: S20 since v0.25.0 T8, S21 since v0.25.0 T15, S22 since v0.25.0 T16; there are no others.
+#: S20 since v0.25.0 T8, S21 since v0.25.0 T15, S22 since v0.25.0 T16, S23 since T16 fix round 1; there are no others.
 SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     BIND_SANCTION,
     *SAVES_SANCTION,
@@ -1141,6 +1218,7 @@ SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     *LEVY_SANCTION,
     ART_SANCTION,
     *SCENE_CHOICES_SANCTION,
+    *ROADS_SANCTION,
 ]
 
 

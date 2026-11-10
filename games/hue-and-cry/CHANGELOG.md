@@ -21,7 +21,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - The codex's Souls list HUE & CRY's declared cast (v0.25.0 T4, an engine change, spec §8.7): the fourteen people of `data/world/npc_schedules.yaml` (Ardane, Brask, the two lanterns, Mother Gannet, Silas, the fences, Quill, Lady Imelda, Tobiah, Sister Ember, Dock Mag and Wren) were missing from it, because it read only the generated households. Each is listed once, by role and home and as "Someone" until met, like every other soul; with no run they are the whole list. No content of this story changed, and its turns and saves do not move.
-- A narrated turn during an open encounter, a dealt card, a job or a cell whose choices carry none of the scene's moves now ends with the scene's own choices, as a resume does (v0.25.0 T16, an engine change: `engine/scenes/default_state.py::_with_scene_choices`). The watch's stop no longer reads "not offered this turn" on every approach when the narrator offered only talk. No content of this story changed.
+- A narrated turn during an open encounter, a dealt card or a job whose choices carry none of the scene's moves now ends with the scene's own choices, as a resume does; in the cells it ends with each way out the narrator did not offer (the fine, the sentence, the break-out), and nothing else; and elsewhere, when it offers no road, with every road out (v0.25.0 T16 and its fix round 1, an engine change: `engine/scenes/default_state.py::_with_scene_choices`). The watch's stop no longer reads "not offered this turn" on every approach when the narrator offered only talk. No content of this story changed.
 
 ## [0.24.0] — 2026-10-27
 

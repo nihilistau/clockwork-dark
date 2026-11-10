@@ -31,6 +31,7 @@ from __future__ import annotations
 import copy
 import json
 import logging
+import math
 import re
 from pathlib import Path
 from typing import Any, Iterator
@@ -450,12 +451,17 @@ def test_serve_takes_exactly_its_days_through_the_clock(
     out = law.serve_sentence(state)
     assert out["ok"] is True
     # Rations between meals (fix round 1), and since v0.17 each meal cut at
-    # the hours a scene can fall due (`director.due_boundary_hours` -- here,
-    # with no decks, only midnight): the hours add up to exactly the
-    # sentence, every one of them through the clock's one writer, in at most
-    # two calls a day.
+    # the hours a scene can fall due (`director.due_boundary_hours`): the
+    # hours add up to exactly the sentence, every one of them through the
+    # clock's one writer, in at most one call a day per meal and per boundary
+    # hour. The bound is read from the director, not assumed: the flagship's
+    # timed decks (v0.25.0 T6) brought boundaries the old "midnight only, two
+    # calls a day" bound did not allow for (v0.25.0 T16 fix round 1, I4).
+    from engine.content import director
+
+    per_day = len(director.due_boundary_hours(in_custody=True)) + math.ceil(24 / law._ration_hours())
     assert sum(calls) == held["days"] * 24
-    assert all(0 < c <= 24 for c in calls) and len(calls) <= 2 * held["days"]
+    assert all(0 < c <= 24 for c in calls) and len(calls) <= per_day * held["days"]
     assert state.world_clock_hours == before + held["days"] * 24
     assert not law.in_custody(state)
 
