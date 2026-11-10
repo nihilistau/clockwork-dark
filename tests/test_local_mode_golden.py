@@ -28,7 +28,8 @@ flagship's recorded run), S18 (the flagship's banded roads and its two
 secret places on the no-session map) and S19 (the flagship's doors named: its
 gallery's gates, lock reasons and teases, and its `paths.decks`) and S20 (the
 flagship's levy and bargain declared: an empty `threads` list in each of its
-state blocks, and `paths.clocks` and `paths.threads` in its catalogue rows).
+state blocks, and `paths.clocks` and `paths.threads` in its catalogue rows)
+and S21 (the no-session map's place pictures after the art pack, v0.25.0 T15).
 There are no others.
 
 The capture opens no socket (Flask's and Socket.IO's test clients), writes
@@ -1006,30 +1007,23 @@ LEVY_SANCTION: list[tuple[str, Callable[[str], str]]] = [
 ]
 
 
-#: ``(fixture name, transform)``: the recording, as the sanctioned change
-#: makes it. S1 since v0.20.0 T2, S2 since T3, S3-S10 since v0.21.0
-#: (spec §1.2; S7 added in T3 fix round 1, S8 in fix round 2, S9 in the
-#: encounter-resume fix, S10 in T13 fix round 1, S5 in T14), S11 since
-#: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10, S14 since v0.25.0 T2, S15 since
-#: v0.25.0 T3, S16 and S17 since v0.25.0 T4, S18 since v0.25.0 T5, S19 since v0.25.0 T6,
-#: S20 since v0.25.0 T8; there are no others.
-#: S19 (v0.25.0 T15, §9): the art pack. Each place the map draws whose plate the
-#: pack changed, with the picture it showed (recorded) and the one it shows now.
-#: Twelve places got their own base (each stand-in moved into its `alts`), so a
-#: place's picture is drawn from a new pool: well_row and fallow_farm land on an
-#: alt (a stand-in) for the map's daypart, and refugee_camp's draw is unchanged.
-S19_ART: dict[str, tuple[str, str]] = {
+#: S21 (v0.25.0 T15, §9; re-pinned in its fix round 1): the art pack. Each place
+#: the no-session map draws whose picture the pack changed, with the picture it
+#: showed (recorded) and the one it shows now. Twelve places got their own base,
+#: and since fix round 1 a place's `alts` hold only pictures of that place, so
+#: each of these is now drawn as its own new base.
+S21_ART: dict[str, tuple[str, str]] = {
     "herb_glen": ("/static/art/things/herbs.jpg", "/static/art/scenes/herb-glen.jpg"),
     "the_works": ("", "/static/art/scenes/the-works.jpg"),
     "charcoal_burn": ("/static/art/scenes/tinker-camping.jpg", "/static/art/scenes/charcoal-burn.jpg"),
-    "well_row": ("/static/art/scenes/noticeboard.jpg", "/static/art/scenes/town-scene.jpg"),
-    "fallow_farm": ("/static/art/scenes/wheatfield-forest-edge.jpg",
-                    "/static/art/scenes/wheatfields-scarecrow.jpg"),
+    "well_row": ("/static/art/scenes/noticeboard.jpg", "/static/art/scenes/well-row.jpg"),
+    "fallow_farm": ("/static/art/scenes/wheatfield-forest-edge.jpg", "/static/art/scenes/fallow-farm.jpg"),
     "millhaven_market": ("/static/art/scenes/town-scene.jpg", "/static/art/scenes/millhaven-market.jpg"),
     "millhaven_barracks": ("/static/art/scenes/closing-town-gates.jpg",
                            "/static/art/scenes/millhaven-barracks.jpg"),
     "toll_bridge": ("/static/art/signposts/notice-board-contract-tunnels.jpg",
                     "/static/art/scenes/toll-bridge.jpg"),
+    "refugee_camp": ("/static/art/scenes/player-hurt-resting.jpg", "/static/art/scenes/refugee-camp.jpg"),
     "burned_farmstead": ("/static/art/ruins/Hollow-Hill-Far.jpg", "/static/art/scenes/burned-farmstead.jpg"),
     "heartland_road": ("/static/art/scenes/clockwork-wheatfield.jpg", "/static/art/scenes/heartland-road.jpg"),
     "the_join": ("", "/static/art/scenes/the-join.jpg"),
@@ -1038,24 +1032,32 @@ S19_ART: dict[str, tuple[str, str]] = {
 
 def with_the_art_pack(value: Any) -> None:
     """
-    S19 (v0.25.0 T15, §9): the no-session map's place pictures after the art
-    pack (a codex with no player knows every place). Each place in ``S19_ART``
-    had the recorded picture and now has the new one. The session route draws
-    only the places the player knows, and none of these moves there.
+    S21 (v0.25.0 T15, §9): the no-session map's place pictures after the art
+    pack (a codex with no player knows every place). Each place in ``S21_ART``
+    had the recorded picture and now has its own new base, exactly those. The
+    session route draws only the places the player knows, and none of these
+    moves there.
     """
     moved = 0
     for place in value["/api/codex/places"]["json"]["places"]:
-        if place["id"] in S19_ART:
-            before, after = S19_ART[place["id"]]
+        if place["id"] in S21_ART:
+            before, after = S21_ART[place["id"]]
             assert place["image"] == before, (place["id"], place["image"])
             place["image"] = after
             moved += 1
-    assert moved == len(S19_ART), moved
+    assert moved == len(S21_ART), moved
 
 
 ART_SANCTION: tuple[str, Callable[[str], str]] = (S18_FIXTURE, json_sanction(with_the_art_pack))
 
 
+#: ``(fixture name, transform)``: the recording, as the sanctioned change
+#: makes it. S1 since v0.20.0 T2, S2 since T3, S3-S10 since v0.21.0
+#: (spec §1.2; S7 added in T3 fix round 1, S8 in fix round 2, S9 in the
+#: encounter-resume fix, S10 in T13 fix round 1, S5 in T14), S11 since
+#: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10, S14 since v0.25.0 T2, S15 since
+#: v0.25.0 T3, S16 and S17 since v0.25.0 T4, S18 since v0.25.0 T5, S19 since v0.25.0 T6,
+#: S20 since v0.25.0 T8, S21 since v0.25.0 T15; there are no others.
 SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     BIND_SANCTION,
     *SAVES_SANCTION,

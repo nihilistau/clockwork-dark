@@ -196,8 +196,60 @@ def test_an_enemy_or_ending_prompt_reads_its_own_block(kind: str, subject: str, 
     assert words in prompt
 
 
-def test_generate_arts_provider_help_lists_forge() -> None:
+def test_a_seed_re_rolls_a_plate_already_generated(
+    monkeypatch: pytest.MonkeyPatch, calls: list[dict[str, Any]], tmp_path: Path
+) -> None:
+    """T15 review I2: `--seed N` on a cached plate posts once, carrying N, and replaces it."""
+    import io
+    from contextlib import redirect_stdout
+
+    from engine.games import registry
     from scripts import generate_art
 
-    parser_help = Path(generate_art.__file__).read_text(encoding="utf-8")
-    assert "grokbuild | xai | comfyui | forge | procedural" in parser_help
+    new = b"\x89PNG\r\n\x1a\n" + b"\x01" * 32
+    _script(monkeypatch, calls, json.dumps([{"title": "qwen"}]).encode(), _reply(new))
+    registry.activate("clockwork-dark")
+    try:
+        request = ImageRequest(subject_id="barrow_cold", kind="enemy")
+        cached = tmp_path / "media" / "images" / f"{request.cache_key()}.png"
+        cached.parent.mkdir(parents=True, exist_ok=True)
+        cached.write_bytes(PNG)
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = generate_art.main([
+                "--story-plan", "--provider", "forge", "--no-missing",
+                "--only", "enemies:barrow_cold", "--seed", "7",
+            ])
+    finally:
+        registry.deactivate()
+    assert code == 0, out.getvalue()
+    posts = [c for c in calls if isinstance(c["target"], urllib.request.Request)
+             and c["target"].full_url.endswith("/sdapi/v1/txt2img")]
+    assert len(posts) == 1, out.getvalue()
+    assert json.loads(posts[0]["target"].data.decode("utf-8"))["seed"] == 7
+    assert cached.read_bytes() == new
+
+
+def test_a_seeded_request_skips_the_cache_and_an_unseeded_one_keeps_it(
+    monkeypatch: pytest.MonkeyPatch, calls: list[dict[str, Any]]
+) -> None:
+    provider = build_provider("forge")
+    _script(monkeypatch, calls, _reply())
+    assert provider.generate(ImageRequest(subject_id="well_row")).status == "ready"
+    assert provider.generate(ImageRequest(subject_id="well_row")).status == "cached"
+    _script(monkeypatch, calls, _reply())
+    assert provider.generate(ImageRequest(subject_id="well_row", seed=3)).status == "ready"
+    assert len(calls) == 2
+
+
+def test_generate_arts_provider_help_lists_forge() -> None:
+    """The parser's own --provider help, as `--help` prints it."""
+    import io
+    from contextlib import redirect_stdout
+
+    from scripts import generate_art
+
+    out = io.StringIO()
+    with redirect_stdout(out), pytest.raises(SystemExit):
+        generate_art.main(["--help"])
+    assert "grokbuild | xai | comfyui | forge | procedural" in " ".join(out.getvalue().split())

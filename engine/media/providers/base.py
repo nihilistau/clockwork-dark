@@ -52,7 +52,8 @@ class ImageRequest:
     story: str = ""
     # A re-roll seed for a provider that takes one (Forge, v0.25.0 T15). 0 is
     # "none": the provider derives its seed from the cache key. Not part of
-    # the cache key, so a re-rolled plate replaces the same plate.
+    # the cache key: Forge skips the cache hit for a seeded request and writes
+    # over the same cached file, so a re-rolled plate replaces the same plate.
     seed: int = 0
 
     def __post_init__(self) -> None:

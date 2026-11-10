@@ -25,7 +25,8 @@
 # and promoted by `--promote`: twelve places' own bases, eight `night` times,
 # six `corrupted` plates, seven portraits, six enemies and eight ending plates.
 # Each place's stand-in base was moved into its `alts` by hand first, so no
-# shipped file is deleted.
+# shipped file is deleted; fix round 1 then kept in `alts` only what pictures
+# that place (the list sits above `charcoal_burn` below).
 #
 # Version: v0.2.0 [2026-08-07]
 # ============================================================
@@ -60,8 +61,6 @@ locations:
 
   edgewood_bakery:
     base: scenes/bakery.jpg
-    alts:
-    - things/steaming-bread.jpg
     times:
       night: scenes/edgewood-bakery-night.jpg
     corrupted:
@@ -86,7 +85,6 @@ locations:
   # Ring-2+ places the forest procgen already generates but that had no art.
   deeper_forest:
     base: scenes/forest-hidden-tunnel.jpg
-    alts: [tunnels/Tunnel-Entrance-Far.jpg]
   old_barrows:
     base: ruins/Mage-Ruins-Far.jpg
     alts:
@@ -96,8 +94,6 @@ locations:
       night: scenes/old-barrows-night.jpg
   herb_glen:
     base: scenes/herb-glen.jpg
-    alts:
-    - things/herbs.jpg
   the_forge:
     base: forge/forge.jpg
     alts:
@@ -111,21 +107,40 @@ locations:
     alts: [tunnels/tunnel-entrance-2-entries.jpg, tunnels/tunnels-stairs.jpg]
 
   # ------------------------------------------------------------
-  # P9 ring expansion (data/world/locations.yaml). No new art was drawn for
-  # these; each one reuses the closest shipped still. A wrong-but-plausible
-  # photograph of a place reads better than a procedural silhouette, and the
-  # alternative was leaving ten new locations with no image at all.
+  # P9 ring expansion (data/world/locations.yaml). These borrowed the closest
+  # shipped still until v0.25.0 T15 drew each its own base.
+  #
+  # An alt pictures THAT place and nothing else (v0.25.0 T15 fix round 1):
+  # `lookup` draws a place's picture from [base, *alts] per daypart, so a
+  # borrowed still in `alts` is served as the place. The stand-ins the new
+  # bases replaced, and every alt that pictured another place, an item or a
+  # notice board, were taken out of `alts`; each file stays on disk:
+  #   scenes/town-scene.jpg (the square's base; was well_row's and the market's),
+  #   scenes/noticeboard.jpg (the square's alt; was well_row's),
+  #   scenes/noticeboard-cutscene.jpg (a notice board; was the market's),
+  #   scenes/wheatfield-forest-edge.jpg (the clearing's base; was fallow_farm's),
+  #   scenes/closing-town-gates.jpg (the gate's base; was the barracks' and the toll bridge's),
+  #   signposts/notice-board-tunnel-revealed.jpg (was the barracks'),
+  #   signposts/notice-board-contract-tunnels.jpg (ui.notice_board; was the toll bridge's),
+  #   things/herbs.jpg (the `herbs` item; was the herb glen's),
+  #   things/steaming-bread.jpg (the festival cake's item; was the bakery's),
+  #   scenes/tinker-camping.jpg (the caravan's alt; was the charcoal burn's),
+  #   scenes/resting-camp.jpg (ui.resting, a sleeper in the woods; was the charcoal burn's
+#     and the refugee camp's),
+  #   scenes/player-hurt-resting.jpg (ui.hurt; was the refugee camp's),
+  #   ruins/Hollow-Hill-Far.jpg and ruins/Altar-Hollow-Hill-maybe.jpg (a hill
+  #     ruin and a woodland shrine; were the burned farmstead's),
+  #   scenes/clockwork-wheatfield.jpg and scenes/clockwork-tower.jpg
+  #     (corruption plates; were the heartland road's dormant alts),
+  #   tunnels/Tunnel-Entrance-Far.jpg (a hill with a path; was the deeper forest's),
+  #   ruins/mage-ruins-altar.jpg (the barrows' alt; was also the shrine's).
+  # tests/test_story_art.py::test_every_flagship_place_is_pictured_only_as_itself holds it.
   # ------------------------------------------------------------
   charcoal_burn:
     base: scenes/charcoal-burn.jpg
-    alts:
-    - scenes/tinker-camping.jpg
-    - scenes/resting-camp.jpg
 
   edgewood_shrine:
     base: ruins/Village-Altar.jpg
-    alts:
-    - ruins/mage-ruins-altar.jpg
     times:
       night: scenes/edgewood-shrine-night.jpg
     corrupted:
@@ -133,9 +148,6 @@ locations:
 
   well_row:
     base: scenes/well-row.jpg
-    alts:
-    - scenes/town-scene.jpg
-    - scenes/noticeboard.jpg
     corrupted:
     - scenes/well-row-corrupted.jpg
     times:
@@ -144,7 +156,6 @@ locations:
   fallow_farm:
     base: scenes/fallow-farm.jpg
     alts:
-    - scenes/wheatfield-forest-edge.jpg
     - scenes/wheatfields-scarecrow.jpg
     corrupted:
     - scenes/clockwork-wheatfield.jpg
@@ -152,43 +163,25 @@ locations:
 
   millhaven_market:
     base: scenes/millhaven-market.jpg
-    alts:
-    - scenes/town-scene.jpg
-    - scenes/noticeboard-cutscene.jpg
     corrupted:
     - scenes/clockwork-tower.jpg
 
   millhaven_barracks:
     base: scenes/millhaven-barracks.jpg
-    alts:
-    - scenes/closing-town-gates.jpg
-    - signposts/notice-board-tunnel-revealed.jpg
 
   toll_bridge:
     base: scenes/toll-bridge.jpg
-    alts:
-    - signposts/notice-board-contract-tunnels.jpg
-    - scenes/closing-town-gates.jpg
 
   refugee_camp:
     base: scenes/refugee-camp.jpg
-    alts:
-    - scenes/resting-camp.jpg
-    - scenes/player-hurt-resting.jpg
     corrupted:
     - scenes/refugee-camp-corrupted.jpg
 
   burned_farmstead:
     base: scenes/burned-farmstead.jpg
-    alts:
-    - ruins/Hollow-Hill-Far.jpg
-    - ruins/Altar-Hollow-Hill-maybe.jpg
 
   heartland_road:
     base: scenes/heartland-road.jpg
-    alts:
-    - scenes/clockwork-wheatfield.jpg
-    - scenes/clockwork-tower.jpg
     corrupted:
     - scenes/forest-clockwork-vines.jpg
   the_works:

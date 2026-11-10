@@ -21,8 +21,9 @@ NO NEGATIVE PROMPT, by the owner's rule: the request carries no
 ``negative_prompt`` key at all (``tests/test_media_forge.py`` holds it).
 
 The seed is deterministic per plate: ``ImageRequest.seed`` when the caller set
-one (``scripts/generate_art.py --seed``, how a missed plate is re-rolled), else
-a hash of the request's cache key, so the same subject reproduces exactly.
+one (``scripts/generate_art.py --seed``, how a missed plate is re-rolled: a
+seeded request skips the cache hit and overwrites the cached file), else a hash
+of the request's cache key, so the same subject reproduces exactly.
 Never bare ``random`` (rule 4).
 
 ``available()`` is a short GET of ``/sdapi/v1/sd-models``, bounded by
@@ -143,8 +144,13 @@ class ForgeProvider:
         return ImageResult(status="failed", provider=self.name, detail=detail[:300])
 
     def generate(self, request: ImageRequest) -> ImageResult:
-        """Generate one image. Blocks for one txt2img call (minutes on a big model)."""
-        hit = cached_image(request)
+        """
+        Generate one image. Blocks for one txt2img call (minutes on a big model).
+
+        A request carrying its own ``seed`` is a re-roll: it skips the cache
+        hit and its picture overwrites the cached one (T15 review I2).
+        """
+        hit = None if request.seed else cached_image(request)
         if hit:
             return hit
         http = urllib.request.Request(
@@ -168,7 +174,9 @@ class ForgeProvider:
             return result
         except (OSError, ValueError, binascii.Error, AttributeError, IndexError, TypeError) as exc:
             # OSError covers URLError and timeouts; ValueError a body that is not JSON.
-            return self._failed(f"{type(exc).__name__}: {exc}")
+            result = self._failed(f"{type(exc).__name__}: {exc}")
+            logger.warning("[media] Forge generation failed (operation=generate): %s", result.detail)
+            return result
 
         suffix = _extension(blob)
         if not blob or suffix is None:

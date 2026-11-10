@@ -767,6 +767,10 @@ def test_without_the_flag_the_flagships_plan_is_unchanged(cache_dir: Path) -> No
     code, out = _run(["--dry-run", "--locations"])
     assert code == 0
     lines = out.splitlines()
+    # The literal line (T15 review M5). v0.24.0 printed "160 possible images, 160
+    # already covered, 0 missing" for its 20 places; T5's two secret places made it
+    # 176 (16 missing until T15 gave them their bases).
+    assert lines[0] == "176 possible images, 176 already covered, 0 missing"
     assert lines[0] == (
         f"{len(requests)} possible images, {len(requests) - len(gaps)} already covered, "
         f"{len(gaps)} missing"

@@ -729,10 +729,12 @@ def story_main(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int
                   f"{plate.target:40} {state}")
         return 0
 
-    todo = [plate.request() for plate in plates if plate not in cached]
+    # A re-roll (--seed) regenerates the selected plates even when cached: a
+    # provider that takes a seed (forge) skips its cache hit for a seeded
+    # request and writes over the cached file (T15 review I2).
+    todo = [plate.request() for plate in plates if args.seed or plate not in cached]
     todo = todo[: args.limit] if args.limit else todo
     if args.seed:
-        # A re-roll: a provider that takes a seed (forge) uses this one.
         todo = [dataclasses.replace(request, seed=args.seed) for request in todo]
     if not todo:
         print("nothing to generate")
@@ -824,7 +826,10 @@ def main(argv: list[str] | None = None) -> int:
         "--seed",
         type=int,
         default=0,
-        help="Re-roll with this seed (a provider that takes one: forge); 0 = the plate's own",
+        help=(
+            "Re-roll with this seed (a provider that takes one: forge), regenerating the "
+            "selected plates even when cached; 0 = the plate's own"
+        ),
     )
     args = parser.parse_args(argv)
 

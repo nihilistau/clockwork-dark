@@ -256,12 +256,16 @@ provider is `engine/media/providers/forge.py`.
   900-second bound per plate. Override any of them in `config/local.yaml`.
 - **The seed** is the request's (`ImageRequest.seed`, which
   `scripts/generate_art.py --seed N` sets to re-roll a plate), else a hash of
-  the request's cache key, so a plate reproduces.
+  the request's cache key, so a plate reproduces. A seeded request skips the
+  cache hit and overwrites the cached file, and `--seed` keeps already
+  generated plates in the run, so `--seed N --only <selector>` re-rolls a plate
+  in place (then `--promote` it again).
 - **`available()`** is a GET of `/sdapi/v1/sd-models` bounded to 3 seconds;
   any error is "not available".
 - **The Settings panel does not offer it**: its picture-provider list
   (`engine/api/settings.py`) is pinned by the local-mode golden, so `forge` is
-  set in `config/local.yaml` or with `--provider`.
+  set in `config/local.yaml` or with `--provider` (a docs/GOVERNANCE.md NOT
+  WIRED row).
 - **Verified live** (v0.25.0 T15, 2026-11-10): the flagship's 47-plate art
   pack was generated on the owner's Forge Neo with Qwen Image 2.1 (GGUF
   Q4_K_M), at about 160-250 seconds a plate (1344x768 and 768x1024). The suite
