@@ -33,6 +33,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- An encounter met on the road can always be answered (v0.25.0 T16, live play, an engine change: `engine/scenes/default_state.py::_with_scene_choices`): a narrator whose choices carry none of the encounter's approaches (measured on LM Studio: the dog met on the way into Edgewood, answered with "Seek work at the smithy" and two more) no longer leaves every approach "not offered this turn"; the approaches follow the narrator's choices.
 - Leaving the ninth pin no longer grants it (bug 1): `the_ninth_pin`'s `take_it_or_dont` stage granted the pin in its `on_complete` whether it was taken or left. The stage keeps its doom resistance and the tinkers' +15. The pin is the `take_it` beat's to grant, on the ninth pin's `T3_take_it_or_dont` card (v0.25.0 T8); `leave_it` grants nothing.
 - The sacrifice takes the thing offered (bug 2): `the_sacrifice`'s `pay_it` stage removed the written name whatever was chosen, and closed only once the written name was gone. The price's `S2` beat removes exactly the thing offered; the stage now closes on `nf_sacrifice_paid` alone, and the quest no longer locks The Price Asked itself (the card does).
 - A v0.24.0 save whose narrator already raised `nf_sacrifice_paid` while still holding the written name completes `pay_it` with nothing removed (the stage no longer removes the name). Accepted: only an old save can reach it.

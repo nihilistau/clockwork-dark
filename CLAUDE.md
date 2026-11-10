@@ -44,6 +44,17 @@ Re-measure and restate these at every release rather than trusting this line.
 A bare `pytest` is the fast tier since v0.21.1 (`slow` and `process` left
 out); the numbers above are `--full`.
 
+**Live play, v0.25.0 T16 (2026-11-10, mid-release):** the flagship played live on the owner's
+LM Studio with `gemma4-26b-a4b-qat-uncensored-hauhaucs-balanced` (the only model loaded), in the
+browser pane, on a scratch storage root. `tests/test_llm_live.py` with `CLOCKWORK_LIVE_LLM=lmstudio`:
+**6 passed** in 2.3 min. The run (21 turns in about two hours, seed 16) reached part of Act I:
+the clearing, the dog encounter on the road, the bakehouse's `B1` card (Maris taking the player on),
+the oven shift, the square, Odran and the snare-line encounter. The caravan, the first wrong thing,
+Act II, Act III and the morning firing's door were not reached. Pressed live: eat, buy, use, a shift,
+an encounter approach by click, a card, and a buy while a card was dealt (refused, and the prose
+said so); not pressed: sell, wear, take off, a recipe, an approach by digit key (Deliberately
+deferred has what the model did and what was found).
+
 **Linux** (measured mid-release, not re-run at the release: T20 started no
 container): in `python:3.11-slim-bookworm` (pinned by digest, docs/HOSTING.md
 § Linux) on a clone in a container volume, installed with `-c
@@ -984,12 +995,24 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   READ RECEIPTS world turn on a live model (ad hoc, not T31's walk), which found the
   narrator's choices carrying no intent ("Open Natter", "Check Matchstick"), fixed by
   6510adc (`engine/social/away.py::with_world_choices`; root CHANGELOG, v0.25.0).
+  v0.25.0's T16 (2026-11-10) played THE FLAGSHIP live on LM Studio with
+  `gemma4-26b-a4b-qat-uncensored-hauhaucs-balanced` (Status has the reach; the
+  report is `.superpowers/sdd/2026-10-27-v0.25.0-clockwork-dark-overhaul/task-16-report.md`).
+  It did not touch READ RECEIPTS, so nothing below about READ RECEIPTS moved.
   Never verified live:
-  - no live model has narrated a scene or a typed line, and beyond that one world
+  - no live model has narrated a READ RECEIPTS scene or typed line, and beyond that one world
     turn READ RECEIPTS' world narration, scene prose checks and the `xai` image
     provider are stub- and test-verified only; the addendum-4 meet-up walk was not
     played in the browser pane;
-  - nobody has LISTENED to the sounds (every palette, the audition page);
+  - nobody has LISTENED to the sounds (every palette, the audition page; T16 drove the
+    pane but heard nothing);
+  - the flagship past T16's reach: the caravan and the first wrong thing, Act II (Nessa's
+    drawings, the press, Sera's levy), Act III,
+    any door walked by hand (the morning firing's `H1` was not reached), and the overlays'
+    wear, take off, sell and recipe presses (T16 found no wearable or recipe, and the barter
+    screen offers no sale the engine would take, below), and an approach by digit key (the
+    approaches take the digits only when every choice is one, `ui/src/core/screens/Play.jsx`
+    `bindDigits`, and this model's talk choices always stood beside them);
   - one click giving exactly one sound is shown by jsdom tests only: jsdom cannot show
     the click deferral's ordering in a real browser;
   - the order of a READ RECEIPTS rejoin frame and the `openSeq` bump on a real socket;
@@ -1002,6 +1025,41 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   have been measured by the harness and reviewed task by task, and `scenes.yaml`'s,
   `life_events.yaml`'s and `growth.yaml`'s values are measured only against the
   harness's neutral model.
+- **What v0.25.0 T16's live play found (LM Studio, `gemma4-26b-a4b-qat-uncensored-hauhaucs-balanced`;
+  the report has each turn's receipt and prose).** Fixed in T16: a narrated turn in an open scene
+  whose choices carried none of its moves (`engine/scenes/default_state.py::_with_scene_choices`,
+  sanction S22). Recorded, not fixed:
+  - **This model never declares an intent.** None of the narrator's choices in T16's run carried one
+    (three a turn, every turn, all talk), though the turn grammar offered `travel`, `eat`,
+    `work` and the rest each turn: `intent` is optional in the schema
+    (`engine/llm/schemas.py::storyteller_turn_schema`) and it was always left out. Outside a scene
+    the player could move only by the overlays and a reload's resume frame, whose roads are the
+    first two out of the place (`default_state.resume_opening`), so the tinker caravan and the
+    roads beyond were out of reach from the square. A road floor for every story (as
+    `with_world_choices` is READ RECEIPTS') moves every recorded turn; candidate for v0.26.0, beside
+    its per-model compliance report.
+  - **The evaluator passed prose that left the receipt out or contradicted it.** The road into
+    Edgewood started the dog encounter and the prose never named the dog; the failed sympathy roll
+    (the dog bolts, "you jump harder than the dog did") was narrated as sitting quietly beside Nessa
+    Fallow; the snare line's partial ("you get the hare free but leave the line a mess") was
+    narrated as the line left set and waiting; a bought candle was lit with "flint to steel" the
+    player does not carry; 19:00 was narrated as "the early light". Each scored `no_hallucinated_mechanics` 1 and passed
+    (`engine/agents/evaluator.py` checks success over a failed check and arrival over a refused
+    move, not an omitted receipt). Never fixed by prompt rules (rule 12's reasoning).
+  - **A typed line narrated a walk that did not happen**: "I get up and follow the hearth smoke to
+    Edgewood Square" was narrated as arriving while the player stayed in the clearing. Typed text
+    declares no intent by design (`default_state.resolve_player_intent`), the same gap as the
+    intentless choice above.
+  - **The world tick outruns a slow model**: at `world.tick_hours` 2.0 a minute of wall clock and
+    two to three minutes a turn, each turn moved the clock four to six hours. An overlay buy
+    offered at 20:00 ran at 23:00, Maris asleep, and was refused ("That is not on offer here and
+    now"), the refusal reaching the prose. By design (R-03); measured, left.
+  - **The barter screen offers no sale the engine would take**: "Nothing you carry interests them"
+    (Maris, Odran) while `/api/intents/overlay` offers both the stale road bread for 1g
+    (`default_api.trade_offer`'s `buys` reads the stock list's `buys`, the `trade` skill does not),
+    so no `sell` could be pressed. With the price row in docs/GOVERNANCE.md, for v0.26.0.
+  - A reload showed the last narration twice in the log (the resumed frame's narration under the
+    same paragraph). Cosmetic; not traced.
 - A READ RECEIPTS world turn with an injected model function still probes the
   model server's loaded models: `engine/memory/context.py::default_budget` calls
   `Budget.for_profile("big")`, which asks the server even when the turn's `llm_fn`

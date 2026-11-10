@@ -348,6 +348,84 @@ def test_a_set_piece_is_labelled_by_its_authored_title() -> None:
     assert dict(verb.options)["lantern_house_break"] == "The Ring on the Nail"
 
 
+# -- a narrated turn (v0.25.0 T16) ---------------------------------------------
+
+
+def _narrator(choices: list[dict[str, Any]]):
+    """A model function that answers every call with one narration turn whose choices are `choices`."""
+    import json
+
+    body = json.dumps({
+        "narration": (
+            "The thin brown dog sits in the road and will not be moved. Its ribs show under the wet coat, "
+            "and it watches the way you came as if something were following you both. The square's smoke "
+            "hangs low, and nobody at the well looks up from the bucket."
+        ),
+        "choices": choices,
+    })
+    return lambda messages, **kw: body
+
+
+def _open_the_dog(choices: list[dict[str, Any]]):
+    from engine.game import encounter, intents
+    from engine.scenes.default_state import SessionStore
+
+    registry.activate("clockwork-dark")
+    session = SessionStore().create(seed=3, llm_fn=_narrator(choices))
+    state = session.engine.state
+    assert not intents.scene_owns_turn(state)
+    encounter.begin(state, "the_dog_that_follows")
+    assert encounter.active(state)
+    return session, {a["id"] for a in encounter.available_approaches(state)}
+
+
+def test_a_narrated_turn_with_no_approach_keeps_the_encounters_approaches() -> None:
+    """
+    Measured live (v0.25.0 T16, LM Studio, gemma4-26b-a4b): the model left the
+    optional `intent` out of every choice, so a road that started the dog
+    encounter came back with "Seek work at the smithy", "Find food at the
+    oven", "Talk to Quill about the fields" and no approach. Every approach on
+    the panel read "not offered this turn" and nothing could end the scene
+    short of a reload. The scene's own choices now follow the narrator's.
+    """
+    from engine.scenes.default_state import run_turn
+
+    talk = [
+        {"id": "a", "text": "Seek work at the smithy"},
+        {"id": "b", "text": "Find food at the oven"},
+        {"id": "c", "text": "Talk to Quill about the fields"},
+    ]
+    session, approaches = _open_the_dog(talk)
+    payload = run_turn(session, "The player chooses: Look at the dog")
+
+    choices = payload["choices"]
+    assert [c["text"] for c in choices[:3]] == [c["text"] for c in talk]  # the narrator's first, as written
+    assert _intent_targets(choices, "encounter") == approaches, choices
+    ids = [c["id"] for c in choices]
+    assert len(ids) == len(set(ids)), ids
+    _assert_no_raw_id(choices)
+    # What the client sends back is what the server will find.
+    assert choices == session.last_turn["choices"]
+    shown = {c["text"] for c in choices if c.get("intent")}
+    from engine.game import encounter
+
+    assert shown == {a["text"] for a in encounter.available_approaches(session.engine.state)}
+
+
+def test_a_narrated_turn_that_offers_an_approach_is_left_as_written() -> None:
+    """A model that declares its intents sees no change: no scene row is added."""
+    from engine.scenes.default_state import run_turn
+
+    written = [
+        {"id": "a", "text": "Back away and keep walking", "intent": {"action": "encounter", "target": "flee"}},
+        {"id": "b", "text": "Ask the dog where it came from"},
+    ]
+    session, _ = _open_the_dog(written)
+    payload = run_turn(session, "The player chooses: Look at the dog")
+    assert [c["text"] for c in payload["choices"]] == [c["text"] for c in written]
+    assert not any(str(c["id"]).startswith("scene_") for c in payload["choices"])
+
+
 def test_resume_with_no_scene_open_is_unchanged() -> None:
     """The ordinary resume keeps its roads (the local-mode golden pins it)."""
     from engine.game.procgen import new_game_state

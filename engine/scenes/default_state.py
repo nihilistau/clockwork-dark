@@ -658,6 +658,54 @@ def _scene_resume_choices(state: GameState) -> Optional[list[dict[str, Any]]]:
     return out
 
 
+def _with_scene_choices(
+    state: GameState, choices: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """
+    A narrated turn's row, with the scene's own choices after it when the
+    narrator offered none of them.
+
+    BUG THIS FIXES (v0.25.0 T16, measured live on LM Studio with
+    ``gemma4-26b-a4b-qat-uncensored-hauhaucs-balanced``): ``intent`` is
+    optional in the turn grammar, and that model left it out of every choice
+    it wrote. A road that started an encounter came back with "Seek work at
+    the smithy", "Find food at the oven" and no approach, so every approach on
+    the encounter panel read "not offered this turn" and nothing on screen
+    could end the scene: the player was stranded until a reload rebuilt the
+    frame (``_scene_resume_choices``). Now, while a scene owns the turn or the
+    watch holds the player, a row that carries NO intent the scene accepts
+    gets the scene's choices appended, the same rows a resume offers; a row
+    that already carries one is left exactly as the narrator wrote it, so a
+    model that declares its intents sees no change. Every other turn is
+    unchanged. Never raises: a fault keeps the narrator's row.
+    """
+    try:
+        scene = _scene_resume_choices(state)
+        if not scene:
+            return choices
+        rows = [dict(c) for c in choices or ()]
+        offered = {
+            (str(r["intent"].get("action")), str(r["intent"].get("target") or ""))
+            for r in scene
+        }
+        held = {
+            (str(i.get("action")), str(i.get("target") or ""))
+            for i in (c.get("intent") for c in rows)
+            if isinstance(i, dict)
+        }
+        if held & offered:
+            return choices
+        added = []
+        for row in scene:
+            row = dict(row)
+            row["id"] = "scene_" + str(row.get("id") or "").removeprefix("resume_")
+            added.append(row)
+        return rows + _label_intents(state, added)
+    except Exception:  # noqa: BLE001 -- the scene's rows are a floor under the turn, never a reason to lose it
+        logger.exception("[default_state] No scene choices for a narrated turn (operation=with_scene_choices)")
+        return choices
+
+
 def _resume_payload(
     state: GameState, narration: str, choices: list[dict[str, Any]]
 ) -> dict[str, Any]:
@@ -1563,6 +1611,8 @@ def run_turn(
         from engine.social import away
 
         choices = away.with_world_choices(state, choices)
+    else:
+        choices = _with_scene_choices(state, choices)
 
     turn_payload = {
         "session_id": state.session_id,

@@ -1051,13 +1051,73 @@ def with_the_art_pack(value: Any) -> None:
 ART_SANCTION: tuple[str, Callable[[str], str]] = (S18_FIXTURE, json_sanction(with_the_art_pack))
 
 
+#: S22's four approaches, as ``watch_stop`` offers them in the recorded turns
+#: (S9's, under the narrated turn's ``scene_`` ids).
+S22_APPROACHES: list[dict[str, Any]] = [
+    {**row, "id": "scene_" + row["id"].removeprefix("resume_")} for row in S9_APPROACHES
+]
+#: S22's exact effect per fixture: the narrated turns recorded in an open
+#: ``watch_stop`` (a live join's opening is the last narrated turn).
+S22_COUNTS: dict[str, int] = {
+    "hue-and-cry/http_turns.json": 2,
+    "hue-and-cry/join_live.json": 1,
+    "hue-and-cry/socket_stream_turn.json": 1,
+    "hue-and-cry/socket_turns.json": 2,
+}
+
+
+def narrated_turn_keeps_the_open_encounter(count: int) -> Callable[[str], str]:
+    """
+    S22 (v0.25.0 T16, found in live play on LM Studio): a narrated turn whose
+    choices carry no intent the open scene accepts gets the scene's own
+    choices after the narrator's (``default_state._with_scene_choices``). The
+    recorded HUE & CRY turns stand in an open ``watch_stop`` with the stub's
+    intentless choices, which left every approach "not offered this turn";
+    each now ends with the four approaches. Only a payload carrying ``state``
+    is a turn (a negotiation's plans are not). Raises unless exactly ``count``
+    turns are touched.
+    """
+
+    def transform(value: Any) -> None:
+        touched = 0
+
+        def walk(node: Any) -> None:
+            nonlocal touched
+            if isinstance(node, dict):
+                choices = node.get("choices")
+                state = node.get("state")
+                if (
+                    isinstance(choices, list)
+                    and isinstance(state, dict)
+                    and (state.get("encounter") or {}).get("id") == "watch_stop"
+                ):
+                    assert not any(c.get("intent") for c in choices), choices
+                    choices.extend(copy.deepcopy(S22_APPROACHES))
+                    touched += 1
+                for child in node.values():
+                    walk(child)
+            elif isinstance(node, list):
+                for child in node:
+                    walk(child)
+
+        walk(value)
+        assert touched == count, f"S22 touched {touched} turns, not {count}"
+
+    return json_sanction(transform)
+
+
+SCENE_CHOICES_SANCTION: list[tuple[str, Callable[[str], str]]] = [
+    (name, narrated_turn_keeps_the_open_encounter(count)) for name, count in S22_COUNTS.items()
+]
+
+
 #: ``(fixture name, transform)``: the recording, as the sanctioned change
 #: makes it. S1 since v0.20.0 T2, S2 since T3, S3-S10 since v0.21.0
 #: (spec §1.2; S7 added in T3 fix round 1, S8 in fix round 2, S9 in the
 #: encounter-resume fix, S10 in T13 fix round 1, S5 in T14), S11 since
 #: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10, S14 since v0.25.0 T2, S15 since
 #: v0.25.0 T3, S16 and S17 since v0.25.0 T4, S18 since v0.25.0 T5, S19 since v0.25.0 T6,
-#: S20 since v0.25.0 T8, S21 since v0.25.0 T15; there are no others.
+#: S20 since v0.25.0 T8, S21 since v0.25.0 T15, S22 since v0.25.0 T16; there are no others.
 SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     BIND_SANCTION,
     *SAVES_SANCTION,
@@ -1080,6 +1140,7 @@ SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     *DOORS_SANCTION,
     *LEVY_SANCTION,
     ART_SANCTION,
+    *SCENE_CHOICES_SANCTION,
 ]
 
 
