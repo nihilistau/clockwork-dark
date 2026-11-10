@@ -186,8 +186,8 @@ locations:
         setting: "the treeline going to silhouette"
         light: "low amber light raking sideways through the trunks"
       night:
-        setting: "the clearing lit only by what the sky gives"
-        light: "cold blue dark, the ferns almost black"
+        setting: "the open clearing under a clear night sky, the treeline a dark ring around it"
+        light: "cold blue moonlight falling into the clearing, the white birch trunks pale against the dark, the ferns almost black"
 
   edgewood_square:
     subject: "The packed-earth square of a small frontier village"
@@ -207,6 +207,7 @@ locations:
         light: "a single lantern by the well, everything else dark"
 
   edgewood_bakery:
+    phases: [consuming]
     subject: "The low interior of a village bakery"
     details: "a brick oven mouth, flour on every surface, proving cloths, iron peels on the wall"
     times:
@@ -224,6 +225,7 @@ locations:
         light: "moonlight on the flour dust"
 
   tinker_caravan:
+    phases: [consuming]
     subject: "A tinker's canvas caravan pitched at the edge of the village"
     details: "hanging charms and brass oddments, a folding table of small tools, a patient mule"
     times:
@@ -237,8 +239,8 @@ locations:
         setting: "packing down for the night"
         light: "lamplight inside the canvas, glowing through"
       night:
-        setting: "shut, but not asleep"
-        light: "one lamp, long shadows on the canvas"
+        setting: "shut up for the night under a dark sky, but not asleep"
+        light: "deep night, one lamp hung at the awning, long shadows on the canvas, the village beyond black"
 
   millhaven_gate:
     subject: "The stone gatehouse of a walled market town"
@@ -258,6 +260,7 @@ locations:
         light: "firelight and deep shadow"
 
   the_works:
+    base: true
     subject: "Worked stone steps going down beneath a forest clearing into a cut-stone chamber"
     details: "square-cut bedrock walls, steps slick with dark oil, a great circular race cut into the floor"
     times:
@@ -275,8 +278,9 @@ locations:
         light: "a single lantern glinting on oiled stone and brass filings"
 
   the_join:
+    base: true
     subject: "A country road where two different stretches of hedgerow have grown together along a seam"
-    details: "metalled road, two kinds of hedge meeting mid-stretch, milestones cut in the same hand"
+    details: "an old country road of packed gravel, two kinds of hedge meeting mid-stretch, plain weathered stone milestones with no carving"
     times:
       dawn:
         setting: "mist lying along the seam in the hedges"
@@ -286,10 +290,102 @@ locations:
         light: "even daylight, no shadows to measure by"
       dusk:
         setting: "the hedges going black at slightly different rates"
-        light: "low red light along the metalling"
+        light: "low red light along the gravel"
       night:
         setting: "the road a pale line between dark hedges"
         light: "starlight, the milestones faintly white"
+
+  # ------------------------------------------------------------
+  # v0.25.0 T15 (§9): the art pack. `base: true` plans a place's own base
+  # plate (`scripts/generate_art.py --story-plan`); `phases: [consuming]` plans
+  # one corrupted plate, rendered with the `corruption:` clause above and
+  # promoted into the place's `corrupted:` pool; `times: {night: ...}` a night
+  # plate. A base plate is rendered at dawn's fields, so a place with only a
+  # `night` slot carries its whole look in `subject` and `details`.
+  # The `night`/`phases` additions to the first four places sit in their
+  # entries above; the rest are here, each from its locations.yaml summary.
+  # ------------------------------------------------------------
+  well_row:
+    base: true
+    phases: [consuming]
+    subject: "The lower street of a frontier village: a row of twelve small timber-and-daub houses along a rutted lane, with a shared stone well halfway down"
+    details: "low thatched roofs, a well with a wooden windlass and a worn bucket, a lean dog lying quiet in a doorway, washing strung between two houses, mud and straw in the ruts"
+    times:
+      night:
+        setting: "every door shut along the row, the well a dark shape in the lane"
+        light: "deep night under a dark sky, cold moonlight on the thatch, one shuttered window leaking firelight, no dog barking"
+
+  fallow_farm:
+    base: true
+    subject: "A small farm holding at the edge of a village, livestock pens beside a wheatfield whose rows run unnaturally, perfectly straight to the horizon"
+    details: "wattle pens with a few sheep, a low farmhouse with a sagging roof, the wheat standing in ruler-straight lines with no wind-flattened patch anywhere, a child's chalk scratches on a gatepost, overcast daylight"
+
+  millhaven_market:
+    base: true
+    subject: "The market square of a walled stone town, trestle stalls under canvas and a tall slate board of grain tallies chalked in neat columns"
+    details: "sacks of grain, baskets, a weighing beam, townsfolk in drab wool, the chalked tally marks identical in every column, grey stone houses around the square, flat daylight"
+
+  millhaven_barracks:
+    base: true
+    subject: "The drill yard of a small town militia barracks inside grey stone walls"
+    details: "a packed-earth yard, racked spears, a wooden practice post, a row of militiamen in padded coats and worn scale standing in perfect step, a sergeant watching from a doorway, cold morning light"
+
+  toll_bridge:
+    base: true
+    subject: "An old three-span stone bridge over a slow river, a heavy iron chain stretched across the road at its near end"
+    details: "moss on the arches, a small trestle table beside the chain with an open ledger, an inkpot and a tin cash box, a clerk's empty stool, reeds along the bank, soft morning mist on the water"
+
+  charcoal_burn:
+    base: true
+    subject: "A woodland clearing of turf-capped charcoal stacks smoking quietly, with a small burner's hut of poles and bark"
+    details: "domed earth-covered stacks leaking thin blue smoke, raked black ground, stacked cordwood, a rough hut with a hide door, tall trees all round, hazy light through the smoke"
+
+  refugee_camp:
+    base: true
+    phases: [consuming]
+    subject: "A makeshift refugee camp in a drainage ditch below a closed town wall"
+    details: "lean-to shelters of patched canvas and cart boards, a small cooking fire, bundles and a broken handcart, tired families wrapped in blankets, above them a high old town wall of rough grey fieldstone with a squat round tower and a heavy wooden gate shut, a muddy dirt road, overcast light"
+
+  herb_glen:
+    base: true
+    subject: "A sheltered south-facing hollow in the woods thick with wild herbs in flower"
+    details: "dense drifts of white feverfew daisies, cream yarrow heads and green bittercress, the remains of old dry-stone edging as if once a tended garden, a faint path, warm afternoon sun pooling in the bowl"
+
+  burned_farmstead:
+    base: true
+    subject: "The burned-out ruin of a farmhouse: blackened stone sills and a chimney still standing, the roof gone, while the stone byre beside it stands untouched"
+    details: "charred roof timbers fallen inside the walls, nettles and fireweed growing through the ash, the byre's thatch whole and green with moss, an empty yard, quiet grey daylight"
+
+  heartland_road:
+    base: true
+    subject: "A long straight old country road where a rutted dirt track changes abruptly to packed crushed stone laid smooth and exact"
+    details: "a line of plain uncarved stone milestones marching away exactly evenly spaced, identical hedgerows trimmed square, horse-drawn carts of refugees far off coming the other way, flat open farmland, pale even daylight"
+
+  edgewood_shrine:
+    phases: [consuming]
+    subject: "A small village shrine: a lime-washed wall bearing an unfinished mural of faceless saints, candles set in pairs on a stone ledge"
+    details: "the saints' faces left blank in pale plaster, flaking paint in ochre and lampblack, a worn stone step, wax drips on the ledge, wildflowers in a clay jar"
+    times:
+      night:
+        setting: "the shrine alone in the dark, nobody kneeling"
+        light: "the paired candles the only light, warm on the blank faces, deep shadow around"
+
+  the_forge:
+    phases: [consuming]
+    subject: "The interior of a village smithy: a brick forge hearth, an anvil on a stump, a water slack tub and tools on the wall"
+    details: "tongs and hammers hanging in rows, a leather bellows, a heap of charcoal, horseshoes and nails in a crate, a scorched leather apron on a hook"
+    times:
+      night:
+        setting: "the forge banked for the night, the smithy empty"
+        light: "the coals glowing dull red, the anvil's edge catching it, everything else black"
+
+  old_barrows:
+    subject: "Nine grass-covered burial mounds in a perfectly straight line across an empty upland"
+    details: "long low barrows of rough turf, a dark stone-lined entrance in the nearest, sheep-cropped grass, no path leading to them"
+    times:
+      night:
+        setting: "the mounds black humps against the sky"
+        light: "a thin moon low on the horizon, frost beginning on the grass, cold blue dark"
 
 # ------------------------------------------------------------
 # Portraits. Consistency comes from generating ONE base image per NPC and then
@@ -300,7 +396,7 @@ portraits:
   npc_maris:
     subject: "A village baker in her fifties, flour to the elbow"
     details: "broad hands, hair tied back and escaping, an expression that has stopped being surprised by anything"
-    setting: "the bakery interior behind her, oven light on one side of her face"
+    setting: "the low village bakery behind her, an old domed brick oven glowing on one side of her face"
     mood: "tired, kind, unsentimental"
   npc_odran:
     subject: "A caravan master in a travelled coat"
@@ -341,9 +437,94 @@ portraits:
     mood: "quiet, watchful, counting"
   npc_edrin:
     subject: "A lean farmer in his forties in a work-worn shirt"
-    details: "sun-dark neck, arms folded, not looking at the field behind him"
+    details: "head and shoulders in frame, his whole face visible, sun-dark neck, arms folded, eyes turned away from the field behind him"
     setting: "the edge of a wheatfield whose rows run unnaturally, perfectly straight"
     mood: "uneasy, guarded, a man who no longer invites anyone out to look"
+
+# ------------------------------------------------------------
+# Enemies, keyed by an encounter's `art:` (data/encounters/*.yaml) and read by
+# engine/media/art.py::_enemy_fields (v0.25.0 T15). One per new band's threat,
+# each from its encounter's intro. Shown on the encounter screen.
+# ------------------------------------------------------------
+enemies:
+  barrow_cold:
+    subject: "A low white cold pouring out of the dark stone mouth of a grassy burial mound like a held breath"
+    details: "frost spreading across the grass in small, regular, toothed patterns like the teeth of a gear, the grass stiff and silvered where it has passed, no figure in it, only the cold"
+    setting: "the barrow entrance at the edge of the frame, open upland beyond"
+    light: "thin grey dusk, the frost faintly luminous, cold blue shadow"
+  press_gang:
+    subject: "A press gang on a country road: six men in shabby militia coats walking abreast and an old sergeant in a battered wide-brimmed felt hat and a faded buff coat holding a long paper list"
+    details: "cudgels and a coil of rope, the men looking hard at the viewer as if measuring shoulders, the list unrolled with a blank space at the bottom, mud on their boots"
+    setting: "a muddy rutted dirt lane between hedges and fields, the line of men filling it"
+    light: "flat overcast daylight, cold and colourless"
+  toll_men:
+    subject: "Two rough men holding a wooden pole across a lonely road, a dented tin set on a three-legged stool beside them"
+    details: "no badges or colours, patched coats, one leaning on the pole and grinning, the other with a cudgel, a battered wooden collecting box on the stool, open moorland with no bridge in sight"
+    setting: "a rutted dirt road narrowing between gorse banks"
+    light: "late afternoon, long low shadows"
+  brass_hound:
+    subject: "A mechanical hound of polished brass quartering a field nose-down, built like a lean greyhound from plates and rivets"
+    details: "the bright gleam of a church candlestick, visible gears at the joints, steam or dust at its feet, flattened wheat behind it where it has run, head turning toward the viewer"
+    setting: "a wheatfield beside a rutted dirt cart track"
+    light: "hard grey daylight, brass catching every glint"
+  wrong_walker:
+    subject: "A man in a carter's smock walking down a country road toward the viewer, uncanny and too regular in his stride"
+    details: "every step exactly the same length, arms swinging stiffly on a count, his head perfectly still, his face blank and pleasant, his shadow falling at the wrong angle"
+    setting: "an empty rutted dirt road between hedgerows, nobody else in sight"
+    light: "pale dusk light, very still air"
+  the_works_engine:
+    subject: "A tall engine of brass and pinned leather working in an underground stone chamber, fitting one cut stone block to the next with careful mechanical arms"
+    details: "riveted brass limbs, stretched leather panels held with brass pins, a small round head turning toward the viewer, oil shining on square-cut bedrock walls, a great circular race cut in the floor"
+    setting: "deep below ground, the chamber falling away into black"
+    light: "a single lantern's glow on brass and oiled stone, everything else dark"
+
+# ------------------------------------------------------------
+# Ending plates, keyed by each ending's `gallery_key`
+# (data/epilogues/epilogue_index.yaml), read by
+# engine/media/art.py::_gallery_fields (v0.25.0 E7) and shown on the ending
+# screen. Each from its epilogue card. Still, quiet, no figures in focus.
+# ------------------------------------------------------------
+gallery:
+  banked_oven:
+    subject: "A village bakery's brick oven banked for the night, embers glowing behind its door, the day's loaves cooling on a rack"
+    details: "a long wooden peel leaning beside the oven, flour on the boards, a folded cloth, everything warm and kept"
+    setting: "the bakery interior at the end of a long day"
+    light: "low red ember light, a homely warmth, deep soft shadow"
+  dated_ledger:
+    subject: "A worn ledger lying open on a flour-cupboard shelf, its pages filled with lines of dated entries in brown oak-gall ink"
+    details: "a goose quill and an inkpot of soot ink beside it, years of entries in a patient hand, the writing too small to read, a candle stub"
+    setting: "a cupboard in a village kitchen, close and dry"
+    light: "evening candlelight on the open pages"
+  struck_roll:
+    subject: "A militia roll of names on a gatehouse table with one name struck through cleanly in a single line of ink"
+    details: "a small iron-bound pay box open beside it with a few coins, a sergeant's quill laid across the roll, the names illegible, worn wood"
+    setting: "inside a stone gatehouse, the gate arch beyond"
+    light: "grey first light through an arrow slit"
+  ink_on_the_table:
+    subject: "A single strange sigil painted in black ink on a strip of linen laid on a wooden trestle table in an empty village square, a shape that belongs to no alphabet, no letters or words anywhere"
+    details: "the ink soaked through the weave, floury handprints on the table edge, benches pushed back as if a meeting has just ended"
+    setting: "the village square at evening, timber-framed houses around it"
+    light: "the last warm light of dusk on the table"
+  empty_table:
+    subject: "An empty tinker's folding table covered in worn green felt, nine faint pale marks where nine things once lay in a row"
+    details: "the felt rubbed bare in the nine places, a brass pin box open and empty, nothing else on the table"
+    setting: "beneath an awning of oiled cloth, a green valley glimpsed beyond"
+    light: "soft warm afternoon light"
+  eight_shadows:
+    subject: "A single long brass pin driven upright into the seam of a country road where two different hedgerows meet"
+    details: "eight long thin shadows fanning out around the one pin across the packed gravel road, as if eight absent pins stood beside it, the two hedges two different greens"
+    setting: "the road empty in both directions"
+    light: "low clear sun, sharp shadows"
+  cold_square:
+    subject: "A frontier village square utterly empty and still, the communal bread oven cold, every shutter closed"
+    details: "a stone well with no bucket, no smoke from any chimney, faint brass clockwork patterns grown into the timber of the houses, weeds in perfectly regular rows between the stones"
+    setting: "the square seen from its edge"
+    light: "even, shadowless grey light, nothing moving"
+  long_dusk:
+    subject: "The edge of a birch forest at a long summer dusk, a narrow path leading out of the trees toward a village with smoke rising from a few chimneys"
+    details: "white birch trunks, tall grass, an ordinary wooden gate, the village small and warm in the distance"
+    setting: "the forest's edge looking out over fields"
+    light: "a long amber dusk, the sky slowly darkening"
 
 # ------------------------------------------------------------
 # Items, keyed by the registry id in data/items/*.yaml.

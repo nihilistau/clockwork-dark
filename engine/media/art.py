@@ -161,11 +161,20 @@ def _item_fields(item_id: str) -> Optional[dict[str, str]]:
 
 def _gallery_fields(gallery_key: str) -> Optional[dict[str, str]]:
     """Prompt fields for an ending's plate, from the subjects file's ``gallery:`` block (v0.25.0 E7)."""
-    entry = (load_subjects().get("gallery", {}) or {}).get(gallery_key)
+    return _block_fields("gallery", gallery_key)
+
+
+def _enemy_fields(enemy_key: str) -> Optional[dict[str, str]]:
+    """Prompt fields for an encounter's threat, from the ``enemies:`` block (v0.25.0 T15)."""
+    return _block_fields("enemies", enemy_key)
+
+
+def _block_fields(section: str, key: str) -> Optional[dict[str, str]]:
+    entry = (load_subjects().get(section, {}) or {}).get(key)
     if not entry:
         return None
     return {
-        "subject": entry.get("subject", gallery_key.replace("_", " ")),
+        "subject": entry.get("subject", key.replace("_", " ")),
         "details": entry.get("details", ""),
         "setting": entry.get("setting", ""),
         "light": entry.get("light", ""),
@@ -180,6 +189,8 @@ def _fields(kind: str, subject_id: str, time_of_day: str) -> dict[str, str]:
         fields = _portrait_fields(subject_id)
     elif kind == "gallery":
         fields = _gallery_fields(subject_id)
+    elif kind == "enemy":
+        fields = _enemy_fields(subject_id)
     else:
         fields = _location_fields(subject_id, time_of_day)
     if fields is None:

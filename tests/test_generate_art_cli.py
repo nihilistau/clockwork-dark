@@ -593,3 +593,186 @@ def test_promote_never_copies_another_storys_image(
     code, out = _run(["--game", "dev-story", "--only", "portraits:sophia", "--promote"])
     assert "promoted 1 plates" in out
     assert (art / "plates" / "portraits" / "sophia.jpg").exists()
+
+
+# ---------------------------------------------------------------------------
+# v0.25.0 T15: the flagship through the story plan (plan decision 13)
+# ---------------------------------------------------------------------------
+
+
+def test_the_story_plan_plans_enemies_gallery_and_corrupted_plates(tmp_path, monkeypatch) -> None:
+    """v0.25.0 plan decision 13: `--story-plan` runs the flagship through the generic plan."""
+    import importlib.util
+    from pathlib import Path
+
+    import yaml
+
+    from engine.config import set_overlay
+    from engine.media import art
+    from engine.media.providers import shipped
+
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location("generate_art_t15", root / "scripts" / "generate_art.py")
+    module = importlib.util.module_from_spec(spec)
+    # A dataclass resolves its string annotations through sys.modules.
+    monkeypatch.setitem(sys.modules, "generate_art_t15", module)
+    spec.loader.exec_module(module)
+    subjects = tmp_path / "subjects.yaml"
+    subjects.write_text(yaml.safe_dump({
+        "locations": {"well_row": {"subject": "A lane", "phases": ["consuming"], "times": {"night": {"light": "moon"}}}},
+        "enemies": {"barrow_cold": {"subject": "A cold"}},
+        "gallery": {"banked_oven": {"subject": "An oven"}},
+    }), encoding="utf-8")
+    manifest = tmp_path / "manifest.yaml"
+    manifest.write_text(yaml.safe_dump({"root": "/static/art"}), encoding="utf-8")
+    set_overlay({"paths": {"art_subjects": str(subjects), "art_manifest": str(manifest), "art_root": str(tmp_path)}})
+    art.reset_subjects_cache()
+    shipped.reset_manifest_cache()
+    try:
+        plates = {(p.kind, p.subject_id, p.slot, p.target) for p in module.plan_plates()}
+    finally:
+        set_overlay(None)
+        art.reset_subjects_cache()
+        shipped.reset_manifest_cache()
+    assert ("location", "well_row", "night", "scenes/well-row-night.jpg") in plates
+    assert ("location", "well_row", "corrupted", "scenes/well-row-corrupted.jpg") in plates
+    assert ("enemy", "barrow_cold", "", "enemies/barrow-cold.jpg") in plates
+    assert ("gallery", "banked_oven", "", "gallery/banked-oven.jpg") in plates
+    # No `base: true`: a subject with `times:` plans its dayparts only, as before.
+    assert ("location", "well_row", "base", "scenes/well-row.jpg") not in plates
+
+
+def _story_plan(tmp_path: Path, subjects: dict[str, Any], manifest: dict[str, Any] | None = None) -> list[Any]:
+    from engine.config import set_overlay
+    from engine.media import art
+    from engine.media.providers import shipped
+
+    (tmp_path / "subjects.yaml").write_text(yaml.safe_dump(subjects), encoding="utf-8")
+    (tmp_path / "manifest.yaml").write_text(
+        yaml.safe_dump(manifest or {"root": "/static/art"}), encoding="utf-8"
+    )
+    set_overlay({"paths": {
+        "art_subjects": str(tmp_path / "subjects.yaml"),
+        "art_manifest": str(tmp_path / "manifest.yaml"),
+        "art_root": str(tmp_path),
+    }})
+    art.reset_subjects_cache()
+    shipped.reset_manifest_cache()
+    try:
+        return generate_art.plan_plates()
+    finally:
+        set_overlay(None)
+        art.reset_subjects_cache()
+        shipped.reset_manifest_cache()
+
+
+def test_base_true_plans_the_base_plate_beside_the_dayparts(tmp_path: Path) -> None:
+    """T13's I7: an opt-in `base: true` plans a location's base plate."""
+    plan = _story_plan(tmp_path, {"locations": {"well_row": {
+        "subject": "A lane", "base": True, "phases": ["consuming"], "times": {"night": {"light": "moon"}},
+    }}})
+    plates = {(p.kind, p.subject_id, p.slot, p.target) for p in plan}
+    assert plates == {
+        ("location", "well_row", "base", "scenes/well-row.jpg"),
+        ("location", "well_row", "night", "scenes/well-row-night.jpg"),
+        ("location", "well_row", "corrupted", "scenes/well-row-corrupted.jpg"),
+    }
+    by_slot = {p.slot: p.request() for p in plan}
+    assert (by_slot["base"].time_of_day, by_slot["base"].evil_phase) == ("dawn", "dormant")
+    assert by_slot["corrupted"].evil_phase == "consuming"
+    # Three plates, three cache entries.
+    assert len({r.cache_key() for r in by_slot.values()}) == 3
+
+
+def test_a_daypart_string_base_is_not_the_opt_in(tmp_path: Path) -> None:
+    """READ RECEIPTS' `base: night` is its own field; only the boolean plans a base."""
+    plan = _story_plan(tmp_path, {"locations": {"apt_bedroom": {
+        "subject": "Bedroom", "base": "night", "times": {"night": {"light": "lamp"}},
+    }}})
+    assert [(p.slot, p.target) for p in plan] == [("night", "scenes/apt-bedroom-night.jpg")]
+
+
+def test_the_corrupted_plate_resolves_only_from_the_corrupted_pool(tmp_path: Path) -> None:
+    """`lookup` falls back to the base at consuming, so a base must not count."""
+    subjects = {"locations": {"well_row": {"subject": "A lane", "base": True, "phases": ["consuming"]}}}
+    _png(tmp_path / "scenes" / "well-row.jpg")
+    plan = _story_plan(tmp_path, subjects, {"root": "/static/art", "locations": {
+        "well_row": {"base": "scenes/well-row.jpg"}}})
+    assert {p.slot: p.resolved for p in plan} == {"base": True, "corrupted": False}
+    _png(tmp_path / "scenes" / "well-row-corrupted.jpg")
+    plan = _story_plan(tmp_path, subjects, {"root": "/static/art", "locations": {
+        "well_row": {"base": "scenes/well-row.jpg", "corrupted": ["scenes/well-row-corrupted.jpg"]}}})
+    assert {p.slot: p.resolved for p in plan} == {"base": True, "corrupted": True}
+
+
+def test_dayparts_select_a_base_or_a_corrupted_plate_by_name(tmp_path: Path) -> None:
+    plan = _story_plan(tmp_path, {"locations": {"well_row": {
+        "subject": "A lane", "base": True, "phases": ["consuming"], "times": {"night": {}},
+    }}})
+
+    def pick(names: set[str]) -> set[str]:
+        return {p.slot for p in generate_art.select(plan, dayparts=names, missing_only=False)}
+
+    assert pick({"night"}) == {"night"}
+    assert pick({"base"}) == {"base"}
+    assert pick({"corrupted"}) == {"corrupted"}
+
+
+def test_promote_appends_a_corrupted_plate_and_writes_enemies_and_gallery() -> None:
+    text = (
+        "locations:\n"
+        "  well_row:\n"
+        "    base: scenes/town-scene.jpg\n"
+        "    corrupted:\n"
+        "      - scenes/old.jpg\n"
+        "enemies:\n"
+        "  wolf: enemies/wolf.jpg\n"
+    )
+    out = generate_art.merge_manifest_text(text, [
+        ("locations", "well_row", "corrupted", "scenes/well-row-corrupted.jpg"),
+        ("enemies", "barrow_cold", "", "enemies/barrow-cold.jpg"),
+        ("gallery", "banked_oven", "", "gallery/banked-oven.jpg"),
+    ])
+    data = yaml.safe_load(out)
+    assert data["locations"]["well_row"]["corrupted"] == ["scenes/old.jpg", "scenes/well-row-corrupted.jpg"]
+    assert data["locations"]["well_row"]["base"] == "scenes/town-scene.jpg"
+    assert data["enemies"] == {"wolf": "enemies/wolf.jpg", "barrow_cold": "enemies/barrow-cold.jpg"}
+    assert data["gallery"] == {"banked_oven": "gallery/banked-oven.jpg"}
+    # Promoting the same plate twice does not list it twice.
+    again = generate_art.merge_manifest_text(out, [
+        ("locations", "well_row", "corrupted", "scenes/well-row-corrupted.jpg"),
+    ])
+    assert yaml.safe_load(again)["locations"]["well_row"]["corrupted"] == data["locations"]["well_row"]["corrupted"]
+
+
+def test_the_story_plan_flag_takes_the_flagship_through_the_generic_plan(cache_dir: Path) -> None:
+    from engine.games import registry
+
+    try:
+        code, out = _run(["--story-plan", "--dry-run", "--no-missing", "--only", "enemies,gallery"])
+        assert code == 0, out
+        assert out.splitlines()[0].startswith("clockwork-dark: ")
+        assert "enemies/barrow-cold.jpg" in out and "gallery/banked-oven.jpg" in out
+    finally:
+        registry.deactivate()
+
+
+def test_without_the_flag_the_flagships_plan_is_unchanged(cache_dir: Path) -> None:
+    """`--locations --dry-run` prints the legacy plan: its summary line, its rows,
+    and none of the story plan's corrupted, enemy or gallery targets."""
+    from engine.games import registry
+
+    requests = generate_art.wanted({"locations"})
+    gaps = generate_art.missing(requests)
+    code, out = _run(["--dry-run", "--locations"])
+    assert code == 0
+    lines = out.splitlines()
+    assert lines[0] == (
+        f"{len(requests)} possible images, {len(requests) - len(gaps)} already covered, "
+        f"{len(gaps)} missing"
+    )
+    assert len(requests) == len(generate_art.LOCATIONS) * 8
+    rows = [line for line in lines if line.startswith("  plan:")]
+    assert len(rows) == len(gaps)
+    assert not any(word in out for word in ("corrupted", "enemies/", "gallery/", "consuming"))
+    assert registry.peek() is None

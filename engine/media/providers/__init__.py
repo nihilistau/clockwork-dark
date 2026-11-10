@@ -42,6 +42,10 @@ def build_provider(name: str) -> Optional[ImageProvider]:
         from engine.media.providers.comfy import ComfyProvider
 
         return ComfyProvider()
+    if name == "forge":
+        from engine.media.providers.forge import ForgeProvider
+
+        return ForgeProvider()
     if name == "procedural":
         return ProceduralProvider()
     logger.warning("[media] Unknown image provider (operation=build_provider, name=%s)", name)

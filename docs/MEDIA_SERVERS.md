@@ -234,6 +234,40 @@ other project's `harness/skills/xai.py`.
   message, a missing key, a URL response) is verified against a stubbed
   `urllib.request.urlopen` (`tests/test_media_xai.py`).
 
+## Forge Neo
+
+`media.image_provider: forge` (or `scripts/generate_art.py --provider forge`)
+generates art on a local Stable Diffusion WebUI Forge Neo through the
+AUTOMATIC1111-compatible API it serves (start Forge with its API on). The
+provider is `engine/media/providers/forge.py`.
+
+- **The request.** `POST {media.forge.base_url}/sdapi/v1/txt2img` with
+  `prompt` (the subject's prose, `engine/media/art.py::render_prose`),
+  `steps`, `cfg_scale`, `width`/`height` (the story's `formats:` for the
+  kind), `sampler_name`, `seed` and `override_settings`:
+  `sd_model_checkpoint` (`media.forge.checkpoint`) and
+  `forge_additional_modules` (`media.forge.modules`, the VAE and text encoder
+  a GGUF checkpoint needs). The reply's `images[0]` is a base64 PNG, written
+  to the disk cache by its bytes. **No `negative_prompt` key is sent** (owner
+  rule).
+- **The defaults** (`config/default.yaml` `media.forge`): `http://127.0.0.1:7860`,
+  `qwen-image-2.1-Q4_K_M.gguf` with `qwen_image_2.1_vae_bf16.safetensors` and
+  `qwen3vl_8b_int8_convrot.safetensors`, 20 steps, CFG 3.5, `Euler`, a
+  900-second bound per plate. Override any of them in `config/local.yaml`.
+- **The seed** is the request's (`ImageRequest.seed`, which
+  `scripts/generate_art.py --seed N` sets to re-roll a plate), else a hash of
+  the request's cache key, so a plate reproduces.
+- **`available()`** is a GET of `/sdapi/v1/sd-models` bounded to 3 seconds;
+  any error is "not available".
+- **The Settings panel does not offer it**: its picture-provider list
+  (`engine/api/settings.py`) is pinned by the local-mode golden, so `forge` is
+  set in `config/local.yaml` or with `--provider`.
+- **Verified live** (v0.25.0 T15, 2026-11-10): the flagship's 47-plate art
+  pack was generated on the owner's Forge Neo with Qwen Image 2.1 (GGUF
+  Q4_K_M), at about 160-250 seconds a plate (1344x768 and 768x1024). The suite
+  stubs `urllib.request.urlopen` (`tests/test_media_forge.py`) and never
+  reaches it.
+
 ## Verified
 
 - **Not verified live.** No ComfyUI server was running on the development

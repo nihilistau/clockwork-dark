@@ -790,6 +790,7 @@ local dev server, say) counts as the same site, as it does for the browser.
 |---|---|---|---|
 | Live image generation | `media.live_generation` | **off** | A Grok Imagine still takes 2 to 3 minutes, which can't sit inside a real-time turn. Use `scripts/generate_art.py` to fill gaps ahead of time |
 | ComfyUI `:8188` | `comfyui.enabled` | **off** | Takes seconds rather than minutes, so it's the backend worth turning live generation on for |
+| Forge Neo `:7860` | `media.image_provider: forge` | not selected | A local Stable Diffusion WebUI Forge Neo (`media.forge`, the owner's Qwen Image 2.1 by default) for `scripts/generate_art.py --provider forge`; minutes a plate. The flagship's v0.25.0 art pack was made on it (docs/MEDIA_SERVERS.md § Forge Neo) |
 | Phone media (READ RECEIPTS) | `phone_media.provider` | `procedural` | `comfyui` sends the phone's photos, videos and portraits to the `comfyui:` server (local or hosted, `comfyui.api_key` from `comfyui_api_key.txt` or `CLOCKWORK_COMFYUI_API_KEY`) through `comfyui.workflows`; its own switch, so `comfyui.enabled` never makes a story's turn post a workflow. Off, every picture is a procedural tile with its caption ([docs/MEDIA_SERVERS.md](docs/MEDIA_SERVERS.md)) |
 | Spoken narration | `tts.enabled` | **off** | Measured at about 21x slower than realtime on the reference machine |
 | Assistant voice only | `tts.assistant_enabled` | **off** | The companion's 1 to 3 sentence lines are the only thing worth speaking live |
