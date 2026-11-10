@@ -86,12 +86,17 @@ round again on the next visit, so "not yet" is never the last chance.
 
 The largest shipped pack, in `content/scenes/clockwork/static/art/` (the
 flagship's art root predates per-story art directories):
-`data/art/manifest.yaml` maps 20 locations, five Assistant forms, four
-portraits, 81 items, five enemies, UI plates and the dice. The two secret
-places, the four new people and the new bands' six enemies have prompts but
-no plate yet, so they draw the procedural tile.
-`scripts/art_missing.py --game clockwork-dark` lists what is still missing,
-and `scripts/generate_art.py` (the default plan is this story's) fills it.
+`data/art/manifest.yaml` maps all 22 locations, each with its own base
+(eight with a night plate, twelve with a `corrupted` pool), five Assistant
+forms, nine portraits (everyone scheduled but the cat), 81 items, eleven
+enemies, an ending plate for each of the eight endings (`gallery:`), UI
+plates and the dice. v0.25.0's 47 plates were generated on a local Forge Neo
+with Qwen Image 2.1: `scripts/generate_art.py --game clockwork-dark
+--story-plan --provider forge` plans them from `data/art/subjects.yaml`
+(a location's `base: true`, `times:` and `phases: [consuming]`; `enemies:`;
+`gallery:`), and `--promote` writes them in. Without `--story-plan` the
+flagship keeps its legacy plan. `scripts/art_missing.py --game
+clockwork-dark` lists what is still missing.
 
 ## Balance
 

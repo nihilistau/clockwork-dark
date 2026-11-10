@@ -19,6 +19,14 @@
 # `alts` are picked deterministically per (subject, time_of_day) so a location
 # is not identical on every visit while still being stable for a given seed.
 #
+# v0.25.0 T15 (spec §9): 47 plates generated on the owner's Forge Neo (Qwen
+# Image 2.1, engine/media/providers/forge.py) with
+# `scripts/generate_art.py --game clockwork-dark --story-plan --provider forge`
+# and promoted by `--promote`: twelve places' own bases, eight `night` times,
+# six `corrupted` plates, seven portraits, six enemies and eight ending plates.
+# Each place's stand-in base was moved into its `alts` by hand first, so no
+# shipped file is deleted.
+#
 # Version: v0.2.0 [2026-08-07]
 # ============================================================
 
@@ -32,29 +40,41 @@ locations:
   forest_clearing:
     base: scenes/wheatfield-forest-edge.jpg
     alts:
-      - scenes/forest-tree-stump.jpg
-      - scenes/forest-mushroom-ring.jpg
+    - scenes/forest-tree-stump.jpg
+    - scenes/forest-mushroom-ring.jpg
     corrupted:
-      - scenes/forest-clockwork-vines.jpg
-      - scenes/forest-poison-gas.jpg
+    - scenes/forest-clockwork-vines.jpg
+    - scenes/forest-poison-gas.jpg
+    times:
+      night: scenes/forest-clearing-night.jpg
 
   edgewood_square:
     base: scenes/town-scene.jpg
     alts:
-      - scenes/noticeboard.jpg
+    - scenes/noticeboard.jpg
     corrupted:
-      - scenes/wheatfields-scarecrow.jpg
-      - scenes/wheatfield-drawing-warning.jpg
+    - scenes/wheatfields-scarecrow.jpg
+    - scenes/wheatfield-drawing-warning.jpg
+    times:
+      night: scenes/edgewood-square-night.jpg
 
   edgewood_bakery:
     base: scenes/bakery.jpg
     alts:
-      - things/steaming-bread.jpg
+    - things/steaming-bread.jpg
+    times:
+      night: scenes/edgewood-bakery-night.jpg
+    corrupted:
+    - scenes/edgewood-bakery-corrupted.jpg
 
   tinker_caravan:
     base: scenes/tinker-cart.jpg
     alts:
-      - scenes/tinker-camping.jpg
+    - scenes/tinker-camping.jpg
+    corrupted:
+    - scenes/tinker-caravan-corrupted.jpg
+    times:
+      night: scenes/tinker-caravan-night.jpg
 
   millhaven_gate:
     base: scenes/closing-town-gates.jpg
@@ -69,12 +89,23 @@ locations:
     alts: [tunnels/Tunnel-Entrance-Far.jpg]
   old_barrows:
     base: ruins/Mage-Ruins-Far.jpg
-    alts: [ruins/Mage-Ruins-Closer.jpg, ruins/mage-ruins-altar.jpg]
+    alts:
+    - ruins/Mage-Ruins-Closer.jpg
+    - ruins/mage-ruins-altar.jpg
+    times:
+      night: scenes/old-barrows-night.jpg
   herb_glen:
-    base: things/herbs.jpg
+    base: scenes/herb-glen.jpg
+    alts:
+    - things/herbs.jpg
   the_forge:
     base: forge/forge.jpg
-    alts: [forge/blacksmith-interior-anvil.jpg]
+    alts:
+    - forge/blacksmith-interior-anvil.jpg
+    times:
+      night: scenes/the-forge-night.jpg
+    corrupted:
+    - scenes/the-forge-corrupted.jpg
   tunnel_entrance:
     base: tunnels/tunnel-entrance-close.jpg
     alts: [tunnels/tunnel-entrance-2-entries.jpg, tunnels/tunnels-stairs.jpg]
@@ -86,49 +117,84 @@ locations:
   # alternative was leaving ten new locations with no image at all.
   # ------------------------------------------------------------
   charcoal_burn:
-    base: scenes/tinker-camping.jpg
-    alts: [scenes/resting-camp.jpg]
+    base: scenes/charcoal-burn.jpg
+    alts:
+    - scenes/tinker-camping.jpg
+    - scenes/resting-camp.jpg
 
   edgewood_shrine:
     base: ruins/Village-Altar.jpg
-    alts: [ruins/mage-ruins-altar.jpg]
+    alts:
+    - ruins/mage-ruins-altar.jpg
+    times:
+      night: scenes/edgewood-shrine-night.jpg
+    corrupted:
+    - scenes/edgewood-shrine-corrupted.jpg
 
   well_row:
-    base: scenes/town-scene.jpg
-    alts: [scenes/noticeboard.jpg]
+    base: scenes/well-row.jpg
+    alts:
+    - scenes/town-scene.jpg
+    - scenes/noticeboard.jpg
+    corrupted:
+    - scenes/well-row-corrupted.jpg
+    times:
+      night: scenes/well-row-night.jpg
 
   fallow_farm:
-    base: scenes/wheatfield-forest-edge.jpg
-    alts: [scenes/wheatfields-scarecrow.jpg]
+    base: scenes/fallow-farm.jpg
+    alts:
+    - scenes/wheatfield-forest-edge.jpg
+    - scenes/wheatfields-scarecrow.jpg
     corrupted:
-      - scenes/clockwork-wheatfield.jpg
-      - scenes/wheatfield-drawing-warning.jpg
+    - scenes/clockwork-wheatfield.jpg
+    - scenes/wheatfield-drawing-warning.jpg
 
   millhaven_market:
-    base: scenes/town-scene.jpg
-    alts: [scenes/noticeboard-cutscene.jpg]
-    corrupted: [scenes/clockwork-tower.jpg]
+    base: scenes/millhaven-market.jpg
+    alts:
+    - scenes/town-scene.jpg
+    - scenes/noticeboard-cutscene.jpg
+    corrupted:
+    - scenes/clockwork-tower.jpg
 
   millhaven_barracks:
-    base: scenes/closing-town-gates.jpg
-    alts: [signposts/notice-board-tunnel-revealed.jpg]
+    base: scenes/millhaven-barracks.jpg
+    alts:
+    - scenes/closing-town-gates.jpg
+    - signposts/notice-board-tunnel-revealed.jpg
 
   toll_bridge:
-    base: signposts/notice-board-contract-tunnels.jpg
-    alts: [scenes/closing-town-gates.jpg]
+    base: scenes/toll-bridge.jpg
+    alts:
+    - signposts/notice-board-contract-tunnels.jpg
+    - scenes/closing-town-gates.jpg
 
   refugee_camp:
-    base: scenes/resting-camp.jpg
-    alts: [scenes/player-hurt-resting.jpg]
+    base: scenes/refugee-camp.jpg
+    alts:
+    - scenes/resting-camp.jpg
+    - scenes/player-hurt-resting.jpg
+    corrupted:
+    - scenes/refugee-camp-corrupted.jpg
 
   burned_farmstead:
-    base: ruins/Hollow-Hill-Far.jpg
-    alts: [ruins/Altar-Hollow-Hill-maybe.jpg]
+    base: scenes/burned-farmstead.jpg
+    alts:
+    - ruins/Hollow-Hill-Far.jpg
+    - ruins/Altar-Hollow-Hill-maybe.jpg
 
   heartland_road:
-    base: scenes/clockwork-wheatfield.jpg
-    alts: [scenes/clockwork-tower.jpg]
-    corrupted: [scenes/forest-clockwork-vines.jpg]
+    base: scenes/heartland-road.jpg
+    alts:
+    - scenes/clockwork-wheatfield.jpg
+    - scenes/clockwork-tower.jpg
+    corrupted:
+    - scenes/forest-clockwork-vines.jpg
+  the_works:
+    base: scenes/the-works.jpg
+  the_join:
+    base: scenes/the-join.jpg
 
 # ------------------------------------------------------------
 # The Assistant's five canonical forms.
@@ -143,12 +209,23 @@ assistant_forms:
 # ------------------------------------------------------------
 # NPC portraits. Sparse on purpose -- an unmapped NPC falls through to the
 # deterministic procedural silhouette rather than borrowing someone's face.
+#
+# v0.25.0 T15: every scheduled person but the cat has their own plate
+# (portraits/, Forge Neo + Qwen Image 2.1). Odran's and Sera's stand-ins,
+# souls/shadow-portraits-men.jpg and souls/warrior.jpg, stay on disk: a
+# portrait is one path here (`lookup` has no portrait alts), so they are kept
+# as files rather than as rows.
 # ------------------------------------------------------------
 portraits:
   npc_brindle: souls/cat-assistant.jpg
   npc_ilya: souls/tinker.jpg
-  npc_sera: souls/warrior.jpg
-  npc_odran: souls/shadow-portraits-men.jpg
+  npc_sera: portraits/npc-sera.jpg
+  npc_odran: portraits/npc-odran.jpg
+  npc_hallam: portraits/npc-hallam.jpg
+  npc_nessa: portraits/npc-nessa.jpg
+  npc_wenna: portraits/npc-wenna.jpg
+  npc_maris: portraits/npc-maris.jpg
+  npc_edrin: portraits/npc-edrin.jpg
 
 # ------------------------------------------------------------
 # Items, keyed on inventory id.
@@ -265,6 +342,12 @@ enemies:
   clockwork_scarecrow: enemies/scarecrow-clockwork.jpg
   clockwork_thing: enemies/clockwork-monster-vs-mage.jpg
   clockwork_soldier: enemies/clockwork-enemy-vs-mage.jpg
+  barrow_cold: enemies/barrow-cold.jpg
+  the_works_engine: enemies/the-works-engine.jpg
+  toll_men: enemies/toll-men.jpg
+  brass_hound: enemies/brass-hound.jpg
+  wrong_walker: enemies/wrong-walker.jpg
+  press_gang: enemies/press-gang.jpg
 
 # ------------------------------------------------------------
 # UI furniture.
@@ -354,3 +437,18 @@ dice_faces:
   18: dice/faces/face-18.jpg
   19: dice/faces/face-19.jpg
   20: dice/faces/face-20.jpg
+
+# ------------------------------------------------------------
+# Ending plates (v0.25.0 E7), keyed by each ending's `gallery_key`
+# (data/epilogues/epilogue_index.yaml) and resolved by
+# engine/media/providers/shipped.py::lookup's `gallery` branch.
+# ------------------------------------------------------------
+gallery:
+  banked_oven: gallery/banked-oven.jpg
+  dated_ledger: gallery/dated-ledger.jpg
+  struck_roll: gallery/struck-roll.jpg
+  empty_table: gallery/empty-table.jpg
+  cold_square: gallery/cold-square.jpg
+  long_dusk: gallery/long-dusk.jpg
+  ink_on_the_table: gallery/ink-on-the-table.jpg
+  eight_shadows: gallery/eight-shadows.jpg

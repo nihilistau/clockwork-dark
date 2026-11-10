@@ -27,15 +27,6 @@ from engine.media.providers.shipped import lookup
 
 _ROOT = Path(__file__).resolve().parents[1]
 
-#: v0.25.0 §9: the new bands' six enemies (T5), drawn on the procedural tile
-#: until the art task (T15) adds their manifest rows and plates. Each must be
-#: wanted by an encounter (`tests/test_encounter.py`) and resolve to no file
-#: yet; T15 empties this set.
-ENEMIES_ON_THE_TILE_UNTIL_T15 = frozenset(
-    {"barrow_cold", "press_gang", "toll_men", "brass_hound", "wrong_walker", "the_works_engine"}
-)
-
-
 def _declared_art() -> dict[str, list[str]]:
     """Art key -> the encounter ids that use it, across the active game."""
     out: dict[str, list[str]] = {}
@@ -59,8 +50,6 @@ def test_every_declared_art_key_resolves_to_a_shipped_file():
     """
     unresolved: list[str] = []
     for key, users in sorted(_declared_art().items()):
-        if key in ENEMIES_ON_THE_TILE_UNTIL_T15:
-            continue
         path = lookup(ImageRequest(subject_id=key, kind="enemy"))
         if not path:
             unresolved.append(f"{key} (wanted by {sorted(users)})")
@@ -73,7 +62,7 @@ def test_the_manifest_key_and_the_file_on_disk_agree():
         (_ROOT / "games/clockwork-dark/data/art/manifest.yaml").read_text(encoding="utf-8")
     )
     art_root = _ROOT / "content/scenes/clockwork/static/art"
-    for key in sorted(set(_declared_art()) - ENEMIES_ON_THE_TILE_UNTIL_T15):
+    for key in sorted(_declared_art()):
         relative = (manifest.get("enemies") or {}).get(key)
         assert relative, f"{key} is not in the manifest's enemies: block"
         assert (art_root / relative).is_file(), f"{key} -> {relative} is not on disk"

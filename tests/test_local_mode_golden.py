@@ -1013,6 +1013,49 @@ LEVY_SANCTION: list[tuple[str, Callable[[str], str]]] = [
 #: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10, S14 since v0.25.0 T2, S15 since
 #: v0.25.0 T3, S16 and S17 since v0.25.0 T4, S18 since v0.25.0 T5, S19 since v0.25.0 T6,
 #: S20 since v0.25.0 T8; there are no others.
+#: S19 (v0.25.0 T15, §9): the art pack. Each place the map draws whose plate the
+#: pack changed, with the picture it showed (recorded) and the one it shows now.
+#: Twelve places got their own base (each stand-in moved into its `alts`), so a
+#: place's picture is drawn from a new pool: well_row and fallow_farm land on an
+#: alt (a stand-in) for the map's daypart, and refugee_camp's draw is unchanged.
+S19_ART: dict[str, tuple[str, str]] = {
+    "herb_glen": ("/static/art/things/herbs.jpg", "/static/art/scenes/herb-glen.jpg"),
+    "the_works": ("", "/static/art/scenes/the-works.jpg"),
+    "charcoal_burn": ("/static/art/scenes/tinker-camping.jpg", "/static/art/scenes/charcoal-burn.jpg"),
+    "well_row": ("/static/art/scenes/noticeboard.jpg", "/static/art/scenes/town-scene.jpg"),
+    "fallow_farm": ("/static/art/scenes/wheatfield-forest-edge.jpg",
+                    "/static/art/scenes/wheatfields-scarecrow.jpg"),
+    "millhaven_market": ("/static/art/scenes/town-scene.jpg", "/static/art/scenes/millhaven-market.jpg"),
+    "millhaven_barracks": ("/static/art/scenes/closing-town-gates.jpg",
+                           "/static/art/scenes/millhaven-barracks.jpg"),
+    "toll_bridge": ("/static/art/signposts/notice-board-contract-tunnels.jpg",
+                    "/static/art/scenes/toll-bridge.jpg"),
+    "burned_farmstead": ("/static/art/ruins/Hollow-Hill-Far.jpg", "/static/art/scenes/burned-farmstead.jpg"),
+    "heartland_road": ("/static/art/scenes/clockwork-wheatfield.jpg", "/static/art/scenes/heartland-road.jpg"),
+    "the_join": ("", "/static/art/scenes/the-join.jpg"),
+}
+
+
+def with_the_art_pack(value: Any) -> None:
+    """
+    S19 (v0.25.0 T15, §9): the no-session map's place pictures after the art
+    pack (a codex with no player knows every place). Each place in ``S19_ART``
+    had the recorded picture and now has the new one. The session route draws
+    only the places the player knows, and none of these moves there.
+    """
+    moved = 0
+    for place in value["/api/codex/places"]["json"]["places"]:
+        if place["id"] in S19_ART:
+            before, after = S19_ART[place["id"]]
+            assert place["image"] == before, (place["id"], place["image"])
+            place["image"] = after
+            moved += 1
+    assert moved == len(S19_ART), moved
+
+
+ART_SANCTION: tuple[str, Callable[[str], str]] = (S18_FIXTURE, json_sanction(with_the_art_pack))
+
+
 SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     BIND_SANCTION,
     *SAVES_SANCTION,
@@ -1034,6 +1077,7 @@ SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     MAP_SANCTION,
     *DOORS_SANCTION,
     *LEVY_SANCTION,
+    ART_SANCTION,
 ]
 
 

@@ -763,7 +763,6 @@ def test_clockwork_is_reserved_for_the_late_phases():
 
 def test_every_art_key_exists_in_the_manifest():
     from engine.config import get_config
-    from tests.test_encounter_art import ENEMIES_ON_THE_TILE_UNTIL_T15
 
     path = encounter._ROOT / str(get_config().get("paths.art_manifest", "games/clockwork-dark/data/art/manifest.yaml"))
     with path.open(encoding="utf-8") as fh:
@@ -774,19 +773,10 @@ def test_every_art_key_exists_in_the_manifest():
         art = row.get("art")
         if art:
             used.add(art)
-            assert art in enemies or art in ENEMIES_ON_THE_TILE_UNTIL_T15, (
-                f"{row['id']} points at missing art '{art}'"
-            )
-    assert ENEMIES_ON_THE_TILE_UNTIL_T15 <= used, ENEMIES_ON_THE_TILE_UNTIL_T15 - used
-
-
-def test_the_new_bands_enemies_are_on_the_procedural_tile_until_t15():
-    from engine.media.providers.base import ImageRequest
-    from engine.media.providers.shipped import lookup
-    from tests.test_encounter_art import ENEMIES_ON_THE_TILE_UNTIL_T15
-
-    for key in sorted(ENEMIES_ON_THE_TILE_UNTIL_T15):
-        assert lookup(ImageRequest(subject_id=key, kind="enemy")) is None, key
+            assert art in enemies, f"{row['id']} points at missing art '{art}'"
+    # v0.25.0 §9: the new bands' six threats, drawn in T15, are all wanted.
+    new_bands = {"barrow_cold", "press_gang", "toll_men", "brass_hound", "wrong_walker", "the_works_engine"}
+    assert new_bands <= used, new_bands - used
 
 
 def test_every_skill_and_band_is_one_the_engine_knows():

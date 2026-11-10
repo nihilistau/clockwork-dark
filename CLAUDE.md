@@ -1059,6 +1059,11 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   quests. And `scripts/simulate.py` without `--game` builds no state schema, so the levy clock's
   `value` effects are logged as unknown and ignored there (no number moves; `--game clockwork-dark`
   measures the same).
+- An open card is not closed when the player leaves its place (pre-existing, every story): a dealt hand
+  lives in `state.scene` (`engine/content/director.py`), and `director.end` runs only when the hand
+  finishes, a card's beat kills the player or a card plays an ending, never on a move or a survival
+  respawn. Seen in v0.25.0 T14's follow-up: after a starve-respawn the levy table's `L1` still owned the
+  turn in `edgewood_square`. A docs/GOVERNANCE.md NOT WIRED row; the fix moves recorded turns.
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 
