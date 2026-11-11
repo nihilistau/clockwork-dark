@@ -21,6 +21,7 @@ import pytest
 
 from engine.game.state import GameState
 from engine.games import registry
+from tests.test_local_mode_golden import S21_ART  # the art pack's pictures (v0.25.0 T15)
 
 HUE_SECRETS = ("the_undercroft", "rooftop_road", "old_bell_tower")
 
@@ -493,6 +494,15 @@ def test_the_flagship_map_payload_is_what_it_was_before_secret_places() -> None:
     assert rebanded == len(FLAGSHIP_BANDED_SINCE_V025) * len(out)
 
     assert len(LOCATIONS) == 22
+    # v0.25.0 T15 (the art pack, the local-mode golden's S21): each place that got
+    # its own base is drawn with it, mapped back to the picture it was recorded with.
+    redrawn = 0
+    for places in out.values():
+        for place in places:
+            if place["id"] in S21_ART and place.get("image") == S21_ART[place["id"]][1]:
+                place["image"] = S21_ART[place["id"]][0]
+                redrawn += 1
+    assert redrawn == len(set(S21_ART) - set(FLAGSHIP_SECRETS)), redrawn
     assert digest(out["__start__"]) == FLAGSHIP_START_MAP_DIGEST
     assert digest(out) == FLAGSHIP_MAP_DIGEST
 

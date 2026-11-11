@@ -550,6 +550,22 @@ E1_EVENT_DRAWS = {"flagship_respawn": {"event.tinker_camp": 1}}
 T7_TERMINAL_ENDING = {"ending": "the_dark_keeps_its_hours"}
 
 
+#: The third sanctioned move (v0.25.0 T8, spec §5.1): the flagship declares
+#: `paths.clocks`, and Sera's levy reads `event_seen` on every `advance_time`
+#: through `quests._meta`, which get-or-creates `quests["_meta"]` (a CLAUDE.md
+#: deferred row, as in `tests/test_social_seam.py`'s S20). So a respawn's hours
+#: leave this empty block where the recording had `quests: {}`. Asserted EXACT
+#: and taken back out, so every other byte is still held to the recording.
+T8_EMPTY_META = {"_meta": {"events_seen": {}, "visited": []}}
+
+
+def _without_t8_meta(saved: dict) -> dict:
+    """The save with T8's empty `quests._meta` block taken back out (asserted present)."""
+    assert saved.get("quests") == T8_EMPTY_META, saved.get("quests")
+    saved["quests"] = {}
+    return saved
+
+
 def _without_t7_ending(rules: dict) -> dict:
     """The shipped death rules with T7's one key taken back out of `terminal:`."""
     terminal = {k: v for k, v in (rules.get("terminal") or {}).items() if k not in T7_TERMINAL_ENDING}
@@ -587,6 +603,8 @@ def _death_digest(case: str, monkeypatch: pytest.MonkeyPatch) -> str:
         assert drawn == E1_EVENT_DRAWS.get(case, {}), drawn
         for key in drawn:
             del counters[key]
+        if case == "flagship_respawn":
+            _without_t8_meta(saved)
         blob = json.dumps({"death": death, "state": saved},
                           sort_keys=True, default=str)
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()
@@ -680,6 +698,7 @@ def test_a_held_respawn_without_the_opt_in_is_byte_identical(tmp_path: Path) -> 
         assert record["terminal"] is False and not law.in_custody(state)
         saved = state.to_save_dict()
         saved.pop("session_id", None)
+        _without_t8_meta(saved)  # the flagship's levy clock still reads under the overlay
         blob = json.dumps({"death": record, "state": saved}, sort_keys=True, default=str)
     finally:
         set_overlay(None)

@@ -481,8 +481,16 @@ def test_a_misspelt_rest_still_asks_the_substitutes_gates(monkeypatch):
 
 
 def test_a_rest_gate_that_raises_downgrades_rather_than_refuses(priced, monkeypatch):
-    def boom(*_a, **_k):
-        raise RuntimeError("a broken predicate")
+    import engine.game.quests as quests
+
+    real = quests.evaluate_condition
+
+    def boom(state, condition, *a, **k):
+        # Only the bed's gate breaks: the night's own clock pass (the flagship's
+        # levy since v0.25.0 T8) evaluates its conditions through the same function.
+        if condition == {"flag": "member"}:
+            raise RuntimeError("a broken predicate")
+        return real(state, condition, *a, **k)
 
     monkeypatch.setattr("engine.game.quests.evaluate_condition", boom)
     state = fed_state()
