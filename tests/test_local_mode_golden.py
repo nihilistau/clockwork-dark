@@ -29,8 +29,12 @@ secret places on the no-session map) and S19 (the flagship's doors named: its
 gallery's gates, lock reasons and teases, and its `paths.decks`) and S20 (the
 flagship's levy and bargain declared: an empty `threads` list in each of its
 state blocks, and `paths.clocks` and `paths.threads` in its catalogue rows)
-and S21 (the no-session map's place pictures after the art pack, v0.25.0 T15).
-There are no others.
+and S21 (the no-session map's place pictures after the art pack, v0.25.0 T15)
+and S22 (HUE & CRY's narrated turns in an open `watch_stop` gain its four
+approaches, v0.25.0 T16) and S23 (the flagship's six narrated turns in
+Edgewood Square gain its nine roads, v0.25.0 T16 fix round 1) and S24 (the
+flagship's manifest `version` 0.2.0 -> 0.3.0 in its catalogue rows and the
+launcher line, v0.25.0 T17). There are no others.
 
 The capture opens no socket (Flask's and Socket.IO's test clients), writes
 nothing outside the test's temp directory (asserted, by an audit hook), and
