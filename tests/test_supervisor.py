@@ -30,6 +30,7 @@ import pytest
 # At module level: the runner keeps the real seams it pins, which a first
 # import inside a test body (under the conftest's pins) cannot.
 from tests import local_golden
+from tests.test_local_mode_golden import launcher_names_the_flagship_version
 from tests.hosting_instance import HostingInstance, hosting_instance
 from tests.process_identity import alive, identify
 
@@ -1260,7 +1261,7 @@ def test_the_launcher_check_adds_the_hosted_row_only_with_hosting_on(
     """
     Spec §7.4 (T12): ``--check`` with hosting on prints the stack's table as
     ever, then the front door's ``GET /api/health`` and the logs' path. With
-    hosting off it is the local golden's ``launcher_check.txt``, unchanged.
+    hosting off it is the local golden's ``launcher_check.txt``, as sanctioned.
     """
     import contextlib
     import io
@@ -1268,7 +1269,10 @@ def test_the_launcher_check_adds_the_hosted_row_only_with_hosting_on(
 
     import launcher
 
-    recorded = (local_golden.FIXTURES / "launcher_check.txt").read_text(encoding="utf-8")
+    # The recording as sanction S24 makes it (v0.25.0 T17: the flagship's version line).
+    recorded = launcher_names_the_flagship_version(
+        (local_golden.FIXTURES / "launcher_check.txt").read_text(encoding="utf-8")
+    )
     probed: list[str] = []
     with local_golden.pinned(monkeypatch, tmp_path / "config", tmp_path / "data") as stack_calls:
         off = local_golden.launcher_runs(monkeypatch, stack_calls)["launcher_check.txt"]

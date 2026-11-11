@@ -10,36 +10,38 @@ release to release.
 
 ## Status
 
-**v0.24.1** (a repair: the GOVERNANCE file check left the gitignored `config/local.yaml` out, found by CI on Linux) is the current release, on **v0.24.0** (sound effects for the engine and every story, READ RECEIPTS' morning after and four more life-event decks, and v0.23.0's deferred tail: the 10-seed balance pass, the docs pass and the whole-branch review; live play with a model was deferred again by the owner, 2026-10-26), after **v0.23.3** (a repair: a phone ask sent while the person's reply to the message before it was still due is answered, found by CI on Linux), **v0.23.2** (a cross-platform repair: the engine's lognormal, normal and decay math runs in software, `engine/game/detmath.py`, so one seed gives one save on Windows and Linux) and **v0.23.1** (the world-turn cost bound is local-only and `run_tests.py` names each failure's reason), on **v0.23.0** (READ RECEIPTS' rework); v0.25.0, the flagship's overhaul, is next (CHANGELOG.md has every release since 0.4.0;
+**v0.25.0** (The Clockwork Dark's overhaul: four people placed, two secret places, every road banded, the eight endings each locked at a door by a card dealt where its person is, fourteen decks and 34 cards carrying the critical path, Sera's levy and Sergeant Venn's bargain, overlays that press engine intents, a 47-plate art pack made on Forge Neo, the doors harness and its balance pass, and live play on LM Studio, T16) is the current release, after **v0.24.1** (a repair: the GOVERNANCE file check left the gitignored `config/local.yaml` out, found by CI on Linux) and **v0.24.0** (sound effects for the engine and every story, READ RECEIPTS' morning after and four more life-event decks, and v0.23.0's deferred tail); v0.26.0, engine correctness and tools, is next (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
-**Windows, v0.24.0 (`scripts/run_tests.py full --limit-minutes 240`, measured 2026-10-27 at
-the release): 8609 passed, 28 skipped, 0 failed after four fixes, in 93.4 min for the run
-itself** (the run: parallel phase 8093 passed, 13 skipped, 4 failed in 83.0 min; serial phase
-512 passed, 15 skipped in 10.4 min, no FLAKY re-run; exit 1 for the four). The four failures were
-real and fixed in their own commit, their files re-run once, green (72 passed in 11.5 min): the
-`SHIPPED_REPEATABLE` set did not list v0.24.0 T2's four life-event decks; the wedding test used a bare
-Matchstick match that expires unwritten over its 16 idle days (T14's `waking` window fix moved when
-people write first, so it failed; it now uses a match with numbers); the day-60 turn-cost pin moved
-(every turn digest and the save: T14's `waking` fix, re-recorded once with
-`CLOCKWORK_TURN_COST_RECORD=1`); and `test_the_hue_run_keeps_no_save` counted a READ RECEIPTS save made by
-another thread in its xdist worker (it now counts only its own thread's saves; the leaking test was not
-found, see Deliberately deferred). The release is slow because of READ RECEIPTS' `slow` pins
+**Windows, v0.25.0 (`scripts/run_tests.py full --limit-minutes 240`, measured 2026-11-11 at
+the release): 8972 passed, 29 skipped, 12 failed in 93.0 min for the run itself, then 0 failed
+after the fixes** (parallel phase 8463 passed, 14 skipped, 9 failed in 82.4 min; serial phase 509
+passed, 15 skipped, 3 failed in 10.5 min; no FLAKY line: the solo re-run did not run, because a
+parallel-phase test had failed). Eleven of the twelve failed alone on the T16 commit too: tests and
+pins that an earlier task's affected-file runs never reached, each bisected and shown to be exactly
+that task's sanctioned change (T8's empty `quests._meta` in two death digests, T15's art in the map
+digest, 6510adc's world choices in READ RECEIPTS' two replay pins, T14's narrator flags in the
+flagship's 12-turn `simulate.py` golden, a find with no reprieve, the levy clock in the bag, and two
+tests whose patches now meet the levy's and the secret places' grammar reads). Fixed test-side in
+their own commit (ba8c1aa), no engine or content line moved; the twelfth was the release's own
+version bump (the launcher line, sanction S24). Their files re-run once, green (284 passed, then
+`tests/test_hosting_gate.py` 21 passed). The release is slow because of READ RECEIPTS' `slow` pins
 (`tests/test_social_save_size.py`, `tests/test_social_commit_scope.py`, and in the serial phase
-`tests/test_simulate_social.py`); `run_tests.py full`'s default limit is 240 minutes. The skips:
-`tests/test_llm_live.py` (unless `CLOCKWORK_LIVE_LLM` names the configured model server); the ten
+`tests/test_simulate_social.py`); `run_tests.py full`'s default limit is 240 minutes. The run's log does not itemise its 29 skips
+(v0.24.0 had 28); the known set: `tests/test_llm_live.py` (unless `CLOCKWORK_LIVE_LLM` names the configured model server); the ten
 tests of `tests/test_docker_smoke.py` (opt-in, `CLOCKWORK_DOCKER_SMOKE=1` and a built image); the
 stamina soft-lock test's stories with no rest verb; THE LONG CON's word-limit check;
 `tests/test_constraints.py`'s installed-version check for `faster-whisper` and `gunicorn` (neither
 installed on Windows); the POSIX-only tests; one bus test skipped by design; and
 `tests/test_media_xai.py::test_the_suite_never_resolves_the_repositorys_key_file` (it needs the owner's
-gitignored `xai_api_key.txt`, so it runs on the owner's machine only). Plus **850 client tests** in
-50 files under `ui/tests/` (`npm test --prefix ui`; `npm ci --prefix ui` once first). The layout check
-(`npm run layout-check --prefix ui`, clockwork-dark: start screen, the audition page, the encounter and
-play runs, Settings' Sound fieldset, at 1366x768, 900x600, 390x844 and 844x390) passed. `fast` was not
-re-measured (v0.21.1: about 5.8 min). Not run for this release: the 40-seed simulator confirmation the
-v0.23.0 plan named (the owner chose the 10-seed scale for the balance pass on 2026-10-24; 40 seeds would
-take about 17 hours per policy), and live play with a model (T12, deferred by the owner on 2026-10-26).
+gitignored `xai_api_key.txt`, so it runs on the owner's machine only). Plus **898 client tests** in
+56 files under `ui/tests/` (`npm test --prefix ui`; `npm ci --prefix ui` once first). The layout check
+(`npm run layout-check --prefix ui`, clockwork-dark: start screen, the audition page, and the `play`,
+`encounter` and `barter` runs with the four overlays (`i`, `b`, `n`, `e`) opened and probed, at 1366x768,
+900x600, 390x844 and 844x390) passed. `scripts/doctor.py`: every row ok but LM Studio unreachable (not
+running, FAIL) and faster-whisper and Voxtral absent (warn); `config/local.yaml` unchanged. `fast` was
+not re-measured (v0.21.1: about 5.8 min). Not run for this release: the 40-seed simulator confirmation
+for READ RECEIPTS (the owner's 10-seed scale stands), and READ RECEIPTS' scripted live play.
 Re-measure and restate these at every release rather than trusting this line.
 A bare `pytest` is the fast tier since v0.21.1 (`slow` and `process` left
 out); the numbers above are `--full`.
@@ -194,8 +196,8 @@ only once the last of them lands:
 | v0.22.0 | A new story: a dating simulation played through a phone of apps (dating apps, texts, instant messages, voice and video messages, two-player games), a populated cast the engine runs, no endgame (owner's brief: docs/superpowers/briefs/2026-09-30-dating-sim-brief.md) | **shipped** |
 | v0.23.0 | READ RECEIPTS rework: growth (people who change at their own pace, conversations and willingness that ramp up), no set time on dating, phone numbers that work, places (the player's apartment and its rooms, 3-4 homes for the cast) with their art, and real-life events and meet-ups happening outside the phone; slice of life, no ending (owner's brief, with its addendum: docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md). **Addendum 4 (2026-10-22, after the owner's playtest; docs/superpowers/specs/2026-10-22-v0.23.0-addendum4-world-interaction.md)** is part of it: the world's choices survive phone actions, a plan is kept where you stand (they arrive, the scene opens, `Wait for {name}`), the person is somewhere, a quiet phone while together, typing in the world (a typed line runs ONE offered choice or a scene move, or is narrated only), background people at venues and chance meetings with live contacts, T23A-T23H; replayed end to end in `tests/test_rr_playtest_replay.py` and `ui/tests/rr-playtest.test.jsx`, with the browser-pane walk (A4 §7.5, T31) deferred, and still not done (below) | **shipped** (its tail moved into v0.24.0: T29b ran as v0.24.0 T11, T32 as T13, T33 is T14; T31 was deferred again by the owner, 2026-10-26) |
 | v0.24.0 | Sound effects for the engine and every story (owner's brief: docs/superpowers/briefs/2026-10-13-sound-effects-brief.md): sound as client-side data (`content/sounds/sounds.yaml` and a story's `paths.sounds`; twenty-five engine events; synth sounds, fifteen CC0 Kenney `.ogg` files with synth fallbacks, 216,524 of a 1 MiB budget), the server's two routes and file route, the client sound engine and triggers, the settings, the audition page (`/?sounds=1`) and a palette for each of the six played stories (dev-story hears the engine's set); READ RECEIPTS' morning scene after a stay-over, four more life-event decks (`lift_out`, `family_visit`, `wedding_invite`, `neighbour_party`), the lift fix and the news windows (moved from v0.23.0 at its checkpoint C1); and v0.23.0's deferred tail: the full balance pass (T11: 19 rows banded, 19 deferred by data, one data change), the docs pass (T13) and the whole-branch review (T14). **T12, live play with a model (the addendum-4 meet-up walk, listening to the sounds), was DEFERRED by the owner on 2026-10-26** (Deliberately deferred) | **shipped** |
-| v0.25.0 | The Clockwork Dark overhaul | **next** |
-| v0.26.0 | Engine correctness and tools (the owner's triage of an outside review, 2026-10-27): negation and third-party checks scoped to the clause, intent options ranked before the cap, the suite's runtime, counterfactual echoes, a replay inspector in Studio, a per-model compliance report | queued |
+| v0.25.0 | The Clockwork Dark overhaul (docs/superpowers/specs/2026-10-27-v0.25.0-clockwork-dark-overhaul-design.md): the eight endings at doors, the critical path on cards, Sera's levy and Venn's bargain, four people placed, two secret places, every road banded, overlays that press intents, the encounter and sheet screens, a 47-plate art pack (Forge Neo), the doors harness and balance pass (five rows missed, Deliberately deferred), live play on LM Studio in part (T16) | **shipped** |
+| v0.26.0 | Engine correctness and tools (the owner's triage of an outside review, 2026-10-27): negation and third-party checks scoped to the clause, intent options ranked before the cap, the suite's runtime, counterfactual echoes, a replay inspector in Studio, a per-model compliance report | **next** |
 | v0.27.0 | The Wicked Garden overhaul | queued |
 | v0.28.0 | NEON CITY overhaul | queued |
 | v0.29.0 | THE LONG CON overhaul | queued |

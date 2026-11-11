@@ -576,7 +576,7 @@ runs the flaky player on the same seeds for its promises row
 
 **Where the measured tables live.** T9's phone-only pass (10 seeds x 6
 sessions at 6, 15 and 30 model seconds) is in this story's
-[CHANGELOG](CHANGELOG.md) (`[0.23.0]`), and the full-session pass (10 seeds x 60 sessions) under `[Unreleased]`; `conversation.yaml`'s,
+[CHANGELOG](CHANGELOG.md) (`[0.23.0]`), and the full-session pass (10 seeds x 60 sessions) under `[0.24.0]`; `conversation.yaml`'s,
 `promises.yaml`'s and `growth.yaml`'s headers carry the rows their numbers
 move. `tests/test_simulate_social.py` (`slow`) replays two phone-only
 rows at all three latencies on seeds 0-9 (`PHONE_BANDS`: ghosting at depth
@@ -587,7 +587,7 @@ test holds them to `FULL_BANDS`; `tests/test_social_balance_pin.py` fails
 when a balance file they were measured on changes (a sha256 of the parsed
 files), naming the re-measure (rule 10). Every other row is deferred by data
 with its CLAUDE.md row. The full-session tables are in the
-[CHANGELOG](CHANGELOG.md) (`[Unreleased]`). `tests/test_social_save_size.py`
+[CHANGELOG](CHANGELOG.md) (`[0.24.0]`). `tests/test_social_save_size.py`
 pins three day-180 saves, one per policy (attentive, bachelor, devoted),
 each under 1 MB.
 

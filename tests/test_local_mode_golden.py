@@ -1188,13 +1188,52 @@ ROADS_SANCTION: list[tuple[str, Callable[[str], str]]] = [
 ]
 
 
+def with_flagship_version(value: Any) -> None:
+    """
+    S24 (v0.25.0 T17, the release): the flagship's manifest `version` moves from
+    0.2.0 to 0.3.0, because its content moved (games/clockwork-dark/game.yaml).
+    The flagship's catalogue row, and only it, changes, and only that key.
+    """
+    body = value["json"]
+    rows = body["games"] if "games" in body else [body["manifest"]] if "manifest" in body else [body]
+    flagship = [row for row in rows if row.get("id") == "clockwork-dark"]
+    assert len(flagship) == 1, len(flagship)
+    assert flagship[0]["version"] == "0.2.0", ("S24 applied twice", flagship[0]["version"])
+    flagship[0]["version"] = "0.3.0"
+
+
+#: S24's launcher line, as recorded and as the bump makes it.
+S24_LAUNCHER_LINE: tuple[str, str] = (
+    "Game: The Clockwork Dark  (games/clockwork-dark, v0.2.0)",
+    "Game: The Clockwork Dark  (games/clockwork-dark, v0.3.0)",
+)
+#: S24's launcher fixtures: each prints the active story's version once.
+S24_LAUNCHERS = ("launcher_check.txt", "launcher_main.json")
+
+
+def launcher_names_the_flagship_version(text: str) -> str:
+    """
+    S24 on a launcher fixture: the one line naming the flagship's version,
+    and nothing else. Raises unless that line appears exactly once.
+    """
+    before, after = S24_LAUNCHER_LINE
+    assert text.count(before) == 1, ("S24 applied twice", text.count(before))
+    return text.replace(before, after)
+
+
+VERSION_SANCTION: list[tuple[str, Callable[[str], str]]] = [
+    *((name, json_sanction(with_flagship_version)) for name in S19_CATALOGUES),
+    *((name, launcher_names_the_flagship_version) for name in S24_LAUNCHERS),
+]
+
+
 #: ``(fixture name, transform)``: the recording, as the sanctioned change
 #: makes it. S1 since v0.20.0 T2, S2 since T3, S3-S10 since v0.21.0
 #: (spec §1.2; S7 added in T3 fix round 1, S8 in fix round 2, S9 in the
 #: encounter-resume fix, S10 in T13 fix round 1, S5 in T14), S11 since
 #: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10, S14 since v0.25.0 T2, S15 since
 #: v0.25.0 T3, S16 and S17 since v0.25.0 T4, S18 since v0.25.0 T5, S19 since v0.25.0 T6,
-#: S20 since v0.25.0 T8, S21 since v0.25.0 T15, S22 since v0.25.0 T16, S23 since T16 fix round 1; there are no others.
+#: S20 since v0.25.0 T8, S21 since v0.25.0 T15, S22 since v0.25.0 T16, S23 since T16 fix round 1, S24 since v0.25.0 T17; there are no others.
 SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     BIND_SANCTION,
     *SAVES_SANCTION,
@@ -1219,6 +1258,7 @@ SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     ART_SANCTION,
     *SCENE_CHOICES_SANCTION,
     *ROADS_SANCTION,
+    *VERSION_SANCTION,
 ]
 
 
@@ -1786,3 +1826,34 @@ def test_the_levy_sanction_is_exact() -> None:
         assert after == before, name
         with pytest.raises(AssertionError, match="S20 applied twice"):
             sanction(sanction(recorded[name]))
+
+
+def test_the_version_sanction_is_exact() -> None:
+    """
+    S24 moves, in each catalogue fixture, exactly the flagship row's `version` from
+    0.2.0 to 0.3.0, and in each launcher fixture exactly the one line that names it;
+    undone, every fixture is the recording again, and it cannot apply twice. The
+    version it sanctions is the one the flagship's manifest declares.
+    """
+    import yaml
+
+    manifest = yaml.safe_load((REPO / "games" / "clockwork-dark" / "game.yaml").read_text(encoding="utf-8"))
+    assert manifest["version"] == "0.3.0"
+    recorded = _recorded()
+    for name, sanction in VERSION_SANCTION:
+        moved = sanction(recorded[name])
+        assert moved != recorded[name], name
+        if name in S24_LAUNCHERS:
+            before, after = S24_LAUNCHER_LINE
+            assert moved.count(after) == 1, name
+            assert moved.replace(after, before) == recorded[name], name
+        else:
+            value = json.loads(moved)
+            body = value["json"]
+            rows = body["games"] if "games" in body else [body["manifest"]] if "manifest" in body else [body]
+            flagship = next(r for r in rows if r.get("id") == "clockwork-dark")
+            assert flagship["version"] == "0.3.0", name
+            flagship["version"] = "0.2.0"
+            assert value == json.loads(recorded[name]), name
+        with pytest.raises(AssertionError, match="S24 applied twice"):
+            sanction(moved)

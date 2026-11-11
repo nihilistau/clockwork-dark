@@ -11,9 +11,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.25.0] — 2026-11-11
+
 ### Fixed
 
 - A narrated world turn whose choices carried no intent left nothing on screen that passes time, so the world stopped. The world's own choices (Read, Watch something, the rooms and places) now follow the narrator's, any it already offered left out (`tests/test_social_world.py::test_a_narrated_world_turn_keeps_the_worlds_choices`).
+
+### Tests
+
+- The two world-turn replay pins (`tests/fixtures/social/world_session_replay.json`, `tests/fixtures/social/turn_cost_replay.json`) were re-recorded at the release (v0.25.0 T17): the fix above appends the world's own choices to every narrated world turn, and dumped before and after it every payload differs by those `world_` choices alone; the day-60 save is unchanged.
 
 ## [0.24.0] — 2026-10-27
 
