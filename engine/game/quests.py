@@ -807,6 +807,7 @@ _GRAMMAR_MODULES = (
     "engine.world.jobs",  # premise_cased, premise_robbed, job
     "engine.world.agendas",  # wanted, reported_to, agenda_hit, alibi, agenda_role
     "engine.world.clues",  # clues_favour
+    "engine.world.npc_sim",  # npc_here
 )
 
 #: True once the import loop below has RUN (a failed import included: it is
@@ -1100,7 +1101,7 @@ class QuestEngine:
         World events expire from ``state.world_events`` after a couple of days
         (``WorldSim.expire_events``), so "the caravan came on day six" is gone
         from state by day eight -- and the Whisper arc gate needs exactly that,
-        ten days later. This writes it down while it is still true.
+        three days later. This writes it down while it is still true.
 
         Args:
             state: Mutable game state.

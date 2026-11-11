@@ -23,6 +23,19 @@ export function JournalIcon() {
   );
 }
 
+/* An arched door standing ajar, its own mark (T14): "The ways it ends" lists
+   the doors open now, so the glyph is a door, not the Journal's book. */
+export function DoorIcon() {
+  return (
+    <Icon>
+      <path d="M6.2 20.4V9.6a5.8 5.8 0 0 1 11.6 0v10.8" />
+      <path d="M4.4 20.4h15.2" />
+      <path d="M6.2 20.4l5.4-1.6V8.4L6.2 9.6" />
+      <circle cx="10.2" cy="14.2" r="0.8" fill="currentColor" stroke="none" />
+    </Icon>
+  );
+}
+
 /* A folded travelling map with one place ringed on it. The Atlas is the first
    tab of the codex and it is the only one a player recognises by shape. */
 export function AtlasIcon() {

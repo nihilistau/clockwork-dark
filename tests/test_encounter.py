@@ -768,10 +768,15 @@ def test_every_art_key_exists_in_the_manifest():
     with path.open(encoding="utf-8") as fh:
         enemies = set((yaml.safe_load(fh) or {}).get("enemies", {}))
 
+    used = set()
     for row in encounter.all_encounters():
         art = row.get("art")
         if art:
+            used.add(art)
             assert art in enemies, f"{row['id']} points at missing art '{art}'"
+    # v0.25.0 §9: the new bands' six threats, drawn in T15, are all wanted.
+    new_bands = {"barrow_cold", "press_gang", "toll_men", "brass_hound", "wrong_walker", "the_works_engine"}
+    assert new_bands <= used, new_bands - used
 
 
 def test_every_skill_and_band_is_one_the_engine_knows():

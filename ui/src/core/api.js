@@ -46,6 +46,15 @@ export const fetchRecipes = (sessionId) => getJSON("/api/recipes", { session_id:
 export const fetchNotices = (sessionId) => getJSON("/api/notices", { session_id: sessionId });
 
 /**
+ * What an overlay may press now (v0.25.0 §6.4): `{scene_owns_turn, actions: {action: [{target, label, slot?}]}}`.
+ * Uncapped and built beside the narrator's catalogue; the server re-checks a press under the turn lock.
+ */
+export const fetchOverlayIntents = (sessionId) => getJSON("/api/intents/overlay", { session_id: sessionId });
+
+/** Every faction's name, band word and score, for a sheet (v0.25.0 §6.4): `[{id, name, band, score}]`. */
+export const fetchFactions = (sessionId) => getJSON("/api/factions", { session_id: sessionId });
+
+/**
  * Who is here (v0.21.0, spec §4.4): {people: [{key, known, name, role_label,
  * activity, portrait}], more}. Resolves null on any failure, like every
  * reader here: the strip then renders nothing.

@@ -402,7 +402,7 @@ media:
   live_generation: false
 
   # Which backend live generation and the pre-generation script use.
-  # grokbuild | xai | comfyui | procedural
+  # grokbuild | xai | comfyui | forge | procedural
   image_provider: grokbuild
   # Generated stills carry a small provider watermark bottom-right. Cropping
   # trims ~4.5% off the bottom; needs Pillow.
@@ -415,6 +415,21 @@ media:
   # wins: xai_api_key.txt (gitignored, first line, at the repo root), then the
   # XAI_API_KEY environment variable. aspect_ratio is per art kind.
   xai: {api_key: "${file:xai_api_key.txt|env:XAI_API_KEY}", model: grok-imagine-image-2.0, resolution: "1k", aspect_ratio: {location: "16:9", portrait: "3:4", item: "1:1"}, timeout_seconds: 180}
+  # A local Stable Diffusion WebUI Forge Neo (media.image_provider: forge;
+  # engine/media/providers/forge.py), over the AUTOMATIC1111-compatible API it
+  # serves (POST /sdapi/v1/txt2img). v0.25.0 T15 made the flagship's art pack on
+  # it with Qwen Image 2.1: `checkpoint` is the GGUF model and `modules` its VAE
+  # and text encoder (Forge's "additional modules"). No negative prompt is sent
+  # (owner rule). The seed is per plate, from the request. timeout_seconds bounds
+  # one plate (about 4 minutes on the owner's card, the first with the model load).
+  forge:
+    base_url: "http://127.0.0.1:7860"
+    checkpoint: "qwen-image-2.1-Q4_K_M.gguf"
+    modules: ["qwen_image_2.1_vae_bf16.safetensors", "qwen3vl_8b_int8_convrot.safetensors"]
+    steps: 20
+    cfg_scale: 3.5
+    sampler: "Euler"
+    timeout_seconds: 900
 
 comfyui:
   # One ComfyUI server, local or hosted (v0.22.0 spec §13.4;

@@ -305,7 +305,9 @@ def death_terminal_problem(terminal: Any, ending_ids: Any) -> Optional[str]:
     Shared by the loader (a ValueError naming the file) and the content
     validator (an Issue), so the two cannot disagree. A block that uses
     neither key -- the flagship's ``phases``/``flag`` terminal -- is not this
-    shape and is not checked here.
+    shape and is not checked here. A legacy terminal may name ``ending``
+    beside ``phases``/``flag`` (v0.25.0 E3): the ending its second death
+    locks, checked against the declared endings.
 
     Args:
         terminal: The ``terminal:`` mapping from death.yaml.
@@ -318,9 +320,18 @@ def death_terminal_problem(terminal: Any, ending_ids: Any) -> Optional[str]:
     from engine.game import clocks, endings, threads  # noqa: F401
     from engine.world import agendas, jobs, law  # noqa: F401
 
-    if "when" not in terminal:
-        return "`terminal.ending` needs a `terminal.when` saying which death it is"
     ending = str(terminal.get("ending") or "").strip()
+    if "when" not in terminal:
+        # The legacy `phases`/`flag` terminal may name the ending its second
+        # death locks (v0.25.0 E3).
+        if not (terminal.get("phases") and str(terminal.get("flag") or "").strip()):
+            return (
+                "`terminal.ending` needs a `terminal.when` saying which death it is, "
+                "or the legacy `phases` and `flag`"
+            )
+        if ending not in {str(e) for e in ending_ids}:
+            return f"`terminal.ending` `{ending}` is not a declared ending"
+        return None
     if not ending:
         return "`terminal.when` needs a `terminal.ending` to lock"
     mixed = sorted({"phases", "flag"} & set(terminal))
@@ -1032,8 +1043,10 @@ def _terminal_ending_death(
     A death that ends the story in a declared ending: ``terminal: {when, ending}``.
 
     The run ends, the ending is locked and its module plays, so
-    ``epilogue.for_state`` has cards to show -- the flagship's ``phases``
-    terminal sets ``state.ended`` and nothing else, which is a blank page.
+    ``epilogue.for_state`` has cards to show -- a legacy ``phases`` terminal
+    that names no ``ending`` sets ``state.ended`` and nothing else, which is a
+    blank page. One that names an ending (v0.25.0 E3) comes here on its
+    second death.
 
     THE LOCK SKIPS THE ENDING'S OWN GATE. An author writing "this death ends
     in The Rope" means always: an ending whose ``requires`` a terminal death
@@ -1098,9 +1111,9 @@ def check_death(
     and the evil has kept its own hours the whole time. ``state.ended`` is set
     only for a terminal case defined in death.yaml: the flagship's -- dying a
     second time while the world is already ``consuming``, when there is no
-    longer anyone left to carry you back -- or a story's ``terminal: {when,
-    ending}``, which also locks that ending so its epilogue shows
-    (``_terminal_ending_death``).
+    longer anyone left to carry you back, locking the ending it names if it
+    names one (v0.25.0 E3) -- or a story's ``terminal: {when, ending}``, which
+    also locks that ending so its epilogue shows (``_terminal_ending_death``).
 
     Args:
         state: Mutable game state.
@@ -1139,10 +1152,14 @@ def _check_death_inner(
         return None
 
     terminal_cfg = rules.get("terminal") or {}
-    # `terminal: {when, ending}`: read at the moment of death, before any
-    # respawn hours, so "died while held" means held when they fell.
     terminal_ending = str(terminal_cfg.get("ending") or "").strip()
-    if terminal_ending:
+    # The two shapes are told apart by `when` (v0.25.0 E3): with it, the
+    # `{when, ending}` terminal, read at the moment of death, before any
+    # respawn hours, so "died while held" means held when they fell; without
+    # it, the legacy `phases`/`flag` terminal, whose `ending` (if any) is the
+    # ending its SECOND death locks, below. `evaluate_condition(None)` is True,
+    # so branching on `ending` alone made every legacy first death terminal.
+    if terminal_ending and "when" in terminal_cfg:
         from engine.game.quests import evaluate_condition
 
         if evaluate_condition(state, terminal_cfg.get("when"), ledger=ledger):
@@ -1158,6 +1175,10 @@ def _check_death_inner(
             effects_module.apply_effect(state, {"type": "flag", "flag": mark, "value": True})
 
     if terminal:
+        if terminal_ending:
+            # The legacy terminal names its ending: locked through the same
+            # guarded path, so `epilogue.for_state` has a card (DESIGN.md § Death).
+            return _terminal_ending_death(state, terminal_cfg, terminal_ending, ledger)
         state.ended = True
         text = str(terminal_cfg.get("text") or "You do not get up.")
         logger.info(

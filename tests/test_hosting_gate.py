@@ -356,7 +356,14 @@ def test_install_warms_the_process_before_serving(
         build(monkeypatch, tmp_path, warm=True)
     finally:
         teardown()
-    assert called == [
+    # The warm is everything up to its last call. After it only the grammar is asked
+    # again: each config reset (the story's activation, the teardown) reloads the
+    # locations, and a story whose secret places declare `known_when` (the
+    # flagship's, v0.25.0 T5) checks each against the grammar's predicate names.
+    assert "get_oracle" in called, called
+    warmed = called[: called.index("get_oracle") + 1]
+    assert set(called[len(warmed) :]) <= {"_ensure_grammar"}, called
+    assert warmed == [
         "warm_all_caches",
         "_ensure_grammar",
         "get_governance",

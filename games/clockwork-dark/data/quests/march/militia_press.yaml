@@ -38,9 +38,10 @@ stages:
 
   - id: the_weller_boy
     objective: "The Weller boy is on the list. Decide whether that is your business."
-    narrative_flags:
-      - nf_press_spoke_up
-      - nf_press_gave_name
+    # Answered on a card, not by the narrator (v0.25.0 §4.1, T14): the levy
+    # table's L2 beats write nf_press_spoke_up or nf_press_gave_name with
+    # their reputation shifts, which this stage does not carry. Offered to
+    # the model, the flag completed the stage with neither shift.
     expires_after_days: 2
     complete_when:
       any:

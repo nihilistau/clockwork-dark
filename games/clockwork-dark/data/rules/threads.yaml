@@ -1,0 +1,39 @@
+# The Clockwork Dark -- one thread (v0.25.0 §5.1): Sergeant Venn's bargain. A
+# night on the wall for a name off her list. Struck at the gate in the morning
+# while the conscription list is open; discharged at the gate at night; broken
+# on its day if you never came. First values, unmeasured until T10.
+#
+# Version: v0.1.0 [2026-10-27]
+
+version: 1
+
+tags:
+  - Contract
+
+templates:
+  seras_bargain:
+    title: "Sergeant Venn's bargain"
+    source: npc_sera
+    tags: [Contract]
+    terms: >-
+      A night on the wall, any night inside three days, and one Edgewood name
+      comes off the list. She does not say which. She does not need to.
+    due_in_days: 3
+    requires:
+      all:
+        - { quest_state: { quest: conscription_list, status: active } }
+        - { at_location: millhaven_gate }
+        - { hour_between: [8, 11] }
+    on_seal:
+      - { type: ledger_fact, kind: event, text: "Sergeant Venn has your name down for a night on the wall, and an Edgewood name off her list for it." }
+    discharge_requires:
+      all:
+        - { at_location: millhaven_gate }
+        - { hour_between: [22, 4] }
+    on_discharge:
+      - { type: reputation, faction: militia, delta: 6 }
+      - { type: stamina, delta: -20 }
+      - { type: flag, flag: stood_the_wall }
+    on_break:
+      - { type: reputation, faction: militia, delta: -8 }
+    broken_text: "You did not come for your night on the wall, and Sera has written that down too."

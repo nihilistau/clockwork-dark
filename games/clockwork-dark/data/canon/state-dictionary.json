@@ -2,18 +2,34 @@
   "description": [
     "The Clockwork Dark -- declared flag vocabulary, in the Garden's",
     "dictionary shape. The validator reads this in both directions across",
-    "the story's structural documents (here: data/rules/endings.yaml): a",
+    "the story's structural documents (here: data/scenes/, the decks, since",
+    "v0.25.0; data/rules/clocks.yaml; data/rules/threads.yaml;",
+    "data/rules/endings.yaml): a",
     "flag read there must be canon or written somewhere structural, and a",
     "flag written there must be canon or read. Shipping this file upgrades",
     "the write-only-flag advisory to an error for this story.",
     "",
     "The nf_* flags are narrative flags: quests declare them and the",
-    "Storyteller sets them when the fiction earns them, so the writer is",
-    "the model and the YAML only ever reads them. The quest_*_done flags",
+    "Storyteller may set them when the fiction earns them. Since v0.25.0",
+    "(T6-T8) a deck card in data/scenes/ also writes every nf_* flag on an",
+    "ending's path (the bakehouse, Nessa's drawings, the naming, the village",
+    "meeting, the levy table, the ninth pin, the inward road, the morning",
+    "firing, the price and the join), so a card-only run needs no narrator;",
+    "the other nf_* flags are still the model's alone. The quest_*_done flags",
     "are set by each quest's on_complete. saints_marked_you is written by",
     "the terminal-death rules (data/rules/death.yaml, applied by",
     "engine/game/encounter.py). collection_brass_evidence_complete is",
     "written by the collections engine off data/tables/collections.yaml.",
+    "stood_the_wall is the march ending's other way to `served`: read by",
+    "data/rules/endings.yaml since v0.25.0 T6, written by Sera's bargain",
+    "(data/rules/threads.yaml, `seras_bargain`, since v0.25.0 T8).",
+    "The sacrifice_offered_* flags are written by the_price's S1 beats",
+    "(data/scenes/the_price.yaml, v0.25.0 T7) and read by its S2: what was",
+    "put on Ilya's table, which S2 takes only while it is still held.",
+    "Seven nf_* flags (nf_ninth_taken, nf_ninth_left, nf_sacrifice_chosen,",
+    "nf_sacrifice_paid, nf_hearth_book_closed, nf_press_spoke_up,",
+    "nf_press_gave_name) are no longer the narrator's at all: they left their",
+    "stages' narrative_flags, and only deck beats write them.",
     "ending_gallery_unlocked is the deliberately write-only case: every",
     "ending's Seal beat sets it and only the CLIENT reads it."
   ],
@@ -89,7 +105,8 @@
         "nf_sera_refused",
         "nf_toll_ledger_read",
         "nf_toll_paid",
-        "nf_toll_refused"
+        "nf_toll_refused",
+        "stood_the_wall"
       ],
       "convergence": [
         "quest_naming_the_wound_done",
@@ -118,6 +135,11 @@
         "nf_lastquiet_showed_up",
         "nf_lastquiet_told_her",
         "nf_lastquiet_said_nothing"
+      ],
+      "sacrifice": [
+        "sacrifice_offered_the_written_name",
+        "sacrifice_offered_ninth_pin",
+        "sacrifice_offered_brass_shard"
       ],
       "mechanics": [
         "saints_marked_you",

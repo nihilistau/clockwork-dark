@@ -119,6 +119,7 @@ def execute_intent(
     engine: GameEngine,
     *,
     agent: str = AGENT_STORYTELLER,
+    overlay: bool = False,
 ) -> list[dict[str, Any]]:
     """
     Resolve the structured intent the player's chosen option declared.
@@ -140,6 +141,10 @@ def execute_intent(
             -- yields ``[]`` and the turn behaves exactly as it did before.
         engine: Active game engine.
         agent: Caller identity, checked against the skill's allowlist.
+        overlay: Set only by ``run_turn`` for a press
+            ``default_state.resolve_overlay_intent`` admitted: legality is then
+            the overlay's list, and a scene owning the turn refuses it. A
+            client's raw intent cannot set it: it is not a field of the intent.
 
     Returns:
         Zero or one receipt, in the same shape ``execute_tool`` produces.
@@ -150,25 +155,35 @@ def execute_intent(
     if not parsed:
         return []
 
-    verbs = intents_module.legal_intents(engine.state)
-    verb = intents_module.find_verb(verbs, parsed["action"])
-    if verb is None:
-        return [
-            intents_module.refusal(
-                parsed,
-                f"{parsed['action']} is not something you can do here right now.",
-            )
-        ]
+    if overlay:
+        if intents_module.scene_owns_turn(engine.state):
+            # What is in front of the player comes first (spec §7.1): refused in
+            # the engine's words, as the turn's receipt, and the scene untouched.
+            return [intents_module.refusal(parsed, intents_module.OVERLAY_SCENE_REFUSAL)]
+        rows = intents_module.overlay_targets(engine.state).get(parsed["action"], [])
+        target = parsed.get("target", "")
+        if parsed["action"] not in intents_module.OVERLAY_ACTIONS or target not in {t for t, _ in rows}:
+            return [intents_module.refusal(parsed, intents_module.overlay_refusal(engine.state, parsed))]
+    else:
+        verbs = intents_module.legal_intents(engine.state)
+        verb = intents_module.find_verb(verbs, parsed["action"])
+        if verb is None:
+            return [
+                intents_module.refusal(
+                    parsed,
+                    f"{parsed['action']} is not something you can do here right now.",
+                )
+            ]
 
-    target = parsed.get("target", "")
-    if verb.targets and target not in verb.targets:
-        return [
-            intents_module.refusal(
-                parsed,
-                f"{target or 'that'} is not a legal {parsed['action']} target "
-                f"from here. Legal now: {', '.join(verb.targets)}.",
-            )
-        ]
+        target = parsed.get("target", "")
+        if verb.targets and target not in verb.targets:
+            return [
+                intents_module.refusal(
+                    parsed,
+                    f"{target or 'that'} is not a legal {parsed['action']} target "
+                    f"from here. Legal now: {', '.join(verb.targets)}.",
+                )
+            ]
 
     try:
         name, args = intents_module.to_tool_call(engine.state, parsed)

@@ -21,8 +21,20 @@ a rejoin), S7 and S8 (the codex's souls and vendors), S9 (a resume in an open
 encounter) and S10 (the pace slider's range, marks and hint), and v0.22.0
 adds S11 (READ RECEIPTS's row in the catalogue), and v0.24.0 adds S13 (the
 sound blueprint's three URL rules) and S12 (``paths.sounds`` in the catalogue rows
-of the stories that declare sounds: five rows, ``EXPECTED_SOUNDS_ROWS``). There
-are no others.
+of the stories that declare sounds: five rows, ``EXPECTED_SOUNDS_ROWS``), and
+v0.25.0 adds S14 (the overlay's route and socket handler), S15 (the
+factions route), S16 (the codex's declared souls), S17 (Nessa met in the
+flagship's recorded run), S18 (the flagship's banded roads and its two
+secret places on the no-session map) and S19 (the flagship's doors named: its
+gallery's gates, lock reasons and teases, and its `paths.decks`) and S20 (the
+flagship's levy and bargain declared: an empty `threads` list in each of its
+state blocks, and `paths.clocks` and `paths.threads` in its catalogue rows)
+and S21 (the no-session map's place pictures after the art pack, v0.25.0 T15)
+and S22 (HUE & CRY's narrated turns in an open `watch_stop` gain its four
+approaches, v0.25.0 T16) and S23 (the flagship's six narrated turns in
+Edgewood Square gain its nine roads, v0.25.0 T16 fix round 1) and S24 (the
+flagship's manifest `version` 0.2.0 -> 0.3.0 in its catalogue rows and the
+launcher line, v0.25.0 T17). There are no others.
 
 The capture opens no socket (Flask's and Socket.IO's test clients), writes
 nothing outside the test's temp directory (asserted, by an audit hook), and
@@ -236,6 +248,41 @@ def with_people_route(value: Any) -> None:
 
 
 PEOPLE_SANCTION: tuple[str, Callable[[str], str]] = ("app_shape.json", json_sanction(with_people_route))
+
+
+def with_overlay_door(value: Any) -> None:
+    """
+    S14 (v0.25.0 T2, spec §6.4, §7.1): `url_map` gains exactly `/api/intents/overlay`,
+    shaped as the story blueprint's other session routes, and the default namespace's
+    socket handlers gain exactly `overlay_action`.
+    """
+    rows = value["url_map"]
+    clues = next(row for row in rows if row[0] == "/api/clues")
+    assert not any(row[0] == "/api/intents/overlay" for row in rows)
+    rows.append(["/api/intents/overlay", list(clues[1]), clues[2].replace("api_clues", "api_overlay_intents")])
+    rows.sort()
+    handlers = value["socketio_handlers"]["/"]
+    assert "overlay_action" not in handlers
+    handlers.append("overlay_action")
+    handlers.sort()
+
+
+OVERLAY_SANCTION: tuple[str, Callable[[str], str]] = ("app_shape.json", json_sanction(with_overlay_door))
+
+
+def with_factions_route(value: Any) -> None:
+    """
+    S15 (v0.25.0 T3, spec §6.4): `url_map` gains exactly `/api/factions`, shaped
+    as the story blueprint's other session routes (`/api/clues` is the model).
+    """
+    rows = value["url_map"]
+    clues = next(row for row in rows if row[0] == "/api/clues")
+    assert not any(row[0] == "/api/factions" for row in rows)
+    rows.append(["/api/factions", list(clues[1]), clues[2].replace("api_clues", "api_factions")])
+    rows.sort()
+
+
+FACTIONS_SANCTION: tuple[str, Callable[[str], str]] = ("app_shape.json", json_sanction(with_factions_route))
 
 
 def with_turn_running(value: Any) -> None:
@@ -592,11 +639,605 @@ SOUNDS_SANCTION: list[tuple[str, Callable[[str], str]]] = [
 ]
 
 
+#: S16's rows per fixture, in the schedule file's order: ``(role, place)`` of each
+#: person the story declares in ``npc_schedules.yaml`` and its procgen list lacks.
+#: The flagship's four (v0.25.0 T4, §3.3); HUE & CRY's whole declared cast.
+S16_DECLARED: dict[str, list[tuple[str, str]]] = {
+    "clockwork-dark/story_routes.json": [
+        ("smith", "Well Row"), ("child", "The Fallow Holding"),
+        ("shrine keeper", "Well Row"), ("farmer", "The Fallow Holding"),
+    ],
+    "hue-and-cry/story_routes.json": [
+        ("captain", "The Lantern House"), ("sergeant", "The Lantern House"),
+        ("watch", "The Lantern House"), ("watch", "The Lantern House"),
+        ("guild head", "The Snuffs"), ("upstart", "The Snuffs"), ("fence", "Wickmarket"),
+        ("fence", "The Snuffs"), ("steward", "Margrave's Hill"), ("noble", "Silk Row"),
+        ("chandler", "Chandlers' Rise"), ("priest", "Chandlers' Rise"),
+        ("porter boss", "Tallow Docks"), ("lamplighter", "The Snuffs"),
+    ],
+}
+
+
+def with_declared_souls(rows: list[tuple[str, str]]) -> Callable[[str], str]:
+    """
+    S16 (v0.25.0 T4, spec §8.7): both souls answers gain exactly the story's declared
+    people the procgen list lacks, after the recorded souls and unmet (opaque ``s<index>``,
+    "Someone", no traits or portrait), each its role and home. Nothing else moves.
+    """
+
+    def transform(value: Any) -> None:
+        for route in SOULS_ROUTES:
+            souls = value[route]["json"]["souls"]
+            for role, place in rows:
+                souls.append({
+                    "canon": False, "disposition": 0, "first_met_day": 0, "id": f"s{len(souls)}",
+                    "met": False, "name": "Someone", "place": place, "portrait": "", "role": role,
+                    "traits": [],
+                })
+
+    return json_sanction(transform)
+
+
+DECLARED_SOULS_SANCTION: list[tuple[str, Callable[[str], str]]] = [
+    (name, with_declared_souls(rows)) for name, rows in S16_DECLARED.items()
+]
+
+#: S17's fixture and the memory files in it that gain Nessa's relation.
+S17_FIXTURE = "save_tree_clockwork-dark.json"
+S17_MEMORIES = ("<save-1>/memory.json", "<save-1>/memory.json.bak")
+
+
+def with_nessa_met(value: Any) -> None:
+    """
+    S17 (v0.25.0 T4, §3.3): the flagship's recorded run stands in Edgewood Square on day 1
+    in Nessa Fallow's hours (09-16), so its memory (and the backup) meets her there, as it
+    met the people already standing there. Exactly one relation per memory file.
+    """
+    for name in S17_MEMORIES:
+        relations = value[name]["relations"]
+        assert "npc_nessa" not in relations, "S17 applied twice"
+        relations["npc_nessa"] = {
+            "debts": [], "disposition": 0, "first_met_day": 1, "kind": "npc", "known_facts": [],
+            "last_seen_day": 1, "last_seen_location": "edgewood_square", "met": True, "notes": [],
+            "npc_id": "npc_nessa", "owed": [], "tags": [], "trust": 0,
+        }
+
+
+NESSA_SANCTION: tuple[str, Callable[[str], str]] = (S17_FIXTURE, json_sanction(with_nessa_met))
+
+
+#: S18's fixture, its two map routes, and the 22 roads that carried `danger_dc: 0`
+#: with a `# needs band` note in the recording and carry a band's number since
+#: v0.25.0 T5 (§5.3), each with that number.
+S18_FIXTURE = "clockwork-dark/story_routes.json"
+S18_ROUTES = ("/api/codex/places", "/api/codex/places?session_id")
+S18_BANDED: dict[str, int] = {
+    "forest_clearing>deeper_forest": 6, "deeper_forest>forest_clearing": 6,
+    "forest_clearing>herb_glen": 6, "herb_glen>forest_clearing": 6,
+    "deeper_forest>herb_glen": 6, "herb_glen>deeper_forest": 6,
+    "deeper_forest>charcoal_burn": 6, "charcoal_burn>deeper_forest": 6,
+    "edgewood_square>charcoal_burn": 6, "edgewood_square>fallow_farm": 6,
+    "deeper_forest>old_barrows": 10, "old_barrows>deeper_forest": 10,
+    "old_barrows>tunnel_entrance": 10, "tunnel_entrance>old_barrows": 10,
+    "millhaven_gate>toll_bridge": 10, "toll_bridge>burned_farmstead": 10,
+    "burned_farmstead>toll_bridge": 10, "refugee_camp>burned_farmstead": 10,
+    "burned_farmstead>refugee_camp": 10, "millhaven_gate>refugee_camp": 10,
+    "toll_bridge>heartland_road": 14, "heartland_road>toll_bridge": 14,
+}
+#: The two secret places as the no-session map draws them (a codex with no
+#: player knows every place), each after the place it follows in the graph, and
+#: the road to each from its one neighbour (last in that neighbour's roads).
+S18_PLACES: tuple[tuple[str, dict[str, Any], tuple[str, dict[str, Any]]], ...] = (
+    ("tunnel_entrance", {
+        "discovered": True, "here": False, "id": "the_works", "image": "",
+        "name": "The Works Below the Stump", "points": [], "ring": 0,
+        "roads": [{"danger_dc": 12, "hours": 1, "name": "Forest Clearing", "to": "forest_clearing"}],
+    }, ("forest_clearing", {"danger_dc": 12, "hours": 1, "name": "The Works Below the Stump", "to": "the_works"})),
+    ("heartland_road", {
+        "discovered": True, "here": False, "id": "the_join", "image": "",
+        "name": "The Join", "points": [], "ring": 3,
+        "roads": [{"danger_dc": 14, "hours": 1, "name": "The Heartland Road", "to": "heartland_road"}],
+    }, ("heartland_road", {"danger_dc": 14, "hours": 1, "name": "The Join", "to": "the_join"})),
+)
+
+
+def with_the_banded_map(value: Any) -> None:
+    """
+    S18 (v0.25.0 T5, §3.4, §5.3): the flagship's map answers carry its banded roads
+    and, with no session only, its two secret places. In both map routes each of the
+    22 roads recorded at ``danger_dc: 0`` carries its band's number (asserted 0
+    before). With no session (no player, so every place known) the works and the
+    Join appear, on the procedural tile (``image`` ""), each with its one road, and
+    the road to each is added to its neighbour. With a session neither is known, so
+    nothing of them appears. Nothing else moves.
+    """
+    for route in S18_ROUTES:
+        places = value[route]["json"]["places"]
+        assert not {"the_works", "the_join"} & {p["id"] for p in places}, "S18 applied twice"
+        rebanded = 0
+        for place in places:
+            for road in place["roads"]:
+                leg = f"{place['id']}>{road['to']}"
+                if leg in S18_BANDED:
+                    assert road["danger_dc"] == 0, leg
+                    road["danger_dc"] = S18_BANDED[leg]
+                    rebanded += 1
+        assert rebanded == len(S18_BANDED), (route, rebanded)
+    places = value[S18_ROUTES[0]]["json"]["places"]
+    for after, place, (neighbour, road) in S18_PLACES:
+        index = next(i for i, p in enumerate(places) if p["id"] == after)
+        places.insert(index + 1, copy.deepcopy(place))
+        next(p for p in places if p["id"] == neighbour)["roads"].append(dict(road))
+
+
+MAP_SANCTION: tuple[str, Callable[[str], str]] = (S18_FIXTURE, json_sanction(with_the_banded_map))
+
+
+#: S19's gallery rows (v0.25.0 T6, §4.2): per ending, the recorded ``gate`` and
+#: ``lock_reason`` and what each reads since, and the ``tease`` each gains. A row
+#: absent from ``S19_GATES`` keeps its gate and lock reason. Every recorded run
+#: stands on day 1 with nothing earned, so each row's lock reason is the same in
+#: every fixture.
+S19_GATES: dict[str, tuple[tuple[str, str], tuple[str, str]]] = {
+    "the_hearth_holds": (
+        ("any: [{'quest_completed': 'bakery_apprentice'}, {'quest_completed': 'winter_stores'}, "
+         "{'quest_completed': 'neighbours_ro and flag: nf_hearth_book_closed",
+         "any: [{'quest_completed': 'bakery_apprentice'}, {'quest_completed': 'winter_stores'}, "
+         "{'quest_completed': 'neighbours_ro and flag: nf_hearth_taking_stock"),
+        ("Nobody in Edgewood would miss you yet, and that is the whole of what this ending is made of. "
+         "You have not said you are staying. Not out loud, not to yourself.",
+         "Nobody in Edgewood would miss you yet, and that is the whole of what this ending is made of. "
+         "You have not walked your life here end to end and seen what it adds up to."),
+    ),
+    "the_long_witness": (
+        ("min_awareness: 30 and any: [{'quest_completed': 'childs_drawing'}, {'quest_completed': 'not_right'}, "
+         "{'quest_completed': 'rumour_made_true'},  and any: [{'flag': 'nf_hearth_book_closed'}, "
+         "{'quest_completed': 'the_last_quiet_thing'}]",
+         "min_awareness: 30 and any: [{'quest_completed': 'childs_drawing'}, {'quest_completed': 'not_right'}, "
+         "{'quest_completed': 'rumour_made_true'},  and reputation: {'faction': 'unnamed_saints', 'min': 30} "
+         "and min_day: 27"),
+        ("You have not seen anything you could not explain to yourself by breakfast. The wrong things have "
+         "been in front of you for weeks. You have not once looked twice. Knowing is not this. Staying with "
+         "what you know is this, and you have not chosen it.",
+         "You have not seen anything you could not explain to yourself by breakfast. The wrong things have "
+         "been in front of you for weeks. You have not once looked twice. The shrine's women have not counted "
+         "you among the ones who keep the count. Three counts of nine days have not yet passed with you here "
+         "to see them."),
+    ),
+    "the_counted_march": (
+        ("arc_unlocked: march and reputation: {'faction': 'militia', 'min': 20} and any: "
+         "[{'quest_completed': 'militia_press'}, {'quest_completed': 'conscription_list'}, "
+         "{'quest_completed': 'toll_roads'}, and flag: nf_hearth_book_closed",
+         "arc_unlocked: march and reputation: {'faction': 'militia', 'min': 20} and any: "
+         "[{'quest_completed': 'militia_press'}, {'quest_completed': 'conscription_list'}, "
+         "{'quest_completed': 'toll_roads'},"),
+        ("The road inward has soldiers on it, and you have not once stood where they could count you. Sera's "
+         "ledger has your name in the column for strangers. Strangers are not mustered out; they are moved on. "
+         "You have watched the arithmetic being done with people. Watching is not a discharge. The sergeant "
+         "cannot strike a name that has not said it is done.",
+         "The road inward has soldiers on it, and you have not once stood where they could count you. Sera's "
+         "ledger has your name in the column for strangers. Strangers are not mustered out; they are moved on. "
+         "You have watched the arithmetic being done with people, and never once stood your night on the wall "
+         "or seen a levy through."),
+    ),
+    "the_named_wound": (
+        ("quest_completed: naming_the_wound and quest_completed: what_edgewood_keeps",
+         "quest_completed: naming_the_wound and quest_completed: what_edgewood_keeps and any: "
+         "[{'quest_completed': 'the_last_quiet_thing'}, {'quest_state': {'quest': 'the_last_quiet_thing', "
+         "'stage_at_least': 2"),
+        ("It is still eleven separate wrong things to you. It has a shape, and you have not paid what looking "
+         "at it costs. Edgewood does not know what you know, and what it does not know it cannot choose about.",
+         "It is still eleven separate wrong things to you. It has a shape, and you have not paid what looking "
+         "at it costs. Edgewood does not know what you know, and what it does not know it cannot choose about. "
+         "You have not stood at the oven for the last quiet morning."),
+    ),
+    "the_price_asked": (
+        ("quest_completed: the_sacrifice and flag: nf_sacrifice_paid",
+         "quest_completed: naming_the_wound and flag: nf_sacrifice_chosen and flag: nf_sacrifice_paid"),
+        ("Sympathy takes a like for a like, and you have not put anything on the table. It is still in your "
+         "hands. Everything is negotiable until your hand comes off it.",
+         "It has no name yet, and sympathy cannot price what has no name. Sympathy takes a like for a like, "
+         "and you have not put anything on the table. It is still in your hands. Everything is negotiable "
+         "until your hand comes off it."),
+    ),
+    "the_pin_and_the_join": (
+        ("flag: nf_ninth_taken and has_item: {'id': 'ninth_pin', 'qty': 1} and quest_completed: "
+         "the_heartland_road",
+         "flag: nf_ninth_taken and has_item: {'id': 'ninth_pin', 'qty': 1} and any: "
+         "[{'quest_completed': 'the_heartland_road'}, {'quest_state': {'quest': 'the_heartland_road', "
+         "'stage_at_least': 2}}]"),
+        ("The ninth pin is still on Ilya's felt, and he has never once said it is not for sale. You had it, "
+         "and you spent it, or you left it somewhere a pin like that should never be left. You do not know "
+         "where it goes. It goes where the two ends of the road were made to meet.",
+         "The ninth pin is still on Ilya's felt, and he has never once said it is not for sale. You had it, "
+         "and you spent it, or you left it somewhere a pin like that should never be left. You do not know "
+         "where it goes. It goes where the two ends of the road were made to meet."),
+    ),
+}
+#: Every ending's tease, as data/rules/endings.yaml writes it (all eight gain one).
+S19_TEASES: dict[str, str] = {
+    "the_hearth_holds": "Maris at the oven before dawn, and a question she has stopped needing to ask.",
+    "the_long_witness": "Old Wenna at the shrine with her two candles, and room on her list for yours.",
+    "the_counted_march": "Sergeant Venn's roll at the gate, and one name on it she can strike.",
+    "the_named_wound": "The bakery at the morning firing, after the village has had its say.",
+    "the_price_asked": "Ilya's book of prices, and the column he keeps for what is not coin.",
+    "the_pin_and_the_join": "Ilya's felt, and the road past Millhaven gate that keeps getting shorter.",
+    "the_stopped_wheel": "The square, on a morning when no bell in Edgewood rings the hour.",
+    "the_dark_keeps_its_hours": "Edgewood's hours, kept whether or not you keep them.",
+}
+#: S19's payload fixtures and how many gallery blocks each carries.
+S19_GALLERIES: dict[str, int] = {
+    "clockwork-dark/http_turns.json": 2, "clockwork-dark/join_live.json": 2,
+    "clockwork-dark/new_game.json": 2, "clockwork-dark/save_load.json": 1,
+    "clockwork-dark/socket_resume.json": 2, "clockwork-dark/socket_stream_turn.json": 3,
+    "clockwork-dark/socket_turns.json": 2, "clockwork-dark/state.json": 1,
+}
+#: S19's catalogue fixtures: each carries one flagship row, which gains `paths.decks`.
+S19_CATALOGUES = ("games.json", "games_active.json", "games_clockwork-dark.json")
+S19_DECKS = "games/clockwork-dark/data/scenes"
+
+
+def named_doors_gallery(rows: list[dict[str, Any]]) -> None:
+    """
+    S19's change to one gallery block (v0.25.0 T6, §4.2): the six gates T6 rewrote
+    read their new clauses and lock reasons, and every ending gains its tease.
+    Shared with tests/test_social_seam.py, whose flagship payload carries the same
+    block. Nothing else in a row moves.
+    """
+    assert [r["id"] for r in rows] == list(S19_TEASES), [r["id"] for r in rows]
+    for row in rows:
+        assert "tease" not in row, "S19 applied twice"
+        if row["id"] in S19_GATES:
+            (gate_was, gate_now), (reason_was, reason_now) = S19_GATES[row["id"]]
+            assert (row["gate"], row["lock_reason"]) == (gate_was, reason_was), row["id"]
+            row["gate"], row["lock_reason"] = gate_now, reason_now
+        row["tease"] = S19_TEASES[row["id"]]
+
+
+def _galleries(value: Any) -> list[list[dict[str, Any]]]:
+    """Every flagship gallery block in a fixture, in document order."""
+    found: list[list[dict[str, Any]]] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "gallery" and isinstance(item, list) and any(
+                    isinstance(r, dict) and r.get("id") == "the_hearth_holds" for r in item):
+                found.append(item)
+            else:
+                found.extend(_galleries(item))
+    elif isinstance(value, list):
+        for item in value:
+            found.extend(_galleries(item))
+    return found
+
+
+def with_named_doors(expected: int) -> Callable[[str], str]:
+    """S19 on a payload fixture: exactly ``expected`` gallery blocks, each by ``named_doors_gallery``."""
+
+    def transform(value: Any) -> None:
+        blocks = _galleries(value)
+        assert len(blocks) == expected, (len(blocks), expected)
+        for rows in blocks:
+            named_doors_gallery(rows)
+
+    return json_sanction(transform)
+
+
+def with_flagship_decks(value: Any) -> None:
+    """S19 on a catalogue fixture: the flagship's row (and only it) gains `paths.decks`."""
+    body = value["json"]
+    rows = body["games"] if "games" in body else [body["manifest"]] if "manifest" in body else [body]
+    flagship = [row for row in rows if row.get("id") == "clockwork-dark"]
+    assert len(flagship) == 1, len(flagship)
+    paths = flagship[0]["paths"]
+    assert "decks" not in paths, "S19 applied twice"
+    paths["decks"] = S19_DECKS
+
+
+DOORS_SANCTION: list[tuple[str, Callable[[str], str]]] = [
+    *((name, with_named_doors(count)) for name, count in S19_GALLERIES.items()),
+    *((name, json_sanction(with_flagship_decks)) for name in S19_CATALOGUES),
+]
+
+
+#: S20's payload fixtures and how many flagship state blocks each carries (v0.25.0 T8,
+#: §5.1): the same fixtures, and the same counts, as S19's galleries, because each
+#: flagship payload carries one state block beside each gallery.
+S20_STATES: dict[str, int] = {
+    "clockwork-dark/http_turns.json": 2, "clockwork-dark/join_live.json": 2,
+    "clockwork-dark/new_game.json": 2, "clockwork-dark/save_load.json": 1,
+    "clockwork-dark/socket_resume.json": 2, "clockwork-dark/socket_stream_turn.json": 3,
+    "clockwork-dark/socket_turns.json": 2, "clockwork-dark/state.json": 1,
+}
+#: S20's catalogue rows: the flagship's row gains these two paths.
+S20_PATHS: dict[str, str] = {
+    "clocks": "games/clockwork-dark/data/rules/clocks.yaml",
+    "threads": "games/clockwork-dark/data/rules/threads.yaml",
+}
+
+
+def _states(value: Any) -> list[dict[str, Any]]:
+    """Every state block in a fixture (a dict carrying ``turn_number`` and ``stats``), in document order."""
+    found: list[dict[str, Any]] = []
+    if isinstance(value, dict):
+        if "turn_number" in value and "stats" in value:
+            found.append(value)
+        for item in value.values():
+            found.extend(_states(item))
+    elif isinstance(value, list):
+        for item in value:
+            found.extend(_states(item))
+    return found
+
+
+def levy_and_bargain_state(state: dict[str, Any]) -> None:
+    """
+    S20's change to one flagship state block (v0.25.0 T8, §5.1): it gains
+    ``threads: []``. The flagship declares `paths.threads` (Sergeant Venn's bargain),
+    and a state that declares threads carries their summary
+    (engine/game/state.py, `threads_module.is_declared()`): empty, because no recorded
+    run strikes one. The levy clock is `visibility: hidden`, so no payload shows it.
+    Shared with tests/test_social_seam.py. Nothing else in the block moves.
+    """
+    assert "threads" not in state, "S20 applied twice"
+    state["threads"] = []
+
+
+def with_levy_and_bargain(expected: int) -> Callable[[str], str]:
+    """S20 on a payload fixture: exactly ``expected`` state blocks, each by ``levy_and_bargain_state``."""
+
+    def transform(value: Any) -> None:
+        blocks = _states(value)
+        assert len(blocks) == expected, (len(blocks), expected)
+        for block in blocks:
+            levy_and_bargain_state(block)
+
+    return json_sanction(transform)
+
+
+def with_flagship_clocks_and_threads(value: Any) -> None:
+    """S20 on a catalogue fixture: the flagship's row (and only it) gains `paths.clocks` and `paths.threads`."""
+    body = value["json"]
+    rows = body["games"] if "games" in body else [body["manifest"]] if "manifest" in body else [body]
+    flagship = [row for row in rows if row.get("id") == "clockwork-dark"]
+    assert len(flagship) == 1, len(flagship)
+    paths = flagship[0]["paths"]
+    assert not set(S20_PATHS) & set(paths), "S20 applied twice"
+    paths.update(S20_PATHS)
+
+
+LEVY_SANCTION: list[tuple[str, Callable[[str], str]]] = [
+    *((name, with_levy_and_bargain(count)) for name, count in S20_STATES.items()),
+    *((name, json_sanction(with_flagship_clocks_and_threads)) for name in S19_CATALOGUES),
+]
+
+
+#: S21 (v0.25.0 T15, §9; re-pinned in its fix round 1): the art pack. Each place
+#: the no-session map draws whose picture the pack changed, with the picture it
+#: showed (recorded) and the one it shows now. Twelve places got their own base,
+#: and since fix round 1 a place's `alts` hold only pictures of that place, so
+#: each of these is now drawn as its own new base.
+S21_ART: dict[str, tuple[str, str]] = {
+    "herb_glen": ("/static/art/things/herbs.jpg", "/static/art/scenes/herb-glen.jpg"),
+    "the_works": ("", "/static/art/scenes/the-works.jpg"),
+    "charcoal_burn": ("/static/art/scenes/tinker-camping.jpg", "/static/art/scenes/charcoal-burn.jpg"),
+    "well_row": ("/static/art/scenes/noticeboard.jpg", "/static/art/scenes/well-row.jpg"),
+    "fallow_farm": ("/static/art/scenes/wheatfield-forest-edge.jpg", "/static/art/scenes/fallow-farm.jpg"),
+    "millhaven_market": ("/static/art/scenes/town-scene.jpg", "/static/art/scenes/millhaven-market.jpg"),
+    "millhaven_barracks": ("/static/art/scenes/closing-town-gates.jpg",
+                           "/static/art/scenes/millhaven-barracks.jpg"),
+    "toll_bridge": ("/static/art/signposts/notice-board-contract-tunnels.jpg",
+                    "/static/art/scenes/toll-bridge.jpg"),
+    "refugee_camp": ("/static/art/scenes/player-hurt-resting.jpg", "/static/art/scenes/refugee-camp.jpg"),
+    "burned_farmstead": ("/static/art/ruins/Hollow-Hill-Far.jpg", "/static/art/scenes/burned-farmstead.jpg"),
+    "heartland_road": ("/static/art/scenes/clockwork-wheatfield.jpg", "/static/art/scenes/heartland-road.jpg"),
+    "the_join": ("", "/static/art/scenes/the-join.jpg"),
+}
+
+
+def with_the_art_pack(value: Any) -> None:
+    """
+    S21 (v0.25.0 T15, §9): the no-session map's place pictures after the art
+    pack (a codex with no player knows every place). Each place in ``S21_ART``
+    had the recorded picture and now has its own new base, exactly those. The
+    session route draws only the places the player knows, and none of these
+    moves there.
+    """
+    moved = 0
+    for place in value["/api/codex/places"]["json"]["places"]:
+        if place["id"] in S21_ART:
+            before, after = S21_ART[place["id"]]
+            assert place["image"] == before, (place["id"], place["image"])
+            place["image"] = after
+            moved += 1
+    assert moved == len(S21_ART), moved
+
+
+ART_SANCTION: tuple[str, Callable[[str], str]] = (S18_FIXTURE, json_sanction(with_the_art_pack))
+
+
+#: S22's four approaches, as ``watch_stop`` offers them in the recorded turns
+#: (S9's, under the narrated turn's ``scene_`` ids).
+S22_APPROACHES: list[dict[str, Any]] = [
+    {**row, "id": "scene_" + row["id"].removeprefix("resume_")} for row in S9_APPROACHES
+]
+#: S22's exact effect per fixture: the narrated turns recorded in an open
+#: ``watch_stop`` (a live join's opening is the last narrated turn).
+S22_COUNTS: dict[str, int] = {
+    "hue-and-cry/http_turns.json": 2,
+    "hue-and-cry/join_live.json": 1,
+    "hue-and-cry/socket_stream_turn.json": 1,
+    "hue-and-cry/socket_turns.json": 2,
+}
+
+
+def narrated_turn_keeps_the_open_encounter(count: int) -> Callable[[str], str]:
+    """
+    S22 (v0.25.0 T16, found in live play on LM Studio): a narrated turn whose
+    choices carry no intent the open scene accepts gets the scene's own
+    choices after the narrator's (``default_state._with_scene_choices``). The
+    recorded HUE & CRY turns stand in an open ``watch_stop`` with the stub's
+    intentless choices, which left every approach "not offered this turn";
+    each now ends with the four approaches. Only a payload carrying ``state``
+    is a turn (a negotiation's plans are not). Raises unless exactly ``count``
+    turns are touched.
+    """
+
+    def transform(value: Any) -> None:
+        touched = 0
+
+        def walk(node: Any) -> None:
+            nonlocal touched
+            if isinstance(node, dict):
+                choices = node.get("choices")
+                state = node.get("state")
+                if (
+                    isinstance(choices, list)
+                    and isinstance(state, dict)
+                    and (state.get("encounter") or {}).get("id") == "watch_stop"
+                ):
+                    assert not any(c.get("intent") for c in choices), choices
+                    choices.extend(copy.deepcopy(S22_APPROACHES))
+                    touched += 1
+                for child in node.values():
+                    walk(child)
+            elif isinstance(node, list):
+                for child in node:
+                    walk(child)
+
+        walk(value)
+        assert touched == count, f"S22 touched {touched} turns, not {count}"
+
+    return json_sanction(transform)
+
+
+SCENE_CHOICES_SANCTION: list[tuple[str, Callable[[str], str]]] = [
+    (name, narrated_turn_keeps_the_open_encounter(count)) for name, count in S22_COUNTS.items()
+]
+
+
+#: S23's nine roads out of Edgewood Square, as ``intents._travel`` lists them
+#: (sorted by id) and ``_label_intents`` chips them.
+S23_ROADS: list[dict[str, Any]] = [
+    {
+        "id": f"road_{target}",
+        "intent": {"action": "travel", "target": target},
+        "intent_label": hours,
+        "text": f"Set out for {name}",
+    }
+    for target, hours, name in (
+        ("charcoal_burn", "2h", "The Charcoal Burn"),
+        ("edgewood_bakery", "0h", "Edgewood Bakery"),
+        ("edgewood_shrine", "0h", "The Shrine of the Unnamed"),
+        ("fallow_farm", "1h", "The Fallow Holding"),
+        ("forest_clearing", "1h", "Forest Clearing"),
+        ("millhaven_gate", "4h", "Millhaven Gate"),
+        ("the_forge", "0h", "Hallam's Forge"),
+        ("tinker_caravan", "0h", "Tinker Caravan"),
+        ("well_row", "0h", "Well Row"),
+    )
+]
+#: S23's exact effect per fixture: the flagship's narrated turns, every one
+#: in Edgewood Square with no scene open and no intent on the stub's choices.
+S23_COUNTS: dict[str, int] = {
+    "clockwork-dark/http_turns.json": 2,
+    "clockwork-dark/join_live.json": 1,
+    "clockwork-dark/socket_stream_turn.json": 1,
+    "clockwork-dark/socket_turns.json": 2,
+}
+
+
+def narrated_turn_offers_the_roads(count: int) -> Callable[[str], str]:
+    """
+    S23 (v0.25.0 T16 fix round 1, found in live play): a narrated turn with no
+    scene, card or cell holding the player and no ``travel`` intent on the
+    narrator's row gets every legal road after it
+    (``default_state._with_scene_choices``). The flagship's recorded narrated
+    turns stand in Edgewood Square with the stub's intentless choices; each
+    now ends with the square's nine roads. A frame whose choices carry an
+    intent (the opening, a resume) is not a narrated intentless turn and is
+    left alone. Raises unless exactly ``count`` turns are touched.
+    """
+
+    def transform(value: Any) -> None:
+        touched = 0
+
+        def walk(node: Any) -> None:
+            nonlocal touched
+            if isinstance(node, dict):
+                choices = node.get("choices")
+                state = node.get("state")
+                if (
+                    isinstance(choices, list)
+                    and isinstance(state, dict)
+                    and not any(c.get("intent") for c in choices)
+                ):
+                    assert (state.get("location_id") or state.get("location")) == "edgewood_square", state
+                    assert not state.get("encounter"), state.get("encounter")
+                    choices.extend(copy.deepcopy(S23_ROADS))
+                    touched += 1
+                for child in node.values():
+                    walk(child)
+            elif isinstance(node, list):
+                for child in node:
+                    walk(child)
+
+        walk(value)
+        assert touched == count, f"S23 touched {touched} turns, not {count}"
+
+    return json_sanction(transform)
+
+
+ROADS_SANCTION: list[tuple[str, Callable[[str], str]]] = [
+    (name, narrated_turn_offers_the_roads(count)) for name, count in S23_COUNTS.items()
+]
+
+
+def with_flagship_version(value: Any) -> None:
+    """
+    S24 (v0.25.0 T17, the release): the flagship's manifest `version` moves from
+    0.2.0 to 0.3.0, because its content moved (games/clockwork-dark/game.yaml).
+    The flagship's catalogue row, and only it, changes, and only that key.
+    """
+    body = value["json"]
+    rows = body["games"] if "games" in body else [body["manifest"]] if "manifest" in body else [body]
+    flagship = [row for row in rows if row.get("id") == "clockwork-dark"]
+    assert len(flagship) == 1, len(flagship)
+    assert flagship[0]["version"] == "0.2.0", ("S24 applied twice", flagship[0]["version"])
+    flagship[0]["version"] = "0.3.0"
+
+
+#: S24's launcher line, as recorded and as the bump makes it.
+S24_LAUNCHER_LINE: tuple[str, str] = (
+    "Game: The Clockwork Dark  (games/clockwork-dark, v0.2.0)",
+    "Game: The Clockwork Dark  (games/clockwork-dark, v0.3.0)",
+)
+#: S24's launcher fixtures: each prints the active story's version once.
+S24_LAUNCHERS = ("launcher_check.txt", "launcher_main.json")
+
+
+def launcher_names_the_flagship_version(text: str) -> str:
+    """
+    S24 on a launcher fixture: the one line naming the flagship's version,
+    and nothing else. Raises unless that line appears exactly once.
+    """
+    before, after = S24_LAUNCHER_LINE
+    assert text.count(before) == 1, ("S24 applied twice", text.count(before))
+    return text.replace(before, after)
+
+
+VERSION_SANCTION: list[tuple[str, Callable[[str], str]]] = [
+    *((name, json_sanction(with_flagship_version)) for name in S19_CATALOGUES),
+    *((name, launcher_names_the_flagship_version) for name in S24_LAUNCHERS),
+]
+
+
 #: ``(fixture name, transform)``: the recording, as the sanctioned change
 #: makes it. S1 since v0.20.0 T2, S2 since T3, S3-S10 since v0.21.0
 #: (spec §1.2; S7 added in T3 fix round 1, S8 in fix round 2, S9 in the
 #: encounter-resume fix, S10 in T13 fix round 1, S5 in T14), S11 since
-#: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10; there are no others.
+#: v0.22.0 T2, S13 since v0.24.0 T4, S12 since T10, S14 since v0.25.0 T2, S15 since
+#: v0.25.0 T3, S16 and S17 since v0.25.0 T4, S18 since v0.25.0 T5, S19 since v0.25.0 T6,
+#: S20 since v0.25.0 T8, S21 since v0.25.0 T15, S22 since v0.25.0 T16, S23 since T16 fix round 1, S24 since v0.25.0 T17; there are no others.
 SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     BIND_SANCTION,
     *SAVES_SANCTION,
@@ -611,6 +1252,17 @@ SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     RECEIPTS_SANCTION,
     SOUND_RULES_SANCTION,
     *SOUNDS_SANCTION,
+    OVERLAY_SANCTION,
+    FACTIONS_SANCTION,
+    *DECLARED_SOULS_SANCTION,
+    NESSA_SANCTION,
+    MAP_SANCTION,
+    *DOORS_SANCTION,
+    *LEVY_SANCTION,
+    ART_SANCTION,
+    *SCENE_CHOICES_SANCTION,
+    *ROADS_SANCTION,
+    *VERSION_SANCTION,
 ]
 
 
@@ -869,6 +1521,18 @@ def test_the_v021_sanctions_are_exact() -> None:
     assert added == [["/api/people", ["GET", "HEAD", "OPTIONS"], "default_story.api_people"]]
     assert {k: v for k, v in after.items() if k != "url_map"} == {k: v for k, v in before.items() if k != "url_map"}
 
+    name, transform = OVERLAY_SANCTION
+    before, after = json.loads(recorded[name]), json.loads(transform(recorded[name]))
+    added = [row for row in after["url_map"] if row not in before["url_map"]]
+    assert added == [["/api/intents/overlay", ["GET", "HEAD", "OPTIONS"], "default_story.api_overlay_intents"]]
+    assert sorted(set(after["socketio_handlers"]["/"]) - set(before["socketio_handlers"]["/"])) == ["overlay_action"]
+
+    name, transform = FACTIONS_SANCTION
+    before, after = json.loads(recorded[name]), json.loads(transform(recorded[name]))
+    added = [row for row in after["url_map"] if row not in before["url_map"]]
+    assert added == [["/api/factions", ["GET", "HEAD", "OPTIONS"], "default_story.api_factions"]]
+    assert {k: v for k, v in after.items() if k != "url_map"} == {k: v for k, v in before.items() if k != "url_map"}
+
     for name, transform in JOIN_SANCTION:
         assert recorded[name].count('"game_started"') == 1, name
         assert transform(recorded[name]).count('"turn_running": false') == 1, name
@@ -1052,3 +1716,148 @@ def test_the_sounds_sanction_is_exact() -> None:
         assert all(l[2:].strip().rstrip(",") in allowed for l in changed), (name, changed)
         assert len(changed) == counts[name], (name, len(changed))
         assert "games/dev-story/data/sounds" not in after, name
+
+
+def test_the_declared_cast_sanctions_are_exact() -> None:
+    """
+    S16 adds exactly the counted declared souls to each souls answer of its two fixtures,
+    with their ids, and nothing else in either moves; S17 adds exactly Nessa's relation to
+    the two memory files of the flagship's save tree, and nothing else moves.
+    """
+    recorded = _recorded()
+    for name, transform in DECLARED_SOULS_SANCTION:
+        before, after = json.loads(recorded[name]), json.loads(transform(recorded[name]))
+        rows = S16_DECLARED[name]
+        for route in SOULS_ROUTES:
+            old, new = before[route]["json"]["souls"], after[route]["json"]["souls"]
+            assert new[: len(old)] == old, (name, route)
+            added = new[len(old):]
+            assert len(added) == len(rows), (name, route, len(added))
+            assert [soul["id"] for soul in added] == [f"s{i}" for i in range(len(old), len(old) + len(rows))]
+            assert [(soul["role"], soul["place"]) for soul in added] == rows
+            assert all(soul["met"] is False and soul["name"] == "Someone" for soul in added)
+            after[route]["json"]["souls"] = old
+        assert after == before, name
+    before = json.loads(recorded[S17_FIXTURE])
+    after = json.loads(NESSA_SANCTION[1](recorded[S17_FIXTURE]))
+    for name in S17_MEMORIES:
+        assert set(after[name]["relations"]) - set(before[name]["relations"]) == {"npc_nessa"}, name
+        del after[name]["relations"]["npc_nessa"]
+    assert after == before
+    with pytest.raises(AssertionError, match="S17 applied twice"):
+        NESSA_SANCTION[1](NESSA_SANCTION[1](recorded[S17_FIXTURE]))
+
+
+def test_the_map_sanction_is_exact() -> None:
+    """
+    S18 rebands exactly the 22 counted roads in each map answer of the flagship's
+    story routes and adds exactly the two secret places (and the road to each) to the
+    no-session answer; nothing else in the fixture moves, and it cannot apply twice.
+    """
+    recorded = _recorded()
+    before = json.loads(recorded[S18_FIXTURE])
+    after = json.loads(MAP_SANCTION[1](recorded[S18_FIXTURE]))
+    secret = {"the_works", "the_join"}
+    for route in S18_ROUTES:
+        new = after[route]["json"]["places"]
+        added = [p["id"] for p in new if p["id"] in secret]
+        assert added == (["the_works", "the_join"] if route == S18_ROUTES[0] else []), route
+        new = [p for p in new if p["id"] not in secret]
+        for place in new:
+            place["roads"] = [r for r in place["roads"] if r["to"] not in secret]
+            for road in place["roads"]:
+                if f"{place['id']}>{road['to']}" in S18_BANDED:
+                    road["danger_dc"] = 0
+        after[route]["json"]["places"] = new
+    assert after == before
+    with pytest.raises(AssertionError, match="S18 applied twice"):
+        MAP_SANCTION[1](MAP_SANCTION[1](recorded[S18_FIXTURE]))
+
+
+def test_the_doors_sanction_is_exact() -> None:
+    """
+    S19 changes, in each flagship payload fixture, exactly its gallery blocks'
+    six rewritten gates and lock reasons and the eight teases, and in each catalogue
+    fixture exactly the flagship row's `paths.decks`; undone, every fixture is the
+    recording again, and it cannot apply twice.
+    """
+    recorded = _recorded()
+    for name, sanction in DOORS_SANCTION:
+        before = json.loads(recorded[name])
+        after = json.loads(sanction(recorded[name]))
+        assert after != before, name
+        if name in S19_GALLERIES:
+            blocks = _galleries(after)
+            assert len(blocks) == S19_GALLERIES[name], name
+            for rows in blocks:
+                for row in rows:
+                    assert row.pop("tease") == S19_TEASES[row["id"]]
+                    if row["id"] in S19_GATES:
+                        (gate_was, gate_now), (reason_was, reason_now) = S19_GATES[row["id"]]
+                        assert (row["gate"], row["lock_reason"]) == (gate_now, reason_now)
+                        row["gate"], row["lock_reason"] = gate_was, reason_was
+        else:
+            body = after["json"]
+            rows = body["games"] if "games" in body else [body["manifest"]] if "manifest" in body else [body]
+            assert next(r for r in rows if r.get("id") == "clockwork-dark")["paths"].pop("decks") == S19_DECKS
+        assert after == before, name
+        with pytest.raises(AssertionError, match="S19 applied twice"):
+            sanction(sanction(recorded[name]))
+
+
+def test_the_levy_sanction_is_exact() -> None:
+    """
+    S20 adds, in each flagship payload fixture, exactly an empty `threads` list to
+    each state block, and in each catalogue fixture exactly the flagship row's
+    `paths.clocks` and `paths.threads`; undone, every fixture is the recording again,
+    and it cannot apply twice.
+    """
+    recorded = _recorded()
+    for name, sanction in LEVY_SANCTION:
+        before = json.loads(recorded[name])
+        after = json.loads(sanction(recorded[name]))
+        assert after != before, name
+        if name in S20_STATES:
+            blocks = _states(after)
+            assert len(blocks) == S20_STATES[name], name
+            for block in blocks:
+                assert block.pop("threads") == []
+        else:
+            body = after["json"]
+            rows = body["games"] if "games" in body else [body["manifest"]] if "manifest" in body else [body]
+            paths = next(r for r in rows if r.get("id") == "clockwork-dark")["paths"]
+            assert {key: paths.pop(key) for key in S20_PATHS} == S20_PATHS
+        assert after == before, name
+        with pytest.raises(AssertionError, match="S20 applied twice"):
+            sanction(sanction(recorded[name]))
+
+
+def test_the_version_sanction_is_exact() -> None:
+    """
+    S24 moves, in each catalogue fixture, exactly the flagship row's `version` from
+    0.2.0 to 0.3.0, and in each launcher fixture exactly the one line that names it;
+    undone, every fixture is the recording again, and it cannot apply twice. The
+    version it sanctions is the one the flagship's manifest declares.
+    """
+    import yaml
+
+    manifest = yaml.safe_load((REPO / "games" / "clockwork-dark" / "game.yaml").read_text(encoding="utf-8"))
+    assert manifest["version"] == "0.3.0"
+    recorded = _recorded()
+    for name, sanction in VERSION_SANCTION:
+        moved = sanction(recorded[name])
+        assert moved != recorded[name], name
+        if name in S24_LAUNCHERS:
+            before, after = S24_LAUNCHER_LINE
+            assert moved.count(after) == 1, name
+            assert moved.replace(after, before) == recorded[name], name
+        else:
+            value = json.loads(moved)
+            body = value["json"]
+            rows = body["games"] if "games" in body else [body["manifest"]] if "manifest" in body else [body]
+            flagship = next(r for r in rows if r.get("id") == "clockwork-dark")
+            assert flagship["version"] == "0.3.0", name
+            flagship["version"] = "0.2.0"
+            assert value == json.loads(recorded[name]), name
+        with pytest.raises(AssertionError, match="S24 applied twice"):
+            sanction(moved)

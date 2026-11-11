@@ -131,7 +131,8 @@ describe("the plugin directory", () => {
     // of five, which is the failure mode a harvested list has and a hand
     // written one does not.
     expect(ALLOWED.size).toBeGreaterThan(15);
-    for (const slot of ["Ledger", "Stage", "overlays", "bodyData", "hideChoices", "PlayScreen", "NewRun"]) {
+    // `EndingArt` (v0.25.0 §8.6): optional, read by core's Ending only.
+    for (const slot of ["Ledger", "Stage", "overlays", "bodyData", "hideChoices", "PlayScreen", "NewRun", "EndingArt"]) {
       expect(ALLOWED.has(slot)).toBe(true);
     }
   });
@@ -181,7 +182,7 @@ describe.each(NAMES)("plugin: %s", (name) => {
     const plugin = (await load()).default;
     const slots = [
       "Mark", "HeaderBadge", "Aside", "Ledger", "Stage", "Toast",
-      "MenuBanner", "Wrap", "StartIntro", "Wordmark", "Ending", "PlayScreen", "NewRun",
+      "MenuBanner", "Wrap", "StartIntro", "Wordmark", "Ending", "PlayScreen", "NewRun", "EndingArt",
     ];
     for (const slot of slots) {
       if (plugin[slot] == null) continue;

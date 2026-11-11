@@ -228,6 +228,29 @@ def _pending_flag(state: GameState) -> str:
     return ""
 
 
+def _card_decision(state: GameState) -> Optional[Decision]:
+    """
+    Answer a dealt card, which owns the turn (v0.25.0).
+
+    While a deck's card is open the live grammar offers ``card`` and nothing
+    else, so a narrator bound by it can only put the card's beats on the table;
+    every other intent this policy would choose is unsamplable. Asked of the
+    ENGINE's catalogue (the same enum the sampler gets), first beat, as the
+    other card-aware tests answer (``tests/test_hue_and_cry.py::_card_turn``).
+    """
+    card = next(
+        (v for v in intents_module.legal_intents(state) if v.action == "card"), None
+    )
+    if card is None or not card.targets:
+        return None
+    beat = card.targets[0]
+    return (
+        f"card:{beat}",
+        "The moment in front of you wants an answer, and you give it one.",
+        {"action": "card", "target": beat},
+    )
+
+
 def _encounter_decision(state: GameState, order: tuple[str, ...]) -> Optional[Decision]:
     """Take the first preferred approach the engine says is legal."""
     if not encounter_module.active(state):
@@ -289,7 +312,11 @@ def baker_policy(state: GameState) -> Decision:
     This is the run that has to prove the design's central claim: a player who
     bakes bread is playing the game, and the evil keeps its own hours anyway.
     """
-    fight = _encounter_decision(state, ("talk", "pay", "flee"))
+    card = _card_decision(state)
+    if card:
+        return card
+
+    fight =_encounter_decision(state, ("talk", "pay", "flee"))
     if fight:
         return fight
 
@@ -330,7 +357,11 @@ def baker_policy(state: GameState) -> Decision:
 
 def road_policy(state: GameState) -> Decision:
     """Walks the Millhaven road, which is the only dangerous edge in the game."""
-    fight = _encounter_decision(state, ("talk", "pay", "sneak", "fight", "flee"))
+    card = _card_decision(state)
+    if card:
+        return card
+
+    fight =_encounter_decision(state, ("talk", "pay", "sneak", "fight", "flee"))
     if fight:
         return fight
 

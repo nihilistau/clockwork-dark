@@ -78,3 +78,6 @@ tower_assembles:
       text: "Millhaven gate is held by fewer hands each day; the line has pulled back toward Edgewood."
   npc_moves:
     npc_sera: edgewood_square
+    # The margins emptying (v0.25.0 §3.3): the Fallows leave their straight wheat.
+    npc_edrin: refugee_camp
+    npc_nessa: refugee_camp

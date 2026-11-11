@@ -1,0 +1,106 @@
+# The Clockwork Dark -- the drawings (v0.25.0 §4.3, critical path).
+# ==========================================================================
+# The square or the bakery, the two places childs_drawing's `see_it` stage
+# accepts. Three cards, one per stage of childs_drawing:
+#   N1  see it (`nf_drawing_seen`)
+#   N2  ask her where she saw it (`nf_drawing_asked`), only while Nessa is
+#       there (`npc_here`, which asks npc_sim)
+#   N3  keep one (`nf_drawing_kept`; the stage also completes on its own
+#       after three days)
+# Critical-path cards: The Long Witness's `listened` and the naming's
+# evidence run through them (§4.4). REPEATABLE, draw 1. The deck's `when:`
+# ends in `any:` of its cards' own gates (plan decision 3), so it is due only
+# when a card can be dealt. N1 and N3 name nobody: the deck's `when:` puts no
+# one there.
+#
+# Version: v0.1.0 [2026-10-29]
+
+id: nessas_drawings
+repeatable: true
+draw: 1
+
+when:
+  all:
+    - { at_location: [edgewood_square, edgewood_bakery] }
+    - any:
+        - all:
+            - { quest_state: { quest: childs_drawing, status: active } }
+            - { quest_state: { quest: childs_drawing, stage_at_least: 0 } }
+            - none: [{ quest_state: { quest: childs_drawing, stage_at_least: 1 } }]
+        - all:
+            - { quest_state: { quest: childs_drawing, status: active } }
+            - { quest_state: { quest: childs_drawing, stage_at_least: 1 } }
+            - none: [{ quest_state: { quest: childs_drawing, stage_at_least: 2 } }]
+            - { npc_here: npc_nessa }
+        - all:
+            - { quest_state: { quest: childs_drawing, status: active } }
+            - { quest_state: { quest: childs_drawing, stage_at_least: 2 } }
+            - none: [{ quest_state: { quest: childs_drawing, stage_at_least: 3 } }]
+
+cards:
+  - id: N1_see_it
+    title: "Charcoal on sacking"
+    when:
+      all:
+        - { quest_state: { quest: childs_drawing, status: active } }
+        - { quest_state: { quest: childs_drawing, stage_at_least: 0 } }
+        - none: [{ quest_state: { quest: childs_drawing, stage_at_least: 1 } }]
+    tags: [drawing]
+    text: >-
+      INTENT: A child's drawings in charcoal on flour sacking, left where
+      anyone could see them. CONSTRAINTS: Gears, correctly meshed. Nobody
+      else has looked twice.
+    beats:
+      - id: look
+        text: >-
+          Crouch down and get a proper look at what the child has drawn.
+        gate:
+          on_pass:
+            text: "Gears. Correctly meshed, with the tooth-counts right."
+            effects:
+              - { type: flag, flag: nf_drawing_seen }
+
+  - id: N2_ask_her
+    title: "Where she saw it"
+    when:
+      all:
+        - { quest_state: { quest: childs_drawing, status: active } }
+        - { quest_state: { quest: childs_drawing, stage_at_least: 1 } }
+        - none: [{ quest_state: { quest: childs_drawing, stage_at_least: 2 } }]
+        - { npc_here: npc_nessa }
+    tags: [drawing]
+    text: >-
+      INTENT: Nessa, nine, with charcoal on her fingers and no interest in
+      grown-ups' questions. The player asks where she saw the thing she draws.
+      CONSTRAINTS: Nobody tells her it is wrong.
+    beats:
+      - id: ask_her
+        text: >-
+          Ask Nessa where she saw it, and do not tell her it is wrong.
+        gate:
+          on_pass:
+            text: "\"In the wheat,\" she says, bored of the question."
+            effects:
+              - { type: flag, flag: nf_drawing_asked }
+
+  - id: N3_keep_one
+    title: "One of them, folded"
+    when:
+      all:
+        - { quest_state: { quest: childs_drawing, status: active } }
+        - { quest_state: { quest: childs_drawing, stage_at_least: 2 } }
+        - none: [{ quest_state: { quest: childs_drawing, stage_at_least: 3 } }]
+    tags: [drawing]
+    text: >-
+      INTENT: The drawings again, a new one on top. One of them could be
+      folded small and carried. CONSTRAINTS: Folding it does not make it less
+      correct.
+    beats:
+      - id: keep_it
+        text: >-
+          Fold one of the drawings small and keep it.
+        gate:
+          on_pass:
+            text: "Folded small. It does not stop being correct while folded."
+            effects:
+              - { type: flag, flag: nf_drawing_kept }

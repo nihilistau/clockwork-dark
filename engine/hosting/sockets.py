@@ -24,7 +24,8 @@ runs:
 - the owner (``engine.session.store.current_owner``, spec §6.4) is set to the
   account for the body and reset in a ``finally``, so a pool thread reused by
   the next event (or the next request) never inherits it;
-- the action events (``ACTION_EVENTS``: ``player_choice``, ``resume``) pass
+- the action events (``ACTION_EVENTS``: ``player_choice``, ``resume`` and,
+  since v0.25.0, ``overlay_action``) pass
   the input caps and then the account's actions bucket (spec §6.5,
   ``limit_action``, v0.20.0 T9): a refusal is ``turn_error`` with ``busy:
   false`` and the handler never runs; under the supervisor each refusal is
@@ -97,7 +98,7 @@ LOGIN_REQUIRED = {"message": "login required"}
 
 #: The events that are actions (spec §6.5): the action limit and the input
 #: caps apply to these.
-ACTION_EVENTS = frozenset({"player_choice", "resume"})
+ACTION_EVENTS = frozenset({"player_choice", "resume", "overlay_action"})
 
 #: The phone's events (v0.22.0, spec §17.1): their own bucket
 #: (``rate_limits.phone_actions_per_minute``) and their own text cap

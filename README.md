@@ -33,7 +33,7 @@ settles the result, and a model on your own machine writes the prose.
   shipped art packs mean scenes have pictures without any of them. Serving
   it to other people, with accounts, is opt-in (hosted mode).
 
-**Status:** **v0.24.0** is the current release: **sound effects** for the engine and every story (button presses, choices, rolls, alerts, ringtones, each from data and played in the browser, with a Sound fieldset in Settings and an audition page), plus READ RECEIPTS' morning after a stay-over and four more life-event decks. READ RECEIPTS is the dating story played on a phone (new in v0.22.0, reworked in v0.23.0) -- people who grow closer at their own pace, no set time on dating, phone numbers that work, a world outside the phone (your flat and 28 places with 48 plates, meet-ups played in person) and life events. Its full balance pass ran in v0.24.0 at 10 seeds (not the 40 the v0.23.0 plan named; the owner chose the scale); live play with a model has not been done (the owner deferred it again on 2026-10-26). Seven stories ship. Six
+**Status:** **v0.25.0** is the current release: **The Clockwork Dark's overhaul**. Each of the flagship's eight endings is locked at a door, a card dealt where and when its person is (Maris at the bakery at dawn, old Wenna at the shrine, Sera at the gate); the stages on every ending's path have cards of their own; Sera's levy fills and forces a press in the square, and Sergeant Venn offers a bargain; four people the lore named are placed with routines; two secret places; every road banded; the barter, pack, recipes and notice board press engine intents; and a 47-plate art pack. A doors harness measured every ending (five rows missed and recorded), and the flagship was played live on LM Studio for part of Act I, which found and fixed a narrated turn that offered no way to move. Known gap: the barter screen's Sell cannot be pressed yet (v0.26.0). Before it, **v0.24.0** brought **sound effects** for the engine and every story, and READ RECEIPTS' morning after a stay-over and four more life-event decks. READ RECEIPTS is the dating story played on a phone (new in v0.22.0, reworked in v0.23.0) -- people who grow closer at their own pace, no set time on dating, phone numbers that work, a world outside the phone (your flat and 28 places with 48 plates, meet-ups played in person) and life events; its scripted live play with a model has not been done (the owner deferred it again on 2026-10-26). **v0.26.0, engine correctness and tools, is next.** Seven stories ship. Six
 can be played to an ending (HUE & CRY eight ways); READ RECEIPTS is endless
 (`endless: true`, no ending, by the owner's brief). The engine
 is model-server agnostic: LM Studio stays the default, and llama-server,
@@ -45,9 +45,9 @@ your stories to a small group with accounts, an admin panel and a Docker
 image ([docs/HOSTING.md](docs/HOSTING.md)). Since v0.21.0 the play screen is
 built from shared engine panels (wanted poster, job panel, casing board,
 people, encounter, rolls), holds its layout from a phone to a desktop, and
-reconnects by itself. At v0.24.0 the full suite stood at 8609 passing, 28 skipped
-on Windows (four failures in the run itself, fixed and re-run green; recorded in CLAUDE.md), plus 850
-client tests. Those numbers are re-measured each
+reconnects by itself. At v0.25.0 the full suite stood at 8972 passing, 29 skipped
+on Windows (twelve failures in the run itself, stale tests and pins fixed test-side and re-run green;
+recorded in CLAUDE.md), plus 898 client tests. Those numbers are re-measured each
 release in [CLAUDE.md](CLAUDE.md), and [CHANGELOG.md](CHANGELOG.md) records
 every change from 0.4.0 on.
 
@@ -92,11 +92,16 @@ You wake at the forest's edge beside Edgewood, the last comfortable village
 before the Marches. The **evil clock** ticks through `dormant`, `stirring`,
 `spreading` and `consuming` whatever you do. Four story arcs (quiet life,
 whisper, march, convergence) open on **awareness**, a hidden stat, so a baker
-who never listens to the caravan master stays a baker. It has 25 quests,
+who never listens to the caravan master stays a baker. It has 26 quests,
 survival with rest that is never gated, crafting and recipes, trade, encounters
 played as scenes rather than a combat system, death rules, and an in-world
 companion (the Assistant) whose trust you earn. It has the largest shipped art
-pack and its own UI plugin.
+pack and its own UI plugin. Since v0.25.0 each of its eight
+endings is locked at a **door**, a card dealt where and when its person is
+(Maris at the bakery at dawn, old Wenna at the shrine, Sera at the gate), the
+stages on every ending's path have cards of their own, Sera's levy fills and
+forces a press in the square, and its barter, pack and notice board press
+engine intents.
 
 | Title screen | The map |
 |---|---|
@@ -310,8 +315,18 @@ declared meters and clocks.
   `clock.advance_time`, charged as the cost of whatever spent them. A
   background tick drives world schedules.
 - **Schedules and presence.** NPCs keep hour-by-hour schedules. Traders and
-  caravans arrive on their own timetables. Who is present decides who can
-  speak.
+  caravans arrive on their own timetables: since v0.25.0 a declared world
+  event may roll a chance per in-game day crossed, on the day roll and its own
+  random stream, so a caravan's day replays from the seed and the days crossed,
+  never from how long a turn took. Who is present decides who can speak, and
+  `npc_here` lets a card, a thread or a quest stand where its person is.
+- **Doors** (v0.25.0, the flagship): an ending locked by name at a card dealt
+  where its person is, gated on that ending, so a door and its gate cannot
+  drift apart; the second death in `consuming` can lock an ending too.
+- **Overlays that act** (v0.25.0): a story's overlay presses an engine intent
+  from a list the server keeps (`GET /api/intents/overlay`), never the
+  player's typed words, so buying, eating, making or working from a screen
+  runs the skill before the narrator speaks.
 - **Procgen** villages and districts from a seed, with **secret places** that
   stay off the map until you find them.
 - **Factions and reputation**, **gossip** that travels between venues, and
@@ -775,6 +790,7 @@ local dev server, say) counts as the same site, as it does for the browser.
 |---|---|---|---|
 | Live image generation | `media.live_generation` | **off** | A Grok Imagine still takes 2 to 3 minutes, which can't sit inside a real-time turn. Use `scripts/generate_art.py` to fill gaps ahead of time |
 | ComfyUI `:8188` | `comfyui.enabled` | **off** | Takes seconds rather than minutes, so it's the backend worth turning live generation on for |
+| Forge Neo `:7860` | `media.image_provider: forge` | not selected | A local Stable Diffusion WebUI Forge Neo (`media.forge`, the owner's Qwen Image 2.1 by default) for `scripts/generate_art.py --provider forge`; minutes a plate. The flagship's v0.25.0 art pack was made on it (docs/MEDIA_SERVERS.md § Forge Neo) |
 | Phone media (READ RECEIPTS) | `phone_media.provider` | `procedural` | `comfyui` sends the phone's photos, videos and portraits to the `comfyui:` server (local or hosted, `comfyui.api_key` from `comfyui_api_key.txt` or `CLOCKWORK_COMFYUI_API_KEY`) through `comfyui.workflows`; its own switch, so `comfyui.enabled` never makes a story's turn post a workflow. Off, every picture is a procedural tile with its caption ([docs/MEDIA_SERVERS.md](docs/MEDIA_SERVERS.md)) |
 | Spoken narration | `tts.enabled` | **off** | Measured at about 21x slower than realtime on the reference machine |
 | Assistant voice only | `tts.assistant_enabled` | **off** | The companion's 1 to 3 sentence lines are the only thing worth speaking live |
@@ -871,7 +887,7 @@ in-game minutes a real minute buys. Seed ranges run side by side
 (`--first-seed`, `--raw`) fold into one report with `--fold`.
 NEON CITY's and THE LONG CON's numbers are authored judgement and haven't been
 simulated; their READMEs say so, and `simulate.py --game` refuses them (and
-Dev Story, the engine's test bench) until their overhauls, v0.27.0-v0.28.0.
+Dev Story, the engine's test bench) until their overhauls, v0.28.0-v0.29.0.
 
 </details>
 
@@ -940,10 +956,11 @@ fixed; details may change as each release lands.
 | v0.22.0 | **A new story: READ RECEIPTS**, a dating simulation played through a phone of apps -- two dating apps, texts and a messenger, photos, voice notes and videos, meet-ups, two two-player games -- with a cast the engine runs and no endgame | **shipped** |
 | v0.23.0 | **READ RECEIPTS rework**: people who grow closer at their own pace, no set time on dating, phone numbers that work, places (the player's apartment, the cast's homes) with art, and real-life events and meet-ups outside the phone -- and, after the owner's first playtest, a world you can type into and people who turn up where you wait for them (staff at venues, a contact you run into; no strangers yet) | **shipped** (its balance pass and docs pass ran in v0.24.0; live play with a model was deferred by the owner and has not been done) |
 | v0.24.0 | **Sound effects** for the engine and every story: alerts, ringtones, button presses -- with READ RECEIPTS' morning scene, four more life-event decks, and the v0.23.0 tail (the full balance pass, the docs pass and the whole-branch review; live play with a model was deferred by the owner, 2026-10-26) | **shipped** (live play with a model was deferred by the owner, 2026-10-26) |
-| v0.25.0 | **The Clockwork Dark overhaul** | **next** |
-| v0.26.0 | **The Wicked Garden overhaul** | planned |
-| v0.27.0 | **NEON CITY overhaul** | planned |
-| v0.28.0 | **THE LONG CON overhaul** | planned |
+| v0.25.0 | **The Clockwork Dark overhaul**: every ending at a door, the critical path on cards, Sera's levy, four people placed, two secret places, overlays that act, a 47-plate art pack | **shipped** |
+| v0.26.0 | **Engine correctness and tools**: negations read across a whole clause, ranked intent options, a faster test suite, counterfactual echoes in epilogues, a replay inspector in Studio, a per-model compliance report | **next** |
+| v0.27.0 | **The Wicked Garden overhaul** | planned |
+| v0.28.0 | **NEON CITY overhaul** | planned |
+| v0.29.0 | **THE LONG CON overhaul** | planned |
 | v1.0.0 | **Every story finished**, each with its art and live play (Dev Story stays the engine's test bench) | planned |
 
 Each overhaul gives a story HUE & CRY's full treatment: a design spec, its

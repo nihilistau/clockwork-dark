@@ -307,7 +307,7 @@ match. The client contract (slug, `theme()`, `initialState`/`reduce`/
 of the story's own words on a save row; since v0.21.0 core prints none of
 its own), and the component
 slots: `Mark`, `HeaderBadge`, `Aside`, `Ledger`, `Stage`, `Toast`,
-`MenuBanner`, `Wrap`, `StartIntro`, `Wordmark`, `Ending`, `onboarding`,
+`MenuBanner`, `Wrap`, `StartIntro`, `Wordmark`, `Ending`, `EndingArt` (v0.25.0), `onboarding`,
 `overlays`, `hideChoices`, and since v0.22.0 the two whole-screen slots
 `PlayScreen` and `NewRun`, below) is documented at the top of `ui/src/core/story.js`;
 every field is optional and core has a working default for all of them, so a
@@ -347,6 +347,35 @@ have. Nothing shipped borrows another story's plugin today — `dev-story` moved
 to `_engine` when the engine got its own — so this path is held by
 `ui/tests/plugin-contract.test.js` rather than by a running game. If you borrow,
 you are the one exercising it.
+
+**An overlay's action is an intent (v0.25.0).** An overlay that buys, sells,
+eats, uses, wears, takes off, makes or works something sends the server
+`{action, target}` (the socket event `overlay_action`, or `POST
+/api/game/choice` with `overlay_intent`), never words, and reads what it may
+offer from `GET /api/intents/overlay?session_id=` (`{scene_owns_turn,
+actions: {action: [{target, label, slot?}]}}`, every row, not the narrator's
+eight). The verbs are a closed set (`engine/game/intents.py`'s
+`OVERLAY_ACTIONS`); anything else, or a pair no longer on offer, is refused
+before a turn runs (`turn_error` with `stale_choice`, nothing changed). A press
+while a dealt card, an encounter, a set-piece or a job owns the turn runs the
+turn and is refused in the prose ("That will have to wait: what is in front
+of you comes first."), the scene left as it was.
+
+On the client the path is core's (v0.25.0 T11): an overlay's `onAct(act)`
+takes either a string, the player's typed words as before, or an
+`{action, target, label}` intent, which core sends as `overlay_action`
+(`ui/src/core/overlayAct.js::routeOverlayAct`, `App.jsx::sendOverlay`).
+`useOverlayIntents(sessionId, turnKey)` (`ui/src/core/hooks/`) reads the list
+and fetches it again on a new turn, a busy flip and a refusal; draw a pair it
+does not list, but do not let it be pressed, and say why where you can. The
+flagship's barter, pack, recipes and notice board are the worked example
+(`ui/src/stories/clockwork-dark/`, `parts/ActionButton.jsx`). A string still
+declares no intent, so an overlay that sends words moves nothing in the save
+(NEON CITY's paper and The Wicked Garden's contracts overlay still do: a
+docs/GOVERNANCE.md NOT WIRED row). Since v0.25.0 a plugin may also export
+`EndingArt({ending})`, which core's ending screen draws for the
+`gallery_unlock` block in place of its "Added to the gallery" line (the
+flagship's draws the ending's `gallery` plate).
 
 **Borrowing does not lend overlays, and that is deliberate.** An overlay looks
 like a visual slot and is not — it is a whole screen written against one
@@ -581,6 +610,17 @@ What cuts across:
   without a choice takes the first beat and logs a WARNING. `sequence` beats
   are steps, all resolved in order. Get this wrong and a decision card applies
   every branch of the decision at once.
+- **A menu beat may carry its own `when:`** (v0.25.0), a condition in the
+  shared grammar (§3.7): the beat is offered — in the narrator's options, the
+  intent enum and the player's chips — only while it holds, so one card can
+  hold a door that opens only for the player who has earned it. A pick made
+  while it held and sent after it stopped holding is refused at resolve ("is
+  not on this card"), writing nothing; a menu card resolved with no choice
+  takes its first OFFERED beat, never a filtered-out one. The validator
+  (`deck.beat_when_problems`) refuses a `when:` on a `sequence` card (its
+  beats are steps, not choices), a menu card whose every beat has one (it
+  could be dealt with nothing to answer: keep one without), and an unknown
+  predicate. A beat without one binds exactly as before.
 - **A menu beat's `text` is the narrator's; its `label` is the player's**
   (v0.21.0). The narrator is handed the full `text` ("render it, do not
   replace it"), and the intent enum names the beat by it. The player's chip,
@@ -681,7 +721,6 @@ What cuts across:
   `once` cards stay spent across re-deals; give a repeatable deck cards that
   can be dealt again. `repeatable` must be a bool — the validator reports
   `repeatable: "yes"`, which would otherwise load as one-shot.
-
   ```yaml
   # data/scenes/the_cells.yaml
   id: the_cells
@@ -701,6 +740,22 @@ What cuts across:
   a hand. A deck scheduled on custody deals on the same turn an arrest closes
   the arrest encounter, and the re-arm is read before any guard, so a release
   seen only under a later encounter still counts.
+- **A deck due with no card it can deal is spent with a failed receipt**
+  (`director.begin`: "no cards were eligible"; marked played until its
+  `when:` is seen false). So a repeatable deck whose `when:` is only its
+  place, hour and person -- a door that stands wherever someone is -- would be
+  spent on every visit where none of its cards applies, and hand the narrator
+  a failure line. Give such a deck an `any:` tail of its cards' own `when:`
+  conditions, copied in card order, so it is due only when a card can be
+  dealt. The flagship's decks are the worked example (v0.25.0, every deck in
+  `games/clockwork-dark/data/scenes/` with a `when:` but the forced
+  `the_press`):
+  `the_morning_firing.yaml` is `all: [{at_location: edgewood_bakery},
+  {hour_between: [4, 10]}, {npc_here: npc_maris}, {any: [<H0's when>, <H1's>,
+  <Q0's>, <Q1's>]}]`, and `tests/test_clockwork_dark.py::
+  test_every_deck_is_due_only_when_a_card_can_be_dealt` holds the shape. The
+  cost is that the two copies must move together: change a card's `when:`
+  and change its line in the tail.
 
 ### 3.4 Clocks and threads
 
@@ -882,9 +937,19 @@ dealt again: the stay never ended, so it never re-armed.
 `death.yaml`: `when` and `ending` come together, `ending` must be declared,
 `when` must use known predicates (and no combinator beside a sibling
 predicate), the block may not also carry the flagship's older
-`phases:`/`flag:` shape — that one (a second death while the world is
-`consuming`) still sets `state.ended` with no ending, unchanged — and
-`respawn.in_custody` is `true` or a mapping without `location_id`. Since
+`phases:`/`flag:` shape, and `respawn.in_custody` is `true` or a mapping
+without `location_id`.
+
+**The older shape may name an ending too** (v0.25.0). The flagship's
+`terminal: {phases, flag}` marks the first death in a listed phase (sets
+`flag`, then respawns as usual) and ends the run on the second. Give it an
+`ending:` beside `phases` and `flag` and that second death locks the ending
+(through the same guarded `terminal: true` lock as above, so its gate is
+skipped and its module plays, and `epilogue.for_state` shows its card);
+without one it still sets `state.ended` with no ending, unchanged. The two
+shapes are told apart by `when`: an `ending` with neither `when` nor both
+`phases` and `flag` is refused, and so is an `ending` that is not declared.
+HUE & CRY's `{when, ending}` is unchanged. Since
 v0.17 `registry.validate` runs the loader's checks (`encounter.
 death_file_problem`), so `activate` refuses a story whose death rules would
 raise, instead of the player's first death raising it; an unreadable
@@ -1034,7 +1099,7 @@ on a fixed day (`on_day`), on a cadence (`every_days`, from `first_day`), or on
 the first rolled day a `when:` predicate holds; it lasts `duration_days`
 (default 1), may name a `location_id` and `npc_ids`, and its `text` reaches the
 narrator on the turn it starts (`engine/world/schedules.py::declared_events_due`,
-fired from `advance_time`'s day roll, no randomness). An event may also carry
+fired from `advance_time`'s day roll; these three forms use no randomness). An event may also carry
 `forces_scene: <deck or card id>`: while it is active, the scene director deals
 that deck (§3.3) exactly as it deals a clock's forced scene. The id must name a
 deck or card the story ships — and a story with no decks declaring one is an
@@ -1048,17 +1113,74 @@ events:
     forces_scene: raid          # data/scenes/raid.yaml
 ```
 
+**A probabilistic event** (v0.25.0) carries `probability_per_day` instead of
+`on_day`/`every_days` (the two cannot be combined; a load error and a validator
+error say so):
+
+```yaml
+events:
+  caravan_arrival:
+    probability_per_day: 0.768     # 0 to 1: one draw per eligible day crossed
+    min_day: 5                     # eligible from this day
+    when: { min_awareness: 0 }     # optional; asked on each day, NOT once (no fired flag)
+    stream: event.caravan_arrival  # optional; default "event.<event_id>"
+    duration_days: 2
+    location_id: edgewood_square
+    npc_ids: [npc_odran]
+    rumor_from: npc_odran          # optional: a tiered rumour attributed to this NPC
+    text: "Odran's cart comes in off the Millhaven road with the dust still on it."
+```
+
+A day is ELIGIBLE when it is at or past `min_day`, its `when:` holds, and no
+instance of the event is active on it (one drawn earlier in the same step
+counts, and so does one that expires inside the step); each eligible day crossed
+draws one number on the event's stream, an ineligible day draws nothing. So the
+days an event starts depend on the seed, the days crossed and the choices, never
+on how the hours were cut. It REPEATS: once expired it is eligible again, and its
+`when:` is a gate, not a once-only trigger (no `event_fired_` flag). Inside one
+multi-day step `when` is read against the state as the step ends. `stream`
+defaults to `event.<id>`; the legacy slots' `schedule.caravan`,
+`schedule.tinker` and `schedule.militia` are refused, because the background tick
+draws them in every story. `rumor_from` draws a rumour attributed to that NPC on
+the same stream, after the probability draw (its tier read as the step ends);
+`stream` and `rumor_from` are read only with `probability_per_day`. The force
+hook (`WorldSim.on_tick(force=[...])`, `advance_world_day(force_events=...)`)
+starts a declared event today with no probability draw, while its `min_day` and
+`when:` hold and it is not already active.
+
+**A fire-once `when:` event inside one multi-day step** (the flagship's
+`the_last_hour`, which forces the last morning once the doom reading is 1.0)
+is NOT WIRED to fire once there: `declared_events_due` reads its `when:`
+against the state as the step ends and appends it once per day crossed, and
+`apply_events` keeps the last instance and journals its `text` each time. It
+was found in v0.25.0 and left, because changing it moves other stories' saves
+(docs/GOVERNANCE.md).
+
 The shipped example is HUE & CRY's `hanging_fair` (`data/world/schedules.yaml`,
 v0.17): `on_day: 10`, `duration_days: 3`, on Gallows Green, forcing
 `fair_day` — a deck whose own `when:` names the event AND the Green, so the
 forced deal waits for the player to walk there (§3.3). A schedules file that
-declares only `events:` stages none of the flagship's caravan, tinker or
-militia: those fire only for a story that declares their blocks. **An event
+declares only `events:` stages none of the legacy caravan, tinker or militia
+slots: those fire only for a story that declares their top-level blocks (the
+flagship's own three are declared `events:` since v0.25.0). **An event
 a condition names must be one the story raises** (v0.17): an `event_active`,
 `event_seen`, `held_before_event` or `days_since_event: {event}` whose id is
 no `events:` entry, engine slot block, procgen `festival` or `event_id` the
 story's own content emits is a validator error, because the predicate is
 false forever (`validation.check_event_references`).
+
+**Who is here: `npc_here`** (v0.25.0). `{npc_here: npc_maris}` is true while
+that person is at the player's place and can be spoken to -- exactly what
+`npc_sim.resolve_npc` reports, the same answer the people strip and the
+narrator's presence block read, so a door and the person the player sees
+cannot disagree. Their routine, or an override flag (`npc_at_<id>`, which a
+doom beat's `npc_moves` writes), puts them there, and then they count only
+while their routine slot for the hour has them awake: an override MOVES a
+person, it does not wake them, so someone moved to the square is not here in
+their sleeping hours. An active event's `npc_ids` or a quest pin
+(`npc_pin_<id>`) puts them there awake. Asleep is not here. A list (`{npc_here: [a, b]}`) asks for
+all of them; an id nobody resolves is never here. Read-only, for any `when:`,
+`requires:` or beat `when:`.
 
 **Road danger, by the hour.** A walk rolls for an encounter on ARRIVAL
 (`engine/game/engine.py::_roll_travel_encounter`, the ENCOUNTER stream). The
@@ -1616,9 +1738,12 @@ paying it and quashing the Wick's files together in `on_discharge` -- so a
 file gone before payday cannot be paid for. That is safe only because the
 bribe has no `on_break`: a refused discharge lets the thread come due, and a
 template whose break has teeth (`ardane_magpie_file` files a report and
-costs -10) must not gate its discharge on something the player can lose. There is
-no predicate for who else is standing there — see the NOT WIRED row in
-`docs/GOVERNANCE.md`.
+costs -10) must not gate its discharge on something the player can lose. Who
+else is standing there is `npc_here` (§3.7, v0.25.0); HUE & CRY's threads still
+gate on place and hour, not on `npc_here`: `brask_bribe` on `at_location`
+alone (so it can be struck while Brask is out), the squeezes and the fences'
+credit on `at_location` and the `hour_between` their person's schedule has
+them there, awake (CLAUDE.md, deferred).
 
 **Something to lose: `filed`.** `{filed: {jurisdiction, guise?, linked?}}`
 is true while any LIVE report row matches — read through the same matcher

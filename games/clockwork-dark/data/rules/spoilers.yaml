@@ -45,3 +45,13 @@ spoilers:
   # story -- "the worst of it" for CONSUMING is the phrase this file used to
   # carry, so nothing about this story's output moved. Restate one here only to
   # give it a voice Edgewood would use.
+
+  # v0.25.0 §3.4: the two secret places, masked in the prose until known.
+  - term: "Works Below the Stump"
+    instead: "the cold under the clearing"
+    location: the_works
+  # Case-sensitive: the capital is the name; a carpenter's "join" is not it.
+  - term: "the Join"
+    instead: "the far end of the inward road"
+    location: the_join
+    case_sensitive: true

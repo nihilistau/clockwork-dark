@@ -49,7 +49,7 @@ runs the policy harness exactly as before, HUE & CRY runs its own harnesses
 (below), and any OTHER graph story is refused with its reason: the policies
 would walk it into location ids it does not have. neon-city, the-long-con and
 dev-story are refused that way; for the two stories the refusal names the
-roadmap overhaul (v0.27.0, v0.28.0) where each gets a harness (Dev Story, the
+roadmap overhaul (v0.28.0, v0.29.0) where each gets a harness (Dev Story, the
 engine's test bench, is not overhauled). No ``--game`` -- or ``--game
 clockwork-dark``, or a deck story -- prints byte-for-byte what it printed
 before v0.18 (tests/test_simulate_thief.py holds golden copies).
@@ -93,21 +93,31 @@ TWO FLAGS A ROUTE DOES NOT READ ARE REFUSED (v0.18 T2): ``--days`` outside
 hue-and-cry, and any ``--policy`` given to the deck walker, which has none.
 Every other flag a route does not read is still ignored in silence:
 ``--turns``, ``--tick-hours``, ``--max-days`` and ``--thread-rate`` under
-hue-and-cry; ``--runs``/``--seeds``, ``--max-days`` and ``--thread-rate`` on
-the flagship; ``--turns`` and ``--tick-hours`` on the deck walker.
+hue-and-cry; ``--max-days`` and ``--thread-rate`` on the flagship; ``--turns``
+and ``--tick-hours`` on the deck walker.
+
+THE FLAGSHIP OVER SEEDS (v0.25.0 T10): ``--seeds N`` on the flagship plays each
+policy over N seeds from ``--seed`` and prints DESIGN.md § EvilTicker's table as
+the medians of the seeds' reports (``measure_policy_table``), with the danger
+legs and encounters per encounter band (a leg's band is the band file whose
+``triggers.edges`` names it). ``--policy doors`` hands over to
+``scripts/simulate_doors.py``: one policy per ending's door, over ``--seeds``
+(default 40) from ``--seed`` (default 0).
 
 Usage:
     python scripts/simulate.py --turns 200 --seed 42 --policy cautious
     python scripts/simulate.py --policy all --json > balance.json
     python scripts/simulate.py --policy pauper --turns 200   # can you live broke?
     python scripts/simulate.py --policy hero --turns 200     # does pushing back buy time?
+    python scripts/simulate.py --policy all --turns 200 --seed 42 --seeds 40   # the table over seeds
+    python scripts/simulate.py --policy doors --seeds 40     # scripts/simulate_doors.py
     python scripts/simulate.py --game wicked-garden --runs 200   # the deck walker
     python scripts/simulate.py --game hue-and-cry                # the thief, 40 seeds
     python scripts/simulate.py --game hue-and-cry --policy all --seeds 10 --days 14 --json
     python scripts/simulate.py --game hue-and-cry --policy thieves --seeds 40 --days 14
     python scripts/simulate.py --game hue-and-cry --policy living --seeds 40 --days 14
 
-Version: v0.7.0 [2026-09-29] -- v0.18 T3: the living (the fencing burglar, the adaptive pickpocket)
+Version: v0.8.0 [2026-10-30] -- v0.25.0 T10: --seeds on the flagship, bands per leg, --policy doors
 """
 
 from __future__ import annotations
@@ -119,7 +129,7 @@ import sys
 from collections import Counter, deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Iterable, Optional
 
 _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
@@ -143,6 +153,7 @@ from engine.game import trade as trade_module  # noqa: E402
 from engine.game.state import GameState  # noqa: E402
 from engine.memory.ledger import StoryLedger  # noqa: E402
 from engine.skills.builtin.mechanics import trade as trade_skill  # noqa: E402
+from engine.world.schedules import load_schedules  # noqa: E402
 from engine.world.world_sim import WorldSim  # noqa: E402
 
 #: Where each vendor stands. This used to be a hardcoded dict here, because
@@ -302,6 +313,16 @@ class RunResult:
     #: ends broke but carrying forty coppers of brass has an economy; one that
     #: ends broke and empty does not.
     carried_value_end: int = 0
+    #: (event_id, start_day, expires_day) of every caravan, tinker and press
+    #: instance seen on state, after the tick and after the action (v0.25.0 T1).
+    event_instances: set[tuple[str, int, int]] = field(default_factory=set)
+    #: Awareness at each day's FIRST sample, for the press's gate (v0.25.0 T1).
+    day_awareness: dict[int, float] = field(default_factory=dict)
+    #: Danger legs and encounters per encounter band, the leg's band read from the
+    #: band files' `triggers.edges` ("other" for a leg no band names; v0.25.0 T10).
+    #: Not in `summarize`'s report: `measure_policy_table` and the doors harness read them.
+    band_legs: Counter = field(default_factory=Counter)
+    band_encounters: Counter = field(default_factory=Counter)
     errors: list[str] = field(default_factory=list)
 
 
@@ -860,6 +881,29 @@ POLICIES: dict[str, Callable[[GameState], Action]] = {
 # ---------------------------------------------------------------------------
 
 
+def edge_bands() -> dict[str, str]:
+    """Each road ("from>to") an encounter band's `triggers.edges` names -> that band (v0.25.0 T10)."""
+    out: dict[str, str] = {}
+    for row in encounter_module.load_encounters().get("encounters") or []:
+        triggers = row.get("triggers") if isinstance(row, dict) else None
+        edges = triggers.get("edges") if isinstance(triggers, dict) else None
+        for edge in (edges if isinstance(edges, list) else [edges] if edges else []):
+            out.setdefault(str(edge), str(row.get("band") or ""))
+    return out
+
+
+def band_rates(results: Iterable[RunResult]) -> dict[str, dict[str, Any]]:
+    """Danger legs, encounters and encounters per leg per band, summed over runs."""
+    legs: Counter = Counter()
+    drawn: Counter = Counter()
+    for result in results:
+        legs.update(result.band_legs)
+        drawn.update(result.band_encounters)
+    return {band: {"legs": legs[band], "encounters": drawn[band],
+                   "per_leg": round(drawn[band] / legs[band], 3) if legs[band] else None}
+            for band in sorted(legs)}
+
+
 class Simulation:
     """One scripted playthrough with metric collection."""
 
@@ -877,6 +921,7 @@ class Simulation:
         self.tick_hours = tick_hours
         self.state: GameState = new_game_state(seed=seed)
         self.engine = GameEngine(self.state)
+        self._edge_bands = edge_bands()
         self.ledger = StoryLedger()
         self.result = RunResult(
             policy=policy,
@@ -941,6 +986,10 @@ class Simulation:
                 self.result.travel_legs += 1
                 if int(edge.get("danger_dc", 0) or 0) > 0:
                     self.result.danger_legs += 1
+                    band = self._edge_bands.get(f"{before}>{move.to_id}", "other")
+                    self.result.band_legs[band] += 1
+                    if move.encounter:
+                        self.result.band_encounters[band] += 1
                 if move.encounter:
                     self.result.encounters_drawn.append(str(move.encounter.get("id", "")))
             elif not move.success:
@@ -1095,18 +1144,33 @@ class Simulation:
         self.result.carried_value_end = inventory_module.carried_value(self.state)
         return self.result
 
+    def _observe_events(self) -> None:
+        """Note every rate event instance on state, and the day's first awareness (v0.25.0 T1)."""
+        state = self.state
+        self.result.day_awareness.setdefault(int(state.world_day), float(state.awareness))
+        for raw in state.world_events:
+            event_id = str(raw.get("event_id") or "")
+            if event_id in RATE_EVENTS:
+                try:
+                    self.result.event_instances.add(
+                        (event_id, int(raw.get("day", 0) or 0), int(raw.get("expires_day", 0) or 0)))
+                except (TypeError, ValueError):
+                    continue
+
     def _one_turn(self) -> None:
         state = self.state
 
         # The background world tick, exactly as run_turn applies it.
         if self.tick_hours > 0:
             WorldSim.on_tick(state, hours=self.tick_hours)
+        self._observe_events()
 
         action, args = self.policy(state)
         try:
             self._execute(action, args)
         except Exception as exc:  # noqa: BLE001 — a harness must survive to report
             self.result.errors.append(f"turn {state.turn_number}: {action}: {exc}")
+        self._observe_events()
 
         state.turn_number += 1
 
@@ -1145,6 +1209,63 @@ class Simulation:
 # ---------------------------------------------------------------------------
 # reporting
 # ---------------------------------------------------------------------------
+
+
+#: The three events whose rates v0.25.0 T1 measures (spec §6.1 "Rates").
+RATE_EVENTS = ("caravan_arrival", "tinker_camp", "militia_press")
+
+
+def rate_gates() -> dict[str, Callable[[int, dict[int, float]], bool]]:
+    """Each event's own gate, read from the ACTIVE story's schedules (legacy block or declared event)."""
+    sched = load_schedules()
+
+    def spec(event_id: str) -> dict[str, Any]:
+        return dict((sched.get("events") or {}).get(event_id) or sched.get(event_id) or {})
+
+    # An authored 0 stays 0: only a key that is absent takes the legacy default.
+    caravan_day = spec("caravan_arrival").get("min_day")
+    caravan_min = 5 if caravan_day is None else int(caravan_day)
+    press = spec("militia_press")
+    press_awareness = press.get("min_awareness")
+    press_min = 20.0 if press_awareness is None else float(press_awareness)
+    when = press.get("when")
+    if isinstance(when, dict) and "min_awareness" in when:
+        press_min = float(when["min_awareness"])
+    return {
+        "caravan_arrival": lambda d, aw: d >= caravan_min and d in aw,
+        "tinker_camp": lambda d, aw: d in aw,
+        "militia_press": lambda d, aw: d in aw and aw[d] >= press_min,
+    }
+
+
+def event_rates(
+    instances: Iterable[tuple[str, int, int]],
+    day_awareness: dict[int, float],
+    *,
+    first_day: int,
+    last_day: int,
+    gates: dict[str, Callable[[int, dict[int, float]], bool]],
+) -> dict[str, dict[str, Any]]:
+    """
+    Starts per ELIGIBLE day, per event: a day is eligible when no instance that
+    started before it is active on it and the event's gate holds. A day with no
+    sample (a long sleep crossed it) fails every gate, so it is never counted.
+    """
+    rows = sorted(set(instances))
+    out: dict[str, dict[str, Any]] = {}
+    for event_id in RATE_EVENTS:
+        mine = [(start, expires) for eid, start, expires in rows if eid == event_id]
+        starts = eligible = 0
+        for day in range(int(first_day), int(last_day) + 1):
+            if any(start < day < expires for start, expires in mine):
+                continue
+            if not gates[event_id](day, day_awareness):
+                continue
+            eligible += 1
+            starts += sum(1 for start, _ in mine if start == day)
+        out[event_id] = {"starts": starts, "eligible_days": eligible,
+                         "per_day": (starts / eligible) if eligible else 0.0}
+    return out
 
 
 def _distribution(values: list[float]) -> dict[str, float]:
@@ -1439,6 +1560,73 @@ def simulate(
     )
 
 
+def measure_event_rates(
+    policies: list[str], seeds: list[int], turns: int, tick_hours: float
+) -> dict[str, Any]:
+    """Per policy: summed starts and eligible days over the seeds, and the first caravan's median day."""
+    gates = rate_gates()
+    report: dict[str, Any] = {"seeds": [seeds[0], seeds[-1]], "turns": turns, "policies": {}}
+    for name in policies:
+        totals = {e: {"starts": 0, "eligible_days": 0} for e in RATE_EVENTS}
+        firsts: list[int] = []
+        for seed in seeds:
+            result = Simulation(policy=name, seed=seed, turns=turns, tick_hours=tick_hours).run()
+            last_day = max(result.day_awareness) if result.day_awareness else 1
+            rates = event_rates(result.event_instances, result.day_awareness,
+                                first_day=1, last_day=last_day, gates=gates)
+            for event_id, row in rates.items():
+                totals[event_id]["starts"] += row["starts"]
+                totals[event_id]["eligible_days"] += row["eligible_days"]
+            caravans = sorted(s for e, s, _ in result.event_instances if e == "caravan_arrival")
+            if caravans:
+                firsts.append(caravans[0])
+        row = {e: {**t, "per_day": round(t["starts"] / t["eligible_days"], 4) if t["eligible_days"] else 0.0}
+               for e, t in totals.items()}
+        row["first_caravan_day"] = statistics.median(firsts) if firsts else None
+        report["policies"][name] = row
+    report["mean"] = mean_rates(report["policies"])
+    return report
+
+
+def measure_policy_table(policies: list[str], seeds: list[int], turns: int, tick_hours: float) -> dict[str, Any]:
+    """DESIGN.md § EvilTicker's table over seeds: per policy, the medians of each seed's report."""
+    out: dict[str, Any] = {"seeds": [seeds[0], seeds[-1]], "turns": turns, "policies": {}}
+    every: list[RunResult] = []
+    for name in policies:
+        results = [Simulation(policy=name, seed=s, turns=turns, tick_hours=tick_hours).run() for s in seeds]
+        every += results
+        reports = [summarize(r) for r in results]
+        hours = [float(r["summary"]["in_game_hours_per_turn"]) for r in reports]
+        evil = [float(r["summary"]["final_evil_progress"]) for r in reports]
+        out["policies"][name] = {
+            "hours_per_turn": round(statistics.median(hours), 2),
+            "evil_progress": round(statistics.median(evil), 3),
+            "deaths": sum(int(r["summary"]["deaths"]) for r in reports),
+            "starvation_deaths": sum(int(r["summary"]["starvation_deaths"]) for r in reports),
+            # Per seed, as DESIGN.md's single-seed table counts them (§10.2's "at most 30").
+            "deaths_median": statistics.median(int(r["summary"]["deaths"]) for r in reports),
+            "deaths_max": max(int(r["summary"]["deaths"]) for r in reports),
+            "bands": band_rates(results),
+        }
+    out["bands"] = band_rates(every)
+    return out
+
+
+def mean_rates(rows: dict[str, dict[str, Any]]) -> dict[str, float]:
+    """
+    Each event's per-day rate averaged over the policies that HAD an eligible
+    day for it: a policy whose awareness never reached the press's threshold
+    measured no press rate, not a rate of zero. Six decimals, so the tinker's
+    small rate keeps three significant figures.
+    """
+    out: dict[str, float] = {}
+    for event_id in RATE_EVENTS:
+        rates = [row[event_id]["starts"] / row[event_id]["eligible_days"]
+                 for row in rows.values() if row[event_id]["eligible_days"]]
+        out[event_id] = round(statistics.fmean(rates), 6) if rates else 0.0
+    return out
+
+
 #: The one graph story the policies can actually play. Their location ids,
 #: vendor names and skill picks are all Edgewood's; see the module docstring.
 FLAGSHIP_SLUG = "clockwork-dark"
@@ -1536,7 +1724,7 @@ THIEF_SLUG = "hue-and-cry"
 #: Graph stories with no harness, and the roadmap release that overhauls each
 #: (CLAUDE.md's in-flight table). The refusal names it rather than implying
 #: the harness is merely missing a flag.
-NO_HARNESS_YET = {"neon-city": "v0.27.0", "the-long-con": "v0.28.0"}
+NO_HARNESS_YET = {"neon-city": "v0.28.0", "the-long-con": "v0.29.0"}
 
 #: The policy ``--policy thief`` names is ``simulate_endings.THIEF_POLICY``
 #: (the heister; its comment says why). The days a thief keeps on its own coin
@@ -1774,7 +1962,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         type=int,
         default=None,
         help="Deck stories: seeded runs to walk (default 200). hue-and-cry: "
-        "seeds per policy (default 40).",
+        "seeds per policy (default 40). The flagship: seeds per policy from --seed, "
+        "printed as the medians' table (JSON); --policy doors: default 40.",
     )
     parser.add_argument(
         "--days",
@@ -1800,7 +1989,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         default=None,
         help=(
             f"Scripted policy ({', '.join(sorted(POLICIES))}; default cautious), "
-            "or 'all' to run each in turn. hue-and-cry: 'thief' (the default), "
+            "or 'all' to run each in turn, or 'doors' (scripts/simulate_doors.py: "
+            "one policy per ending's door). hue-and-cry: 'thief' (the default), "
             "'thieves' (the five the agenda collisions are measured over), "
             "'living' (scripts/simulate_labour.py's thieves who pay their own "
             "way: the fencing burglar, the adaptive pickpocket), "
@@ -1818,7 +2008,22 @@ def main(argv: Optional[list[str]] = None) -> int:
         ),
     )
     parser.add_argument("--json", action="store_true", help="Emit JSON, not prose.")
+    parser.add_argument(
+        "--event-rates",
+        action="store_true",
+        help=(
+            "The flagship only (v0.25.0 T1): starts per eligible in-game day of the "
+            "caravan, tinker and press, per policy, over --seeds seeds from --seed."
+        ),
+    )
     args = parser.parse_args(argv)
+    if args.policy == "doors":
+        import simulate_doors  # noqa: PLC0415 -- beside this script (plan decision 14)
+
+        forward = ["--seeds", str(args.runs or 40)] + (["--seed", str(args.seed)] if args.seed is not None else [])
+        return simulate_doors.main(forward + (["--json"] if args.json else []))
+    if args.event_rates and args.game and args.game != FLAGSHIP_SLUG:
+        parser.error("argument --event-rates: the flagship's events only")
 
     if args.game:
         dispatched = _dispatch_game(args, parser)
@@ -1840,6 +2045,14 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
 
     names = sorted(POLICIES) if args.policy == "all" else [args.policy]
+    if args.event_rates:
+        seeds = list(range(args.seed, args.seed + int(args.runs or 1)))
+        print(json.dumps(measure_event_rates(names, seeds, args.turns, args.tick_hours), indent=2))
+        return 0
+    if args.runs and not args.event_rates:
+        seeds = list(range(args.seed, args.seed + int(args.runs)))
+        print(json.dumps(measure_policy_table(names, seeds, args.turns, args.tick_hours), indent=2))
+        return 0
     reports = [
         simulate(
             policy=name,

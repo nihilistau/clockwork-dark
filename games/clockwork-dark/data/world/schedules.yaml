@@ -1,34 +1,92 @@
 # Trader, tinker, and militia schedule probabilities
+#
+# THE LEGACY RATES, MEASURED BEFORE v0.25.0's CONVERSION (T1, rule 10):
+#   scripts/simulate.py --policy all --turns 200 --seed 42 --seeds 40 --event-rates --json
+# Starts per ELIGIBLE in-game day (no instance carried from an earlier day, and
+# the event's own gate), summed over seeds 42-81:
+#
+#   | Policy   | Caravan starts / eligible (per day) | Tinker (per day)   | Press (per day)       | First caravan (median day) |
+#   | baker    | 567 / 735  (0.7714)                 | 6 / 1439 (0.0042)  | none eligible         | 5 |
+#   | cautious | 475 / 617  (0.7699)                 | 6 / 1222 (0.0049)  | 199 / 1109 (0.1794)   | 5 |
+#   | hero     | 362 / 422  (0.8578)                 | 6 / 918  (0.0065)  | 146 / 659  (0.2215)   | 5 |
+#   | pauper   | 526 / 653  (0.8055)                 | 6 / 1313 (0.0046)  | none eligible         | 5 |
+#   | reckless | 709 / 1112 (0.6376)                 | 6 / 1958 (0.0031)  | 225 / 1888 (0.1192)   | 5 |
+#   | mean     | 0.768                               | 0.00465            | 0.173                 |   |
+#
+# (The mean is over the policies with an eligible day: the baker and the
+# pauper never reach awareness 20, so they measured no press rate.)
+# Spec §6.1's DERIVED rates, for comparison: caravan 0.71-0.90, press
+# 0.12-0.22, tinker 0.0025-0.0048 per day. The policies differ only because
+# their turns cut a day into different numbers of background ticks, each of
+# which rolled the legacy slots this file used to declare.
+#
+# THE RATES AFTER THE CONVERSION (same command, seeds 42-81; each policy's
+# per-day rate against its pre-change rate, and spec §10.2's ±20% band):
+#
+#   | Policy   | Caravan (per day; vs pre)     | Tinker (per day; vs pre)     | Press (per day; vs pre)      | First caravan |
+#   | baker    | 570 / 737  (0.7734; +0.3%)    | 8 / 1436 (0.0056; +33.6% OUT) | none eligible               | 5 |
+#   | cautious | 474 / 622  (0.7621; -1.0%)    | 7 / 1222 (0.0057; +16.7%)    | 201 / 1111 (0.1809; +0.8%)   | 5 |
+#   | hero     | 337 / 446  (0.7556; -11.9%)   | 6 / 915  (0.0066; +0.3%)     | 121 / 653  (0.1853; -16.4%)  | 5 |
+#   | pauper   | 515 / 667  (0.7721; -4.1%)    | 7 / 1311 (0.0053; +16.8%)    | none eligible                | 5 |
+#   | reckless | 793 / 1023 (0.7752; +21.6% OUT)| 9 / 1944 (0.0046; +51.1% OUT)| 327 / 1880 (0.1739; +46.0% OUT)| 5 |
+#   | mean     | 0.768 (pre 0.768)             | 0.00557 (pre 0.00465)        | 0.180 (pre 0.173)            |   |
+#
+# Measured, not tuned (T10 owns the bands and levers). Reckless collapses UP
+# to the shared rate: its long turns gave it the fewest ticks a day, so the
+# lowest legacy rates. The tinker's 6-9 starts a policy are too few to read.
+#
+# T10's BANDS (spec §10.2: within +-20% of the pre-change measurement, the five
+# policies' spread excepted, so read on the means; measured in T10 before any
+# constant moved, seeds 42-81): caravan 0.767 (pre 0.768), tinker 0.00557 (pre
+# 0.00465, +19.9%), press 0.180 (pre 0.173, +4.0%), all met; the first caravan's
+# median day 5 for every policy (pre 5; band +-1), met. No rate moved (lever 5
+# unused).
+#
+# From v0.25.0 the three are declared `events:`, rolled once per in-game day
+# crossed on their own streams (`event.<id>`), so their rates no longer depend
+# on how a day was cut into wall-clock ticks. The per-day numbers are the
+# PRE-change measured means, across the five policies: the policies' spread (which
+# existed only because their turns cut the day differently) collapses to one
+# number. `goods:` is gone: nothing read it (docs/GOVERNANCE.md).
 
-caravan_arrival:
-  min_day: 5
-  # 0.08 expected Odran around day 17, which was fine when the world took
-  # eighty days to fall and is a third of the whole story now that it takes
-  # about forty (R-06 retune). The Whisper arc counts its wait from this
-  # arrival, so the trader is the story's opening bell: expected ~day 7 now.
-  probability_per_day: 0.25
-  duration_days: 2
-  npc_id: npc_odran
-  location_id: edgewood_square
-  goods:
-    - road_map
-    - whetstone
+events:
 
-tinker_camp:
-  probability_per_week: 0.05
-  duration_days: 3
-  npc_id: npc_ilya
-  location_id: tinker_caravan
-  goods:
-    - sympathy_charm
-    - tinker_map
+  # The story's opening bell: the Whisper arc counts three days from Odran's
+  # first arrival (arcs.yaml). min_day 5 as before.
+  caravan_arrival:
+    probability_per_day: 0.768     # the pre-change measured mean (3 significant figures)
+    min_day: 5
+    duration_days: 2
+    location_id: edgewood_square
+    npc_ids: [npc_odran]
+    rumor_from: npc_odran
+    text: "Odran's cart comes in off the Millhaven road with the dust still on it."
 
-militia_press:
-  min_awareness: 20
-  probability_per_day: 0.03
-  duration_days: 1
-  npc_id: npc_sera
-  location_id: edgewood_square
+  tinker_camp:
+    probability_per_day: 0.00465   # the pre-change measured mean
+    duration_days: 3
+    location_id: tinker_caravan
+    npc_ids: [npc_ilya]
+    text: "Ilya's second wagon is pegged out beside the first, and the awning is up."
+
+  # A gate, not a trigger: from awareness 20, every eligible day draws.
+  militia_press:
+    probability_per_day: 0.173     # the pre-change measured mean
+    when: { min_awareness: 20 }
+    duration_days: 1
+    location_id: edgewood_square
+    npc_ids: [npc_sera]
+    text: "Sergeant Venn reads the levy notice in the square, twice, in case the first time was ignored."
+
+  # The stopped wheel's door (v0.25.0 §6.1, plan decision 15): a `when:`
+  # event, so fire-once and deterministic (no draw): the first day rolled with
+  # the reading at 1.0 starts it, and while it is active it owes the
+  # the_stopped_wheel deck (data/scenes/the_stopped_wheel.yaml).
+  the_last_hour:
+    when: { value: { name: evil_progress, min: 1.0 } }
+    duration_days: 60
+    forces_scene: the_stopped_wheel
+    text: "Nothing in Edgewood keeps time any more except the thing that took it."
 
 rumors:
   - "Odran swears the road to Millhaven took an extra hour though the sun said otherwise."

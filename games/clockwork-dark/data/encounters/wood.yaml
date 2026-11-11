@@ -1,0 +1,278 @@
+# The Wood (v0.25.0 §5.3): the nine danger_dc 6 lines between the clearing, the
+# deeper wood, the herb glen and the charcoal burn, both ways where both are
+# banded, and the square's walk out to the burn. (The burn's walk back to the
+# square arrives in the square, and village.yaml has it.)
+# Measured in v0.25.0 T10 (rule 10): 0.244 encounters a danger leg (386 legs,
+# the five-policy pauper's walks to forage; seeds 42-81); band 0.15-0.40, met.
+band: wood
+
+encounters:
+  - id: the_doubled_trail
+    tier: 1
+    weight: 30
+    triggers:
+      edges:
+        - "forest_clearing>deeper_forest"
+        - "deeper_forest>forest_clearing"
+        - "forest_clearing>herb_glen"
+        - "herb_glen>forest_clearing"
+        - "deeper_forest>herb_glen"
+        - "herb_glen>deeper_forest"
+        - "deeper_forest>charcoal_burn"
+        - "charcoal_burn>deeper_forest"
+        - "edgewood_square>charcoal_burn"
+    intro: >-
+      The game trail you have been following for half an hour brings you back
+      to a broken birch you are fairly sure you passed at the start. It is
+      the same birch. The break is the same shape.
+    threat: { name: "A trail that goes back on itself", resolve: 3 }
+    approaches:
+      read:
+        skill: survival
+        difficulty: easy
+        text: "Read the ground and pick the trail that is actually going somewhere"
+      mark:
+        skill: craft
+        difficulty: easy
+        text: "Blaze the trees as you go so the wood cannot argue"
+    outcomes:
+      crit_success:
+        text: >-
+          You find where the trail folds, a single step where the deer go one
+          way and the ground pretends they went the other, and you step past it.
+        effects:
+          - { type: awareness, delta: 2 }
+      success:
+        text: >-
+          You come out where you meant to, a little later than you meant to,
+          with your blazes behind you in a straight line.
+        effects:
+          - { type: stamina, delta: -5 }
+      partial:
+        text: >-
+          You get there on the third try. The second time round the birch, you
+          stopped looking at it.
+        effects:
+          - { type: stamina, delta: -8 }
+          - { type: awareness, delta: 1 }
+      failure:
+        text: >-
+          An hour of fern and the same birch four times, and you come out
+          scratched, thirsty and no longer sure how many times it was.
+        effects:
+          - { type: stamina, delta: -12 }
+          - { type: awareness, delta: 1 }
+
+  - id: the_burners_dog
+    tier: 1
+    weight: 25
+    triggers:
+      edges:
+        - "forest_clearing>deeper_forest"
+        - "deeper_forest>forest_clearing"
+        - "forest_clearing>herb_glen"
+        - "herb_glen>forest_clearing"
+        - "deeper_forest>herb_glen"
+        - "herb_glen>deeper_forest"
+        - "deeper_forest>charcoal_burn"
+        - "charcoal_burn>deeper_forest"
+        - "edgewood_square>charcoal_burn"
+    intro: >-
+      A big rough-coated dog is standing in the middle of the path with its
+      hackles up, black to the elbows with charcoal dust. It belongs to
+      somebody. It is deciding whether you do too.
+    threat: { name: "The charcoal-burner's dog", resolve: 3 }
+    approaches:
+      calm:
+        skill: sympathy
+        difficulty: easy
+        text: "Crouch, keep your hands low and let it come to you"
+      share:
+        skill: craft
+        difficulty: easy
+        requires_item: loaf
+        text: "Break off the heel of your bread and toss it over"
+        # The loaf is spent whatever the dog makes of it: every degree's block
+        # here takes it (approach-level outcomes win over the row's).
+        outcomes:
+          crit_success:
+            text: >-
+              It takes the bread out of the air, decides you are allowed, and
+              walks you the rest of the way with its shoulder against your knee.
+            effects:
+              - { type: remove_item, item_id: loaf, qty: 1 }
+              - { type: awareness, delta: 1 }
+              - { type: reputation, faction: edgewood, delta: 1 }
+          success:
+            text: >-
+              It eats the bread in two bites, sniffs your hand for more, and
+              trots off to wherever the burner is.
+            effects:
+              - { type: remove_item, item_id: loaf, qty: 1 }
+          partial:
+            text: >-
+              It eats the bread and lets you by, but walks behind you, close,
+              for a long way, in case there is more.
+            effects:
+              - { type: remove_item, item_id: loaf, qty: 1 }
+              - { type: stamina, delta: -5 }
+          failure:
+            text: >-
+              It takes the bread, and then your sleeve, and lets go only when
+              somebody whistles from deeper in the trees.
+            effects:
+              - { type: remove_item, item_id: loaf, qty: 1 }
+              - { type: hp, delta: -2 }
+              - { type: stamina, delta: -6 }
+      back_off:
+        skill: survival
+        difficulty: easy
+        text: "Give it the path and go round"
+    outcomes:
+      crit_success:
+        text: >-
+          It decides you are allowed, and walks you the rest of the way with
+          its shoulder against your knee, and leaves you at the edge of the
+          trees as if handing you on.
+        effects:
+          - { type: awareness, delta: 1 }
+          - { type: reputation, faction: edgewood, delta: 1 }
+      success:
+        text: >-
+          It sniffs your hand, sneezes at the charcoal on its own nose, and
+          trots off to wherever the burner is.
+        effects:
+          - { type: stamina, delta: -3 }
+      partial:
+        text: >-
+          It lets you by but walks behind you, close, for a long way, and you
+          do not enjoy any of it.
+        effects:
+          - { type: stamina, delta: -8 }
+      failure:
+        text: >-
+          It goes for your calf, gets cloth and a little of you, and lets go
+          when somebody whistles from deeper in the trees.
+        effects:
+          - { type: hp, delta: -3 }
+          - { type: stamina, delta: -8 }
+
+  - id: brass_in_the_snare
+    tier: 2
+    weight: 20
+    triggers:
+      edges:
+        - "forest_clearing>deeper_forest"
+        - "deeper_forest>forest_clearing"
+        - "forest_clearing>herb_glen"
+        - "herb_glen>forest_clearing"
+        - "deeper_forest>herb_glen"
+        - "herb_glen>deeper_forest"
+        - "deeper_forest>charcoal_burn"
+        - "charcoal_burn>deeper_forest"
+        - "edgewood_square>charcoal_burn"
+      phases: [stirring, spreading, consuming]
+    intro: >-
+      A wire snare off the side of the path has caught something, and the
+      something is still working at it: a small thing about the size of a
+      hare, all brass, its legs going patiently in the noose.
+    threat: { name: "A snare that caught something brass", resolve: 3 }
+    approaches:
+      free:
+        skill: craft
+        difficulty: standard
+        text: "Work the wire loose and see what you have got"
+      leave:
+        skill: nerve
+        difficulty: easy
+        text: "Leave it to its legs and walk on"
+    outcomes:
+      crit_success:
+        text: >-
+          The wire comes loose and the thing stops, all at once, the way a
+          clock stops when you lift it. Inside the casing there is nothing to
+          make it go. You keep a piece of it.
+        effects:
+          - { type: awareness, delta: 3 }
+          - { type: item, item_id: brass_shard, qty: 1 }
+      success:
+        text: >-
+          You get it free and it goes off through the fern in a straight line,
+          ignoring every tree in its way, and the trees let it.
+        effects:
+          - { type: awareness, delta: 2 }
+          - { type: stamina, delta: -5 }
+      partial:
+        text: >-
+          You walk on. Behind you the sound of the legs goes on for a long way,
+          and then stops, and you do not know which is worse.
+        effects:
+          - { type: awareness, delta: 1 }
+          - { type: stamina, delta: -6 }
+      failure:
+        text: >-
+          The wire bites through your glove while the legs keep going, and the
+          thing is out and away before you have your hand back.
+        effects:
+          - { type: hp, delta: -2 }
+          - { type: stamina, delta: -8 }
+          - { type: awareness, delta: 1 }
+
+  - id: the_ticking_stag
+    tier: 2
+    weight: 15
+    triggers:
+      edges:
+        - "forest_clearing>deeper_forest"
+        - "deeper_forest>forest_clearing"
+        - "forest_clearing>herb_glen"
+        - "herb_glen>forest_clearing"
+        - "deeper_forest>herb_glen"
+        - "herb_glen>deeper_forest"
+        - "deeper_forest>charcoal_burn"
+        - "charcoal_burn>deeper_forest"
+        - "edgewood_square>charcoal_burn"
+      phases: [spreading, consuming]
+    intro: >-
+      A stag stands in the ride ahead of you, head up, perfectly still. In the
+      quiet you can hear it, faint and steady from somewhere under the hide,
+      the way you hear a watch in somebody's pocket.
+    threat: { name: "A stag that ticks", resolve: 4 }
+    approaches:
+      downwind:
+        skill: stealth
+        difficulty: standard
+        text: "Stay downwind and ease off the path"
+      hold:
+        skill: nerve
+        difficulty: hard
+        text: "Hold your ground and let it look at you"
+    outcomes:
+      crit_success:
+        text: >-
+          It looks at you for exactly as long as a stag would, and then a
+          moment longer, and goes. You have counted the ticks, and the count
+          means something.
+        effects:
+          - { type: awareness, delta: 3 }
+      success:
+        text: >-
+          It turns away into the trees without hurry, and the ticking goes with
+          it, getting no fainter for longer than it should.
+        effects:
+          - { type: awareness, delta: 2 }
+          - { type: stamina, delta: -6 }
+      partial:
+        text: >-
+          It takes a step toward you, exactly the length of the last one, and
+          you are off the path and running before you decide to be.
+        effects:
+          - { type: stamina, delta: -10 }
+          - { type: awareness, delta: 2 }
+      failure:
+        text: >-
+          It comes through where you are standing as if you were brush, and you
+          end up in the ditch with a long bruise and a longer memory.
+        effects:
+          - { type: hp, delta: -5 }
+          - { type: stamina, delta: -10 }

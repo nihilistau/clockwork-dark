@@ -14,6 +14,8 @@ The engine's default story screens, as one Blueprint.
     GET /api/notices           the notice board: contracts posted here
     GET /api/clues             the clue board: what the player has worked out
     GET /api/people            who is here (names and faces only once met)
+    GET /api/intents/overlay   what an overlay may press now (v0.25.0 E2)
+    GET /api/factions          every faction, named, with its band (v0.25.0 E4)
 
 MOVED FROM ``content/scenes/clockwork/clockwork_api.py`` in v0.3.0. Every
 route here resolves through ``paths.*`` on the active manifest (the loaders
@@ -435,7 +437,7 @@ def codex_souls(state: Any, ledger: Any = None) -> dict[str, Any]:
     The client reads it only as a React key and a tint seed. The role passes
     the awareness spoiler gate, met or not (v0.21.0 T3 fix round 1).
     """
-    from engine.game.locations import LOCATIONS
+    from engine.game.locations import LOCATIONS, is_known
 
     relations = getattr(ledger, "relations", {}) or {}
     npcs = list(getattr(getattr(state, "procgen", None), "npcs", []) or [])
@@ -449,16 +451,33 @@ def codex_souls(state: Any, ledger: Any = None) -> dict[str, Any]:
 
         npcs = list(load_templates().get("canon_npcs", []) or [])
 
+    # The cast every story declares in npc_schedules.yaml (v0.25.0 §8.7), deduplicated
+    # against the procgen list: the flagship's four new people are declared there only,
+    # and so is HUE & CRY's whole cast. Read from the schedule file, which needs no run.
+    from engine.world import npc_sim
+
+    seen = {str(n.get("id") or "") for n in npcs}
+    for npc_id, row in (npc_sim.load_npc_schedules().get("npcs") or {}).items():
+        if str(npc_id) in seen or not isinstance(row, dict):
+            continue
+        seen.add(str(npc_id))
+        npcs.append({"id": str(npc_id), "name": str(row.get("name") or ""), "role": str(row.get("role") or ""),
+                     "location_id": str(row.get("home") or ""), "traits": [], "canon": False})
+
     souls: list[dict[str, Any]] = []
     for npc in npcs:
         npc_id = str(npc.get("id") or "")
         relation = relations.get(npc_id)
         met = bool(getattr(relation, "met", False))
         place_id = str(npc.get("location_id") or "")
+        if place_id and not is_known(state, place_id):
+            # A secret place is named nowhere before the player knows it exists
+            # (``locations.is_known``, the map's own gate): not as a soul's home either.
+            place_id = ""
         souls.append(
             {
                 "id": npc_id if met else f"s{len(souls)}",
-                "name": str(npc.get("name") or npc_id) if met else "Someone",
+                "name": str(npc.get("name") or npc_sim.display_name(npc_id, state)) if met else "Someone",
                 "role": _gated(str(npc.get("role") or "villager").replace("_", " "), state),
                 "place": str((LOCATIONS.get(place_id) or {}).get("name") or place_id),
                 "traits": [str(t) for t in (npc.get("traits") or [])] if met else [],
@@ -1012,6 +1031,46 @@ def people_here(state: Any, ledger: Any = None) -> dict[str, Any]:
     return {"people": rows, "more": more}
 
 
+def overlay_offer(state: Any) -> dict[str, Any]:
+    """
+    What an overlay may press now (v0.25.0 E4/E2): ``{scene_owns_turn, actions:
+    {action: [{target, label, slot?}]}}``, uncapped. ``slot`` rides the
+    ``equip``/``unequip`` rows only (from the item's ``equip:`` block).
+    """
+    from engine.game import intents, inventory
+
+    actions: dict[str, list[dict[str, str]]] = {}
+    for action, rows in intents.overlay_targets(state).items():
+        out = []
+        for target, label in rows:
+            row = {"target": target, "label": label}
+            if action in ("equip", "unequip"):
+                row["slot"] = str((inventory.equip_spec(target) or {}).get("slot") or "")
+            out.append(row)
+        actions[action] = out
+    return {"scene_owns_turn": bool(intents.scene_owns_turn(state)), "actions": actions}
+
+
+def faction_rows(state: Any) -> list[dict[str, Any]]:
+    """
+    Every faction the story declares, in declared order: its name, its band
+    (the faction's own ``bands``, "kept in the count" included) and its score
+    (v0.25.0 E4). Read-only. A route, not a payload key, so every story's turn
+    payload stays byte-identical.
+    """
+    from engine.game import reputation
+
+    return [
+        {
+            "id": faction,
+            "name": reputation.faction_name(faction),
+            "band": {"id": reputation.standing_id(state, faction), "label": reputation.standing(state, faction)},
+            "score": int(reputation.get(state, faction)),
+        }
+        for faction in reputation.faction_ids()
+    ]
+
+
 # ---------------------------------------------------------------------------
 # the blueprint
 # ---------------------------------------------------------------------------
@@ -1167,6 +1226,34 @@ def story_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
             logger.exception("[api] People here failed (operation=api_people)")
             return jsonify({"people": [], "more": 0})
 
+    @blueprint.get("/api/intents/overlay")
+    def api_overlay_intents() -> Any:
+        """What an overlay may press now. Session-required, read-only, off the turn lock."""
+        try:
+            session = store.require(request.args.get("session_id", ""))
+        except KeyError:
+            return jsonify({"error": "session not found"}), 404
+        try:
+            return jsonify(overlay_offer(session.engine.state))
+        except Exception:  # noqa: BLE001 -- the /api/people convention: a mid-turn read answers empty
+            logger.exception("[api] Overlay offer failed (operation=api_overlay_intents)")
+            # Nothing pressable, and no false "answer what is in front of you
+            # first": a failed read is not a scene holding the turn (T14).
+            return jsonify({"scene_owns_turn": False, "actions": {}})
+
+    @blueprint.get("/api/factions")
+    def api_factions() -> Any:
+        """The sheet's Standing rows, named. Session-required (a band is a run's)."""
+        try:
+            session = store.require(request.args.get("session_id", ""))
+        except KeyError:
+            return jsonify({"error": "session not found"}), 404
+        try:
+            return jsonify(faction_rows(session.engine.state))
+        except Exception:  # noqa: BLE001 -- the /api/people convention: a failed read answers empty (T14)
+            logger.exception("[api] Faction rows failed (operation=api_factions)")
+            return jsonify([])
+
     return blueprint
 
 
@@ -1177,8 +1264,10 @@ __all__ = [
     "codex_places",
     "codex_souls",
     "codex_things",
+    "faction_rows",
     "item_catalog",
     "notice_board",
+    "overlay_offer",
     "people_here",
     "quest_journal",
     "recipe_book",

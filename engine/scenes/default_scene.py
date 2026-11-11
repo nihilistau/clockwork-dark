@@ -56,6 +56,7 @@ from engine.persistence.saves import InvalidSaveId, missing_save_message
 from engine.scenes.default_state import (
     SessionStore,
     resolve_authored_choice,
+    resolve_overlay_intent,
     resolve_player_action,
     stale_choice,
     resolve_player_intent,
@@ -272,6 +273,7 @@ def run_guarded(
     admit: bool = True,
     metric: str = "turn",
     typed_text: Optional[str] = None,
+    overlay: bool = False,
 ) -> tuple[Optional[dict[str, Any]], str, bool]:
     """
     Run one turn under the session lock.
@@ -344,9 +346,18 @@ def run_guarded(
     It is read ONLY on the world turn's branch, under the lock, by
     ``engine/social/typed.py``; every other path ignores it, so another
     story's typed turn carries no intent, as before (seam pin 10).
+
+    ``overlay`` (v0.25.0 E2, spec §7.1): the press came from an overlay
+    (``resolve_overlay_intent``), so ``execute_intent`` checks it against the
+    overlay's list under this lock. False for every other caller.
     """
     run = runner or run_turn
     gate = getattr(session, "narration_turnstile", None) if runner is None else None
+    if overlay and gate is not None:
+        # Never reached: `resolve_overlay_intent` refuses a turnstile session first.
+        from engine.game import intents
+
+        return None, intents.OVERLAY_STALE, False
     if gate is not None:
         return _run_world_turn(session, gate, action, intent, authored=authored, emit_callback=emit_callback,
                                present=present, cancel=cancel, admit=admit, metric=metric, typed_text=typed_text)
@@ -355,7 +366,7 @@ def run_guarded(
         return None, "A turn is already in progress.", True
     try:
         return _run_locked(session, run, action, intent, authored=authored, emit_callback=emit_callback,
-                           present=present, cancel=cancel, admit=admit, metric=metric)
+                           present=present, cancel=cancel, admit=admit, metric=metric, overlay=overlay)
     finally:
         # Hosted (v0.20.0 T15 fix round 1): an admin ended this session's
         # account during the turn; it is released now the turn is over --
@@ -375,12 +386,15 @@ def _run_locked(
     cancel: Optional[Any],
     admit: bool,
     metric: str,
+    overlay: bool = False,
 ) -> tuple[Optional[dict[str, Any]], str, bool]:
     """
     The body ``run_guarded`` always ran under the lock (v0.23.0 T11, lifted
     verbatim: admission, the run, the metric, the last-line-of-defence
-    except). The caller holds the turn lock and releases it.
+    except). The caller holds the turn lock and releases it. ``overlay`` is
+    passed to ``run`` only when set, so a phone ``runner`` never receives it.
     """
+    marks: dict[str, Any] = {"overlay": True} if overlay else {}
     # Hosted (v0.20.0 T17): the admission wait and the run, for turn_metric.
     began = time.monotonic()
     admit_ms = 0.0
@@ -429,14 +443,14 @@ def _run_locked(
                 return None, PLAYER_GONE, True
             try:
                 payload = run(
-                    session, action, intent=intent, authored=authored, emit_callback=emit_callback
+                    session, action, intent=intent, authored=authored, emit_callback=emit_callback, **marks
                 )
             finally:
                 admission.release()
             _report(session, metric, admit_ms, (time.monotonic() - admitted) * 1000.0, "ok")
             return payload, "", False
         payload = run(
-            session, action, intent=intent, authored=authored, emit_callback=emit_callback
+            session, action, intent=intent, authored=authored, emit_callback=emit_callback, **marks
         )
         if hosting_enabled():
             # No admission (admit=False, a phone action): still reported, as
@@ -767,6 +781,22 @@ class DefaultScene(FlaskScene):
                 session = self.store.require(session_id)
             except KeyError:
                 return jsonify({"error": "session not found"}), 404
+            # An overlay's press (v0.25.0 E2, spec §7.1): the REST twin of
+            # `overlay_action`. Refused before any turn runs when it is not on
+            # offer; re-checked under the lock by `execute_intent(overlay=True)`.
+            raw_overlay = body.get("overlay_intent")
+            if raw_overlay is not None:
+                if session.lock.locked():
+                    return jsonify({"error": "A turn is already in progress."}), 409
+                intent, sentence, refusal = resolve_overlay_intent(session, raw_overlay)
+                if refusal:
+                    return jsonify({"error": refusal, "stale_choice": True}), 409
+                turn, error, busy = run_guarded(session, f"The player chooses: {sentence}", intent, overlay=True)
+                if busy:
+                    return jsonify({"error": error}), 409
+                if turn is None:
+                    return jsonify({"error": error}), 500
+                return jsonify(turn)
             # READ RECEIPTS (v0.23.0 spec §8.3): a phone story's world turn
             # runs like any other, refused only while the phone is up. This
             # early check is unlocked (a fast answer); the authoritative one
@@ -848,6 +878,38 @@ class DefaultScene(FlaskScene):
                     },
                 )
 
+        def _turn_hooks(session_id: str) -> tuple[Any, Any, Any, Any]:
+            """
+            The room emitter and the hosted presence a socket turn runs with:
+            ``(_emit, present, cancel, waiting)``. One helper for
+            ``player_choice`` and ``overlay_action``, so the two cannot drift.
+            ``waiting`` (hosted only) is handed back to ``_wait_ends`` once the
+            turn is over.
+            """
+
+            def _emit(event: str, payload: dict[str, Any]) -> None:
+                # Hosted: every socket in the room is re-checked first, so one
+                # whose login was revoked (a password change, a disable) is
+                # disconnected before it can receive this (v0.20.0 T8).
+                room_check = self._room_check
+                if room_check is not None:
+                    room_check(session_id)
+                emit(event, payload, room=session_id)
+
+            # Hosted: a turn that waited in the queue is skipped if this
+            # socket has gone by the time it is admitted (T9 fix round 1).
+            sid = str(getattr(request, "sid", "") or "")
+            present = cancel = waiting = None
+            if self._socket_guard is not None:
+                from engine.llm.gate import CancelToken
+
+                present = _socket_presence(self.socketio, sid)
+                # Called off by this socket's disconnect (T11 fix round 1),
+                # keyed per event so a second one cannot drop it (T12).
+                cancel = CancelToken()
+                waiting = self._wait_begins(sid, cancel)
+            return _emit, present, cancel, waiting
+
         @self.on("player_choice")
         def on_player_choice(data: dict[str, Any]) -> None:
             session_id = str(data.get("session_id", ""))
@@ -868,15 +930,6 @@ class DefaultScene(FlaskScene):
                     emit("turn_error", {"message": refusal, "busy": False, "phone_up": True})
                     return
 
-            def _emit(event: str, payload: dict[str, Any]) -> None:
-                # Hosted: every socket in the room is re-checked first, so one
-                # whose login was revoked (a password change, a disable) is
-                # disconnected before it can receive this (v0.20.0 T8).
-                room_check = self._room_check
-                if room_check is not None:
-                    room_check(session_id)
-                emit(event, payload, room=session_id)
-
             choice_id = str(data.get("choice_id", ""))
             # Refused before any turn runs, the frame left as it was
             # (`stale_choice`): `busy: false`, so the client re-enables.
@@ -895,18 +948,7 @@ class DefaultScene(FlaskScene):
             )
             # One turn at a time per session. The client also guards, but a
             # double-click or a reconnect race must not reach the engine.
-            # Hosted: a turn that waited in the queue is skipped if this
-            # socket has gone by the time it is admitted (T9 fix round 1).
-            sid = str(getattr(request, "sid", "") or "")
-            present = cancel = waiting = None
-            if self._socket_guard is not None:
-                from engine.llm.gate import CancelToken
-
-                present = _socket_presence(self.socketio, sid)
-                # Called off by this socket's disconnect (T11 fix round 1),
-                # keyed per event so a second one cannot drop it (T12).
-                cancel = CancelToken()
-                waiting = self._wait_begins(sid, cancel)
+            _emit, present, cancel, waiting = _turn_hooks(session_id)
             try:
                 _, error, busy = run_guarded(
                     session,
@@ -931,6 +973,35 @@ class DefaultScene(FlaskScene):
                 if _phone_was_up(error):
                     answer["phone_up"] = True
                 emit("turn_error", answer)
+
+        @self.on("overlay_action")
+        def on_overlay_action(data: dict[str, Any]) -> None:
+            """An overlay's press (v0.25.0 E2): `{session_id, intent: {action, target}, label}`."""
+            data = data if isinstance(data, dict) else {}
+            session_id = str(data.get("session_id", ""))
+            try:
+                session = self.store.require(session_id)
+            except KeyError:
+                emit("turn_error", {"message": "session not found", "fatal": True})
+                return
+            if session.lock.locked():
+                # Plan decision 11: the pre-check reads state off the lock.
+                emit("turn_error", {"message": "A turn is already in progress.", "busy": True})
+                return
+            # The client's `label` is never read: the sentence is the engine's own.
+            intent, sentence, refusal = resolve_overlay_intent(session, data.get("intent"))
+            if refusal:
+                emit("turn_error", {"message": refusal, "busy": False, "stale_choice": True})
+                return
+            _emit, present, cancel, waiting = _turn_hooks(session_id)
+            try:
+                _, error, busy = run_guarded(session, f"The player chooses: {sentence}", intent,
+                                             emit_callback=_emit, present=present, cancel=cancel, overlay=True)
+            finally:
+                if waiting is not None:
+                    self._wait_ends(waiting)
+            if error:
+                emit("turn_error", {"message": error, "busy": busy})
 
         @self.on("resume")
         def on_resume(data: dict[str, Any]) -> None:

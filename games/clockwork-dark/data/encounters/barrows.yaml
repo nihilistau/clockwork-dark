@@ -1,0 +1,168 @@
+# The Barrows (v0.25.0 §5.3): the four danger_dc 10 lines, deeper wood<->old
+# barrows and old barrows<->the barrow mouth.
+# Not measured in v0.25.0 T10 (rule 10): no scripted policy walks the barrows (a
+# CLAUDE.md deferred row); band 0.30-0.60.
+band: barrows
+
+encounters:
+  - id: cold_from_the_ninth
+    tier: 1
+    weight: 30
+    triggers:
+      edges:
+        - "deeper_forest>old_barrows"
+        - "old_barrows>deeper_forest"
+        - "old_barrows>tunnel_entrance"
+        - "tunnel_entrance>old_barrows"
+    intro: >-
+      The air along the line of mounds is a season behind the wood around it,
+      and it gets colder mound by mound, and the ninth is where it is coming
+      from. Your breath shows. Nobody else's would.
+    threat: { name: "Cold from the ninth mound", resolve: 3 }
+    approaches:
+      walk:
+        skill: nerve
+        difficulty: standard
+        text: "Keep walking at the same pace as if it were ordinary weather"
+      words:
+        skill: lore
+        difficulty: standard
+        text: "Say the old words the grandmothers say past a grave"
+    outcomes:
+      crit_success:
+        text: >-
+          The cold draws back off the path the way a dog draws back off a
+          stranger who knows its name, and you walk the line warm.
+        effects:
+          - { type: awareness, delta: 2 }
+      success:
+        text: >-
+          You get past the ninth mound with numb fingers and the feeling of
+          having been counted and let go.
+        effects:
+          - { type: awareness, delta: 1 }
+          - { type: stamina, delta: -6 }
+      partial:
+        text: >-
+          You get past, but the cold comes with you a good way into the trees,
+          and it takes a long while walking to shake it.
+        effects:
+          - { type: stamina, delta: -10 }
+          - { type: awareness, delta: 1 }
+      failure:
+        text: >-
+          Halfway along the line your legs stop wanting to go on, and you sit
+          in the grass until they do, and the cold sits with you.
+        effects:
+          - { type: hp, delta: -2 }
+          - { type: stamina, delta: -12 }
+
+  - id: the_swept_floor
+    tier: 2
+    weight: 25
+    triggers:
+      edges:
+        - "deeper_forest>old_barrows"
+        - "old_barrows>deeper_forest"
+        - "old_barrows>tunnel_entrance"
+        - "tunnel_entrance>old_barrows"
+    intro: >-
+      Between two of the mounds the grass has been swept flat, carefully, in
+      long even strokes, and there is a clean edge where the sweeping stopped.
+      Nobody from the village comes out here. Somebody did this today.
+    threat: { name: "A floor someone has swept", resolve: 3 }
+    approaches:
+      follow:
+        skill: survival
+        difficulty: standard
+        text: "Follow the sweep marks and see where they lead"
+      leave:
+        skill: sympathy
+        difficulty: easy
+        text: "Leave it be, the way you would leave a neighbour's doorstep"
+    outcomes:
+      crit_success:
+        text: >-
+          The marks lead to the ninth mound and stop at its stone, swept as
+          neat as a hearth. Whatever keeps house here keeps it well.
+        effects:
+          - { type: awareness, delta: 3 }
+          - type: ledger_fact
+            kind: engine
+            text: "Somebody sweeps the ground between the barrow mounds, up to the ninth mound's stone."
+      success:
+        text: >-
+          You find the broom, or what is left of one, laid tidily against the
+          sixth mound with its bristles worn down to the binding.
+        effects:
+          - { type: awareness, delta: 2 }
+          - { type: stamina, delta: -5 }
+      partial:
+        text: >-
+          You step round the swept place without crossing it, and feel
+          politely thanked, and like that less than you would have expected.
+        effects:
+          - { type: awareness, delta: 1 }
+      failure:
+        text: >-
+          You follow the marks until you lose them, and lose the path too, and
+          come out of the mounds an hour later from the wrong side.
+        effects:
+          - { type: stamina, delta: -12 }
+          - { type: awareness, delta: 1 }
+
+  - id: barrow_cold
+    tier: 3
+    weight: 20
+    art: barrow_cold
+    triggers:
+      edges:
+        - "deeper_forest>old_barrows"
+        - "old_barrows>deeper_forest"
+        - "old_barrows>tunnel_entrance"
+        - "tunnel_entrance>old_barrows"
+      phases: [spreading, consuming]
+    intro: >-
+      The cold comes out of the barrow mouth like a held breath let go, white
+      along the ground, and where it passes the grass stiffens and the frost
+      lies in a pattern: small, regular, toothed.
+    threat: { name: "The barrow cold", resolve: 4 }
+    approaches:
+      warm:
+        skill: survival
+        difficulty: hard
+        text: "Get a fire going and keep it going, whatever the cold does to it"
+      name:
+        skill: lore
+        difficulty: hard
+        text: "Name the dead in the mounds, every one you know, out loud"
+    outcomes:
+      crit_success:
+        text: >-
+          The cold breaks around you like water round a stone and goes back
+          down into the dark, and the frost it left melts in the order it came.
+        effects:
+          - { type: awareness, delta: 3 }
+          - { type: reputation, faction: edgewood, delta: 1 }
+      success:
+        text: >-
+          You keep the fire alive through the worst of it, and when it is done
+          the frost on the grass is only frost.
+        effects:
+          - { type: awareness, delta: 2 }
+          - { type: stamina, delta: -8 }
+      partial:
+        text: >-
+          It passes over you. You keep your skin, mostly, and your hands do not
+          stop aching until the next morning.
+        effects:
+          - { type: hp, delta: -3 }
+          - { type: stamina, delta: -8 }
+          - { type: awareness, delta: 2 }
+      failure:
+        text: >-
+          The cold goes into you and stays, and you walk out of the barrows
+          with frost in the creases of your hands and toothmarks in it.
+        effects:
+          - { type: hp, delta: -6 }
+          - { type: stamina, delta: -12 }

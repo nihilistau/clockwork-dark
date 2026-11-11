@@ -1,0 +1,124 @@
+# The Clockwork Dark -- the ninth pin (v0.25.0 §4.3, critical path).
+# ==========================================================================
+# The caravan, while Ilya is there (`npc_here`, which asks npc_sim: the quest
+# pins him to the caravan while it is open). Three cards, one per stage of
+# the_ninth_pin:
+#   T1  ask for it (`nf_ninth_asked`)
+#   T2  pay for it (`nf_ninth_earned`), dealt only while the tinkers' standing
+#       is 10 or more, the stage's own clause (`pay_for_it`)
+#   T3  take it or don't (menu): `take_it` writes `nf_ninth_taken` and grants
+#       the pin; `leave_it` writes `nf_ninth_left` and nothing else. Bug 1:
+#       the quest's `take_it_or_dont` stage granted the pin in its
+#       on_complete either way; the pin is this beat's to grant now, and only
+#       this beat's.
+# Critical-path cards: The Pin and the Join runs through them, and the pin
+# is one thing the price can be paid with (§4.4). REPEATABLE, draw 1. The
+# deck's `when:` ends in `any:` of its cards' own gates (plan decision 3), so
+# it is due only when a card can be dealt.
+#
+# Version: v0.1.0 [2026-10-29]
+
+id: the_ninth_pin
+repeatable: true
+draw: 1
+
+when:
+  all:
+    - { at_location: tinker_caravan }
+    - { npc_here: npc_ilya }
+    - any:
+        - all:
+            - { quest_state: { quest: the_ninth_pin, status: active } }
+            - { quest_state: { quest: the_ninth_pin, stage_at_least: 0 } }
+            - none: [{ quest_state: { quest: the_ninth_pin, stage_at_least: 1 } }]
+        - all:
+            - { quest_state: { quest: the_ninth_pin, status: active } }
+            - { quest_state: { quest: the_ninth_pin, stage_at_least: 1 } }
+            - none: [{ quest_state: { quest: the_ninth_pin, stage_at_least: 2 } }]
+            - { reputation: { faction: tinkers, min: 10 } }
+        - all:
+            - { quest_state: { quest: the_ninth_pin, status: active } }
+            - { quest_state: { quest: the_ninth_pin, stage_at_least: 2 } }
+            - none: [{ quest_state: { quest: the_ninth_pin, stage_at_least: 3 } }]
+
+cards:
+  - id: T1_ask_for_it
+    title: "The last row"
+    when:
+      all:
+        - { quest_state: { quest: the_ninth_pin, status: active } }
+        - { quest_state: { quest: the_ninth_pin, stage_at_least: 0 } }
+        - none: [{ quest_state: { quest: the_ninth_pin, stage_at_least: 1 } }]
+    tags: [pin]
+    text: >-
+      INTENT: Ilya's felt laid out, and this time the last row face up: eight
+      wards and one pin that is not. CONSTRAINTS: He answers what is asked,
+      exactly.
+    beats:
+      - id: ask
+        text: >-
+          Ask Ilya about the ninth pin.
+        gate:
+          on_pass:
+            text: "\"It isn't a ward,\" he says. \"It's the opposite of a ward.\""
+            effects:
+              - { type: flag, flag: nf_ninth_asked }
+
+  - id: T2_pay_for_it
+    title: "Not coin"
+    when:
+      all:
+        - { quest_state: { quest: the_ninth_pin, status: active } }
+        - { quest_state: { quest: the_ninth_pin, stage_at_least: 1 } }
+        - none: [{ quest_state: { quest: the_ninth_pin, stage_at_least: 2 } }]
+        - { reputation: { faction: tinkers, min: 10 } }
+    tags: [pin]
+    text: >-
+      INTENT: Ilya's price, which is not coin: a true name of the player's,
+      not the one Edgewood uses. The tinkers have decided the player is worth
+      asking. CONSTRAINTS: He waits, and does not fill the silence.
+    beats:
+      - id: pay
+        text: >-
+          Give Ilya a true name of yours.
+        gate:
+          on_pass:
+            text: "He takes it the way he takes everything, without counting it in front of you."
+            effects:
+              - { type: flag, flag: nf_ninth_earned }
+
+  # Bug 1: only `take_it` grants the pin; `leave_it` writes its flag and
+  # nothing else (the quest stage used to grant it either way).
+  - id: T3_take_it_or_dont
+    title: "On the felt"
+    when:
+      all:
+        - { quest_state: { quest: the_ninth_pin, status: active } }
+        - { quest_state: { quest: the_ninth_pin, stage_at_least: 2 } }
+        - none: [{ quest_state: { quest: the_ninth_pin, stage_at_least: 3 } }]
+    tags: [menu, pin]
+    text: >-
+      INTENT: The ninth pin on Ilya's felt, paid for, within reach.
+      CONSTRAINTS: Either choice is a real one. He rolls the felt up the same
+      way afterwards.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: take_it
+        label: "Take the ninth pin"
+        text: >-
+          Take the ninth pin off the felt.
+        gate:
+          on_pass:
+            text: "It is heavier than a pin, and colder than the morning."
+            effects:
+              - { type: flag, flag: nf_ninth_taken }
+              - { type: item, item_id: ninth_pin, name: "The ninth pin", qty: 1, tags: [named, unsettling] }
+      - id: leave_it
+        label: "Leave it on the felt"
+        text: >-
+          Leave the ninth pin where it lies.
+        gate:
+          on_pass:
+            text: "He nods, as if that were also a price paid."
+            effects:
+              - { type: flag, flag: nf_ninth_left }

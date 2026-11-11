@@ -888,6 +888,31 @@ def _use_marker(item_id: str) -> str:
     return f"used:{item_id}"
 
 
+def use_refusal(state: GameState, item_id: str) -> str:
+    """
+    Why ``use`` would refuse this item now, or "". ONE RULE, TWO READERS:
+    ``use`` refuses on it, and the overlay's ``use`` rows (engine/game/intents.py)
+    are built from it, so an offered use is one the skill will make.
+    """
+    item_id = str(item_id)
+    spec = use_spec(item_id)
+    if spec is None:
+        return f"There is nothing to do with {name_of(item_id).lower()}."
+    if not holds(state, item_id):
+        return "You are not carrying that."
+    marker = _use_marker(item_id)
+    if bool(spec.get("once_per_day")) and any(e.id == marker for e in state.active_effects):
+        return f"You have already done that with the {name_of(item_id).lower()} today."
+    # Companion inputs are checked before anything is spent. A fire that eats
+    # the tinderbox and then discovers there is no firewood is the kind of
+    # half-applied action the effect dispatcher exists to prevent.
+    also = [r for r in (spec.get("also_consumes") or []) if isinstance(r, dict)]
+    short = [r for r in also if not holds(state, str(r.get("id")), int(r.get("qty", 1) or 1))]
+    if short:
+        return "You are short of " + ", ".join(name_of(str(r.get("id"))).lower() for r in short)
+    return ""
+
+
 def use(state: GameState, item_id: str) -> dict[str, Any]:
     """
     Do whatever an item's ``use:`` block says it does.
@@ -909,40 +934,12 @@ def use(state: GameState, item_id: str) -> dict[str, Any]:
     from engine.game.clock import advance_time
 
     item_id = str(item_id)
-    spec = use_spec(item_id)
-    if spec is None:
-        return {
-            "ok": False,
-            "item_id": item_id,
-            "message": f"There is nothing to do with {name_of(item_id).lower()}.",
-        }
-    if not holds(state, item_id):
-        return {"ok": False, "item_id": item_id, "message": "You are not carrying that."}
-
-    marker = _use_marker(item_id)
-    if bool(spec.get("once_per_day")) and any(
-        e.id == marker for e in state.active_effects
-    ):
-        return {
-            "ok": False,
-            "item_id": item_id,
-            "message": f"You have already done that with the {name_of(item_id).lower()} today.",
-        }
-
-    # Companion inputs are checked before anything is spent. A fire that eats
-    # the tinderbox and then discovers there is no firewood is the kind of
-    # half-applied action the effect dispatcher exists to prevent.
+    problem = use_refusal(state, item_id)
+    if problem:
+        return {"ok": False, "item_id": item_id, "message": problem}
+    spec = use_spec(item_id) or {}
     also = [r for r in (spec.get("also_consumes") or []) if isinstance(r, dict)]
-    short = [
-        r for r in also if not holds(state, str(r.get("id")), int(r.get("qty", 1) or 1))
-    ]
-    if short:
-        return {
-            "ok": False,
-            "item_id": item_id,
-            "message": "You are short of "
-            + ", ".join(name_of(str(r.get("id"))).lower() for r in short),
-        }
+    marker = _use_marker(item_id)
 
     hours = float(spec.get("hours", 0.0) or 0.0)
     if hours > 0:

@@ -149,6 +149,11 @@ def lookup(request: ImageRequest) -> Optional[str]:
         candidate = manifest.get("enemies", {}).get(request.subject_id)
         return candidate if _exists(candidate or "") else None
 
+    if request.kind == "gallery":
+        # An ending's plate, keyed by its epilogue's `gallery_key` (v0.25.0 E7).
+        candidate = manifest.get("gallery", {}).get(request.subject_id)
+        return candidate if _exists(candidate or "") else None
+
     entry = manifest.get("locations", {}).get(request.subject_id)
     if not entry:
         return None

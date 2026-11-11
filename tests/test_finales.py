@@ -34,6 +34,7 @@ from engine.games import registry
 from engine.persistence import reset_save_store
 
 from endings_driver import Door, EndingDoor, drive
+from tests import clockwork_doors as cd
 # The measured standing A Lantern gates on, pinned to endings.yaml by
 # test_hue_and_cry.py::test_a_lanterns_standing_is_the_measured_one.
 from test_hue_and_cry import LANTERN_STANDING
@@ -823,10 +824,33 @@ ENDING_DOORS = [
     # F4, later in the same hand, plays its module.
     EndingDoor("wicked-garden", "E6e", Door.card("day_09_finale", "F3_point_of_no_return"),
                _swear_mara_on_the_ninth_day, seed=7),
+    # The Clockwork Dark (v0.25.0 §4.2): ten doors, every ending locked by name.
+    EndingDoor("clockwork-dark", "the_hearth_holds",
+               Door.card("the_morning_firing", "H1_the_question", "stay"), cd.hearth_door, seed=7),
+    EndingDoor("clockwork-dark", "the_dark_keeps_its_hours",
+               Door.card("the_morning_firing", "H1_the_question", "stay_anyway"), cd.stay_anyway_door, seed=7),
+    EndingDoor("clockwork-dark", "the_dark_keeps_its_hours", Door.death(), cd.second_death_door, seed=7),
+    EndingDoor("clockwork-dark", "the_long_witness",
+               Door.card("the_count_kept", "W1_the_list", "give_it"), cd.witness_door, seed=7),
+    EndingDoor("clockwork-dark", "the_counted_march",
+               Door.card("the_muster_roll", "M1_strike_the_name", "strike_it"), cd.march_door, seed=7),
+    EndingDoor("clockwork-dark", "the_named_wound",
+               Door.card("the_morning_firing", "Q1_tell_her_or_dont", "tell_her"), cd.named_wound_door, seed=7),
+    EndingDoor("clockwork-dark", "the_named_wound",
+               Door.card("the_morning_firing", "Q1_tell_her_or_dont", "say_nothing"), cd.named_wound_door, seed=7),
+    # (`pay_the_pin` and `pay_the_shard`, door 8's other beats, are walked by
+    # test_clockwork_dark.py::test_s2_takes_exactly_the_thing_offered_and_the_price_is_asked.)
+    EndingDoor("clockwork-dark", "the_price_asked",
+               Door.card("the_price", "S2_pay_it", "pay_the_name"), cd.price_door_for("the_written_name"), seed=7),
+    EndingDoor("clockwork-dark", "the_pin_and_the_join",
+               Door.card("the_join", "J1_the_pin", "set_it"), cd.pin_door, seed=7),
+    EndingDoor("clockwork-dark", "the_stopped_wheel",
+               Door.card("the_stopped_wheel", "Z1_the_last_morning"), cd.last_hour_door, seed=7),
 ]
 
-#: Stories whose every declared ending must have a row above.
-COMPLETE_DOORS = {"hue-and-cry"}
+#: Stories whose every declared ending must have a row above (and, for each
+#: gate clause of each earned ending, an UNEARNED_DOORS row below).
+COMPLETE_DOORS = {"hue-and-cry", "clockwork-dark"}
 
 
 @pytest.mark.parametrize("case", ENDING_DOORS, ids=[c.label() for c in ENDING_DOORS])
@@ -843,8 +867,8 @@ def test_each_registered_ending_is_reached_through_its_own_door(case: EndingDoor
 #: these are the ONLY reasons the ending is not eligible, so each row proves
 #: that clause keeps the door shut. v0.17 T7: every clause of
 #: every earned ending has a row -- `test_every_gate_clause_has_an_unearned_row`.)
-UnearnedDoor = namedtuple("UnearnedDoor", "ending_id door setup match clause seed",
-                          defaults=(11,))
+UnearnedDoor = namedtuple("UnearnedDoor", "ending_id door setup match clause seed slug entry",
+                          defaults=(11, "hue-and-cry", "tallow_docks"))
 
 UNEARNED_DOORS = [
     # Cleared: on the Green at the fair, the Magpie never named. The fair is
@@ -960,6 +984,66 @@ UNEARNED_DOORS = [
                  Door.card("fair_day", "F4_silas_makes_his_move", "stand_with_him"),
                  _sworn_when_silas_moves_as_a_partner, "is not in the hand",
                  "nobody_stopped_him"),
+    # The Clockwork Dark (v0.25.0 §12.1): every clause of every earned ending.
+    # `does not hold`: the door deck's `when:` fails (Plan decision 3: its tail
+    # is `any:` of its cards' own gates, so no card eligible means no deal);
+    # `is not in the hand`: the deck is dealt but the door card is not
+    # (ruling I1); `refused`: the card is dealt and the door's beat is
+    # filtered by its own `when:` (E5).
+    *[UnearnedDoor(ending, door, setup, match, clause, 7, "clockwork-dark", "forest_clearing")
+      for ending, door, setup, match, clause in (
+        ("the_hearth_holds", Door.card("the_morning_firing", "H1_the_question", "stay"),
+         cd.hearth_unplaced, "refused", "a_place_here"),
+        # With `nf_hearth_taking_stock` unset at stage 1, no card of the
+        # morning firing is eligible, so its `when:` fails (Plan decision 3).
+        ("the_hearth_holds", Door.card("the_morning_firing", "H1_the_question", "stay"),
+         cd.hearth_larder_unwalked, "does not hold", "larder_kept"),
+        ("the_hearth_holds", Door.card("the_morning_firing", "H1_the_question", "stay"),
+         cd.hearth_knowing, "refused", "unknowing"),
+        ("the_hearth_holds", Door.card("the_morning_firing", "H1_the_question", "stay"),
+         cd.hearth_consumed, "refused", "village_stands"),
+        ("the_long_witness", Door.card("the_count_kept", "W1_the_list", "give_it"),
+         cd.witness_blind, "does not hold", "eyes_open"),
+        ("the_long_witness", Door.card("the_count_kept", "W1_the_list", "give_it"),
+         cd.witness_deaf, "does not hold", "listened"),
+        ("the_long_witness", Door.card("the_count_kept", "W1_the_list", "give_it"),
+         cd.witness_uncounted, "does not hold", "counted"),
+        ("the_long_witness", Door.card("the_count_kept", "W1_the_list", "give_it"),
+         cd.witness_early, "does not hold", "stayed_three_counts"),
+        ("the_long_witness", Door.card("the_count_kept", "W1_the_list", "give_it"),
+         cd.witness_too_late, "does not hold", "world_still_turning"),
+        ("the_counted_march", Door.card("the_muster_roll", "M1_strike_the_name", "strike_it"),
+         cd.march_unmarched, "does not hold", "marched"),
+        ("the_counted_march", Door.card("the_muster_roll", "M1_strike_the_name", "strike_it"),
+         cd.march_uncounted, "does not hold", "counted"),
+        ("the_counted_march", Door.card("the_muster_roll", "M1_strike_the_name", "strike_it"),
+         cd.march_unserved, "does not hold", "served"),
+        ("the_counted_march", Door.card("the_muster_roll", "M1_strike_the_name", "strike_it"),
+         cd.march_marked, "does not hold", "still_on_the_rolls"),
+        ("the_named_wound", Door.card("the_morning_firing", "Q1_tell_her_or_dont", "tell_her"),
+         cd.named_unnamed, "does not hold", "named"),
+        ("the_named_wound", Door.card("the_morning_firing", "Q1_tell_her_or_dont", "tell_her"),
+         cd.named_undecided, "does not hold", "decided"),
+        ("the_named_wound", Door.card("the_morning_firing", "Q1_tell_her_or_dont", "tell_her"),
+         cd.named_unbaked, "does not hold", "baked"),
+        ("the_named_wound", Door.card("the_morning_firing", "Q1_tell_her_or_dont", "tell_her"),
+         cd.named_too_late, "does not hold", "wheel_still_turning"),
+        # Plan decision 6: the price's clauses fail where the deck or the card refuses.
+        ("the_price_asked", Door.card("the_price", "S2_pay_it", "pay_the_name"),
+         cd.price_nothing_open, "does not hold", ("named", "chose", "paid")),
+        ("the_price_asked", Door.card("the_price", "S2_pay_it", "pay_the_name"),
+         cd.price_nothing_offered, "is not in the hand", ("chose", "paid")),
+        ("the_pin_and_the_join", Door.card("the_join", "J1_the_pin", "set_it"),
+         cd.pin_untaken, "does not hold", "pin_taken"),
+        ("the_pin_and_the_join", Door.card("the_join", "J1_the_pin", "set_it"),
+         cd.pin_spent, "does not hold", "pin_held"),
+        ("the_pin_and_the_join", Door.card("the_join", "J1_the_pin", "set_it"),
+         cd.pin_unwalked, "is not in the hand", "join_walked"),
+        ("the_pin_and_the_join", Door.card("the_join", "J1_the_pin", "set_it"),
+         cd.pin_too_late, "does not hold", "wheel_still_turning"),
+        ("the_stopped_wheel", Door.card("the_stopped_wheel", "Z1_the_last_morning"),
+         cd.wheel_still_turning, "is not eligible", "wheel_stopped"),
+    )],
 ]
 
 
@@ -979,18 +1063,22 @@ def _clauses(row: UnearnedDoor) -> tuple[str, ...]:
     return (row.clause,) if isinstance(row.clause, str) else tuple(row.clause)
 
 
+#: Clauses that cannot fail while their ending's `requires` holds (each row comment says why).
+UNFAILABLE = {"hue-and-cry": {("cleared", "no_wrong_name_standing")}, "clockwork-dark": set()}
+
+
 @pytest.mark.parametrize("row", UNEARNED_DOORS,
-                         ids=[f"{r.ending_id}:{r.door.label()}:{r.setup.__name__.strip('_')}"
+                         ids=[f"{r.slug}:{r.ending_id}:{r.door.label()}:{r.setup.__name__.strip('_')}"
                               for r in UNEARNED_DOORS])
 def test_an_unearned_ending_cannot_lock_at_its_door(row: UnearnedDoor) -> None:
     from endings_driver import drive_ending
 
-    _activate("hue-and-cry")
+    _activate(row.slug)
     try:
         from engine.game import endings
         from engine.game.procgen import new_game_state
 
-        state = new_game_state(seed=row.seed, location_id="tallow_docks")
+        state = new_game_state(seed=row.seed, location_id=row.entry)
         with pytest.raises(AssertionError, match=row.match):
             drive_ending(None, row.ending_id, row.door, row.setup, state=state)
         assert endings.locked(state) == endings.NONE_ID
@@ -1008,11 +1096,13 @@ def test_an_unearned_ending_cannot_lock_at_its_door(row: UnearnedDoor) -> None:
         registry.deactivate()
 
 
-def test_every_gate_clause_has_an_unearned_row() -> None:
+@pytest.mark.parametrize("slug", sorted(COMPLETE_DOORS))
+def test_every_gate_clause_has_an_unearned_row(slug: str) -> None:
     """v0.17 T7: where an ending has several gate clauses, EACH has a row
-    above -- not just one -- except Cleared's `no_wrong_name_standing`, which
-    cannot fail while its `requires` holds (see the row comment)."""
-    _activate("hue-and-cry")
+    above -- not just one -- but the ones `UNFAILABLE` names (HUE & CRY's
+    Cleared `no_wrong_name_standing`, which cannot fail while its `requires`
+    holds: see the row comment). v0.25.0: every story in COMPLETE_DOORS."""
+    _activate(slug)
     try:
         from engine.game import endings
 
@@ -1022,9 +1112,8 @@ def test_every_gate_clause_has_an_unearned_row() -> None:
                   for clause, _ in _gate_clause_ids(body)}
     finally:
         registry.deactivate()
-    covered = {(r.ending_id, c) for r in UNEARNED_DOORS for c in _clauses(r)}
-    unfailable = {("cleared", "no_wrong_name_standing")}
-    assert wanted - covered == unfailable, sorted(wanted - covered)
+    covered = {(r.ending_id, c) for r in UNEARNED_DOORS if r.slug == slug for c in _clauses(r)}
+    assert wanted - covered == UNFAILABLE[slug], sorted(wanted - covered)
     assert covered <= wanted, sorted(covered - wanted)
 
 

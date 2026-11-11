@@ -4,41 +4,72 @@
 # class id IS an ending id, and data/epilogues/epilogue_index.yaml agrees with
 # these ids exactly.
 #
-# THE SHAPE OF THE FINALE, for a graph story with no last day. Three doors
-# carry `{type: ending_lock}`:
+# THE SHAPE OF THE FINALE (v0.25.0 §4.1-§4.2), for a graph story with no
+# last day. Ten doors, and each locks its ending BY NAME
+# (`{type: ending_lock, ending: <id>}`), then plays its module on the same
+# beat. No id-less lock remains anywhere in the story
+# (tests/test_clockwork_dark.py holds it):
 #
-#   banking_the_fire        the quiet door. A late quiet_life quest, opened by
-#                           a provisioned larder, that lets a player CHOOSE to
-#                           close the book by the hearth. Locks with no id --
-#                           whatever the run has earned.
-#   the_sacrifice           the paid door. Locks `the_price_asked` by name:
-#                           the like-for-like is terminal by construction.
-#   the_last_quiet_thing    the last door. The bake after everything. Locks
-#                           with no id -- the run that walked the whole arc
-#                           gets whichever of these it actually became.
+#   1  the_hearth_holds          the_morning_firing / H1_the_question / stay
+#   2  the_dark_keeps_its_hours  the_morning_firing / H1_the_question / stay_anyway
+#   3  the_dark_keeps_its_hours  the terminal death (data/rules/death.yaml)
+#   4  the_long_witness          the_count_kept / W1_the_list / give_it
+#   5  the_counted_march         the_muster_roll / M1_strike_the_name / strike_it
+#   6  the_named_wound           the_morning_firing / Q1_tell_her_or_dont / tell_her
+#   7  the_named_wound           the_morning_firing / Q1_tell_her_or_dont / say_nothing
+#   8  the_price_asked           the_price / S2_pay_it (one beat per thing paid)
+#   9  the_pin_and_the_join      the_join / J1_the_pin / set_it (the pin taken
+#                                on the_ninth_pin / T3_take_it_or_dont / take_it)
+#  10  the_stopped_wheel         the_stopped_wheel / Z1_the_last_morning,
+#                                forced by the declared event the_last_hour
+#                                (data/world/schedules.yaml)
 #
-# An id-less lock resolves through engine/game/endings.py::resolve -- the
-# highest-scoring ELIGIBLE ending, else the declared fail-forward -- so the
-# score rows below are not decoration: they are the tiebreak when a run has
-# earned more than one of these. Ties on score break alphabetically by id.
+# The terminal death (door 3) names its ending in death.yaml's `terminal:`
+# (`ending: the_dark_keeps_its_hours`), so its epilogue shows.
+#
+# Each door card is gated on its own ending (`{ending: {eligible: <id>}}`), so
+# a door and its gate cannot drift apart. The `score:` rows below no longer
+# pick an ending -- every lock names one -- and now only feed the gallery's
+# closeness band (engine/game/endings.py::to_client). Each class's `tease:`
+# is one sentence, shown in the client once its door is open; the payload
+# carries it at every tier, so each is written to be spoiler-free (§8.4): it
+# names no ending and says nothing the reveal keeps back.
 #
 # TWO GATES, SEPARATE ON PURPOSE: `requires` is "you have earned this";
 # `completable` is "nothing still live makes it impossible". The lock text a
 # UI renders needs to tell the player which one is in their way. The
 # `completable` obstructions below all point the same direction -- a world at
-# the end of its rope closes every door but the last two -- which is how the
-# consumed and stopped-wheel endings come to dominate late locks without any
-# special-case code.
+# the end of its rope closes every door but the last two.
 #
-# EVERY GATE IS ENGINE-EVALUABLE. quest_completed reads progress records
-# (status is COMPLETED before on_complete effects run, so a quest may gate on
-# itself in its own lock). The nf_* flags are narrative flags the quests
-# declare and the Storyteller sets; saints_marked_you is written by the
+# EVERY GATE IS ENGINE-EVALUABLE. quest_completed and quest_state read
+# progress records. The nf_* flags are narrative flags the quests declare;
+# the ones a gate reads are written by deck cards' beats too (the morning
+# firing's H0; the price's S1 and S2), so no gate waits on the narrator; saints_marked_you is written by the
 # terminal-death rules (data/rules/death.yaml); evil_progress and
 # doom_resistance are declared in state.yaml. All of them are canon --
 # data/canon/state-dictionary.json is the vocabulary.
 #
-# Version: v0.1.0 [2026-08-14]
+# MEASURED (v0.25.0 T10, rule 10; `scripts/simulate_doors.py --policy <name> --seeds 40`, seeds 0-39,
+# cap 1,000 turns; one scripted policy per door). The final measurement, after T10's two fix rounds.
+# Own ending / another / none, and the median turns to the lock against spec §10.2 (own 80%+,
+# another 10% or less):
+#   baker      Hearth            100%  / 0%    / 0%     138.5  (120-300)
+#   settler    Dark (stay)       100%  / 0%    / 0%     184.5  (150-350)
+#   witness    Long Witness      92.5% / 7.5%  / 0%     381    (200-400)
+#   marcher    Counted March     90%   / 10%   / 0%     186.5  (200-400; turns MISSED low)
+#   namer      Named Wound       100%  / 0%    / 0%     527    (350-650)
+#   payer      Price Asked       90%   / 7.5%  / 2.5%   560    (350-650)
+#   pinner     Pin and Join      57.5% / 40%   / 2.5%   617    (400-750; own and other MISSED)
+#   drifter    Stopped Wheel     100%  / 0%    / 0%     491    (500-900, MISSED low)
+#   reckless   terminal death    100% (band 50%+)
+# No gate moved. Two content changes were kept: `the_heartland_road`'s `walk_the_join` names midday
+# and expires after 5 days, not 3 (pinner 37.5% -> 42.5%), and the Named Wound's `Q1` gained a
+# `not_yet` that ends nothing (pinner 42.5% -> 57.5%). The rest of the pinner's rise is the harness's
+# provisioning (12.5% -> 37.5%). Its 17 lost runs are all in `consuming`. `counted` at 16 moved the
+# local-mode golden (the gate text rides every payload), so it is 20 still. The levers tried, and the
+# misses left, are in the root CHANGELOG and CLAUDE.md's deferred list.
+#
+# Version: v0.3.2 [2026-11-03]
 
 version: 1
 
@@ -58,6 +89,7 @@ classes:
   # ---------------------------------------------------------------------
   the_hearth_holds:
     label: "The Hearth Holds"
+    tease: "Maris at the oven before dawn, and a question she has stopped needing to ask."
     requires:
       all:
         - id: a_place_here
@@ -68,7 +100,7 @@ classes:
             - { quest_completed: shrine_mural }
             - { quest_completed: lost_goat }
             - { quest_completed: festival_bake }
-        - { id: book_closed, flag: nf_hearth_book_closed }
+        - { id: larder_kept, flag: nf_hearth_taking_stock }
         - { id: unknowing, max_awareness: 40 }
     completable:
       id: village_stands
@@ -76,7 +108,7 @@ classes:
         - { min_phase: consuming }
     lock_reasons:
       a_place_here: "Nobody in Edgewood would miss you yet, and that is the whole of what this ending is made of."
-      book_closed: "You have not said you are staying. Not out loud, not to yourself."
+      larder_kept: "You have not walked your life here end to end and seen what it adds up to."
       unknowing: "You have seen too much to pretend the mornings are only mornings."
       village_stands: "There is no hearth to hold. The village is emptying around the oven."
     score:
@@ -118,11 +150,13 @@ classes:
 
   # ---------------------------------------------------------------------
   # THE LONG WITNESS -- the whisper arc's ending. You knew, and you
-  # stayed anyway. Knowing is the gate; staying is the same door the
-  # baker uses, or the last quiet thing itself.
+  # stayed anyway. Knowing is the gate; staying is three counts of nine
+  # days and the shrine's standing; the door is old Wenna's list
+  # (the_count_kept's W1).
   # ---------------------------------------------------------------------
   the_long_witness:
     label: "The Long Witness"
+    tease: "Old Wenna at the shrine with her two candles, and room on her list for yours."
     requires:
       all:
         - { id: eyes_open, min_awareness: 30 }
@@ -135,10 +169,8 @@ classes:
             - { quest_completed: ward_charms }
             - { quest_completed: wrong_lyrics }
             - { min_awareness: 50 }
-        - id: stayed
-          any:
-            - { flag: nf_hearth_book_closed }
-            - { quest_completed: the_last_quiet_thing }
+        - { id: counted, reputation: { faction: unnamed_saints, min: 30 } }
+        - { id: stayed_three_counts, min_day: 27 }
     completable:
       id: world_still_turning
       none:
@@ -146,7 +178,8 @@ classes:
     lock_reasons:
       eyes_open: "You have not seen anything you could not explain to yourself by breakfast."
       listened: "The wrong things have been in front of you for weeks. You have not once looked twice."
-      stayed: "Knowing is not this. Staying with what you know is this, and you have not chosen it."
+      counted: "The shrine's women have not counted you among the ones who keep the count."
+      stayed_three_counts: "Three counts of nine days have not yet passed with you here to see them."
       world_still_turning: "There is nothing left to witness. The wheel has stopped."
     score:
       - { when: { min_awareness: 50 }, weight: 0.3 }
@@ -191,11 +224,12 @@ classes:
   # ---------------------------------------------------------------------
   # THE COUNTED MARCH -- the march arc's ending. You stood where the
   # counting was done and let it count you. Militia standing is the gate;
-  # the same hearth door closes the book, because mustering out is done
-  # with the larder squared like everything else on the frontier.
+  # the door is Sera's roll (the_muster_roll's M1), where she strikes the
+  # name.
   # ---------------------------------------------------------------------
   the_counted_march:
     label: "The Counted March"
+    tease: "Sergeant Venn's roll at the gate, and one name on it she can strike."
     requires:
       all:
         - { id: marched, arc_unlocked: march }
@@ -208,7 +242,7 @@ classes:
             - { quest_completed: refugees }
             - { quest_completed: seras_compromise }
             - { quest_completed: burned_farmstead }
-        - { id: mustered_out, flag: nf_hearth_book_closed }
+            - { flag: stood_the_wall }
     completable:
       id: still_on_the_rolls
       none:
@@ -216,8 +250,7 @@ classes:
     lock_reasons:
       marched: "The road inward has soldiers on it, and you have not once stood where they could count you."
       counted: "Sera's ledger has your name in the column for strangers. Strangers are not mustered out; they are moved on."
-      served: "You have watched the arithmetic being done with people. Watching is not a discharge."
-      mustered_out: "The sergeant cannot strike a name that has not said it is done."
+      served: "You have watched the arithmetic being done with people, and never once stood your night on the wall or seen a levy through."
       still_on_the_rolls: "The saints have you marked, and the militia does not muster the marked. It buries them."
     score:
       - { when: { reputation: { faction: militia, min: 40 } }, weight: 0.4 }
@@ -259,15 +292,20 @@ classes:
   # ---------------------------------------------------------------------
   # THE NAMED WOUND -- the convergence's civic ending. You named the
   # thing, and then you made a village decide its own fate knowing.
-  # Locked by the last quiet thing's id-less lock, which is to say: by
-  # showing up for the morning firing afterward.
+  # Locked at the morning firing afterward (the_morning_firing's Q1),
+  # told or untold, once the last quiet morning's batch is out.
   # ---------------------------------------------------------------------
   the_named_wound:
     label: "The Named Wound"
+    tease: "The bakery at the morning firing, after the village has had its say."
     requires:
       all:
         - { id: named, quest_completed: naming_the_wound }
         - { id: decided, quest_completed: what_edgewood_keeps }
+        - id: baked
+          any:
+            - { quest_completed: the_last_quiet_thing }
+            - { quest_state: { quest: the_last_quiet_thing, stage_at_least: 2 } }
     completable:
       id: wheel_still_turning
       none:
@@ -275,6 +313,7 @@ classes:
     lock_reasons:
       named: "It is still eleven separate wrong things to you. It has a shape, and you have not paid what looking at it costs."
       decided: "Edgewood does not know what you know, and what it does not know it cannot choose about."
+      baked: "You have not stood at the oven for the last quiet morning."
       wheel_still_turning: "The name is still true. There is nothing left for it to be true about."
     score:
       - { when: { quest_completed: naming_the_wound }, weight: 0.4 }
@@ -315,20 +354,24 @@ classes:
               - { type: flag, flag: ending_gallery_unlocked }
 
   # ---------------------------------------------------------------------
-  # THE PRICE ASKED -- the sacrifice's ending, locked BY NAME from
-  # the_sacrifice's on_complete: paying the like-for-like is terminal by
-  # construction ("One valley. Not the world... You would want to be sure
-  # you had done the sum.").
+  # THE PRICE ASKED -- the sacrifice's ending, locked BY NAME at the_price's
+  # S2 (data/scenes/the_price.yaml), the beat for the thing offered: paying
+  # the like-for-like is terminal by construction ("One valley. Not the
+  # world... You would want to be sure you had done the sum."). The beat
+  # writes `paid` before it locks (plan decision 6).
   # ---------------------------------------------------------------------
   the_price_asked:
     label: "The Price Asked"
+    tease: "Ilya's book of prices, and the column he keeps for what is not coin."
     requires:
       all:
-        - { id: paid, quest_completed: the_sacrifice }
-        - { id: hand_off_it, flag: nf_sacrifice_paid }
+        - { id: named, quest_completed: naming_the_wound }
+        - { id: chose, flag: nf_sacrifice_chosen }
+        - { id: paid, flag: nf_sacrifice_paid }
     lock_reasons:
-      paid: "Sympathy takes a like for a like, and you have not put anything on the table."
-      hand_off_it: "It is still in your hands. Everything is negotiable until your hand comes off it."
+      named: "It has no name yet, and sympathy cannot price what has no name."
+      chose: "Sympathy takes a like for a like, and you have not put anything on the table."
+      paid: "It is still in your hands. Everything is negotiable until your hand comes off it."
     score:
       - { when: { quest_completed: the_sacrifice }, weight: 0.6 }
       - { when: { flag: nf_sacrifice_paid }, weight: 0.2 }
@@ -369,15 +412,20 @@ classes:
   # THE PIN AND THE JOIN -- the ninth pin carried to where the road's two
   # ends meet. The rarest gate in the table: the pin taken from Ilya's
   # felt, still held (not spent as the sacrifice), and the join walked so
-  # you know where the opposite of a ward belongs.
+  # you know where the opposite of a ward belongs. The door is the_join's
+  # J1 (`set_it`), at the join; its lock runs before the pin leaves the pack.
   # ---------------------------------------------------------------------
   the_pin_and_the_join:
     label: "The Pin and the Join"
+    tease: "Ilya's felt, and the road past Millhaven gate that keeps getting shorter."
     requires:
       all:
         - { id: pin_taken, flag: nf_ninth_taken }
         - { id: pin_held, has_item: { id: ninth_pin, qty: 1 } }
-        - { id: join_walked, quest_completed: the_heartland_road }
+        - id: join_walked
+          any:
+            - { quest_completed: the_heartland_road }
+            - { quest_state: { quest: the_heartland_road, stage_at_least: 2 } }
     completable:
       id: wheel_still_turning
       none:
@@ -428,11 +476,12 @@ classes:
   # THE STOPPED WHEEL -- the death of the world. evil_progress is clamped
   # to 1.0 and monotone (engine/game/evil_ticker.py), so this gate, once
   # true, stays true; the completable obstructions on the endings above
-  # all close at the same reading, so a late lock falls through to here
-  # or to the fail-forward and nowhere else.
+  # all close at the same reading. Its door is forced, not walked to: the
+  # declared event the_last_hour deals the_stopped_wheel's Z1.
   # ---------------------------------------------------------------------
   the_stopped_wheel:
     label: "The Stopped Wheel"
+    tease: "The square, on a morning when no bell in Edgewood rings the hour."
     requires:
       - { id: wheel_stopped, value: { name: evil_progress, min: 1.0 } }
     lock_reasons:
@@ -478,10 +527,13 @@ classes:
   # never softlock. It has to read true for a run the consuming world
   # marked for death AND for a run that closed the book without ever
   # becoming baker, witness, marcher or namer -- so its register is the
-  # game's own thesis line: the evil ticks either way.
+  # game's own thesis line: the evil ticks either way. Two doors: the
+  # terminal death, and "stay anyway" at the morning firing (H1) for a
+  # player whose Hearth gate is shut.
   # ---------------------------------------------------------------------
   the_dark_keeps_its_hours:
     label: "The Dark Keeps Its Hours"
+    tease: "Edgewood's hours, kept whether or not you keep them."
     score:
       - { when: { min_phase: consuming }, weight: 0.4 }
       - { when: { flag: saints_marked_you }, weight: 0.3 }

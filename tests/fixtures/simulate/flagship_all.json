@@ -553,7 +553,7 @@
       "day_reached": 3,
       "hours_elapsed": 48,
       "in_game_hours_per_turn": 3.33,
-      "final_evil_progress": 0.06899,
+      "final_evil_progress": 0.0681,
       "final_evil_phase": "dormant",
       "final_awareness": 20.0,
       "final_arc": "march",
@@ -575,25 +575,25 @@
       "items_sold": 0,
       "carried_value_end": 3,
       "actions": {
-        "flag": 6,
+        "flag": 5,
         "travel": 4,
-        "approach": 1,
+        "approach": 2,
         "eat": 1
       }
     },
     "evil": {
-      "per_in_game_day": 0.03449,
+      "per_in_game_day": 0.03405,
       "doom_resistance": {
         "min": 0.0,
         "p10": 0.0,
-        "median": 8.65,
-        "mean": 9.18,
-        "max": 17.1
+        "median": 13.65,
+        "mean": 10.61,
+        "max": 17.3
       },
       "set_pieces_played": 0,
       "set_pieces_won": 0,
-      "days_to_consuming_projected": 23.2,
-      "turns_to_consuming_projected": 139.0,
+      "days_to_consuming_projected": 23.5,
+      "turns_to_consuming_projected": 141.0,
       "first_day_in_phase": {
         "dormant": 1,
         "stirring": null,
@@ -609,13 +609,13 @@
         },
         {
           "day": 2,
-          "evil_progress": 0.05905,
+          "evil_progress": 0.06271,
           "evil_phase": "dormant",
           "turn": 11
         },
         {
           "day": 3,
-          "evil_progress": 0.06899,
+          "evil_progress": 0.0681,
           "evil_phase": "dormant",
           "turn": 12
         }
@@ -625,7 +625,7 @@
       "min": 29.0,
       "p10": 29.0,
       "median": 67.0,
-      "mean": 62.17,
+      "mean": 58.83,
       "max": 95.0,
       "turns_at_zero": 0,
       "final_cap": 100
@@ -634,7 +634,7 @@
       "min": 6.0,
       "p10": 6.0,
       "median": 38.75,
-      "mean": 36.46,
+      "mean": 37.62,
       "max": 60.0,
       "turns_by_stage": {
         "fed": 7,
@@ -643,18 +643,27 @@
       }
     },
     "gold": {
-      "min": 3.0,
-      "p10": 3.0,
-      "median": 4.0,
-      "mean": 4.0,
+      "min": 1.0,
+      "p10": 1.0,
+      "median": 3.0,
+      "mean": 3.5,
       "max": 5.0,
       "start": 5,
-      "end": 3,
+      "end": 1,
       "spent_on_food": 0,
-      "net": -2,
-      "per_day": -1.0
+      "net": -4,
+      "per_day": -2.0
     },
     "skills": {
+      "nerve": {
+        "attempts": 3,
+        "crit_success": 0,
+        "success": 2,
+        "partial": 1,
+        "failure": 0,
+        "success_rate": 0.667,
+        "partial_rate": 0.333
+      },
       "survival": {
         "attempts": 1,
         "crit_success": 0,

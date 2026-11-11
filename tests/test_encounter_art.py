@@ -27,7 +27,6 @@ from engine.media.providers.shipped import lookup
 
 _ROOT = Path(__file__).resolve().parents[1]
 
-
 def _declared_art() -> dict[str, list[str]]:
     """Art key -> the encounter ids that use it, across the active game."""
     out: dict[str, list[str]] = {}

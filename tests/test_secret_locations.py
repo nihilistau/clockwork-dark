@@ -21,6 +21,7 @@ import pytest
 
 from engine.game.state import GameState
 from engine.games import registry
+from tests.test_local_mode_golden import S21_ART  # the art pack's pictures (v0.25.0 T15)
 
 HUE_SECRETS = ("the_undercroft", "rooftop_road", "old_bell_tower")
 
@@ -362,20 +363,41 @@ def test_the_validator_reads_a_narrative_flag_reveal_as_a_location_reference() -
 # -- the flagship ------------------------------------------------------------------
 
 
+#: v0.25.0 §3.4: the flagship's first two secret places. Before them it declared
+#: none, and these tests pinned that a story with no secret pays nothing.
+FLAGSHIP_SECRETS = ("the_works", "the_join")
+
+
 def test_the_flagship_travel_is_the_raw_graph_unchanged() -> None:
     """
-    A story that declares no secret pays nothing: every place is known, and the
-    enum is exactly the graph's roads with their labels, as it always was.
+    A secret pays only for itself: every place but the flagship's two secrets is
+    known, and the enum is exactly the graph's roads with their labels, as it
+    always was, less a road to a secret not yet known (v0.25.0 §3.4). Known, the
+    enum is the raw graph whole.
     """
     registry.activate("clockwork-dark")
     from engine.game.intents import _travel
     from engine.game.locations import LOCATIONS, get_edge, is_known, neighbours
 
-    assert not any(row.get("secret") for row in LOCATIONS.values())
+    assert sorted(loc for loc, row in LOCATIONS.items() if row.get("secret")) == sorted(FLAGSHIP_SECRETS)
     for loc in sorted(LOCATIONS):
         state = GameState(session_id="flagship")
         state.location_id = loc
-        assert all(is_known(state, other) for other in LOCATIONS)
+        assert all(is_known(state, other) for other in LOCATIONS if other not in FLAGSHIP_SECRETS)
+        hidden = {s for s in FLAGSHIP_SECRETS if s != loc}
+        assert not any(is_known(state, s) for s in hidden), loc
+        expected = tuple(
+            (
+                other,
+                f"{LOCATIONS[other]['name']}, {get_edge(loc, other)['hours']}h",
+            )
+            for other in neighbours(loc)
+            if other not in hidden
+        )
+        verb = _travel(state)
+        assert (verb.options if verb else ()) == expected, loc
+        for secret in hidden:
+            _reveal(state, secret)
         expected = tuple(
             (
                 other,
@@ -391,6 +413,24 @@ def test_the_flagship_travel_is_the_raw_graph_unchanged() -> None:
 #: entry location, and standing in each of its 20 places -- measured at ab54fa7
 #: (before v0.13.0's secret places) in a scratch worktree. A story with no
 #: secret must draw exactly the map it always drew.
+#:
+#: v0.25.0 T5 (§3.4, §5.3) changed exactly two things in it, both mapped back
+#: below: the two secret places (unknown from every place recorded, so absent
+#: from its payload; their roads too) and the 22 roads that carried
+#: `danger_dc: 0` with a `# needs band` note and now carry a band's number.
+FLAGSHIP_BANDED_SINCE_V025 = {
+    "forest_clearing>deeper_forest": 6, "deeper_forest>forest_clearing": 6,
+    "forest_clearing>herb_glen": 6, "herb_glen>forest_clearing": 6,
+    "deeper_forest>herb_glen": 6, "herb_glen>deeper_forest": 6,
+    "deeper_forest>charcoal_burn": 6, "charcoal_burn>deeper_forest": 6,
+    "edgewood_square>charcoal_burn": 6, "edgewood_square>fallow_farm": 6,
+    "deeper_forest>old_barrows": 10, "old_barrows>deeper_forest": 10,
+    "old_barrows>tunnel_entrance": 10, "tunnel_entrance>old_barrows": 10,
+    "millhaven_gate>toll_bridge": 10, "toll_bridge>burned_farmstead": 10,
+    "burned_farmstead>toll_bridge": 10, "refugee_camp>burned_farmstead": 10,
+    "burned_farmstead>refugee_camp": 10, "millhaven_gate>refugee_camp": 10,
+    "toll_bridge>heartland_road": 14, "heartland_road>toll_bridge": 14,
+}
 FLAGSHIP_MAP_DIGEST = "af9028ded693c58c40411d9b6153ce9cfb893fe2928badae296ae1d19a0de055"
 FLAGSHIP_START_MAP_DIGEST = "6982486eb4e81e61e29799b7d10cf1291e7732367821dbb03bd46ee3e79b816d"
 
@@ -408,6 +448,8 @@ def test_the_flagship_map_payload_is_what_it_was_before_secret_places() -> None:
     start.location_id = registry.get("clockwork-dark").entry_location
     out["__start__"] = codex_places(start)
     for loc in sorted(LOCATIONS):
+        if loc in FLAGSHIP_SECRETS:
+            continue
         state = GameState(session_id="s", rng_seed=7)
         state.location_id = loc
         out[loc] = codex_places(state)
@@ -436,7 +478,31 @@ def test_the_flagship_map_payload_is_what_it_was_before_secret_places() -> None:
                     renamed += 1
     assert renamed > 0
 
-    assert len(LOCATIONS) == 20
+    # v0.25.0 T5: each banded road mapped back to the 0 it was recorded at, and
+    # no secret place or road to one in any recorded payload.
+    rebanded = 0
+    for places in out.values():
+        for place in places:
+            assert place["id"] not in FLAGSHIP_SECRETS, place["id"]
+            for road in place.get("roads") or []:
+                assert road["to"] not in FLAGSHIP_SECRETS, (place["id"], road["to"])
+                leg = f"{place['id']}>{road['to']}"
+                if leg in FLAGSHIP_BANDED_SINCE_V025:
+                    assert road["danger_dc"] == FLAGSHIP_BANDED_SINCE_V025[leg], leg
+                    road["danger_dc"] = 0
+                    rebanded += 1
+    assert rebanded == len(FLAGSHIP_BANDED_SINCE_V025) * len(out)
+
+    assert len(LOCATIONS) == 22
+    # v0.25.0 T15 (the art pack, the local-mode golden's S21): each place that got
+    # its own base is drawn with it, mapped back to the picture it was recorded with.
+    redrawn = 0
+    for places in out.values():
+        for place in places:
+            if place["id"] in S21_ART and place.get("image") == S21_ART[place["id"]][1]:
+                place["image"] = S21_ART[place["id"]][0]
+                redrawn += 1
+    assert redrawn == len(set(S21_ART) - set(FLAGSHIP_SECRETS)), redrawn
     assert digest(out["__start__"]) == FLAGSHIP_START_MAP_DIGEST
     assert digest(out) == FLAGSHIP_MAP_DIGEST
 
@@ -798,8 +864,43 @@ def test_the_validator_refuses_a_spoiler_row_for_an_unknown_place(tmp_path) -> N
     assert not [i for i in clean if "spoiler" in i.message], clean
 
 
+def test_the_flagship_masks_its_two_secret_places_until_known() -> None:
+    """
+    v0.25.0 §3.4: the flagship's first rows that name a place. Its other rows
+    gate byte-identically whether the player knows every place or none, as
+    before; the two place rows mask until their place is known, then lift.
+    """
+    import yaml
+
+    from engine.game.locations import KNOWN_FLAG_PREFIX, LOCATIONS
+    from engine.lore.interceptors import AwarenessGateInterceptor, mark_spoiler
+
+    registry.activate("clockwork-dark")
+    manifest = registry.get("clockwork-dark")
+    path = manifest.resolve(manifest.paths["rules"]) / "spoilers.yaml"
+    rows = [r for r in yaml.safe_load(path.read_text(encoding="utf-8")).get("spoilers") or [] if isinstance(r, dict)]
+    placed = {str(r["location"]): r for r in rows if r.get("location")}
+    assert sorted(placed) == sorted(FLAGSHIP_SECRETS)
+
+    fresh = GameState(session_id="fresh")
+    knowing = GameState(session_id="knowing")
+    for loc in LOCATIONS:
+        knowing.flags[f"{KNOWN_FLAG_PREFIX}{loc}"] = True
+    gate = AwarenessGateInterceptor()
+
+    others = "Intro. " + mark_spoiler(
+        " / ".join([str(r.get("term")) for r in rows if not r.get("location")] + ["evil_progress"])
+    )
+    assert gate.run_pre(knowing, others) == gate.run_pre(fresh, others)
+
+    for row in placed.values():
+        text = "Intro. " + mark_spoiler(f"You stand in {row['term']}.")
+        assert str(row["instead"]) in gate.run_pre(fresh, text), row["term"]
+        assert str(row["term"]) in gate.run_pre(knowing, text), row["term"]
+
+
 @pytest.mark.parametrize(
-    "slug", ["clockwork-dark", "wicked-garden", "neon-city", "the-long-con", "dev-story"]
+    "slug", ["wicked-garden", "neon-city", "the-long-con", "dev-story"]
 )
 def test_other_stories_gate_exactly_as_before(slug: str) -> None:
     """

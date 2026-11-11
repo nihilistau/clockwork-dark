@@ -214,6 +214,12 @@ def _completion_grant(path: Path) -> float:
     return 0.0
 
 
+#: A FIND is not a push back against the dark (v0.25.0 spec §4.3, AUTHORING §3.7):
+#: it starts and completes on arrival, paying awareness and what is found there,
+#: and no reprieve. `the_works_below` (whisper) is the flagship's one.
+FLAGSHIP_FINDS = frozenset({"the_works_below"})
+
+
 @pytest.mark.skipif(not _FLAGSHIP_QUESTS.is_dir(), reason="flagship content absent")
 def test_flagship_pushback_arcs_grant_scaled_reprieve() -> None:
     """
@@ -222,7 +228,11 @@ def test_flagship_pushback_arcs_grant_scaled_reprieve() -> None:
     because the baker's clock staying fast is the whole point of R-06.
     """
     grants = {
-        arc: [_completion_grant(p) for p in sorted((_FLAGSHIP_QUESTS / arc).glob("*.yaml"))]
+        arc: [
+            _completion_grant(p)
+            for p in sorted((_FLAGSHIP_QUESTS / arc).glob("*.yaml"))
+            if p.stem not in FLAGSHIP_FINDS
+        ]
         for arc in ("whisper", "march", "convergence")
     }
     for arc, values in grants.items():
@@ -233,3 +243,6 @@ def test_flagship_pushback_arcs_grant_scaled_reprieve() -> None:
         _completion_grant(_FLAGSHIP_QUESTS / "quiet_life" / "bakery_apprentice.yaml")
         == 0.0
     )
+    for find in FLAGSHIP_FINDS:
+        assert _completion_grant(_FLAGSHIP_QUESTS / "whisper" / f"{find}.yaml") == 0.0, find
+

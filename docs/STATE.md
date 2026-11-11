@@ -116,6 +116,15 @@ exercised a subclass, so all three were invisible. See
 | `threads` | `engine/game/threads.py` — offer → terms → renegotiate → seal, with `transform` for an already-sealed contract. Expired on the day rollover from `clock.advance_time`. |
 | `tracks` | Enum and list-valued story state, written through the `track` effect kind. |
 | ending state | `engine/game/endings.py` — eligibility, continuous scores, soft `intent` then hard `lock`. |
+
+**v0.25.0 (the flagship's overhaul) adds no state field and no save version.**
+`GameState` and `CURRENT_SAVE_VERSION` are unchanged (`engine/game/state.py`). What the
+flagship now keeps lives in containers that already existed: Sera's levy is one story clock,
+`the_levy`, declared in `games/clockwork-dark/state.yaml`'s `clocks:` block (`backing: bag`,
+0-6, hidden); Sergeant Venn's bargain is a `threads` row; the doors' flags
+(`sacrifice_offered_<item>`, `stood_the_wall`) and a doom move's override (`npc_at_<id>`)
+are `flags`; a dealt card is the director's existing scene state. So a v0.24.0 save loads
+with no migration (`tests/test_clockwork_dark_saves.py`).
 | `social` (a phone story only) | `engine/social/` — the phone's slice, written only by the `social_*` effect kinds. Each person's memory is one dict per PERSON, `social.people[pid].memory` (v0.23.0, `engine/social/memory.py`): `current` (the open conversation, both sides, every app, `memory.verbatim` bubbles), `bridge` (the last `bridge_bubbles` of the one before), `episodes` (closed conversations' recaps `{id, kind, where, from_at, to_at, recap, topics, end_reason}`, at most `episodes_kept`), `story` (the oldest folded in, at most `story_words`), `open` (follow-ups `{id, kind, about, due_at, by}`, at most `open_max`), and `canon`, `knows`, `told` and `history`, and `shelved` (the archive shelves a dormant spell moved out whole, until they talk again); written by `social_memory` (and `social_history`), an empty part left out. A thread keeps its messages, never a summary. The slice carries its own `schema` (2 since v0.23.0; a v0.22.0 slice has none, read as 1, and `CURRENT_SAVE_VERSION` does not move); see "The phone slice's migration" below. Life events (v0.23.0 T17, `engine/social/life.py`, written only by `social_life`): `social.people[pid].life` and `social.player_life` (the player's, made by `setdefault` on the first event) hold `[{id, at, until?, supported?, request?}]`, the running events and a few past ones (`life_events.yaml` `kept.past`, pruned at every save with the ones still on cooldown kept); `people[pid].news` (`{id, text}`, told once) and `people[pid].job_now` (a job id) are left out when empty. |
 
 ### The phone slice's migration (v0.23.0)

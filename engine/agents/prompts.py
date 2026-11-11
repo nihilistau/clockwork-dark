@@ -1837,6 +1837,29 @@ def _sum_authored_choice(result: dict[str, Any]) -> str:
     return " ".join(p for p in parts if p)
 
 
+def _sum_use_item(result: dict[str, Any]) -> str:
+    """
+    What was used and what it did -- the item by name, the item's own line.
+
+    ``inventory.use`` writes "You use the <name>." when the item authors no
+    ``text``; that line already says what was used, so it stands alone rather
+    than doubling up as "used the <name>: You use the <name>."
+    """
+    name = str(result.get("name") or "it").lower()
+    text = str(result.get("text") or "").strip()
+    if not text or text.rstrip(".").lower() == f"you use the {name}":
+        return f"used the {name}."
+    return f"used the {name}: {text}"
+
+
+def _sum_equip_item(result: dict[str, Any]) -> str:
+    return str(result.get("text") or f"put on the {str(result.get('name') or 'it').lower()}.")
+
+
+def _sum_unequip_item(result: dict[str, Any]) -> str:
+    return str(result.get("text") or "took it off.")
+
+
 _SUMMARISERS: dict[str, Any] = {
     "rest": _sum_rest,
     "eat": _sum_eat,
@@ -1860,6 +1883,9 @@ _SUMMARISERS: dict[str, Any] = {
     "call_flashback": _sum_call_flashback,
     "abort_job": _sum_abort_job,
     "authored_choice": _sum_authored_choice,
+    "use_item": _sum_use_item,
+    "equip_item": _sum_equip_item,
+    "unequip_item": _sum_unequip_item,
 }
 
 #: Keys whose value is a sentence written for a reader, in order of preference.

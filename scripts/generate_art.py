@@ -58,6 +58,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import dataclasses
 import re
 import sys
 import time
@@ -224,6 +225,9 @@ SECTIONS = (
     ("locations", "location", "scenes"),
     ("portraits", "portrait", "portraits"),
     ("items", "item", "items"),
+    # v0.25.0 plan decision 13: an encounter's threat and an ending's plate.
+    ("enemies", "enemy", "enemies"),
+    ("gallery", "gallery", "gallery"),
 )
 
 
@@ -235,6 +239,10 @@ class Plate:
     ``time_of_day`` is a daypart for a location whose subject declares
     ``times:``, and "" for a location that declares none (one plate, written as
     the manifest's ``base``), a portrait or an item.
+
+    ``phase`` is "consuming" for a location's corrupted plate (its subject
+    lists ``phases: [consuming]``, v0.25.0), written into the entry's
+    ``corrupted:`` pool; "" for every other plate.
     """
 
     kind: str
@@ -242,6 +250,7 @@ class Plate:
     time_of_day: str
     target: str
     resolved: bool
+    phase: str = ""
 
     @property
     def section(self) -> str:
@@ -252,13 +261,18 @@ class Plate:
         """The manifest key this plate is written under inside its entry."""
         if self.kind != "location":
             return ""
+        if self.phase == "consuming":
+            return "corrupted"
         return self.time_of_day or "base"
 
     def request(self) -> ImageRequest:
         # "dawn" is what the renderer defaults to, so a daypart-less plate
         # renders exactly the prompt art_missing.py has always shown for it.
         return ImageRequest(
-            subject_id=self.subject_id, kind=self.kind, time_of_day=self.time_of_day or "dawn"
+            subject_id=self.subject_id,
+            kind=self.kind,
+            time_of_day=self.time_of_day or "dawn",
+            evil_phase=self.phase or "dormant",
         )
 
 
@@ -275,9 +289,16 @@ def plan_plates() -> list[Plate]:
     disagree about what is missing.
 
     No evil-phase doubling: phase variants are a runtime doom question, and a
-    story's ``corrupted:`` pool stays hand-filled (The Wicked Garden declares a
-    ``corruption:`` prompt clause and says in its manifest that a pool would be
-    dead content).
+    story's ``corrupted:`` pool is filled only where a location subject asks
+    for it, opt-in (v0.25.0 plan decision 13): ``phases: [consuming]`` plans
+    ONE ``<name>-corrupted.jpg``, generated at ``consuming`` and promoted into
+    the entry's ``corrupted:`` list. The Wicked Garden declares a
+    ``corruption:`` prompt clause and no ``phases:``, and says in its manifest
+    that a pool would be dead content.
+
+    ``base: true`` (the boolean, opt-in; READ RECEIPTS' ``base: <daypart>`` is
+    another field) plans a location's base plate beside the dayparts its
+    ``times:`` declares (v0.25.0 T15, I7).
     """
     from engine.media.art import load_subjects
     from engine.media.providers.shipped import lookup
@@ -288,10 +309,13 @@ def plan_plates() -> list[Plate]:
         for subject_id, entry in (subjects.get(section) or {}).items():
             if subject_id == "defaults":
                 continue
+            entry = entry if isinstance(entry, dict) else {}
             name = subject_id.replace("_", "-")
             dayparts: list[str] = [""]
             if kind == "location":
-                dayparts = list((entry or {}).get("times") or {}) or [""]
+                dayparts = list(entry.get("times") or {}) or [""]
+                if entry.get("base") is True and "" not in dayparts:
+                    dayparts.insert(0, "")
             for daypart in dayparts:
                 target = f"{directory}/{name}-{daypart}.jpg" if daypart else f"{directory}/{name}.jpg"
                 request = ImageRequest(
@@ -300,7 +324,30 @@ def plan_plates() -> list[Plate]:
                 plates.append(
                     Plate(kind, subject_id, daypart, target, lookup(request) is not None)
                 )
+            if kind == "location" and "consuming" in (entry.get("phases") or []):
+                target = f"{directory}/{name}-corrupted.jpg"
+                plates.append(
+                    Plate(kind, subject_id, "", target, _in_corrupted_pool(subject_id, target),
+                          "consuming")
+                )
     return plates
+
+
+def _in_corrupted_pool(subject_id: str, target: str) -> bool:
+    """Whether the manifest's ``corrupted:`` pool for a place already holds this plate.
+
+    ``lookup`` at ``consuming`` falls through to the base when the pool is
+    empty, so it cannot say whether the corrupted plate itself is there.
+    """
+    from engine.media.providers.shipped import art_root, load_manifest
+
+    entry = (load_manifest().get("locations") or {}).get(subject_id) or {}
+    root = art_root()
+    return (
+        target in (entry.get("corrupted") or [])
+        and root is not None
+        and (root / target).is_file()
+    )
 
 
 def parse_only(values: list[str]) -> list[tuple[str, str]]:
@@ -343,7 +390,8 @@ def select(
             for kind, subject in only
         ):
             continue
-        if dayparts and plate.kind == "location" and plate.time_of_day not in dayparts:
+        # A location's slot: its daypart, or "base" / "corrupted" by name.
+        if dayparts and plate.kind == "location" and plate.slot not in dayparts:
             continue
         if missing_only and plate.resolved:
             continue
@@ -427,6 +475,12 @@ def merge_manifest_text(text: str, entries: list[tuple[str, str, str, str]]) -> 
             entry = dict(entry) if isinstance(entry, dict) else {}
             if slot == "base":
                 entry["base"] = relative
+            elif slot == "corrupted":
+                # Appended to the pool, never replacing a plate already in it.
+                pool = list(entry.get("corrupted") or [])
+                if relative not in pool:
+                    pool.append(relative)
+                entry["corrupted"] = pool
             else:
                 times = entry.get("times")
                 times = dict(times) if isinstance(times, dict) else {}
@@ -576,7 +630,8 @@ def promote_plates(plates: list[Plate], *, dry_run: bool = False) -> list[Plate]
                 f"{plate.kind} {plate.subject_id!r} would be written to {target!r}, "
                 "outside the story's art root"
             )
-        work.append((Plate(plate.kind, plate.subject_id, plate.time_of_day, target, True),
+        work.append((Plate(plate.kind, plate.subject_id, plate.time_of_day, target, True,
+                           plate.phase),
                      source, destination))
 
     if not work or dry_run:
@@ -633,12 +688,13 @@ def _provider_name(args: argparse.Namespace) -> str:
 
 
 def story_main(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
-    """``--game <slug>`` for any story but the flagship."""
+    """``--game <slug>`` for any story but the flagship, and the flagship under
+    ``--story-plan`` (v0.25.0 plan decision 13)."""
     if args.game not in registry.discover():
         parser.error(f"no such game {args.game!r}; installed: {', '.join(sorted(registry.discover()))}")
     activate_story(args.game)
 
-    kinds = {kind for (section, kind, _) in SECTIONS if args.all or getattr(args, section)}
+    kinds = {kind for (section, kind, _) in SECTIONS if args.all or getattr(args, section, False)}
     try:
         only = parse_only(args.only or [])
         dayparts = {d.strip() for d in (args.dayparts or "").split(",") if d.strip()}
@@ -656,7 +712,7 @@ def story_main(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int
         verb = "would promote" if args.dry_run else "promoted"
         print(f"{verb} {len(promoted)} plates into {args.game}'s pack\n")
         for plate in promoted:
-            print(f"  {plate.kind:9} {plate.subject_id:24} {plate.time_of_day or '-':5} {plate.target}")
+            print(f"  {plate.kind:9} {plate.subject_id:24} {_slot_label(plate):5} {plate.target}")
         return 0
 
     if args.prompts:
@@ -669,19 +725,32 @@ def story_main(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int
     if args.dry_run or args.list:
         for plate in plates:
             state = "cached" if plate in cached else ("resolved" if plate.resolved else "missing")
-            print(f"  plan: {plate.kind:9} {plate.subject_id:24} {plate.time_of_day or '-':5} "
+            print(f"  plan: {plate.kind:9} {plate.subject_id:24} {_slot_label(plate):5} "
                   f"{plate.target:40} {state}")
         return 0
 
-    todo = [plate.request() for plate in plates if plate not in cached]
+    # A re-roll (--seed) regenerates the selected plates even when cached: a
+    # provider that takes a seed (forge) skips its cache hit for a seeded
+    # request and writes over the cached file (T15 review I2).
+    todo = [plate.request() for plate in plates if args.seed or plate not in cached]
     todo = todo[: args.limit] if args.limit else todo
+    if args.seed:
+        todo = [dataclasses.replace(request, seed=args.seed) for request in todo]
     if not todo:
         print("nothing to generate")
         return 0
-    code = _generate(todo, _provider_name(args), lambda r: f"{r.kind} {r.subject_id} ({r.time_of_day})")
+    code = _generate(
+        todo, _provider_name(args), lambda r: f"{r.kind} {r.subject_id} ({r.time_of_day}/{r.evil_phase})"
+    )
     if code == 0:
-        print(f"then: scripts/generate_art.py --game {args.game} --promote")
+        flag = " --story-plan" if args.game == registry.DEFAULT_SLUG else ""
+        print(f"then: scripts/generate_art.py --game {args.game}{flag} --promote")
     return code
+
+
+def _slot_label(plate: Plate) -> str:
+    """The daypart a plan line shows: "corrupted" for a corrupted plate, "-" for none."""
+    return (plate.slot if plate.phase else plate.time_of_day) or "-"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -741,11 +810,30 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument("--list", action="store_true", help="Report gaps and exit")
-    parser.add_argument("--provider", default=None, help="grokbuild | xai | comfyui | procedural")
+    parser.add_argument("--provider", default=None, help="grokbuild | xai | comfyui | forge | procedural")
     parser.add_argument("--limit", type=int, default=0, help="Stop after N images")
+    parser.add_argument(
+        "--story-plan",
+        action="store_true",
+        help=(
+            "Plan the flagship from its own paths.art_subjects, as any other story is "
+            "(locations, portraits, items, enemies, gallery; a subject's phases: "
+            "[consuming] plans one corrupted plate, base: true its base). Without it the "
+            "flagship's plan is the legacy one"
+        ),
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help=(
+            "Re-roll with this seed (a provider that takes one: forge), regenerating the "
+            "selected plates even when cached; 0 = the plate's own"
+        ),
+    )
     args = parser.parse_args(argv)
 
-    if args.game != registry.DEFAULT_SLUG:
+    if args.game != registry.DEFAULT_SLUG or args.story_plan:
         return story_main(args, parser)
 
     # ---- The flagship: the plan it always had. -------------------------------

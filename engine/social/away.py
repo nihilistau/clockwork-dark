@@ -184,6 +184,32 @@ def world_choices(state: GameState, *, prefix: str = "resume", legal: Any = None
         return []
 
 
+def with_world_choices(state: GameState, choices: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    A narrated turn's row with the world's own choices after it: the narrator's first, as written, then every
+    `world_choices` row whose intent none of them already carries ("Look around" only when the narrator offered
+    nothing). The narrator's choices may carry no intent at all -- measured live on 2026-10-30: "Open Natter",
+    "Check Matchstick", "Check Front Porch" -- and then nothing on screen could move the clock, so the world
+    stopped. Never raises: a fault keeps the narrator's row.
+    """
+    try:
+        rows = [dict(c) for c in choices or ()]
+        held = {(str(i.get("action")), str(i.get("target") or "")) for i in (c.get("intent") for c in rows)
+                if isinstance(i, dict)}
+        for row in world_choices(state, prefix="world"):
+            intent = row.get("intent")
+            if intent is None:
+                if not rows:
+                    rows.append(row)
+                continue
+            if (str(intent["action"]), str(intent["target"])) not in held:
+                rows.append(row)
+        return rows
+    except Exception:  # noqa: BLE001 -- the world's rows are a floor under the turn, never a reason to lose it
+        logger.exception("[social] No world choices for a narrated turn (operation=with_world_choices)")
+        return list(choices or ())
+
+
 def resume_frame(state: GameState) -> dict[str, Any]:
     """
     The resume frame of a phone story (spec §15.3; `default_state.resume_opening`'s
@@ -205,4 +231,5 @@ def resume_frame(state: GameState) -> dict[str, Any]:
     }
 
 
-__all__ = ["apply_on_resume", "away_hours", "away_since", "lock_screen", "resume_frame", "world_choices"]
+__all__ = ["apply_on_resume", "away_hours", "away_since", "lock_screen", "resume_frame", "with_world_choices",
+           "world_choices"]

@@ -57,12 +57,65 @@ def _quiet_art(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(default_api, "shipped_art_url", lambda subject, kind="enemy", *a, **k: f"/art/{kind}/{subject}.jpg")
 
 
+@pytest.fixture(autouse=True)
+def _only_this_cast(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The codex also lists the story's declared cast (v0.25.0 §8.7); these tests are
+    about CAST, so the schedule file declares nobody unless a test says otherwise."""
+    if "declared_cast" in request.fixturenames:
+        return
+    import engine.world.npc_sim as npc_sim
+
+    monkeypatch.setattr(npc_sim, "load_npc_schedules", lambda: {"npcs": {}})
+
+
+@pytest.fixture
+def declared_cast(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A schedule-only person beside CAST, as the flagship's four and HUE & CRY's cast are."""
+    import engine.world.npc_sim as npc_sim
+
+    monkeypatch.setattr(npc_sim, "load_npc_schedules", lambda: {"npcs": {
+        "npc_odran": {"name": "Odran Cartwright", "role": "caravan_master", "home": ""},
+        "npc_hallam": {"name": "Hallam", "role": "smith", "home": ""},
+    }})
+
+
+def test_a_declared_soul_is_listed_once_and_named_only_when_met(declared_cast: None) -> None:
+    """v0.25.0 §8.7: a person declared only in the schedule file is a soul like any other --
+    an opaque key and no name until met -- and one also in the procgen list is not listed twice."""
+    souls = default_api.codex_souls(_state(), _ledger())["souls"]
+    assert [soul["id"] for soul in souls] == ["s0", "s1", "s2"]
+    assert [soul["name"] for soul in souls] == ["Someone"] * 3
+    assert [soul["role"] for soul in souls] == ["baker", "caravan master", "smith"]
+    assert "Hallam" not in json.dumps(souls) and "npc_hallam" not in json.dumps(souls)
+    met = default_api.codex_souls(_state(), _ledger("npc_hallam"))["souls"][-1]
+    assert met["id"] == "npc_hallam" and met["name"] == "Hallam" and met["met"] is True
+
+
 def test_an_unmet_soul_carries_no_id_or_name() -> None:
     souls = default_api.codex_souls(_state(), _ledger("npc_odran"))["souls"]
     unmet, met = souls
     assert unmet["met"] is False and unmet["id"] == "s0"
     assert not _names_anyone(json.dumps(unmet)), unmet
     assert met["met"] is True and met["id"] == "npc_odran" and met["name"] == "Odran Cartwright"
+
+
+def test_a_souls_secret_home_is_not_named_until_the_place_is_known(
+    declared_cast: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """v0.25.0 T4 fix round 1: a soul's ``place`` passes ``locations.is_known``, the map's gate,
+    so a person who lives in a secret place does not name it before the player knows it."""
+    import engine.game.locations as locations
+    import engine.world.npc_sim as npc_sim
+
+    monkeypatch.setitem(locations.LOCATIONS, "hidden_den", {"name": "The Hidden Den", "secret": True})
+    monkeypatch.setattr(npc_sim, "load_npc_schedules", lambda: {"npcs": {
+        "npc_hallam": {"name": "Hallam", "role": "smith", "home": "hidden_den"},
+    }})
+    state = _state()
+    hidden = default_api.codex_souls(state, _ledger())["souls"][-1]
+    assert hidden["place"] == "" and "Hidden Den" not in json.dumps(hidden)
+    state.flags["location_known:hidden_den"] = True
+    assert default_api.codex_souls(state, _ledger())["souls"][-1]["place"] == "The Hidden Den"
 
 
 def test_with_no_session_nobody_is_met(monkeypatch: pytest.MonkeyPatch) -> None:

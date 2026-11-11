@@ -110,8 +110,10 @@ sites:
   engine.game.evil_ticker._DOOM_DECLARED: {verdict: warmed, loader: engine.game.evil_ticker.doom_enabled}
   engine.game.foraging._read_rules(): {verdict: warmed, loader: engine.game.foraging.load_rules}
   engine.game.intents.ENGINE_CHOICE_WORDS: {verdict: constant}
+  engine.game.intents.OVERLAY_WORDS: {verdict: constant}
   engine.game.intents.REFUSAL_KEY_FOR_ACTION: {verdict: constant}
   engine.game.intents.SKILL_FOR_ACTION: {verdict: constant}
+  engine.game.intents._OVERLAY_ROWS: {verdict: constant}
   engine.game.inventory._evaluating_collections: {verdict: per_context, note: "a module bool until v0.20.0: one player's payout skipped another's"}
   engine.game.inventory._read_collections(): {verdict: warmed, loader: engine.game.inventory.load_collections}
   engine.game.inventory._read_items(): {verdict: warmed, loader: engine.game.inventory.load_items}

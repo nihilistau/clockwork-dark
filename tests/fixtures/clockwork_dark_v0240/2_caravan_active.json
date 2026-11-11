@@ -1,0 +1,460 @@
+{
+ "active_arc": "quiet_life",
+ "active_effects": [],
+ "agendas": {},
+ "archetype": "wayfarer",
+ "arcs_unlocked": [
+  "quiet_life"
+ ],
+ "assistant_mind": {
+  "appearance_schedule": "hidden",
+  "current_form": "cat",
+  "help_probability": 0.4,
+  "intervention_willingness": 0.3,
+  "patience": 80.0,
+  "trust_level": 20.0
+ },
+ "awareness": 0.0,
+ "challenge": {},
+ "clocks": {},
+ "doom_resistance": 0.0,
+ "encounter": {},
+ "ended": false,
+ "evil_phase": "dormant",
+ "evil_progress": 0.07337941677825208,
+ "flags": {},
+ "hunger": 57.0,
+ "inventory": [
+  {
+   "id": "road_bread",
+   "name": "Stale road bread",
+   "qty": 2,
+   "tags": [
+    "food"
+   ]
+  },
+  {
+   "id": "walking_staff",
+   "name": "Walking staff",
+   "qty": 1,
+   "tags": [
+    "tool"
+   ]
+  }
+ ],
+ "jobs": {},
+ "last_cutscene_phase": "",
+ "law": {},
+ "location_id": "edgewood_square",
+ "media_cache": {},
+ "media_cutscenes_shown": [],
+ "meters": {},
+ "moved": [],
+ "player_name": "Traveler",
+ "plot_involvement": 13.467588335565042,
+ "premise_intel": {},
+ "procgen": {
+  "bakery_job_day": 3,
+  "buildings": [
+   {
+    "canon": true,
+    "id": "building_bakery",
+    "location_id": "edgewood_bakery",
+    "name": "Hearth Bakery",
+    "type": "bakery"
+   },
+   {
+    "canon": true,
+    "id": "building_communal_oven",
+    "location_id": "edgewood_square",
+    "name": "Communal Stone Oven",
+    "type": "oven"
+   },
+   {
+    "canon": true,
+    "id": "building_shrine",
+    "location_id": "edgewood_square",
+    "name": "Shrine of Unnamed Saints",
+    "type": "shrine"
+   },
+   {
+    "canon": true,
+    "id": "building_well",
+    "location_id": "edgewood_square",
+    "name": "Square Well",
+    "type": "well"
+   },
+   {
+    "canon": true,
+    "id": "building_notice_board",
+    "location_id": "edgewood_square",
+    "name": "Notice Board",
+    "type": "civic"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_1",
+    "location_id": "edgewood_square",
+    "name": "Low Mill",
+    "type": "miller"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_2",
+    "location_id": "edgewood_square",
+    "name": "East Granary",
+    "type": "granary"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_3",
+    "location_id": "edgewood_square",
+    "name": "Joiner's Yard",
+    "type": "carpenter"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_4",
+    "location_id": "edgewood_square",
+    "name": "Cooper's Shed",
+    "type": "cooper"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_5",
+    "location_id": "edgewood_square",
+    "name": "Road Stables",
+    "type": "stable"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_6",
+    "location_id": "edgewood_square",
+    "name": "Nine Skeps",
+    "type": "apiary"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_7",
+    "location_id": "edgewood_square",
+    "name": "Weaver's Loft",
+    "type": "weaver"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_8",
+    "location_id": "edgewood_square",
+    "name": "The Malthouse",
+    "type": "brewer"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_9",
+    "location_id": "edgewood_square",
+    "name": "Cobbler's Step",
+    "type": "cobbler"
+   },
+   {
+    "canon": false,
+    "id": "building_proc_10",
+    "location_id": "edgewood_square",
+    "name": "Blue Dyeyard",
+    "type": "dye"
+   }
+  ],
+  "festival": {
+   "day_offset": 17,
+   "name": "Founder's Ash",
+   "season": "summer"
+  },
+  "forest": {
+   "barrow_dungeon": {
+    "dc": 16,
+    "id": "barrow_dungeon",
+    "location_id": "forest_clearing",
+    "name": "Old King's Rest",
+    "optional": true
+   },
+   "forage_nodes": [
+    {
+     "dc": 8,
+     "id": "forage_1",
+     "location_id": "forest_clearing",
+     "resource": "game_trail"
+    },
+    {
+     "dc": 12,
+     "id": "forage_2",
+     "location_id": "forest_clearing",
+     "resource": "mushroom"
+    },
+    {
+     "dc": 11,
+     "id": "forage_3",
+     "location_id": "forest_clearing",
+     "resource": "game_trail"
+    },
+    {
+     "dc": 12,
+     "id": "forage_4",
+     "location_id": "forest_clearing",
+     "resource": "berry"
+    },
+    {
+     "dc": 6,
+     "id": "forage_5",
+     "location_id": "forest_clearing",
+     "resource": "game_trail"
+    },
+    {
+     "dc": 14,
+     "id": "forage_6",
+     "location_id": "forest_clearing",
+     "resource": "mushroom"
+    }
+   ],
+   "hidden_paths": [
+    {
+     "dc": 11,
+     "id": "hidden_path_1",
+     "label": "root-choked gap",
+     "leads_to": "herb_glen"
+    },
+    {
+     "dc": 12,
+     "id": "hidden_path_2",
+     "label": "root-choked gap",
+     "leads_to": "old_barrows"
+    }
+   ]
+  },
+  "npcs": [
+   {
+    "canon": true,
+    "id": "npc_maris",
+    "location_id": "edgewood_bakery",
+    "name": "Maris Hearth",
+    "role": "baker",
+    "traits": [
+     "warm",
+     "watchful",
+     "maternal"
+    ]
+   },
+   {
+    "canon": true,
+    "id": "npc_odran",
+    "location_id": "edgewood_square",
+    "name": "Odran Cartwright",
+    "role": "caravan_master",
+    "traits": [
+     "weathered",
+     "gossiping",
+     "cautious"
+    ]
+   },
+   {
+    "canon": true,
+    "id": "npc_ilya",
+    "location_id": "tinker_caravan",
+    "name": "Ilya of the Nine Pins",
+    "role": "tinker",
+    "traits": [
+     "clever",
+     "evasive",
+     "charming"
+    ]
+   },
+   {
+    "canon": true,
+    "id": "npc_sera",
+    "location_id": "millhaven_gate",
+    "name": "Sergeant Sera Venn",
+    "role": "militia",
+    "traits": [
+     "stern",
+     "conflicted",
+     "dutiful"
+    ]
+   },
+   {
+    "canon": true,
+    "id": "npc_brindle",
+    "location_id": "edgewood_square",
+    "name": "Brindle",
+    "role": "cat",
+    "traits": [
+     "silent",
+     "knowing",
+     "feline"
+    ]
+   },
+   {
+    "canon": false,
+    "id": "npc_villager_1",
+    "location_id": "edgewood_square",
+    "name": "Sable Pike",
+    "role": "farmer",
+    "traits": [
+     "pious",
+     "generous"
+    ]
+   },
+   {
+    "canon": false,
+    "id": "npc_villager_2",
+    "location_id": "edgewood_square",
+    "name": "Rook Orr",
+    "role": "farmer",
+    "traits": [
+     "sharp_tongued",
+     "pious"
+    ]
+   },
+   {
+    "canon": false,
+    "id": "npc_villager_3",
+    "location_id": "edgewood_square",
+    "name": "Cora Ashford",
+    "role": "weaver",
+    "traits": [
+     "practical",
+     "pious"
+    ]
+   }
+  ],
+  "premises": [],
+  "seed": 7,
+  "shrine_mural": "a village burning in perfect symmetry"
+ },
+ "provenance": {},
+ "quests": {
+  "_meta": {
+   "events_seen": {
+    "caravan_arrival": 6
+   },
+   "visited": [
+    "edgewood_square"
+   ]
+  },
+  "bakery_apprentice": {
+   "flags_seen": [],
+   "quest_id": "bakery_apprentice",
+   "stage_index": 0,
+   "stage_started_day": 6,
+   "started_day": 6,
+   "status": "active"
+  },
+  "lost_goat": {
+   "flags_seen": [],
+   "quest_id": "lost_goat",
+   "stage_index": 0,
+   "stage_started_day": 6,
+   "started_day": 6,
+   "status": "active"
+  },
+  "neighbours_roof": {
+   "flags_seen": [],
+   "quest_id": "neighbours_roof",
+   "stage_index": 0,
+   "stage_started_day": 6,
+   "started_day": 6,
+   "status": "active"
+  },
+  "shrine_mural": {
+   "flags_seen": [],
+   "quest_id": "shrine_mural",
+   "stage_index": 0,
+   "stage_started_day": 6,
+   "started_day": 6,
+   "status": "active"
+  }
+ },
+ "reputations": {},
+ "rng_counters": {
+  "schedule.caravan": 1,
+  "schedule.militia": 1,
+  "schedule.tinker": 1
+ },
+ "rng_seed": 7,
+ "rumors": [
+  "The rain came down wrong over Millhaven, and the wheat took it badly."
+ ],
+ "save_version": 2,
+ "scene": {},
+ "stats": {
+  "agility": 11,
+  "craft": 8,
+  "focus": 10,
+  "gold": 2,
+  "grit": 11,
+  "hp": 7,
+  "max_focus": 10,
+  "max_hp": 20,
+  "max_stamina": 100,
+  "presence": 10,
+  "stamina": 30,
+  "wits": 10
+ },
+ "story_pressure": 15.427311834895528,
+ "story_pressure_prev": 15.418799515679709,
+ "storyteller_mind": {
+  "appearance_schedule": "hidden",
+  "current_form": "cat",
+  "help_probability": 0.4,
+  "intervention_willingness": 0.3,
+  "patience": 80.0,
+  "trust_level": 20.0
+ },
+ "threads": [],
+ "tracks": {},
+ "turn_number": 0,
+ "world_clock_hours": 125.0,
+ "world_events": [
+  {
+   "day": 6,
+   "event_id": "caravan_arrival",
+   "expires_day": 8,
+   "location_id": "edgewood_square",
+   "npc_ids": [
+    "npc_odran"
+   ],
+   "payload": {
+    "goods": [
+     "road_map",
+     "whetstone"
+    ],
+    "npc_id": "npc_odran",
+    "rumor": "The rain came down wrong over Millhaven, and the wheat took it badly."
+   }
+  }
+ ],
+ "wounds": [
+  {
+   "check_penalty": -2,
+   "heals_on_day": 9,
+   "id": "wound_d4_1",
+   "severity": 3,
+   "skills": [
+    "craft",
+    "stealth",
+    "survival",
+    "nerve"
+   ],
+   "text": "the long ache of whatever put you down"
+  },
+  {
+   "check_penalty": -2,
+   "heals_on_day": 11,
+   "id": "wound_d6_2",
+   "severity": 3,
+   "skills": [
+    "craft",
+    "stealth",
+    "survival",
+    "nerve"
+   ],
+   "text": "the long ache of whatever put you down"
+  }
+ ]
+}

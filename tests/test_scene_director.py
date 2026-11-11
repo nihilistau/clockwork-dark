@@ -48,10 +48,33 @@ def _state(location_id: str = "mortal_threshold"):
 # -- inertness for graph stories -----------------------------------------
 
 
-@pytest.mark.parametrize("slug", ["clockwork-dark", "neon-city"])
+def test_the_flagship_deals_nothing_at_its_opening() -> None:
+    """
+    The flagship declares decks since v0.25.0 T6 (its endings' doors, spec §4.3),
+    so it left the no-decks gate below. Its opening still opens no scene: every
+    door deck stands where its person is, and none is due in the forest clearing
+    on day 1 (the LM Studio golden's seeds, spec §11.2).
+    """
+    from engine.content import deck, director
+    from engine.game.procgen import new_game_state
+
+    registry.activate("clockwork-dark")
+    try:
+        assert deck.deck_ids()
+        state = new_game_state(seed=7)
+        assert state.location_id == "forest_clearing"
+        assert director.due(state) == ("", "", "")
+        assert director.ensure_scene(state) == []
+        assert director.active(state) is False
+    finally:
+        registry.deactivate()
+
+
+@pytest.mark.parametrize("slug", ["neon-city"])
 def test_a_story_with_no_decks_never_opens_a_scene(slug: str) -> None:
     """
-    THE COMPATIBILITY GATE for the three graph-shaped games.
+    THE COMPATIBILITY GATE for a graph-shaped story that declares no decks
+    (NEON CITY; the flagship left it in v0.25.0 T6, tested above).
 
     Not "the director is careful with them" -- it cannot see them at all.
     ``deck_ids()`` is empty, so ``due`` returns before reading any state.

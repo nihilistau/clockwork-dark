@@ -133,7 +133,7 @@ because the fiction cannot un-happen.
 | Arc | Gate (as implemented) | Player experience |
 |-----|-----------------------|-------------------|
 | **Quiet Life** | default | Forest, bakery apprenticeship, festivals; Awareness stays <15 |
-| **Whisper** | `caravan_arrival` seen **AND** 10 days since **AND** Awareness ≥15 | Maps sold, songs with wrong lyrics, child draws gears |
+| **Whisper** | `caravan_arrival` seen **AND** 3 days since the FIRST one (`days_since_event` counts from the day the quest pass first recorded it, `quests["_meta"]["events_seen"]`, never from a later caravan) **AND** Awareness ≥15 | Maps sold, songs with wrong lyrics, child draws gears |
 | **March** | visited `millhaven_gate` **OR** Awareness ≥25 | Militia, tolls, burned farmstead quests |
 | **Convergence** | Awareness ≥50 **OR** evil_phase ≥ SPREADING | Name the wound, choose sacrifice, world-scale choices |
 
@@ -142,7 +142,7 @@ player, so its arrival alone cannot be the Whisper gate — that would drag ever
 baker into the arc on a dice roll. What separates the two arcs is not that the
 trader came, it is that the player **listened** to him.
 
-25 quests, six per arc and seven in `quiet_life` (`games/clockwork-dark/data/quests/<arc>/*.yaml`). Each arc is **valid**. The
+26 quests: six in `march` and `convergence`, seven in `quiet_life` and `whisper` (`games/clockwork-dark/data/quests/<arc>/*.yaml`). Each arc is **valid**. The
 game never punishes the baker for baking.
 
 > **Caveat, measured.** Convergence's `min_phase: spreading` term is a timer, not
@@ -159,6 +159,81 @@ game never punishes the baker for baking.
 | `npc_ilya` | Ilya of the Nine Pins | Tinker; sells knowledge maps, sympathy charms |
 | `npc_sera` | Sergeant Sera Venn | Millhaven militia; moral ambiguity |
 | `npc_brindle` | Brindle | Cat that is sometimes the Assistant |
+
+Four more people the lore already named, placed since v0.25.0. They are declared in
+`games/clockwork-dark/data/world/npc_schedules.yaml` only, never in the procgen template (its
+named list is drawn on the `PROCGEN` stream, so adding to it would regenerate every seed's village).
+A routine is a list of hours, so each range below is inclusive ("06-18" is 06:00 to 18:59), and
+each person covers the day exactly once:
+
+| ID | Name | Where (hours) |
+|----|------|---------------|
+| `npc_hallam` | Hallam, the smith who mends anything but a clock | the forge 06-18; the square 19-20; asleep on Well Row 21-05 |
+| `npc_nessa` | Nessa Fallow, nine, who draws gears she has never seen | the Fallow holding 06-08 and 17-20; the square 09-16; asleep at the holding 21-05 |
+| `npc_wenna` | Old Wenna, eldest of the shrine's women | the shrine 06-07 and 18-21; Well Row 08-17; asleep there 22-05 |
+| `npc_edrin` | Edrin Fallow, Nessa's father | the Fallow holding 05-19; asleep there 20-04 |
+
+The doom clock moves people (`doom_effects.yaml` `npc_moves`): Ilya to the square at 0.50,
+and at 0.88 Sera to the square and Edrin and Nessa to the ditch camp (`refugee_camp`). Since
+v0.25.0 a move writes the override flag `npc_at_<id>` (through `apply_effect`), which outranks a
+routine and stays below an event and a quest pin, and it accepts a person declared only in
+`npc_schedules.yaml` (`engine/game/clocks.py::_apply_npc_moves`). Before, it rewrote only the
+procgen row's `location_id`, which `npc_sim.resolve_npc` reads for a person with no routine slot,
+so Ilya and Sera stayed where their routines put them, and a person with no procgen row was
+skipped. An override moves a person; it does not wake them: their routine's `available` for the
+hour still decides whether `npc_here` counts them. A v0.24.0 save already past 0.50 or 0.88 fired
+those beats before a move placed anyone, so Ilya and Sera keep their routines there (no
+migration; CLAUDE.md, deferred).
+
+### Endings and their doors (v0.25.0)
+
+Eight endings (`games/clockwork-dark/data/rules/endings.yaml`), each locked **by name** at its
+own door and never by an id-less lock (spec §4.1; `tests/test_clockwork_dark.py` holds that no
+id-less `ending_lock` remains). A door is a card in a repeatable, draw-one deck
+(`games/clockwork-dark/data/scenes/`) whose `when:` stands where its person is (`npc_here`), so a
+doom move or a pin moves the door with them; each door card is gated on its own ending's
+eligibility, so a door and its gate cannot drift apart. The `score:` rows no longer pick an
+ending; they feed only the gallery's closeness band. Each ending carries a one-sentence `tease`.
+
+| Ending | Door (deck / card / beat) | State |
+|---|---|---|
+| The Hearth Holds | `the_morning_firing` / `H1_the_question` / `stay` (the bakery 04-09, Maris there) | wired (T6) |
+| The Dark Keeps Its Hours | `H1_the_question` / `stay_anyway` (the Hearth's gate shut); the terminal death (`death.yaml`'s `terminal.ending`) | wired (T6; the death since T7) |
+| The Long Witness | `the_count_kept` / `W1_the_list` / `give_it` (the shrine, Wenna there) | wired (T6) |
+| The Counted March | `the_muster_roll` / `M1_strike_the_name` / `strike_it` (the gate or the square, Sera there) | wired (T6) |
+| The Named Wound | `the_morning_firing` / `Q1_tell_her_or_dont` / `tell_her` or `say_nothing` (the bakery 04-09, Maris there; `not_yet` ends nothing, since T10) | wired (T6) |
+| The Price Asked | `the_price` / `S2_pay_it` / the beat for the thing offered at `S1` (wherever Ilya is, the sacrifice open) | wired (T7) |
+| The Pin and the Join | `the_join` / `J1_the_pin` / `set_it` (at the Join) | wired (T7; the pin since T8: taken on Ilya's felt, `the_ninth_pin` / `T3_take_it_or_dont` / `take_it`, which writes `nf_ninth_taken` and grants it, after `T2_pay_for_it` with the tinkers at 10; `leave_it` grants nothing; the same pin pays the price, `the_price` / `S2` / `pay_the_pin`) |
+| The Stopped Wheel | `the_stopped_wheel` / `Z1_the_last_morning`, forced by the declared event `the_last_hour` (the reading at 1.0) | wired (T7) |
+
+**The critical path** (v0.25.0 T8, spec §4.3-§4.4). Every quest stage on an ending's path that
+completed on a narrative flag alone has a card that writes the flag, dealt where and when the
+stage's other conditions hold: seven repeatable, draw-one decks, `the_bakehouse` (`B1`),
+`nessas_drawings` (`N1`-`N3`), `the_naming` (`G1`-`G3`), `the_village_meeting` (`V1`-`V3`),
+`the_levy_table` (`L1`-`L7`), `the_ninth_pin` (`T1`-`T3`) and `the_inward_road` (`R1`). Each
+card is gated on its quest's stage (`quest_state` active, `stage_at_least` its index and not the
+next), and every deck's `when:` ends in `any:` of its cards' own gates (plan decision 3), so a
+deck is due only when a card can be dealt. `G1` also waits for `spreading` (T9 fix round 1):
+`say_it_aloud`, the next stage, needs `spreading` and fails for good four days after it opens,
+so a naming laid out earlier could only expire. The narrator may still raise the stages' flags; a
+card-only run no longer needs it to. `the_ninth_pin`'s `pay_for_it` reads the tinkers' standing
+(10), not Ilya's disposition, which only the model's patch writes.
+
+**The levy and the press** (v0.25.0 T8, spec §5.1). Sergeant Sera Venn's levy is a hidden clock,
+`the_levy` (0-6; `state.yaml` and `data/rules/clocks.yaml`): +1 the first time the militia press
+is seen, then +1 at 3, 6, 9, 12 and 15 days after it. At 3 the "world moved" journal says the
+clerk has started a second page; full, it forces `the_press` (not repeatable, dealt once in the
+square 08:00-17:59; its `when:` names `forced_scene: the_press`, so it never schedules itself):
+`P1_a_name_on_the_list`, a boy's name read off the list by a corporal of the militia (Sera herself is at the gate in those hours, so the card does not name her), answered by speaking for him
+(persuasion, hard), getting him out of sight (stealth, standard) or letting it be, each moving
+the militia's and Edgewood's standing. **Sergeant Venn's bargain** (`data/rules/threads.yaml`,
+`seras_bargain`, a Contract) is struck at the gate 08:00-10:59 while the conscription list is
+open: a night on the wall inside three days for one Edgewood name off the list. Discharged at the
+gate 22:00-03:59 it pays militia +6, costs 20 stamina and writes `stood_the_wall`, which The
+Counted March's `served` reads; unpaid on its day it breaks (militia -8). Every number was a first
+value; v0.25.0's balance pass (T10, `scripts/simulate_doors.py`, seeds 0-39) measured the press
+dealt to the `marcher` in 28 of 40 runs, median day 27.5, inside the levy's band (day 24-40,
+written from the first measurement's median, day 32), and changed none of them.
 
 ### The Assistant (Lore)
 
@@ -718,8 +793,13 @@ later at 35% hp, half your purse gone, carrying a −2 wound that takes five day
 to close — and the evil kept its own hours the whole time you were down.
 `state.ended` is set in exactly one case: a *second* death while the world is
 already `consuming`, when there is no longer anyone left to come out and fetch
-you. (That terminal locks no ending, so it shows no epilogue. A story wanting
-one declares `terminal: {when, ending}` instead — docs/AUTHORING.md §3.5.)
+you. Since v0.25.0 the legacy terminal locks the ending its story names
+(`terminal: {phases, flag, ending}`), so that second death shows that ending's
+epilogue; one that names none still shows no epilogue. The flagship names the
+fail-forward: the second death in `consuming` locks The Dark Keeps Its Hours
+and shows its card. A story whose terminal
+death is some other condition declares `terminal: {when, ending}` instead —
+docs/AUTHORING.md §3.5.
 
 ### Crafting & Professions
 
@@ -749,26 +829,46 @@ Stored as `InventoryItem` in `GameState.inventory`.
 
 - Each location has supply/demand tables
 - `trade(action, item_id, npc_id)` — prices from engine, not narration
-- Caravan events inject rare goods and rumor packets
+- Caravan events bring Odran and a rumour attributed to him (the legacy `goods:` list was read by nothing and is gone, v0.25.0)
 
 ### Travel
 
 Location graph (not grid). Each edge has `travel_time_hours`, `danger_dc`, `awareness_delta`.
 
+The flagship's map (`games/clockwork-dark/data/world/locations.yaml`), by ring,
+with each road's `danger_dc` (0 is a door, which no encounter can come from):
+
 ```
-forest_clearing ──1h── edgewood_square ──4h── millhaven_gate
-         │                    ├── edgewood_bakery (0h)
-         │                    └── tinker_caravan (0h, event-gated)
+Ring 0  the deep forest
+  forest_clearing ─6─ deeper_forest ─10─ old_barrows ─10─ tunnel_entrance
+        │  └─6─ herb_glen ─6─┘    └─6─ charcoal_burn
+        └─12─ the_works          (SECRET: known once the sealed seam is solved)
+Ring 1  Edgewood
+  edgewood_square ─8─ forest_clearing, ─6─ charcoal_burn, ─6─ fallow_farm,
+                  ─12─ millhaven_gate; doors (0): bakery, caravan, shrine,
+                  forge, Well Row
+Ring 2  the Marches
+  millhaven_gate ─10─ toll_bridge ─10─ burned_farmstead ─10─ refugee_camp ─10─ millhaven_gate
+                 doors (0): market, barracks
+Ring 3  the heartland road
+  toll_bridge ─14─ heartland_road ─14─ the_join   (SECRET: known once the road is measured)
 ```
 
-Each edge carries `hours`, `danger_dc`, `awareness_delta`. Locations carry `evil_multiplier` (forest 0.5, bakery 0.7, Edgewood 0.8, caravan 0.9, Millhaven 1.2).
+Each edge carries `hours`, `danger_dc`, `awareness_delta`; the two directions may
+differ (the return legs into the square and the gate carry their own numbers). Each
+location carries `evil_multiplier` in three bands (hearth 0.25-0.4, mid 0.8-1.2, deep
+1.6-2.2; the file's header). A secret place (`secret: true`, `known_when:`) is offered,
+drawn and named only once `locations.is_known` holds; its spoiler row
+(`data/rules/spoilers.yaml`) masks its name in the prose until then.
 
 `move_to(location_id)` validates stamina, spends it, advances the clock through
 `clock.advance_time`, applies `awareness_delta`, and rolls the encounter table
-off the edge's `danger_dc`. Measured encounter rate on the one dangerous edge
-in the graph (`edgewood_square ↔ millhaven_gate`, `danger_dc: 12`): **0.42–0.89
-per leg** depending on hour and evil phase (`scripts/simulate.py`). Every other
-edge is `danger_dc: 0` and can never produce one.
+off the edge's `danger_dc`. Since v0.25.0 every road has a band in
+`data/encounters/` (forest, road, village, marches, wood, barrows, toll_road,
+heartland, works); the five new bands' numbers are first values, measured in
+the release's balance pass. Measured before v0.25.0 on the one dangerous edge
+then in the graph (`edgewood_square ↔ millhaven_gate`, `danger_dc: 12`):
+**0.42–0.89 per leg** depending on hour and evil phase (`scripts/simulate.py`).
 
 An unresolved scene is not overwritten by walking away from it. Travel always
 completes; the road does not get to hand you a second problem while the first
@@ -910,6 +1010,27 @@ Reproduce with:
 .\.venv\Scripts\python.exe scripts\simulate.py --turns 200 --seed 42 --policy all
 ```
 
+**Re-measured, v0.25.0 T10 (2026-11-02)**, after the overhaul's content, at seed 42 and as
+the medians over seeds 42-81 (`scripts/simulate.py --policy all --turns 200 --seed 42 --seeds 40`;
+deaths summed over the 40, then the median and most in one run). Spec §10.2 holds each row within
+±25% of the table above:
+
+| Policy | Seed 42: h/turn, doom, deaths | 40 seeds: h/turn, doom | Deaths (starved), median and most a run |
+|--------|------|------|------|
+| hero | 2.58, 0.178, 0 | 2.68, 0.160 | 33 (27), 0 and 7 |
+| cautious | **4.57, 0.254, 14** (+42%, +39%: out) | 3.66, 0.206 | 249 (248), 7 and 14 |
+| baker | 4.24, 0.511, 0 | 4.25, 0.511 | 0 (0) |
+| pauper | 4.03, 0.530, 2 (none starved) | 3.85, 0.580 | 8 (0), 0 and 2 |
+| reckless | 5.92, 0.694, 24 | 5.81, 0.652 | 942 (877), 24 and 27 |
+
+Every 40-seed median is inside the band; `cautious` at seed 42 is not. It played 2.91 h/turn to
+0.176 with no death at v0.24.0: the five policies never answer a dealt card, and v0.25.0 moved the
+march's and the whisper's stage completions onto cards, so it finishes fewer quests (6, not 9, at
+seed 42), earns less (17 gold, not 52) and starves between shifts. No §10.3 lever addresses a
+policy that does not play cards; recorded (CLAUDE.md). The doors harness
+(`scripts/simulate_doors.py`, `simulate.py --policy doors`) measures the policies that do, one per
+ending; its table is in the root CHANGELOG.
+
 ---
 
 ## Procgen World
@@ -940,18 +1061,26 @@ Reproduce with:
 
 ### Trader & Tinker Schedule
 
-From `games/clockwork-dark/data/world/schedules.yaml`. Each event draws from its **own named RNG
-stream**, so they are independent of each other and replay from the save seed.
+From `games/clockwork-dark/data/world/schedules.yaml`, declared `events:` since v0.25.0 (E1).
+Each draws once per eligible in-game day crossed, on the day roll, from its **own named RNG
+stream** (`event.<id>`), so they are independent of each other and replay from the save seed and
+the days crossed, never from how the day was cut into background ticks. The per-day numbers are
+the legacy rates MEASURED per eligible day (`scripts/simulate.py --event-rates`, 40 seeds, the
+five policies' mean; the tables are in the schedules file's header and the CHANGELOG).
 
 | Event | Probability | Effect |
 |-------|-------------|--------|
-| `caravan_arrival` | 8% per in-game day, from day 5, lasts 2 days | Odran at Edgewood Square + goods + rumor packet |
-| `tinker_camp` | 5% per week, lasts 3 days | Ilya at the caravan + knowledge trade |
-| `militia_press` | 3% per day, **only if Awareness ≥20**, lasts 1 day | Sergeant Sera visits the square |
+| `caravan_arrival` | 0.768 per eligible day, from day 5, lasts 2 days | Odran at Edgewood Square + a rumour attributed to him |
+| `tinker_camp` | 0.00465 per eligible day, lasts 3 days | Ilya at the caravan + knowledge trade |
+| `militia_press` | 0.173 per eligible day, **only while Awareness ≥20**, lasts 1 day | Sergeant Sera visits the square |
+| `the_last_hour` | none: a fire-once `when:` event, the first day rolled with the doom reading at 1.0, lasts 60 days | forces `the_stopped_wheel` (The Stopped Wheel's door) |
+
+Measured after the conversion (T10, seeds 42-81): caravan 0.767, tinker 0.00557, press 0.180 per
+eligible day, each within ±20% of the pre-change mean; the first caravan comes on day 5.
 
 World events expire from `state.world_events` after their duration, so the quest
 engine writes down the **day they were first seen** (`quests["_meta"]`) — the
-Whisper gate needs "the caravan came on day six" ten days later, by which time
+Whisper gate needs "the caravan came on day six" three days later, by which time
 the event itself is long gone from state.
 
 Templates in `games/clockwork-dark/data/procgen_templates/`.
@@ -1660,7 +1789,7 @@ trusting this line — it has been stale before.
 | **P3** | Vite + React UI: design tokens, socket store, components and screens; Jinja serves the built app; UI contract tests |
 | **P4 / P5** | Survival (hunger, rest, the stamina soft-lock fix); the 7-skill taxonomy, difficulty bands, itemised modifiers, degrees; `effects.py` single mutation dispatcher; archetypes → starting kit; `skill_check`/`dc_mod` contract removed |
 | **P6** | Encounters as contested scenes; edge `danger_dc` finally read; wounds; death rules |
-| **P7** | Quest engine — 25 quests across 4 awareness-gated arcs, engine-only stage predicates, `set_narrative_flag` as the model's one lever |
+| **P7** | Quest engine — 26 quests across 4 awareness-gated arcs, engine-only stage predicates, `set_narrative_flag` as the model's one lever |
 | **P8** | Media providers: shipped art pack → cache → live generation (off by default) → deterministic procedural SVG |
 | **P9** | Content pass: items registry, economy, recipes, art manifest, content-integrity tests |
 | **P10** | Cutscene and settings UI; `engine/stack.py`, `launcher.py --stack/--check` |

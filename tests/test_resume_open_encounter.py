@@ -348,6 +348,193 @@ def test_a_set_piece_is_labelled_by_its_authored_title() -> None:
     assert dict(verb.options)["lantern_house_break"] == "The Ring on the Nail"
 
 
+# -- a narrated turn (v0.25.0 T16) ---------------------------------------------
+
+
+def _narrator(choices: list[dict[str, Any]]):
+    """A model function that answers every call with one narration turn whose choices are `choices`."""
+    import json
+
+    body = json.dumps({
+        "narration": (
+            "The thin brown dog sits in the road and will not be moved. Its ribs show under the wet coat, "
+            "and it watches the way you came as if something were following you both. The square's smoke "
+            "hangs low, and nobody at the well looks up from the bucket."
+        ),
+        "choices": choices,
+    })
+    return lambda messages, **kw: body
+
+
+def _open_the_dog(choices: list[dict[str, Any]]):
+    from engine.game import encounter, intents
+    from engine.scenes.default_state import SessionStore
+
+    registry.activate("clockwork-dark")
+    session = SessionStore().create(seed=3, llm_fn=_narrator(choices))
+    state = session.engine.state
+    assert not intents.scene_owns_turn(state)
+    encounter.begin(state, "the_dog_that_follows")
+    assert encounter.active(state)
+    return session, {a["id"] for a in encounter.available_approaches(state)}
+
+
+def test_a_narrated_turn_with_no_approach_keeps_the_encounters_approaches() -> None:
+    """
+    Measured live (v0.25.0 T16, LM Studio, gemma4-26b-a4b): the model left the
+    optional `intent` out of every choice, so a road that started the dog
+    encounter came back with "Seek work at the smithy", "Find food at the
+    oven", "Talk to Quill about the fields" and no approach. Every approach on
+    the panel read "not offered this turn" and nothing could end the scene
+    short of a reload. The scene's own choices now follow the narrator's.
+    """
+    from engine.scenes.default_state import run_turn
+
+    talk = [
+        {"id": "a", "text": "Seek work at the smithy"},
+        {"id": "b", "text": "Find food at the oven"},
+        {"id": "c", "text": "Talk to Quill about the fields"},
+    ]
+    session, approaches = _open_the_dog(talk)
+    payload = run_turn(session, "The player chooses: Look at the dog")
+
+    choices = payload["choices"]
+    assert [c["text"] for c in choices[:3]] == [c["text"] for c in talk]  # the narrator's first, as written
+    assert _intent_targets(choices, "encounter") == approaches, choices
+    ids = [c["id"] for c in choices]
+    assert len(ids) == len(set(ids)), ids
+    _assert_no_raw_id(choices)
+    # What the client sends back is what the server will find.
+    assert choices == session.last_turn["choices"]
+    shown = {c["text"] for c in choices if c.get("intent")}
+    from engine.game import encounter
+
+    assert shown == {a["text"] for a in encounter.available_approaches(session.engine.state)}
+
+
+def test_a_narrated_turn_that_offers_an_approach_is_left_as_written() -> None:
+    """A model that declares its intents sees no change: no scene row is added."""
+    from engine.scenes.default_state import run_turn
+
+    written = [
+        {"id": "a", "text": "Back away and keep walking", "intent": {"action": "encounter", "target": "flee"}},
+        {"id": "b", "text": "Ask the dog where it came from"},
+    ]
+    session, _ = _open_the_dog(written)
+    payload = run_turn(session, "The player chooses: Look at the dog")
+    assert [c["text"] for c in payload["choices"]] == [c["text"] for c in written]
+    assert not any(str(c["id"]).startswith("scene_") for c in payload["choices"])
+
+
+def _held_session(choices: list[dict[str, Any]]):
+    """A HUE & CRY thief in the cells at the Wickmarket, with the fine in hand."""
+    from engine.game.effects import apply_effect
+    from engine.scenes.default_state import SessionStore
+    from engine.world import law
+
+    registry.activate("hue-and-cry")
+    session = SessionStore().create(seed=1021, llm_fn=_narrator(choices))
+    state = session.engine.state
+    state.encounter = {}
+    state.location_id = "wickmarket"
+    apply_effect(state, {"type": "arrest"})
+    assert law.in_custody(state)
+    state.stats.gold = 10_000
+    return session
+
+
+def _ways_out(state: Any) -> set[tuple[str, Any]]:
+    from engine.challenges import set_pieces
+
+    out: set[tuple[str, Any]] = set()
+    for action, target in _expected_from_legal_intents(state):
+        if action in ("pay_fine", "serve"):
+            out.add((action, None))
+        elif action == "set_piece" and (set_pieces.load_set_pieces()[target].get("requires") or {}).get("in_custody"):
+            out.add((action, target))
+    return out
+
+
+def _appended(payload: dict[str, Any], written: list[dict[str, Any]]) -> set[tuple[str, Any]]:
+    choices = payload["choices"]
+    assert [c["text"] for c in choices[: len(written)]] == [c["text"] for c in written]
+    ids = [c["id"] for c in choices]
+    assert len(ids) == len(set(ids)), ids
+    _assert_no_raw_id(choices)
+    return {(c["intent"]["action"], c["intent"].get("target")) for c in choices[len(written):]}
+
+
+def test_a_narrated_turn_in_a_cell_adds_only_the_ways_out(monkeypatch) -> None:
+    """
+    v0.25.0 T16 fix round 1 (review I1): in custody the floor was the whole
+    catalogue -- six beds, a purse to lift, the fine, the sentence and the
+    break-out -- and a narrator that offered any one legal intent (a rest)
+    withheld all of it, ways out included. Now the cell's floor is its ways
+    out alone, each added unless the narrator already holds it. (The arrest's
+    interrogation deck is held back, or its card would own the turn.)
+    """
+    from engine.content import director
+    from engine.scenes.default_state import run_turn
+
+    monkeypatch.setattr(director, "ensure_scene", lambda *a, **k: [])
+    talk = [{"id": "a", "text": "Count the stones in the wall"}, {"id": "b", "text": "Call for the turnkey"}]
+    session = _held_session(talk)
+    payload = run_turn(session, "The player chooses: Count the stones in the wall")
+    state = session.engine.state
+    exits = _ways_out(state)
+    assert {("pay_fine", None), ("serve", None)} <= exits, exits
+    assert _appended(payload, talk) == exits
+    assert payload["choices"] == session.last_turn["choices"]
+
+    # A narrator that offered a rest still leaves the ways out on the table.
+    rest = next(t for a, t in _expected_from_legal_intents(state) if a == "rest")
+    resting = [{"id": "a", "text": "Sleep on the bench", "intent": {"action": "rest", "target": rest}}, talk[1]]
+    session = _held_session(resting)
+    payload = run_turn(session, "The player chooses: Call for the turnkey")
+    assert _appended(payload, resting) == _ways_out(session.engine.state)
+
+
+def test_a_narrated_turn_with_no_road_adds_every_road() -> None:
+    """
+    v0.25.0 T16 fix round 1: the live model never wrote a `travel` intent, so
+    outside a scene the player could move only by reloading (whose resume
+    offers the first two roads). With no scene, card or cell holding the
+    player and no road on the narrator's row, every legal road follows it.
+    """
+    from engine.game import intents
+    from engine.scenes.default_state import run_turn
+
+    talk = [{"id": "a", "text": "Listen to the woods"}, {"id": "b", "text": "Check your gear again"}]
+    registry.activate("clockwork-dark")
+    from engine.scenes.default_state import SessionStore
+
+    session = SessionStore().create(seed=3, llm_fn=_narrator(talk))
+    payload = run_turn(session, "The player chooses: Listen to the woods")
+    state = session.engine.state
+    assert not intents.scene_owns_turn(state)
+    roads = {("travel", t) for t in intents.find_verb(intents.legal_intents(state), "travel").targets}
+    assert roads
+    assert _appended(payload, talk) == roads
+    assert all(c["text"].startswith("Set out for ") for c in payload["choices"][len(talk):])
+    assert payload["choices"] == session.last_turn["choices"]
+
+
+def test_a_narrated_turn_that_offers_a_road_is_left_as_written() -> None:
+    from engine.game import intents
+    from engine.scenes.default_state import SessionStore, run_turn
+
+    registry.activate("clockwork-dark")
+    probe = SessionStore().create(seed=3, llm_fn=_narrator([]))
+    target = intents.find_verb(intents.legal_intents(probe.engine.state), "travel").targets[0]
+    written = [
+        {"id": "a", "text": "Take the road", "intent": {"action": "travel", "target": target}},
+        {"id": "b", "text": "Stay a while"},
+    ]
+    session = SessionStore().create(seed=3, llm_fn=_narrator(written))
+    payload = run_turn(session, "The player chooses: Stay a while")
+    assert [c["text"] for c in payload["choices"]] == [c["text"] for c in written]
+
+
 def test_resume_with_no_scene_open_is_unchanged() -> None:
     """The ordinary resume keeps its roads (the local-mode golden pins it)."""
     from engine.game.procgen import new_game_state

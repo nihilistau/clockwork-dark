@@ -13,6 +13,22 @@ DISTRICTS = ["tallow_docks", "wickmarket", "the_snuffs", "silk_row", "chandlers_
              "rooftop_road", "old_bell_tower"]
 
 
+def _own_storage(tmp_path_factory: pytest.TempPathFactory) -> pytest.MonkeyPatch:
+    """
+    A temp storage root for a module-scoped measurement fixture, undone by it.
+
+    A module fixture is set up BEFORE conftest's per-test redirect
+    (``_no_test_writes_real_saves``), so its narrated runs resolved the
+    owner's real storage root, and a scene with no shipped plate drew its
+    procedural SVG there (``media.providers.peek``): found in v0.25.0 T16 fix
+    round 1, ``data/media/images/f499a156b41cb920.svg`` rewritten on every
+    run of this file and reported at the setup of each fixture's first test.
+    """
+    storage = pytest.MonkeyPatch()
+    storage.setenv("CLOCKWORK_DATA_DIR", str(tmp_path_factory.mktemp("measured-data")))
+    return storage
+
+
 @pytest.fixture()
 def session():
     registry.activate("hue-and-cry")
@@ -1037,7 +1053,7 @@ LAW_DAYS = 10
 
 
 @pytest.fixture(scope="module")
-def measured_law():
+def measured_law(tmp_path_factory):
     import sys
     from pathlib import Path
 
@@ -1051,6 +1067,7 @@ def measured_law():
     # and leave Tallowmere's map loaded for the next file. Undone here.
     before = registry.peek()
     registry.activate("hue-and-cry")
+    storage = _own_storage(tmp_path_factory)
     try:
         # Agendas OFF: these bounds are what the thief's own conduct earns
         # from the Watch. With the Magpie on, its robberies land on the
@@ -1060,6 +1077,7 @@ def measured_law():
             return {p: simulate_law.measure(p, LAW_SEEDS, LAW_DAYS)
                     for p in simulate_law.POLICIES}
     finally:
+        storage.undo()
         if registry.peek() is not before:
             registry.deactivate()
 
@@ -1318,13 +1336,14 @@ JOB_SEEDS = 12
 
 
 @pytest.fixture(scope="module")
-def measured_jobs():
+def measured_jobs(tmp_path_factory):
     _scripts_on_path()
     from scripts import simulate_jobs
 
     # Module-scoped: undone here, for the reason `measured_law` gives.
     before = registry.peek()
     registry.activate("hue-and-cry")
+    storage = _own_storage(tmp_path_factory)
     try:
         # Agendas OFF, for `measured_law`'s reason: `deeds_filed` would count
         # the Magpie's burglaries as the job's. Outcomes barely differ
@@ -1335,6 +1354,7 @@ def measured_jobs():
         with agendas_off():
             return {p: simulate_jobs.measure(p, JOB_SEEDS) for p in simulate_jobs.POLICIES}
     finally:
+        storage.undo()
         if registry.peek() is not before:
             registry.deactivate()
 
@@ -1718,17 +1738,19 @@ AGENDA_SEEDS = 12
 
 
 @pytest.fixture(scope="module")
-def measured_agendas():
+def measured_agendas(tmp_path_factory):
     _scripts_on_path()
     from scripts import simulate_agendas
 
     # Module-scoped: undone here, for the reason `measured_law` gives.
     before = registry.peek()
     registry.activate("hue-and-cry")
+    storage = _own_storage(tmp_path_factory)
     try:
         return {p: simulate_agendas.measure(p, AGENDA_SEEDS, 10)
                 for p in simulate_agendas.POLICIES}
     finally:
+        storage.undo()
         if registry.peek() is not before:
             registry.deactivate()
 
@@ -2333,16 +2355,18 @@ HUNGER_PER_DAY = 48.0
 
 
 @pytest.fixture(scope="module")
-def measured_scrounge():
+def measured_scrounge(tmp_path_factory):
     _scripts_on_path()
     from scripts import simulate_law, simulate_scrounge
 
     before = registry.peek()
     registry.activate("hue-and-cry")
+    storage = _own_storage(tmp_path_factory)
     try:
         with simulate_law.agendas_off():
             return simulate_scrounge.measure("scrounger", SCROUNGE_SEEDS, SCROUNGE_DAYS)
     finally:
+        storage.undo()
         if registry.peek() is not before:
             registry.deactivate()
 
@@ -2512,17 +2536,19 @@ RECKLESS_PICKPOCKET_CR_PER_DAY = 3.50
 
 
 @pytest.fixture(scope="module")
-def measured_living():
+def measured_living(tmp_path_factory):
     _scripts_on_path()
     from scripts import simulate_labour, simulate_law
 
     before = registry.peek()
     registry.activate("hue-and-cry")
+    storage = _own_storage(tmp_path_factory)
     try:
         with simulate_law.agendas_off():
             return {p: simulate_labour.measure(p, LABOUR_SEEDS, LABOUR_DAYS)
                     for p in ("porter", "dipper", "careful", "careful_pell")}
     finally:
+        storage.undo()
         if registry.peek() is not before:
             registry.deactivate()
 
@@ -6338,7 +6364,7 @@ ACTS_OPENING = "c"
 
 
 @pytest.fixture(scope="module")
-def measured_acts():
+def measured_acts(tmp_path_factory):
     _scripts_on_path()
     from scripts import simulate_acts
 
@@ -6347,9 +6373,11 @@ def measured_acts():
     # nothing without them).
     before = registry.peek()
     registry.activate("hue-and-cry")
+    storage = _own_storage(tmp_path_factory)
     try:
         return [simulate_acts.play(seed, ACTS_OPENING) for seed in range(ACTS_SEEDS)]
     finally:
+        storage.undo()
         if registry.peek() is not before:
             registry.deactivate()
 
@@ -10141,3 +10169,67 @@ def test_a_paid_squeeze_is_thieving(hue) -> None:
     assert law.committed(state) == 0 or "blackmail" not in state.law.get("committed", {})
     reason = endings.declared()["honest_after_all"]["lock_reasons"]["never_stole"]
     assert endings.eligible(state).locked["honest_after_all"] == [reason]
+
+
+#: sha256 of the save after a starvation death whose respawn hours carry the
+#: thief into the fair's day 10, recorded on v0.24.0's code (a5d9f6f). v0.25.0
+#: T1's clock gate (a death check's own advance leaves the declared-event roll
+#: to its outer call) is the flagship's alone: HUE & CRY declares no
+#: probabilistic event, so the fair's start -- and its journal note -- land
+#: exactly where they did, inside the respawn, before its effects.
+STARVED_INTO_THE_FAIR = "d381185fc0ce66a04f17fcada3c1b174fd367178981f43b8336b5d7436a09c26"
+
+
+def test_a_starvation_respawn_into_the_fair_saves_v0240s_bytes(session) -> None:
+    import hashlib
+    import json
+
+    from engine.game.clock import advance_time, set_clock
+    from engine.game.effects import apply_effect
+
+    state = session.engine.state
+    set_clock(state, day=9, hour=21)
+    apply_effect(state, {"type": "hunger", "delta": 100})
+    _down_to(state, 1)
+    advance_time(state, 2)
+    assert state.world_day == 10 and state.location_id == "the_snuffs"
+    assert any(e.get("event_id") == "hanging_fair" for e in state.world_events)
+    saved = state.to_save_dict()
+    saved.pop("session_id", None)
+    blob = json.dumps(saved, sort_keys=True, default=str)
+    digest = hashlib.sha256(blob.encode("utf-8")).hexdigest()
+    assert digest == STARVED_INTO_THE_FAIR
+
+
+def test_the_fair_starts_inside_the_respawn_before_its_effects(session, monkeypatch) -> None:
+    """v0.24.0's ORDER, which the save bytes above cannot see (no respawn effect
+    journals): the respawn's own hours start the fair (the nested day roll),
+    THEN its effects land. v0.25.0 T1 moves that roll to the outer call only in
+    a story with a probabilistic declared event (the flagship)."""
+    from engine.game import effects as effects_module
+    from engine.game.clock import advance_time, set_clock
+    from engine.game.effects import apply_effect
+    from engine.world.world_sim import WorldSim
+
+    state = session.engine.state
+    set_clock(state, day=9, hour=21)
+    apply_effect(state, {"type": "hunger", "delta": 100})
+    _down_to(state, 1)
+    order: list[str] = []
+    real_events, real_effects = WorldSim.apply_events, effects_module.apply_effects
+
+    def events(st, evs):
+        order.extend(f"event:{e.event_id}" for e in evs)
+        return real_events(st, evs)
+
+    def effects(st, queued, **kwargs):
+        if any(isinstance(e, dict) and e.get("type") == "wound" for e in queued):
+            order.append("respawn_effects")          # the respawn's queue carries its wound
+        return real_effects(st, queued, **kwargs)
+
+    monkeypatch.setattr(WorldSim, "apply_events", staticmethod(events))
+    monkeypatch.setattr(effects_module, "apply_effects", effects)
+    advance_time(state, 2)
+    assert state.world_day == 10
+    assert order.index("event:hanging_fair") < order.index("respawn_effects"), order
+

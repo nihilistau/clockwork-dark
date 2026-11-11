@@ -198,12 +198,17 @@ def _apply_npc_moves(
     """
     Relocate NPCs as the pressure advances.
 
+    The move is the override flag ``npc_at_<id>`` (npc_sim ranks it above a
+    routine, below an event and a pin); a procgen NPC's row is rewritten too.
+    An NPC declared only in the story's ``npc_schedules.yaml`` is accepted.
+
     Destinations are checked against the live location graph. An unvalidated
     move is worse than no move: the NPC does not vanish, they occupy an id that
     ``npcs_at`` will never return, so they are silently deleted from the world
     with no error anywhere.
     """
     from engine.game.locations import LOCATION_IDS
+    from engine.world import npc_sim
 
     moves = spec.get("npc_moves", {}) or {}
     if not isinstance(moves, dict):
@@ -227,7 +232,8 @@ def _apply_npc_moves(
             continue
 
         npc = state.procgen.npc_by_id(npc_id)
-        if npc is None:
+        scheduled = npc_id in (npc_sim.load_npc_schedules().get("npcs") or {})
+        if npc is None and not scheduled:
             logger.warning(
                 "[clocks] npc_move names an NPC this save does not have, "
                 "skipping (operation=_apply_npc_moves, beat=%s, npc=%s)",
@@ -235,13 +241,19 @@ def _apply_npc_moves(
                 npc_id,
             )
             continue
-        if npc.get("location_id") == destination:
+        override = f"{npc_sim.OVERRIDE_FLAG_PREFIX}{npc_id}"
+        if state.flags.get(override) == destination and (npc is None or npc.get("location_id") == destination):
             continue
-
-        npc["location_id"] = destination
-        # Read by narration and the UI to explain why someone is standing
-        # somewhere they have no business being.
-        npc["displaced"] = True
+        if npc is not None:
+            npc["location_id"] = destination
+            # Read by narration and the UI to explain why someone is standing
+            # somewhere they have no business being.
+            npc["displaced"] = True
+        # THE MOVE ITSELF (v0.25.0). The procgen row above is read only for a
+        # person with no routine; anyone with a routine slot was placed by the
+        # slot, so the move moved nobody. The soft override (npc_sim's rank
+        # above a routine, below an event and a pin) is what places them now.
+        effects_module.apply_effect(state, {"type": "flag", "flag": override, "value": destination})
         applied.append({"type": "npc_move", "value": f"{npc_id}->{destination}"})
     return applied
 

@@ -10,39 +10,50 @@ release to release.
 
 ## Status
 
-**v0.24.1** (a repair: the GOVERNANCE file check left the gitignored `config/local.yaml` out, found by CI on Linux) is the current release, on **v0.24.0** (sound effects for the engine and every story, READ RECEIPTS' morning after and four more life-event decks, and v0.23.0's deferred tail: the 10-seed balance pass, the docs pass and the whole-branch review; live play with a model was deferred again by the owner, 2026-10-26), after **v0.23.3** (a repair: a phone ask sent while the person's reply to the message before it was still due is answered, found by CI on Linux), **v0.23.2** (a cross-platform repair: the engine's lognormal, normal and decay math runs in software, `engine/game/detmath.py`, so one seed gives one save on Windows and Linux) and **v0.23.1** (the world-turn cost bound is local-only and `run_tests.py` names each failure's reason), on **v0.23.0** (READ RECEIPTS' rework); v0.25.0, the flagship's overhaul, is next (CHANGELOG.md has every release since 0.4.0;
+**v0.25.0** (The Clockwork Dark's overhaul: four people placed, two secret places, every road banded, the eight endings each locked at a door by a card dealt where its person is, fourteen decks and 34 cards carrying the critical path, Sera's levy and Sergeant Venn's bargain, overlays that press engine intents, a 47-plate art pack made on Forge Neo, the doors harness and its balance pass, and live play on LM Studio, T16) is the current release, after **v0.24.1** (a repair: the GOVERNANCE file check left the gitignored `config/local.yaml` out, found by CI on Linux) and **v0.24.0** (sound effects for the engine and every story, READ RECEIPTS' morning after and four more life-event decks, and v0.23.0's deferred tail); v0.26.0, engine correctness and tools, is next (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
-**Windows, v0.24.0 (`scripts/run_tests.py full --limit-minutes 240`, measured 2026-10-27 at
-the release): 8609 passed, 28 skipped, 0 failed after four fixes, in 93.4 min for the run
-itself** (the run: parallel phase 8093 passed, 13 skipped, 4 failed in 83.0 min; serial phase
-512 passed, 15 skipped in 10.4 min, no FLAKY re-run; exit 1 for the four). The four failures were
-real and fixed in their own commit, their files re-run once, green (72 passed in 11.5 min): the
-`SHIPPED_REPEATABLE` set did not list v0.24.0 T2's four life-event decks; the wedding test used a bare
-Matchstick match that expires unwritten over its 16 idle days (T14's `waking` window fix moved when
-people write first, so it failed; it now uses a match with numbers); the day-60 turn-cost pin moved
-(every turn digest and the save: T14's `waking` fix, re-recorded once with
-`CLOCKWORK_TURN_COST_RECORD=1`); and `test_the_hue_run_keeps_no_save` counted a READ RECEIPTS save made by
-another thread in its xdist worker (it now counts only its own thread's saves; the leaking test was not
-found, see Deliberately deferred). The release is slow because of READ RECEIPTS' `slow` pins
+**Windows, v0.25.0 (`scripts/run_tests.py full --limit-minutes 240`, measured 2026-11-11 at
+the release): 8972 passed, 29 skipped, 12 failed in 93.0 min for the run itself, then 0 failed
+after the fixes** (parallel phase 8463 passed, 14 skipped, 9 failed in 82.4 min; serial phase 509
+passed, 15 skipped, 3 failed in 10.5 min; no FLAKY line: the solo re-run did not run, because a
+parallel-phase test had failed). Eleven of the twelve failed alone on the T16 commit too: tests and
+pins that an earlier task's affected-file runs never reached, each bisected and shown to be exactly
+that task's sanctioned change (T8's empty `quests._meta` in two death digests, T15's art in the map
+digest, 6510adc's world choices in READ RECEIPTS' two replay pins, T14's narrator flags in the
+flagship's 12-turn `simulate.py` golden, a find with no reprieve, the levy clock in the bag, and two
+tests whose patches now meet the levy's and the secret places' grammar reads). Fixed test-side in
+their own commit (ba8c1aa), no engine or content line moved; the twelfth was the release's own
+version bump (the launcher line, sanction S24). Their files re-run once, green (284 passed, then
+`tests/test_hosting_gate.py` 21 passed). The release is slow because of READ RECEIPTS' `slow` pins
 (`tests/test_social_save_size.py`, `tests/test_social_commit_scope.py`, and in the serial phase
-`tests/test_simulate_social.py`); `run_tests.py full`'s default limit is 240 minutes. The skips:
-`tests/test_llm_live.py` (unless `CLOCKWORK_LIVE_LLM` names the configured model server); the ten
+`tests/test_simulate_social.py`); `run_tests.py full`'s default limit is 240 minutes. The run's log does not itemise its 29 skips
+(v0.24.0 had 28); the known set: `tests/test_llm_live.py` (unless `CLOCKWORK_LIVE_LLM` names the configured model server); the ten
 tests of `tests/test_docker_smoke.py` (opt-in, `CLOCKWORK_DOCKER_SMOKE=1` and a built image); the
 stamina soft-lock test's stories with no rest verb; THE LONG CON's word-limit check;
 `tests/test_constraints.py`'s installed-version check for `faster-whisper` and `gunicorn` (neither
 installed on Windows); the POSIX-only tests; one bus test skipped by design; and
 `tests/test_media_xai.py::test_the_suite_never_resolves_the_repositorys_key_file` (it needs the owner's
-gitignored `xai_api_key.txt`, so it runs on the owner's machine only). Plus **850 client tests** in
-50 files under `ui/tests/` (`npm test --prefix ui`; `npm ci --prefix ui` once first). The layout check
-(`npm run layout-check --prefix ui`, clockwork-dark: start screen, the audition page, the encounter and
-play runs, Settings' Sound fieldset, at 1366x768, 900x600, 390x844 and 844x390) passed. `fast` was not
-re-measured (v0.21.1: about 5.8 min). Not run for this release: the 40-seed simulator confirmation the
-v0.23.0 plan named (the owner chose the 10-seed scale for the balance pass on 2026-10-24; 40 seeds would
-take about 17 hours per policy), and live play with a model (T12, deferred by the owner on 2026-10-26).
+gitignored `xai_api_key.txt`, so it runs on the owner's machine only). Plus **898 client tests** in
+56 files under `ui/tests/` (`npm test --prefix ui`; `npm ci --prefix ui` once first). The layout check
+(`npm run layout-check --prefix ui`, clockwork-dark: start screen, the audition page, and the `play`,
+`encounter` and `barter` runs with the four overlays (`i`, `b`, `n`, `e`) opened and probed, at 1366x768,
+900x600, 390x844 and 844x390) passed. `scripts/doctor.py`: every row ok but LM Studio unreachable (not
+running, FAIL) and faster-whisper and Voxtral absent (warn); `config/local.yaml` unchanged. `fast` was
+not re-measured (v0.21.1: about 5.8 min). Not run for this release: the 40-seed simulator confirmation
+for READ RECEIPTS (the owner's 10-seed scale stands), and READ RECEIPTS' scripted live play.
 Re-measure and restate these at every release rather than trusting this line.
 A bare `pytest` is the fast tier since v0.21.1 (`slow` and `process` left
 out); the numbers above are `--full`.
+
+**Live play, v0.25.0 T16 (2026-11-10, mid-release):** the flagship played live on the owner's
+LM Studio with `gemma4-26b-a4b-qat-uncensored-hauhaucs-balanced` (the only model loaded), in the
+browser pane, on a scratch storage root. `tests/test_llm_live.py` with `CLOCKWORK_LIVE_LLM=lmstudio`:
+**6 passed** in 2.3 min. The run (21 turns in about two hours, seed 16) reached part of Act I:
+the clearing, the dog encounter on the road, the bakehouse's `B1` card (Maris taking the player on),
+the oven shift, the square, Odran and the snare-line encounter. Pressed live: eat, buy, use, a shift,
+an encounter approach by click, a card, and a buy while a card was dealt (refused, and the prose
+said so). What was not reached, what the model did and what was found: Deliberately deferred.
 
 **Linux** (measured mid-release, not re-run at the release: T20 started no
 container): in `python:3.11-slim-bookworm` (pinned by digest, docs/HOSTING.md
@@ -185,10 +196,11 @@ only once the last of them lands:
 | v0.22.0 | A new story: a dating simulation played through a phone of apps (dating apps, texts, instant messages, voice and video messages, two-player games), a populated cast the engine runs, no endgame (owner's brief: docs/superpowers/briefs/2026-09-30-dating-sim-brief.md) | **shipped** |
 | v0.23.0 | READ RECEIPTS rework: growth (people who change at their own pace, conversations and willingness that ramp up), no set time on dating, phone numbers that work, places (the player's apartment and its rooms, 3-4 homes for the cast) with their art, and real-life events and meet-ups happening outside the phone; slice of life, no ending (owner's brief, with its addendum: docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md). **Addendum 4 (2026-10-22, after the owner's playtest; docs/superpowers/specs/2026-10-22-v0.23.0-addendum4-world-interaction.md)** is part of it: the world's choices survive phone actions, a plan is kept where you stand (they arrive, the scene opens, `Wait for {name}`), the person is somewhere, a quiet phone while together, typing in the world (a typed line runs ONE offered choice or a scene move, or is narrated only), background people at venues and chance meetings with live contacts, T23A-T23H; replayed end to end in `tests/test_rr_playtest_replay.py` and `ui/tests/rr-playtest.test.jsx`, with the browser-pane walk (A4 §7.5, T31) deferred, and still not done (below) | **shipped** (its tail moved into v0.24.0: T29b ran as v0.24.0 T11, T32 as T13, T33 is T14; T31 was deferred again by the owner, 2026-10-26) |
 | v0.24.0 | Sound effects for the engine and every story (owner's brief: docs/superpowers/briefs/2026-10-13-sound-effects-brief.md): sound as client-side data (`content/sounds/sounds.yaml` and a story's `paths.sounds`; twenty-five engine events; synth sounds, fifteen CC0 Kenney `.ogg` files with synth fallbacks, 216,524 of a 1 MiB budget), the server's two routes and file route, the client sound engine and triggers, the settings, the audition page (`/?sounds=1`) and a palette for each of the six played stories (dev-story hears the engine's set); READ RECEIPTS' morning scene after a stay-over, four more life-event decks (`lift_out`, `family_visit`, `wedding_invite`, `neighbour_party`), the lift fix and the news windows (moved from v0.23.0 at its checkpoint C1); and v0.23.0's deferred tail: the full balance pass (T11: 19 rows banded, 19 deferred by data, one data change), the docs pass (T13) and the whole-branch review (T14). **T12, live play with a model (the addendum-4 meet-up walk, listening to the sounds), was DEFERRED by the owner on 2026-10-26** (Deliberately deferred) | **shipped** |
-| v0.25.0 | The Clockwork Dark overhaul | **next** |
-| v0.26.0 | The Wicked Garden overhaul | queued |
-| v0.27.0 | NEON CITY overhaul | queued |
-| v0.28.0 | THE LONG CON overhaul | queued |
+| v0.25.0 | The Clockwork Dark overhaul (docs/superpowers/specs/2026-10-27-v0.25.0-clockwork-dark-overhaul-design.md): the eight endings at doors, the critical path on cards, Sera's levy and Venn's bargain, four people placed, two secret places, every road banded, overlays that press intents, the encounter and sheet screens, a 47-plate art pack (Forge Neo), the doors harness and balance pass (five rows missed, Deliberately deferred), live play on LM Studio in part (T16) | **shipped** |
+| v0.26.0 | Engine correctness and tools (the owner's triage of an outside review, 2026-10-27): negation and third-party checks scoped to the clause, intent options ranked before the cap, the suite's runtime, counterfactual echoes, a replay inspector in Studio, a per-model compliance report | **next** |
+| v0.27.0 | The Wicked Garden overhaul | queued |
+| v0.28.0 | NEON CITY overhaul | queued |
+| v0.29.0 | THE LONG CON overhaul | queued |
 | v1.0.0 | Every story finished, each with its art and live play -- `hue-and-cry`'s being a thief mistaken for "the Magpie" in the candle-port of Tallowmere, eight endings, a ~55-plate Grok art pack -- tagged only once this lands. `dev-story` is the engine's test bench, not a story, and is not overhauled | queued |
 
 Re-cut once more by the owner on 2026-09-26: the platform releases (v0.19.0
@@ -198,7 +210,7 @@ v0.21.0, so the shared surfaces are built once, as engine panels.
 
 Re-cut again by the owner on 2026-09-26 (during v0.16.0): after the UI/UX
 overhaul, each of the other five stories gets the full HUE & CRY treatment,
-one a release (now v0.25.0–v0.28.0, Dev Story excepted): a design spec, its story and characters,
+one a release (now v0.25.0 and v0.27.0–v0.29.0, Dev Story excepted): a design spec, its story and characters,
 the engine systems apt to it, every ending reachable and tested, measured
 balance, reviews, UI screens and art. A large story may take two minors,
 which shifts the later numbers. v1.0.0 now means all six stories finished,
@@ -225,6 +237,12 @@ outside the phone; brief and addendum verbatim in
 docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md), sound
 effects are v0.24.0 and the overhauls v0.25.0-v0.28.0. Same rule: spec,
 opus review, build.
+
+Re-cut again by the owner on 2026-10-27 (during v0.25.0): v0.26.0 is an engine
+release from the owner's triage of an outside review (agreement's negation scope,
+ranked intent options, test runtime, counterfactual echoes, a replay inspector,
+a per-model compliance report), and the overhauls move up one: The Wicked Garden
+v0.27.0, NEON CITY v0.28.0, THE LONG CON v0.29.0.
 
 **Roadmap note for the owner (2026-10-22, v0.23.0 addendum 4): strangers at
 venues.** v0.23.0 puts the world's people where they live: staff on shift at
@@ -261,7 +279,7 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
 - The Garden's bargains work only as written: `bargain` strikes, `discharge`
   settles, falling due breaks. Its renegotiations, the knife's cut, the gift
   auto-thread (`accept_gift`) and two undeclared templates (`briar_witness`,
-  `three_nights_or_truths`) are NOT WIRED (docs/GOVERNANCE.md); the v0.26.0
+  `three_nights_or_truths`) are NOT WIRED (docs/GOVERNANCE.md); the v0.27.0
   Wicked Garden overhaul takes them up.
 - `mortal_threshold`, the Garden's entry location, has no plate on purpose (it
   hosts the ten-card prologue), so a new player sees no scene art until the
@@ -740,12 +758,50 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
 - THE LONG CON has no stage, so on desktop the roll card's one line covers
   one log line for its 6 s (v0.21.0; Dev Story's engine skin has a stage, and
   its card sits on the plate, re-measured in the final fix wave).
-- The flagship's and NEON CITY's overlays (barter, item use, crafting, posted
-  work, a thread's paper) send the player's words as typed text, which carries
-  no intent, so no skill runs from them and the prose can tell of a trade the
-  save never made (a GOVERNANCE NOT WIRED row names the five files). The
-  overlay-to-intent path is the v0.25.0 (flagship) and v0.27.0 (NEON CITY)
-  overhauls' work, not a fix (v0.21.0 final review, controller ruling).
+- NEON CITY's paper and The Wicked Garden's contracts overlay send the
+  player's words as typed text, which carries no intent, so no skill runs from
+  them and the prose can tell of a thing the save never did (a GOVERNANCE NOT
+  WIRED row names the files). The flagship's four overlays press intents since
+  v0.25.0 T11 (`GET /api/intents/overlay`, `overlay_action`); the others are the
+  v0.28.0 (NEON CITY) and v0.27.0 (Garden) overhauls' work. The flagship's
+  barter buys one thing a press (no multi-item bargain, a GOVERNANCE row).
+- At a trader the player has not met, the flagship's barter rows cannot be pressed
+  until the first turn played at that counter: `/api/trade` names an unmet vendor by
+  an opaque `v<index>` (`engine/scenes/default_api.py::trade_offer`) while
+  `/api/intents/overlay`'s `buy`/`sell` targets carry the real `npc_id/item_id`
+  (`overlay_offer`), so no row matches a listed pair (the overlay says they do not
+  know you yet). The overlay's rows also already carry that vendor's real id and
+  name, which `/api/trade` withholds. The fix is one opaque token shared by both
+  routes, which moves the local-mode golden (a named sanction): v0.26.0, beside the
+  no-session atlas row below (v0.25.0 T11; a GOVERNANCE row).
+- The no-session atlas route lists secret places: `/api/codex/places` with no session
+  calls `engine/scenes/default_api.py::codex_places(None)`, which does not filter
+  them, and `ui/src/core/screens/Map.jsx` asks it with no session before a run has
+  one, so a sessionless map names the flagship's `the_works` and `the_join` (and HUE
+  & CRY's secrets, which share the route). Not fixed in v0.25.0: the fix moves HUE &
+  CRY's recording. Candidate for v0.26.0 (v0.25.0 T5).
+- The narrator can raise `nf_naming_laid_it_out` before `spreading`
+  (`games/clockwork-dark/data/quests/convergence/naming_the_wound.yaml`, `lay_it_out`
+  keeps it in `narrative_flags`): the card, `the_naming`'s `G1`, waits for `spreading`
+  (v0.25.0 T9 fix round 1) because `say_it_aloud` needs it and fails four days after it
+  opens, so a narrated run can still lay the naming out early and lose The Named
+  Wound, The Price Asked and The Pin and the Join with it. The card path is the
+  designed one; T10's harness raises only flags no card writes, so it does not
+  measure around it. Candidate for v0.26.0.
+- A fire-once `when:` declared event inside one multi-day step:
+  `engine/world/schedules.py::declared_events_due` evaluates a fire-once `when:` event
+  against a multi-day step's end and appends it once per day crossed, `apply_events`
+  keeping the last and journalling its text each time; not changed, other stories'
+  saves would move (v0.25.0 spec §14; the flagship's `the_last_hour`; a GOVERNANCE row).
+- The doom beats' moves and old saves (v0.25.0 Plan decision 1,
+  `engine/game/clocks.py::_apply_npc_moves`): a v0.24.0 save already past 0.50 or 0.88
+  fired those beats before a doom move placed anyone, so Ilya and Sera keep their
+  routines there. No migration.
+- HUE & CRY's threads still find their person by place and hour, not `npc_here`
+  (v0.25.0 T3 removed the GOVERNANCE `npc_present` row when the predicate landed):
+  `brask_bribe` (`games/hue-and-cry/data/rules/threads.yaml`) can be struck while Brask is
+  out, and the squeezes and the fences' credit use the `hour_between` proxy of their
+  person's schedule. Content debt, recorded in docs/AUTHORING.md's threads paragraph.
 - Under 640px tall, with the people strip in the stage, the scene plate gives
   way to the strip entirely (HUE & CRY at 900x600 and 844x390), so the log
   keeps three lines and the choices two rows (v0.21.0 final fix wave).
@@ -760,8 +816,10 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   in the people strip (`PeopleStrip.jsx`), which jurisdiction the poster
   stands in (`_law_block`), the prose of a turn finished across a server
   restart, a story switched in another tab then a reconnect, a player's
-  place in the queue, and the flagship's and NEON CITY's encounter look
-  (theirs to restyle in v0.25.0 and v0.27.0).
+  place in the queue, and NEON CITY's encounter look (its to restyle in
+  v0.28.0; the flagship's was restyled in v0.25.0 T12). Since v0.25.0 T12 also
+  the endings block below `unlocked` (`endings.py::to_client` ships every tier;
+  the flagship's "The ways it ends" hides them in the client only).
 - The `process` guard (`tests/tier_plugin.py`, v0.21.1) sees only the
   suite's direct `subprocess.Popen` children. A grandchild interpreter (an
   `sh`, or on Windows a `cmd /c`, that starts python) and a start that
@@ -929,16 +987,33 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   - The replay (`tests/test_rr_playtest_replay.py`) drives the engine with the stub narrator; the real model's
     words, the 80-200 word length and the pane's layout were to be played by hand in
     live play, which is deferred (above).
-- **Live play with a model was never done (v0.23.0's T31, v0.24.0's T12; the owner
-  deferred it again on 2026-10-26).** v0.23.0 shipped without its last four tasks,
-  moved to the end of v0.24.0: T29b ran there as T11 (above, at the owner's 10-seed
-  scale, not the 40-seed confirmation), T32 as T13 (the docs pass) and T33 is T14;
-  T31 did not run. Never verified live:
-  - no live model has narrated a scene, a world turn or a typed line (READ RECEIPTS'
-    world narration, scene prose checks and the `xai` image provider are stub- and
-    test-verified only), and the addendum-4 meet-up walk was not played in the
-    browser pane;
-  - nobody has LISTENED to the sounds (every palette, the audition page);
+- **Live play with a model: the flagship's in part (v0.25.0 T16); READ RECEIPTS' scripted walk never
+  done (v0.23.0's T31, v0.24.0's T12; the owner deferred it again on 2026-10-26).** v0.23.0 shipped
+  without its last four tasks, moved to the end of v0.24.0: T29b ran there as T11 (above, at the
+  owner's 10-seed scale, not the 40-seed confirmation), T32 as T13 (the docs pass) and T33 is T14;
+  T31 did not run. One live world turn was played: on 2026-10-30 the owner played a
+  READ RECEIPTS world turn on a live model (ad hoc, not T31's walk), which found the
+  narrator's choices carrying no intent ("Open Natter", "Check Matchstick"), fixed by
+  6510adc (`engine/social/away.py::with_world_choices`; root CHANGELOG, v0.25.0).
+  v0.25.0's T16 (2026-11-10) played THE FLAGSHIP live on LM Studio with
+  `gemma4-26b-a4b-qat-uncensored-hauhaucs-balanced` (Status has the reach; the root CHANGELOG's
+  T16 entry names the seven turns whose prose missed its receipt). It did not touch READ
+  RECEIPTS, so nothing below about READ RECEIPTS moved.
+  Never verified live:
+  - no live model has narrated a READ RECEIPTS scene or typed line, and beyond that one world
+    turn READ RECEIPTS' world narration, scene prose checks and the `xai` image
+    provider are stub- and test-verified only; the addendum-4 meet-up walk was not
+    played in the browser pane;
+  - nobody has LISTENED to the sounds (every palette, the audition page; T16 drove the
+    pane but heard nothing);
+  - the flagship past T16's reach: the caravan and the first wrong thing, Act II (Nessa's
+    drawings, the press, Sera's levy), Act III,
+    any door walked by hand (the morning firing's `H1` was not reached), and the overlays'
+    wear, take off, sell and recipe presses (T16 found no wearable or recipe, and the barter
+    screen offers no sale the engine would take, below; the road floor below came after the
+    run, so no road it adds was pressed live), and an approach by digit key (the
+    approaches take the digits only when every choice is one, `ui/src/core/screens/Play.jsx`
+    `bindDigits`, and this model's talk choices always stood beside them);
   - one click giving exactly one sound is shown by jsdom tests only: jsdom cannot show
     the click deferral's ordering in a real browser;
   - the order of a READ RECEIPTS rejoin frame and the `openSeq` bump on a real socket;
@@ -951,6 +1026,47 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   have been measured by the harness and reviewed task by task, and `scenes.yaml`'s,
   `life_events.yaml`'s and `growth.yaml`'s values are measured only against the
   harness's neutral model.
+- **What v0.25.0 T16's live play found (LM Studio, `gemma4-26b-a4b-qat-uncensored-hauhaucs-balanced`).**
+  Fixed in T16 and its fix round 1 (`engine/scenes/default_state.py::_with_scene_choices`,
+  `_floor_rows`; sanctions S22 and S23): a narrated turn now ends with the engine's floor -- an open
+  scene's own choices when the narrator offered none of them, a cell's ways out (`pay_fine`, `serve`,
+  a set-piece that requires custody) one by one, and otherwise every legal road when the narrator
+  offered none. This model never declared an intent (three choices a turn, every turn, all talk,
+  though the grammar offered `travel`, `eat`, `work` and the rest): `intent` is optional in the
+  schema (`engine/llm/schemas.py::storyteller_turn_schema`), so before the floor the player could
+  move only by the overlays and a reload. Recorded, not fixed:
+  - **A scene's floor is all or nothing** (the controller's ruling, T16 fix round 1): a narrator that
+    offers one approach of four leaves the other three "not offered this turn" on the panel. Not
+    stranded; the cell and the roads fill row by row, as `with_world_choices` does.
+  - **A dead chip can stand beside a live one with the same words**: an intentless narrator choice
+    ("Take the hare") beside the floor's "Take the hare and reset the wire behind you" or a road.
+    Pressing the dead one is talk, narrated without a mechanic (the intentless-choice row above).
+  - **The evaluator passed prose that left the receipt out or contradicted it.** The road into
+    Edgewood started the dog encounter and the prose never named the dog, nor the snare line on the
+    road back to the clearing; the failed sympathy roll (the dog bolts, "you jump harder than the
+    dog did") was narrated as sitting quietly beside Nessa Fallow; the snare line's partial ("you
+    get the hare free but leave the line a mess") was narrated as the line left set and waiting; a
+    bought candle was lit with "flint to steel" the player does not carry; 19:00 was narrated as
+    "the early light". Each scored `no_hallucinated_mechanics` 1 and passed
+    (`engine/agents/evaluator.py` checks success over a failed check and arrival over a refused
+    move, not an omitted receipt). Never fixed by prompt rules (rule 12's reasoning).
+  - **A typed line narrated a walk that did not happen**: "I get up and follow the hearth smoke to
+    Edgewood Square" was narrated as arriving while the player stayed in the clearing. Typed text
+    declares no intent by design (`default_state.resolve_player_intent`), the same gap as the
+    intentless choice above.
+  - **The world tick outruns a slow model**: at `world.tick_hours` 2.0 a minute of wall clock and
+    two to three minutes a turn, each turn moved the clock four to six hours. An overlay buy
+    offered at 20:00 ran at 23:00, Maris asleep, and was refused ("That is not on offer here and
+    now"), the refusal reaching the prose. By design (R-03); measured, left.
+  - **The barter screen offers no sale the engine would take**: "Nothing you carry interests them"
+    (Maris, Odran) while `/api/intents/overlay` offers both the stale road bread for 1g, so the
+    flagship's `sell` overlay cannot be pressed. `default_api.trade_offer` builds its `buys` from the
+    vendor's stock-list `buys` alone, while `intents._sell_rows` asks `trade.deals_in`, which also
+    counts what a vendor SELLS and, with no `deals_in` filter, anything not `never_traded_tags`.
+    The fix moves the flagship's recorded `/api/trade` (measured in T16 fix round 1, reverted): its
+    own docs/GOVERNANCE.md row, for v0.26.0.
+  - A reload showed the last narration twice in the log (the resumed frame's narration under the
+    same paragraph). Cosmetic; not traced.
 - A READ RECEIPTS world turn with an injected model function still probes the
   model server's loaded models: `engine/memory/context.py::default_budget` calls
   `Budget.for_profile("big")`, which asks the server even when the turn's `llm_fn`
@@ -972,6 +1088,47 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   would put a social hook in `Engine.move_to`, every story's walk; a
   docs/GOVERNANCE.md NOT WIRED row.
 - A READ RECEIPTS save from a test earlier in the same xdist worker reached `tests/test_simulate_thief.py::test_the_hue_run_keeps_no_save` in v0.24.0 T15's full run (a `SaveStore.save` on another thread, `popen-gw1/guards/.../saves/read-receipts`): a thread some READ RECEIPTS test leaves running (the dirty saver or the world thread). The test now counts only its own thread's saves, which closes it; the leaking test was NOT found, so a test's leftover thread can still write a save into a later test's window. A hunt would start from `tests/social_fixtures.py::_stop_dirty_saver` and `receipts_active`'s teardown.
+- The quest predicates `event_seen`, `days_since_event` and `visited` read through
+  `engine/game/quests.py::_meta`, which get-or-creates `state.quests["_meta"]`: a read
+  writes an empty bookkeeping block outside `apply_effect` (rule 3). Pre-existing (every
+  quest pass does it first); since v0.25.0 T8 the flagship's levy clock reads `event_seen`
+  on every `advance_time`, so a run that advances before its first quest pass carries the
+  empty block (`tests/test_social_seam.py`'s S20). Left: a read-only `_meta` would move
+  other stories' recordings.
+- **The Clockwork Dark's balance pass (v0.25.0 T10; `scripts/simulate_doors.py`, seeds 0-39, cap 1,000;
+  the root CHANGELOG has every table and lever) left five rows missed, measured and deferred by data,
+  never widened:**
+  - The Pin and the Join: the `pinner` reaches it in 57.5% of runs (band 80%+) and another ending in 40%
+    (band 10% or less), after T10's fix rounds: the harness's pinner buys bread before the road to the
+    gate (12.5% -> 37.5%), `walk_the_join` names midday and gives 5 days, not 3 (a kept lever; 42.5%),
+    and the Named Wound's dawn card `Q1` gained a `not_yet` that ends nothing (57.5%). All 17 lost runs
+    are in `consuming` (16 the fail-forward). Tried and reverted: the convergence gate widened to
+    awareness 100 (pinner 25%, but the witness's turns left their band), the convergence stages'
+    `doom_resistance` doubled (no move). Lever 3 would take the heartland's encounter rate (0.475, in
+    band) out of its band.
+  - The Counted March: the `marcher` reaches its own in a median 186.5 turns (band 200-400); its
+    other-locks are 10% since fix round 1's provisioning (band 10% or less, met). Lever 2 (`counted` 20
+    -> 16) was reverted: it moved the local-mode golden (the gate text rides every turn payload), and
+    took the turns further below the band.
+  - The Stopped Wheel's `drifter`: 491 turns (band 500-900); the doom's pace is a non-goal.
+  - `simulate.py`'s `cautious` at seed 42: 4.57 h/turn and 0.254 doom (+42%, +39% of DESIGN.md's
+    table; 0 deaths at v0.24.0, 14 now): the five policies answer no card, and v0.25.0 moved stage
+    completions onto cards. Its 40-seed medians are in band.
+  - The barrows' encounter rate is unmeasured: no scripted policy walks them.
+  Also measured and left: a card whose stage waits is dealt again on each visit, and `S1_choose_what`,
+  dealt to a player at `choose_what` carrying none of the three things, offers only "Not yet" (in the final
+  measurement `H1_the_question` up to 24 times in one namer run, `S1_choose_what` up to 3 in one pinner
+  run, `Q1_tell_her_or_dont` up to 14 in one payer run since its `not_yet`; the first measurement, before
+  the fix rounds, had H1 at 34 and S1 at 11); two decks due at one place deal by deck id
+  (no run lost to it); a wayfarer reaches the batch's craft 11 only through all three quiet-life craft
+  quests. And `scripts/simulate.py` without `--game` builds no state schema, so the levy clock's
+  `value` effects are logged as unknown and ignored there (no number moves; `--game clockwork-dark`
+  measures the same).
+- An open card is not closed when the player leaves its place (pre-existing, every story): a dealt hand
+  lives in `state.scene` (`engine/content/director.py`), and `director.end` runs only when the hand
+  finishes, a card's beat kills the player or a card plays an ending, never on a move or a survival
+  respawn. Seen in v0.25.0 T14's follow-up: after a starve-respawn the levy table's `L1` still owned the
+  turn in `edgewood_square`. A docs/GOVERNANCE.md NOT WIRED row; the fix moves recorded turns.
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 

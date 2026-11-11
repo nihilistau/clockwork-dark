@@ -1,0 +1,34 @@
+# The Clockwork Dark -- the stopped wheel (v0.25.0 §4.2, §6.1).
+# ==========================================================================
+# Forced only: no deck `when:`, so it never schedules itself. The declared
+# event `the_last_hour` (data/world/schedules.yaml) fires once, on the first
+# day rolled with the reading at 1.0, and owes this deck while it is active
+# (`forces_scene`). An open encounter or hand keeps the turn first
+# (director.ensure_scene); the last morning is dealt after it. One door, a
+# sequence card (plan decision 7), gated on its own ending like every door:
+#   Z1  The Stopped Wheel
+# Not repeatable: the lock ends the run.
+#
+# Version: v0.1.0 [2026-10-29]
+
+id: the_stopped_wheel
+draw: 1
+
+cards:
+  - id: Z1_the_last_morning
+    title: "The last morning"
+    when: { ending: { eligible: the_stopped_wheel } }
+    tags: [door]
+    text: >-
+      INTENT: Morning in Edgewood, and nothing keeps time any more except the
+      thing that took it. CONSTRAINTS: Roll-free. This ends the story.
+    beats:
+      - id: the_last_morning
+        text: >-
+          Walk out into the square and listen for a bell that does not ring.
+        gate:
+          on_pass:
+            text: "Ticking is not time."
+            effects:
+              - { type: ending_lock, ending: the_stopped_wheel }
+              - { type: ending_module }

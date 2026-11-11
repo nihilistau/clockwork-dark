@@ -61,7 +61,7 @@ INHERITS_THE_FLAGSHIP_TREE = ("clockwork-dark",)
 # The flagship pack, counted before this seam existed. These are golden
 # numbers: they are here to fail loudly if repointing the root moves a picture
 # in a story that never asked for one.
-FLAGSHIP_RESOLVED = {"locations": 20, "items": 81, "portraits": 4, "enemies": 5}
+FLAGSHIP_RESOLVED = {"locations": 22, "items": 81, "portraits": 9, "enemies": 11, "gallery": 8}
 
 
 @pytest.fixture
@@ -94,7 +94,10 @@ def inheriting_game(request: Any) -> Iterator[str]:
 def _count_resolved(manifest: dict[str, Any]) -> dict[str, int]:
     """How many entries in each block resolve to a file that exists."""
     provider = ShippedArtProvider()
-    kinds = {"locations": "location", "items": "item", "portraits": "portrait", "enemies": "enemy"}
+    kinds = {
+        "locations": "location", "items": "item", "portraits": "portrait", "enemies": "enemy",
+        "gallery": "gallery",
+    }
     out: dict[str, int] = {}
     for block, kind in kinds.items():
         out[block] = sum(
@@ -229,6 +232,7 @@ def test_the_garden_resolves_the_plates_it_claims_to(garden: Any) -> None:
         "items": 22,
         "portraits": 16,
         "enemies": 0,
+        "gallery": 0,
     }
 
 
@@ -421,3 +425,147 @@ def test_a_story_with_no_art_root_resolves_exactly_what_it_did_before(
     here is what would catch a change to it.
     """
     assert _count_resolved(load_manifest()) == FLAGSHIP_RESOLVED
+
+
+def test_every_flagship_place_has_its_own_base_and_every_person_a_portrait() -> None:
+    """v0.25.0 T15 (§9): the art pack's promise, as the serving chain sees it."""
+    from engine.game.locations import LOCATIONS
+    from engine.media.providers.base import ImageRequest
+    from engine.media.providers.shipped import load_manifest, lookup
+    from engine.world import npc_sim
+
+    registry.activate("clockwork-dark")
+    try:
+        manifest = load_manifest()
+        bases = [manifest["locations"][place]["base"] for place in LOCATIONS]
+        assert len(bases) == len(set(bases)), "two places share a base"
+        for npc_id in npc_sim.load_npc_schedules()["npcs"]:
+            # The cat included: its portrait is the Assistant's cat form.
+            assert lookup(ImageRequest(subject_id=npc_id, kind="portrait")), npc_id
+        # Every ending's plate, read off the epilogue index, so a ninth ending
+        # without a plate fails here.
+        index = yaml.safe_load(
+            (_ROOT / "games/clockwork-dark/data/epilogues/epilogue_index.yaml").read_text(encoding="utf-8")
+        )
+        keys = [str(row["gallery_key"]) for row in index["endings"] if row.get("gallery_key")]
+        assert len(keys) == 8, keys
+        for key in keys:
+            assert lookup(ImageRequest(subject_id=key, kind="gallery")), key
+    finally:
+        registry.deactivate()
+
+
+#: The stand-ins the T15 review named (I1): each pictures one place, an item
+#: or a notice board, so none may be served as any OTHER place. The value is
+#: the one place whose pool may hold it ("" for none).
+NAMED_STAND_INS: dict[str, str] = {
+    "scenes/town-scene.jpg": "edgewood_square",
+    "scenes/noticeboard.jpg": "edgewood_square",
+    "scenes/noticeboard-cutscene.jpg": "",
+    "scenes/wheatfield-forest-edge.jpg": "forest_clearing",
+    "scenes/closing-town-gates.jpg": "millhaven_gate",
+    "signposts/notice-board-tunnel-revealed.jpg": "",
+    "signposts/notice-board-contract-tunnels.jpg": "",
+    "things/herbs.jpg": "",
+    "things/steaming-bread.jpg": "",
+    "scenes/tinker-camping.jpg": "tinker_caravan",
+    "scenes/resting-camp.jpg": "",
+    "scenes/player-hurt-resting.jpg": "",
+    "ruins/Hollow-Hill-Far.jpg": "",
+    "ruins/Altar-Hollow-Hill-maybe.jpg": "",
+    "scenes/clockwork-wheatfield.jpg": "",
+    "scenes/clockwork-tower.jpg": "",
+    "tunnels/Tunnel-Entrance-Far.jpg": "",
+    "ruins/mage-ruins-altar.jpg": "old_barrows",
+}
+
+
+def test_every_flagship_place_is_pictured_only_as_itself() -> None:
+    """
+    v0.25.0 T15 fix round 1 (review I1): `lookup` draws a place's picture from
+    `[base, *alts]` per daypart, so every image in that pool is served AS the
+    place. No pool holds another place's base, an item's plate, a UI plate or a
+    signpost; no image is in two places' pools; and each named stand-in is in
+    at most its own place's pool.
+    """
+    from engine.game.locations import LOCATIONS
+
+    manifest = yaml.safe_load(
+        (_ROOT / "games/clockwork-dark/data/art/manifest.yaml").read_text(encoding="utf-8")
+    )
+    locations = manifest["locations"]
+    items = set((manifest.get("items") or {}).values())
+    ui = set((manifest.get("ui") or {}).values())
+    bases = {place: locations[place]["base"] for place in LOCATIONS}
+    owner: dict[str, str] = {}
+    for place in LOCATIONS:
+        pool = [locations[place]["base"], *(locations[place].get("alts") or [])]
+        for image in pool:
+            others = [p for p, b in bases.items() if b == image and p != place]
+            assert not others, f"{place} is pictured as {others}'s base {image}"
+            assert image not in items, f"{place} is pictured as an item plate {image}"
+            assert image not in ui, f"{place} is pictured as a UI plate {image}"
+            assert not image.startswith(("things/", "signposts/")), (place, image)
+            assert image not in owner, f"{image} is in {owner.get(image)}'s and {place}'s pools"
+            owner[image] = place
+            if image in NAMED_STAND_INS:
+                assert NAMED_STAND_INS[image] == place, f"{place} serves the stand-in {image}"
+
+
+#: The 47 plates of v0.25.0 T15 (§9), by slot: every one is in the manifest
+#: where the serving chain reads it, and on disk at the pack's declared size.
+T15_PLATES = {
+    "base": ["well_row", "fallow_farm", "millhaven_market", "millhaven_barracks", "toll_bridge",
+             "charcoal_burn", "refugee_camp", "herb_glen", "burned_farmstead", "heartland_road",
+             "the_works", "the_join"],
+    "night": ["forest_clearing", "edgewood_square", "edgewood_bakery", "tinker_caravan",
+              "edgewood_shrine", "the_forge", "well_row", "old_barrows"],
+    "corrupted": ["edgewood_bakery", "edgewood_shrine", "the_forge", "well_row", "tinker_caravan",
+                  "refugee_camp"],
+    "portraits": ["npc_maris", "npc_odran", "npc_sera", "npc_hallam", "npc_nessa", "npc_wenna",
+                  "npc_edrin"],
+    "enemies": ["barrow_cold", "press_gang", "toll_men", "brass_hound", "wrong_walker",
+                "the_works_engine"],
+    "gallery": ["banked_oven", "dated_ledger", "struck_roll", "ink_on_the_table", "empty_table",
+                "eight_shadows", "cold_square", "long_dusk"],
+}
+
+
+def test_the_t15_pack_is_47_plates_each_served_at_its_size() -> None:
+    from PIL import Image
+
+    from engine.media.art import format_for
+
+    assert sum(len(v) for v in T15_PLATES.values()) == 47
+    registry.activate("clockwork-dark")
+    try:
+        manifest = load_manifest()
+        locations = manifest["locations"]
+        paths: list[tuple[str, str]] = []
+        for place in T15_PLATES["base"]:
+            assert locations[place]["base"] == f"scenes/{place.replace('_', '-')}.jpg", place
+            paths.append(("location", locations[place]["base"]))
+        for place in T15_PLATES["night"]:
+            paths.append(("location", locations[place]["times"]["night"]))
+        for place in T15_PLATES["corrupted"]:
+            target = f"scenes/{place.replace('_', '-')}-corrupted.jpg"
+            assert target in locations[place]["corrupted"], place
+            paths.append(("location", target))
+        for kind, block in (("portrait", "portraits"), ("enemy", "enemies"), ("gallery", "gallery")):
+            for key in T15_PLATES[block]:
+                paths.append((kind, manifest[block][key]))
+        assert len({p for _, p in paths}) == 47
+        root = art_root()
+        for kind, relative in paths:
+            with Image.open(root / relative) as image:
+                spec = format_for(kind)
+                assert image.size == (spec["width"], spec["height"]), relative
+        # The night plate is what the square shows at night, and the corrupted
+        # one what the bakery shows while the dark is consuming.
+        night = ImageRequest(subject_id="edgewood_square", kind="location", time_of_day="night")
+        assert ShippedArtProvider().generate(night).detail == "scenes/edgewood-square-night.jpg"
+        consuming = ImageRequest(subject_id="edgewood_bakery", kind="location", evil_phase="consuming")
+        assert ShippedArtProvider().generate(consuming).detail == "scenes/edgewood-bakery-corrupted.jpg"
+    finally:
+        registry.deactivate()
+        reset_manifest_cache()

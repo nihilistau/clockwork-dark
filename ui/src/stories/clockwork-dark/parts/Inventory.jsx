@@ -12,19 +12,21 @@
  * recipe id, so the "mundane craft as dignity" pillar was unreachable from the
  * UI entirely.
  *
- * NOTHING HERE MUTATES STATE. Every action composes a sentence and sends it as
- * an ordinary turn (`player_choice` with custom_text): no second, unaudited
- * writer of inventory, gold or the clock.
- *
- * NOT WIRED (docs/GOVERNANCE.md, v0.21.0 final review finding 9): typed text
- * carries no intent, so using an item or crafting here runs no skill -- only
- * the narrator reads the sentence (outside LM Studio's `llm.mcp` mode). The
- * intent path for overlays is the v0.25.0 flagship overhaul's.
+ * NOTHING HERE MUTATES STATE. The pack presses INTENTS (v0.25.0 §7.3, §8.1):
+ * Eat, Use, Wear/Ready, Take off and Make it each hand core an `{action,
+ * target}` from `GET /api/intents/overlay`, which core emits as
+ * `overlay_action`; the engine re-checks the pair under the turn lock and runs
+ * its skill before the narrator speaks (rule 1). A pair the server does not
+ * list is drawn and not pressable. Examine moves, spends and risks nothing, so
+ * it stays the player's typed words. Offer and Drop are gone: no engine verb
+ * gives or drops a thing (docs/GOVERNANCE.md, NOT WIRED).
  */
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@core/parts/Modal.jsx";
 import PaintFrame from "@core/parts/PaintFrame.jsx";
 import { fetchItems, fetchRecipes } from "@core/api.js";
+import { offerRow, overlayTurnKey, useOverlayIntents } from "@core/hooks/useOverlayIntents.js";
+import ActionButton, { SceneOwnsTurn } from "./ActionButton.jsx";
 
 const TAG_LABEL = {
   food: "Food",
@@ -38,33 +40,8 @@ const TAG_LABEL = {
   unregistered: "Unlisted",
 };
 
-/**
- * The verbs an item earns, from its tags.
- *
- * Tag-driven rather than a per-item table: the registry's tag vocabulary is
- * fixed (see the field reference in data/items/food.yaml) and a new item then
- * gets the right verbs for free.
- */
-function actionsFor(item) {
-  const tags = item.tags || [];
-  const name = item.name.toLowerCase();
-  const out = [];
-  if (tags.includes("food")) out.push({ id: "eat", label: "Eat", text: `You eat the ${name}.` });
-  if (tags.includes("light"))
-    out.push({ id: "light", label: "Light", text: `You light the ${name}.` });
-  if (tags.includes("charm") || tags.includes("apparel"))
-    out.push({ id: "wear", label: "Wear", text: `You put on the ${name}.` });
-  if (tags.includes("tool"))
-    out.push({ id: "equip", label: "Ready", text: `You take the ${name} in hand.` });
-  out.push({ id: "look", label: "Examine", text: `You look closely at the ${name}.` });
-  out.push({
-    id: "give",
-    label: "Offer",
-    text: `You offer the ${name} to whoever is nearest.`,
-  });
-  out.push({ id: "drop", label: "Drop", text: `You put the ${name} down and leave it.` });
-  return out;
-}
+/** A slot held in the hand reads "Ready"; any other slot is worn. */
+const HELD_SLOTS = ["hands", "offhand"];
 
 function Tile({ item, selected, onSelect }) {
   return (
@@ -85,7 +62,15 @@ function Tile({ item, selected, onSelect }) {
   );
 }
 
-function Detail({ item, busy, onAct }) {
+/**
+ * One thing in the pack, and what can be done with it.
+ *
+ * A verb's button is DRAWN from the server's list or, for Eat, from the item's
+ * `food` tag too (ruling M20), so food the rules will not count is still shown
+ * and says why it cannot be pressed. Tags only ever decide whether a button is
+ * drawn; the server's list alone decides whether it can be pressed.
+ */
+function Detail({ item, offer, busy, onAct }) {
   if (!item) {
     return (
       <div className="packdetail packdetail--empty">
@@ -131,17 +116,36 @@ function Detail({ item, busy, onAct }) {
 
       {held ? (
         <div className="packactions">
-          {actionsFor(item).map((action) => (
-            <button
-              key={action.id}
-              type="button"
-              className="btn btn--sm"
-              disabled={busy}
-              onClick={() => onAct(action.text)}
-            >
-              {action.label}
-            </button>
-          ))}
+          {(offerRow(offer, "eat", item.id) || item.tags?.includes("food")) && (
+            <ActionButton offer={offer} action="eat" target={item.id} busy={busy} onAct={onAct} verb="Eat"
+              why="Not something that will fill you.">
+              Eat
+            </ActionButton>
+          )}
+          {offerRow(offer, "use", item.id) && (
+            <ActionButton offer={offer} action="use" target={item.id} busy={busy} onAct={onAct} verb="Use">
+              Use
+            </ActionButton>
+          )}
+          {offerRow(offer, "equip", item.id) && (
+            <ActionButton offer={offer} action="equip" target={item.id} busy={busy} onAct={onAct}
+              verb={HELD_SLOTS.includes(offerRow(offer, "equip", item.id).slot) ? "Ready" : "Wear"}>
+              {HELD_SLOTS.includes(offerRow(offer, "equip", item.id).slot) ? "Ready" : "Wear"}
+            </ActionButton>
+          )}
+          {offerRow(offer, "unequip", item.id) && (
+            <ActionButton offer={offer} action="unequip" target={item.id} busy={busy} onAct={onAct} verb="Take off">
+              Take off
+            </ActionButton>
+          )}
+          <button
+            type="button"
+            className="btn btn--sm"
+            aria-disabled={busy ? "true" : undefined}
+            onClick={() => !busy && onAct(`You look closely at the ${item.name.toLowerCase()}.`)}
+          >
+            Examine
+          </button>
         </div>
       ) : (
         <p className="packdetail__note">
@@ -152,7 +156,16 @@ function Detail({ item, busy, onAct }) {
   );
 }
 
-function Recipe({ recipe, busy, onAct }) {
+function Recipe({ recipe, offer, busy, onAct }) {
+  // Exactly the gates craft_item enforces, said in the order it checks them,
+  // so a button that cannot be pressed always explains itself.
+  const why = recipe.makeable
+    ? "You could do this now."
+    : !recipe.here
+      ? `That work happens at ${String(recipe.station).replace(/_/g, " ")}.`
+      : !recipe.has_tools
+        ? "You do not have the tools."
+        : "You are short of materials.";
   return (
     <article className={`recipe ${recipe.makeable ? "is-makeable" : ""}`}>
       <div className="recipe__head">
@@ -205,27 +218,10 @@ function Recipe({ recipe, busy, onAct }) {
       )}
 
       <div className="recipe__foot">
-        {/* Exactly the gates craft_item enforces, said in the order it checks
-            them, so a disabled button always explains itself. */}
-        <span className="recipe__why">
-          {recipe.makeable
-            ? "You could do this now."
-            : !recipe.here
-              ? `That work happens at ${String(recipe.station).replace(/_/g, " ")}.`
-              : !recipe.has_tools
-                ? "You do not have the tools."
-                : "You are short of materials."}
-        </span>
-        <button
-          type="button"
-          className="btn btn--sm"
-          disabled={busy || !recipe.makeable}
-          // The recipe id rides along in plain sight so the Storyteller can
-          // pass it straight to craft_item(recipe_id) rather than guessing.
-          onClick={() => onAct(`Set to work: ${recipe.name} (recipe ${recipe.id}).`)}
-        >
+        <span className="recipe__why">{why}</span>
+        <ActionButton offer={offer} action="craft" target={recipe.id} busy={busy} onAct={onAct} why={why} verb="Make">
           Make it
-        </button>
+        </ActionButton>
       </div>
     </article>
   );
@@ -237,13 +233,14 @@ export function sentenceCase(text) {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-export default function Inventory({ sessionId, busy, onAct, onClose }) {
+export default function Inventory({ state, sessionId, busy, onAct, onClose }) {
   const [tab, setTab] = useState("carried");
   const [tag, setTag] = useState("");
   const [pack, setPack] = useState(null);
   const [book, setBook] = useState(null);
   const [selectedId, setSelectedId] = useState("");
   const [error, setError] = useState("");
+  const { offer } = useOverlayIntents(sessionId, overlayTurnKey(state));
 
   useEffect(() => {
     let live = true;
@@ -275,13 +272,15 @@ export default function Inventory({ sessionId, busy, onAct, onClose }) {
     return [...new Set(source.flatMap((i) => i.tags || []))].sort();
   }, [items, tab]);
 
-  function act(text) {
-    onAct(text);
+  // A string (Examine) or an `{action, target, label}` intent: core routes both.
+  function act(what) {
+    onAct(what);
     onClose();
   }
 
   return (
     <Modal title="The pack" onClose={onClose} wide>
+      <SceneOwnsTurn offer={offer} />
       <div className="pack__head">
         <span className="pack__stat">
           <b>{pack ? pack.carried_count : "—"}</b> carried
@@ -356,7 +355,7 @@ export default function Inventory({ sessionId, busy, onAct, onClose }) {
                 <p className="overlay__empty">Nothing but what you stand in.</p>
               )}
             </div>
-            <Detail item={selected} busy={busy} onAct={act} />
+            <Detail item={selected} offer={offer} busy={busy} onAct={act} />
           </div>
         </>
       )}
@@ -364,7 +363,7 @@ export default function Inventory({ sessionId, busy, onAct, onClose }) {
       {book && tab === "craft" && (
         <div className="recipes">
           {book.recipes.map((recipe) => (
-            <Recipe key={recipe.id} recipe={recipe} busy={busy} onAct={act} />
+            <Recipe key={recipe.id} recipe={recipe} offer={offer} busy={busy} onAct={act} />
           ))}
           {book.recipes.length === 0 && (
             <p className="overlay__empty">Nothing anyone has written down.</p>

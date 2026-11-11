@@ -1,0 +1,60 @@
+# The Clockwork Dark -- the count kept (v0.25.0 §4.3).
+# ==========================================================================
+# The shrine, while old Wenna is there (`npc_here`, which asks npc_sim, so a
+# doom move or a pin moves the door with her): her candle hours, 06:00-07:59
+# and 18:00-21:59 (npc_schedules.yaml, Plan decision 2). One door:
+#   W1  The Long Witness (`give_it`), or `keep_it`, which ends nothing
+# REPEATABLE, draw 1: "keep it a while longer" is never the last chance
+# (director.rearm deals again on the next visit that finds her there). The
+# deck's `when:` ends in `any:` of its card's own gate (plan decision 3), so
+# it is due only when the card can be dealt. The lock runs before its
+# module; no beat carries more than four effects.
+#
+# Version: v0.1.0 [2026-10-28]
+
+id: the_count_kept
+repeatable: true
+draw: 1
+
+when:
+  all:
+    - { at_location: edgewood_shrine }
+    - { npc_here: npc_wenna }
+    - any:
+        - { ending: { eligible: the_long_witness } }
+
+cards:
+  - id: W1_the_list
+    title: "The list"
+    when: { ending: { eligible: the_long_witness } }
+    tags: [menu, witness, door]
+    text: >-
+      INTENT: Old Wenna at the shrine with her two candles, reading names off
+      the folded list she keeps in her sleeve. She has seen the player
+      writing in the evenings. She holds out her hand for theirs.
+      CONSTRAINTS: She does not read it in front of them. Giving it ends the
+      story; keeping it ends nothing.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: give_it
+        label: "Give Wenna your list"
+        text: >-
+          Give her the list you have been keeping. This ends the story: The
+          Long Witness.
+        gate:
+          on_pass:
+            text: >-
+              She folds it in with hers without reading it, and lights a third
+              candle, which she has never done.
+            effects:
+              - { type: ledger_fact, kind: event, text: "You gave old Wenna your list of wrong things, and she keeps it with hers." }
+              - { type: ending_lock, ending: the_long_witness }
+              - { type: ending_module }
+      - id: keep_it
+        label: "Keep it a while longer"
+        text: >-
+          Keep the list. There are more wrong things to write down.
+        gate:
+          on_pass:
+            text: >-
+              She nods as if that were also an answer, and goes back to her names.

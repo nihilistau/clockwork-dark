@@ -1,0 +1,193 @@
+# The Clockwork Dark -- the price (v0.25.0 §4.2-§4.3).
+# ==========================================================================
+# Wherever Ilya is (`npc_here`, which asks npc_sim: his caravan, or the
+# square once the vines have moved him there, doom_effects.yaml), while the
+# sacrifice is open. Three cards, one per stage of the_sacrifice:
+#   S0  the price written out (`nf_sacrifice_understood`)
+#   S1  what goes on the table: one beat per thing carried (E5), each writing
+#       `nf_sacrifice_chosen` and its own `sacrifice_offered_<item>`
+#   S2  The Price Asked: one beat per thing OFFERED AND STILL HELD, each
+#       removing exactly that thing (bug 2: the quest took the written name
+#       whatever was chosen), or `not_yet`, which ends nothing
+# S1 is dealt again to a run at `pay_it` with nothing offered on a card (a
+# v0.24.0 run chose through the narrator), and to a player who offered a
+# thing and then sold it (§4.3): the offer counts only while the thing is
+# held. REPEATABLE, draw 1. The deck's `when:` ends in `any:` of its cards'
+# own gates (plan decision 3), so it is due only when a card can be dealt.
+# S2's lock runs after its `nf_sacrifice_paid` (the gate's `paid`) and before
+# its module; no beat carries more than four effects. Every menu card keeps
+# one beat with no `when:` (`not_yet`).
+#
+# Version: v0.1.0 [2026-10-29]
+
+id: the_price
+repeatable: true
+draw: 1
+
+when:
+  all:
+    - { npc_here: npc_ilya }
+    - { quest_state: { quest: the_sacrifice, status: active } }
+    - any:
+        - all:
+            - { quest_state: { quest: the_sacrifice, stage_at_least: 0 } }
+            - none: [{ quest_state: { quest: the_sacrifice, stage_at_least: 1 } }]
+        - all:
+            - { quest_state: { quest: the_sacrifice, stage_at_least: 1 } }
+            - none:
+                - all: [{ flag: sacrifice_offered_the_written_name }, { has_item: { id: the_written_name, qty: 1 } }]
+                - all: [{ flag: sacrifice_offered_ninth_pin }, { has_item: { id: ninth_pin, qty: 1 } }]
+                - all: [{ flag: sacrifice_offered_brass_shard }, { has_item: { id: brass_shard, qty: 1 } }]
+        - all:
+            - { quest_state: { quest: the_sacrifice, stage_at_least: 2 } }
+            - any:
+                - all: [{ flag: sacrifice_offered_the_written_name }, { has_item: { id: the_written_name, qty: 1 } }]
+                - all: [{ flag: sacrifice_offered_ninth_pin }, { has_item: { id: ninth_pin, qty: 1 } }]
+                - all: [{ flag: sacrifice_offered_brass_shard }, { has_item: { id: brass_shard, qty: 1 } }]
+
+cards:
+
+  - id: S0_understand
+    title: "The price, written out"
+    when:
+      all:
+        - { quest_state: { quest: the_sacrifice, stage_at_least: 0 } }
+        - none: [{ quest_state: { quest: the_sacrifice, stage_at_least: 1 } }]
+    tags: [price]
+    text: >-
+      INTENT: Ilya writes the requirement out rather than saying it. Not
+      blood: something that was ordered and is now not. CONSTRAINTS: He does
+      not soften it.
+    beats:
+      - id: read_it
+        text: >-
+          Read what he has written, twice, and do not look away from it.
+        gate:
+          on_pass:
+            text: >-
+              A like for a like. Something with the same shape as what it takes.
+            effects:
+              - { type: flag, flag: nf_sacrifice_understood }
+
+  - id: S1_choose_what
+    title: "What you put on the table"
+    when:
+      all:
+        - { quest_state: { quest: the_sacrifice, stage_at_least: 1 } }
+        - none:
+            - all: [{ flag: sacrifice_offered_the_written_name }, { has_item: { id: the_written_name, qty: 1 } }]
+            - all: [{ flag: sacrifice_offered_ninth_pin }, { has_item: { id: ninth_pin, qty: 1 } }]
+            - all: [{ flag: sacrifice_offered_brass_shard }, { has_item: { id: brass_shard, qty: 1 } }]
+    tags: [menu, price]
+    text: >-
+      INTENT: Ilya's table, cleared. The shapes it accepts are short: a name
+      written down, the ninth pin, a shard of the brass. CONSTRAINTS: Only
+      what the player is carrying can go on the table. Offering is not paying.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: offer_the_name
+        label: "Offer the written name"
+        when: { has_item: { id: the_written_name, qty: 1 } }
+        text: >-
+          Put the written name on the table.
+        gate:
+          on_pass:
+            text: "He looks at it a long time without touching it."
+            effects:
+              - { type: flag, flag: nf_sacrifice_chosen }
+              - { type: flag, flag: sacrifice_offered_the_written_name }
+      - id: offer_the_pin
+        label: "Offer the ninth pin"
+        when: { has_item: { id: ninth_pin, qty: 1 } }
+        text: >-
+          Put the ninth pin back on his table, which is not where he sold it to you.
+        gate:
+          on_pass:
+            text: "He does not say that he expected it. He did."
+            effects:
+              - { type: flag, flag: nf_sacrifice_chosen }
+              - { type: flag, flag: sacrifice_offered_ninth_pin }
+      - id: offer_the_shard
+        label: "Offer the brass shard"
+        when: { has_item: { id: brass_shard, qty: 1 } }
+        text: >-
+          Put the shard of brass on the table.
+        gate:
+          on_pass:
+            text: "It lies there catching light it should not have."
+            effects:
+              - { type: flag, flag: nf_sacrifice_chosen }
+              - { type: flag, flag: sacrifice_offered_brass_shard }
+      - id: not_yet
+        label: "Not yet"
+        text: >-
+          Keep your hands in your lap a while longer.
+        gate:
+          on_pass:
+            text: "He waits, and does not fill the silence."
+
+  - id: S2_pay_it
+    title: "Paying it"
+    when:
+      all:
+        - { quest_state: { quest: the_sacrifice, stage_at_least: 2 } }
+        - any:
+            - all: [{ flag: sacrifice_offered_the_written_name }, { has_item: { id: the_written_name, qty: 1 } }]
+            - all: [{ flag: sacrifice_offered_ninth_pin }, { has_item: { id: ninth_pin, qty: 1 } }]
+            - all: [{ flag: sacrifice_offered_brass_shard }, { has_item: { id: brass_shard, qty: 1 } }]
+    tags: [menu, price, door]
+    text: >-
+      INTENT: What the player offered is on Ilya's table. Taking their hand
+      off it is the whole of paying. CONSTRAINTS: No light, no sound. Paying
+      ends the story; not yet ends nothing.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: pay_the_name
+        label: "Take your hand off the name"
+        when:
+          all: [{ flag: sacrifice_offered_the_written_name }, { has_item: { id: the_written_name, qty: 1 } }]
+        text: >-
+          Take your hand off the written name. This ends the story: The Price Asked.
+        gate:
+          on_pass:
+            text: "A table with nothing on it, and a valley that goes on being a valley."
+            effects:
+              - { type: remove_item, item_id: the_written_name, qty: 1 }
+              - { type: flag, flag: nf_sacrifice_paid }
+              - { type: ending_lock, ending: the_price_asked }
+              - { type: ending_module }
+      - id: pay_the_pin
+        label: "Take your hand off the pin"
+        when:
+          all: [{ flag: sacrifice_offered_ninth_pin }, { has_item: { id: ninth_pin, qty: 1 } }]
+        text: >-
+          Take your hand off the ninth pin. This ends the story: The Price Asked.
+        gate:
+          on_pass:
+            text: "A table with nothing on it, and a valley that goes on being a valley."
+            effects:
+              - { type: remove_item, item_id: ninth_pin, qty: 1 }
+              - { type: flag, flag: nf_sacrifice_paid }
+              - { type: ending_lock, ending: the_price_asked }
+              - { type: ending_module }
+      - id: pay_the_shard
+        label: "Take your hand off the shard"
+        when:
+          all: [{ flag: sacrifice_offered_brass_shard }, { has_item: { id: brass_shard, qty: 1 } }]
+        text: >-
+          Take your hand off the brass shard. This ends the story: The Price Asked.
+        gate:
+          on_pass:
+            text: "A table with nothing on it, and a valley that goes on being a valley."
+            effects:
+              - { type: remove_item, item_id: brass_shard, qty: 1 }
+              - { type: flag, flag: nf_sacrifice_paid }
+              - { type: ending_lock, ending: the_price_asked }
+              - { type: ending_module }
+      - id: not_yet
+        label: "Not yet"
+        text: >-
+          Leave your hand where it is.
+        gate:
+          on_pass:
+            text: "Everything is negotiable until your hand comes off it."

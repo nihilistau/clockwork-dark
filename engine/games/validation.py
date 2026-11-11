@@ -664,7 +664,9 @@ class StoryValidator:
         self.check_lore()
         self.check_decks_and_structures()
         self.check_declared_event_scenes()
+        self.check_declared_events()
         self.check_event_references()
+        self.check_npc_here_references()
         self.check_endings_and_epilogues()
         self.check_endless()
         self.check_social()
@@ -1830,6 +1832,20 @@ class StoryValidator:
         for _event_id, scene_id in declared:
             self._check_scene_ref(source, scene_id, known_decks, known_cards, "event's")
 
+    def check_declared_events(self) -> None:
+        """A probabilistic declared event's shape (v0.25.0 E1): a probability, never a legacy stream."""
+        path = self._file("world_schedules")
+        doc = _read_yaml(path) if path is not None and path.is_file() else None
+        if not isinstance(doc, dict):
+            return
+        from engine.world.schedules import declared_event_problem
+
+        source = self._rel(path)
+        for event_id, spec in (doc.get("events") or {}).items():
+            problem = declared_event_problem(str(event_id), spec)
+            if problem:
+                self._add(source, str(event_id), problem)
+
     #: Condition predicates whose value names a world event (a string or a list).
     EVENT_PREDICATES = ("event_active", "event_seen", "held_before_event")
     #: Events the engine raises itself: the flagship's three schedule slots
@@ -1899,6 +1915,56 @@ class StoryValidator:
                             "or `event_id` declares it), so it is false forever",
                         )
 
+    def check_npc_here_references(self) -> None:
+        """
+        Every person an ``npc_here`` condition names is one the story declares
+        (v0.25.0 T14). ``{npc_here: npc_marris}`` loads and validates, and
+        ``resolve_npc`` answers None for it forever, so the door it gates never
+        opens and nothing says so. The people a story declares are its
+        ``npc_schedules`` file's ``npcs``, its procgen templates' ``canon_npcs``
+        and every ``npc_ids`` row its own content names (an event's cast).
+        """
+        files = self._story_yaml_files()
+        docs = [(path, _read_yaml(path)) for path in files]
+        uses = [
+            (path, node["npc_here"])
+            for path, doc in docs
+            for node in walk(doc)
+            if "npc_here" in node
+        ]
+        if not uses:
+            return
+        known: set[str] = set()
+        sched_path = self._file("npc_schedules")
+        if sched_path is not None and sched_path.is_file():
+            sched = _read_yaml(sched_path)
+            if isinstance(sched, dict):
+                known |= {str(k) for k in (sched.get("npcs") or {})}
+        templates = self._file("procgen_templates")
+        if templates is not None and templates.is_file():
+            doc = _read_yaml(templates)
+            if isinstance(doc, dict):
+                known |= {
+                    str(row.get("id"))
+                    for row in (doc.get("canon_npcs") or [])
+                    if isinstance(row, dict) and row.get("id")
+                }
+        for _path, doc in docs:
+            for node in walk(doc):
+                ids = node.get("npc_ids")
+                if isinstance(ids, list):
+                    known |= {str(i) for i in ids}
+        for path, value in uses:
+            for npc_id in (value if isinstance(value, list) else [value]):
+                if str(npc_id) not in known:
+                    self._add(
+                        self._rel(path),
+                        str(npc_id),
+                        f"a condition asks `npc_here: {npc_id}`, a person the story "
+                        "never declares (no `npc_schedules` row, canon procgen NPC or "
+                        "event cast), so it is false forever",
+                    )
+
     def _check_beat_shapes(self, source: str, card_id: str, card: Any) -> None:
         """
         ``_resolve_gate`` starts at ``passed = True`` and only lowers it on a
@@ -1918,6 +1984,12 @@ class StoryValidator:
         exactly the defect a green suite keeps.
         """
         is_menu = "menu" in ((card or {}).get("tags") or [])
+        # A beat-level `when:` (v0.25.0 E5): menu cards only, one beat left
+        # without, each a condition the grammar reads.
+        from engine.content.deck import beat_when_problems
+
+        for problem in beat_when_problems(card):
+            self._add(source, card_id, problem)
         for beat in (card or {}).get("beats") or []:
             gate = (beat or {}).get("gate")
             ref = f"{card_id}/{(beat or {}).get('id') or '-'}"

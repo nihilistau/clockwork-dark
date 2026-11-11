@@ -658,6 +658,134 @@ def _scene_resume_choices(state: GameState) -> Optional[list[dict[str, Any]]]:
     return out
 
 
+def _with_scene_choices(
+    state: GameState, choices: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """
+    A narrated turn's row, with the engine's floor after it: the scene's own
+    choices, a cell's ways out, or the roads.
+
+    BUG THIS FIXES (v0.25.0 T16, measured live on LM Studio with
+    ``gemma4-26b-a4b-qat-uncensored-hauhaucs-balanced``): ``intent`` is
+    optional in the turn grammar, and that model left it out of every choice
+    it wrote. A road that started an encounter came back with "Seek work at
+    the smithy", "Find food at the oven" and no approach, so every approach on
+    the encounter panel read "not offered this turn" and nothing on screen
+    could end the scene: the player was stranded until a reload rebuilt the
+    frame (``_scene_resume_choices``). Outside a scene no road was ever
+    offered, so the square was as far as the player got. Three floors, one
+    for each hold on the player, mirroring READ RECEIPTS'
+    ``away.with_world_choices``:
+
+    - a scene owns the turn (an encounter, a dealt card, a set-piece, a job):
+      when the row carries NO intent the scene accepts, the scene's choices
+      are appended, the same rows a resume offers; a row that carries one is
+      left as written;
+    - the watch holds the player (and no scene is open): each way out
+      (``pay_fine``, ``serve``, a set-piece that requires custody) the row
+      does not already hold is appended, row by row (fix round 1, I1: the
+      floor was the whole catalogue, rests and a purse to lift included, and
+      one held rest withheld every way out);
+    - otherwise: when the row carries no ``travel`` intent, every legal road
+      (``intents._travel``, the grammar's own enum) is appended, as
+      "Set out for <place>" (fix round 1).
+
+    A model that declares its intents sees no change. Never raises: a fault
+    keeps the narrator's row.
+    """
+    try:
+        floor = _floor_rows(state)
+        if not floor:
+            return choices
+        kind, scene = floor
+        rows = [dict(c) for c in choices or ()]
+        if kind != "scene":
+            held = {
+                (str(i.get("action")), str(i.get("target") or ""))
+                for i in (c.get("intent") for c in rows)
+                if isinstance(i, dict)
+            }
+            if kind == "roads" and any(action == "travel" for action, _ in held):
+                return choices
+            added = [
+                dict(row)
+                for row in scene
+                if (str(row["intent"].get("action")), str(row["intent"].get("target") or "")) not in held
+            ]
+            return rows + _label_intents(state, added) if added else choices
+        # A scene: all or nothing, as T16 shipped it (the controller's ruling).
+        offered = {
+            (str(r["intent"].get("action")), str(r["intent"].get("target") or ""))
+            for r in scene
+        }
+        held = {
+            (str(i.get("action")), str(i.get("target") or ""))
+            for i in (c.get("intent") for c in rows)
+            if isinstance(i, dict)
+        }
+        if held & offered:
+            return choices
+        return rows + _label_intents(state, [dict(row) for row in scene])
+    except Exception:  # noqa: BLE001 -- the scene's rows are a floor under the turn, never a reason to lose it
+        logger.exception("[default_state] No scene choices for a narrated turn (operation=with_scene_choices)")
+        return choices
+
+
+def _floor_rows(state: GameState) -> Optional[tuple[str, list[dict[str, Any]]]]:
+    """
+    ``(kind, rows)`` for ``_with_scene_choices``: ``scene`` (the resume's scene
+    rows), ``cell`` (the ways out alone) or ``roads`` (every legal road), each
+    row intent-bearing under its own id. None when there is nothing to add.
+    """
+    from engine.game import intents as intents_module
+    from engine.world import law
+
+    if intents_module.scene_owns_turn(state):
+        rows = [
+            {**row, "id": "scene_" + str(row.get("id") or "").removeprefix("resume_")}
+            for row in (_scene_resume_choices(state) or [])
+        ]
+        return ("scene", rows) if rows else None
+    if law.in_custody(state):
+        rows = [
+            {**row, "id": "cell_" + str(row.get("id") or "").removeprefix("resume_")}
+            for row in (_scene_resume_choices(state) or [])
+            if _is_way_out(row["intent"])
+        ]
+        return ("cell", rows) if rows else None
+    verb = intents_module.find_verb(intents_module.legal_intents(state), "travel")
+    if verb is None or not verb.options:
+        return None
+    from engine.game.locations import LOCATIONS
+
+    rows = [
+        {
+            "id": f"road_{target}",
+            "text": f"Set out for {(LOCATIONS.get(str(target)) or {}).get('name') or target}",
+            "intent": {"action": "travel", "target": str(target)},
+        }
+        for target, _label in verb.options
+    ]
+    return ("roads", rows)
+
+
+def _is_way_out(intent: dict[str, Any]) -> bool:
+    """A cell's way out: the fine, the sentence, or a set-piece that requires custody (a break-out)."""
+    action = str(intent.get("action") or "")
+    if action in ("pay_fine", "serve"):
+        return True
+    if action != "set_piece":
+        return False
+    try:
+        from engine.challenges import set_pieces
+
+        piece = set_pieces.load_set_pieces().get(str(intent.get("target") or "")) or {}
+        return bool((piece.get("requires") or {}).get("in_custody"))
+    except Exception as exc:  # noqa: BLE001 -- an unreadable piece is not a way out
+        logger.debug("[default_state] No set-piece to judge %r: %s", intent, exc)
+        return False
+
+
 def _resume_payload(
     state: GameState, narration: str, choices: list[dict[str, Any]]
 ) -> dict[str, Any]:
@@ -872,6 +1000,31 @@ def resolve_authored_choice(
     if not _chosen(session, choice_id):
         return {}
     return authored_choice.opening_consequences(choice_id)
+
+
+def resolve_overlay_intent(session: GameSession, raw: Any) -> tuple[dict[str, Any], str, str]:
+    """
+    An overlay's press, checked before any turn runs (v0.25.0 E2, spec §7.1).
+
+    Returns ``(intent, sentence, refusal)``. A refusal here means NOTHING RAN:
+    an action outside ``OVERLAY_ACTIONS``, a story whose world turn is read
+    under a narration turnstile (READ RECEIPTS' phone owns its own path), or a
+    pair not in ``overlay_targets`` now. It does NOT refuse on a scene owning
+    the turn: that refusal belongs in the prose, so it is left to the lock
+    (``execute_intent(..., overlay=True)``). Read off the lock, cheap: the
+    lock re-checks.
+    """
+    from engine.game import intents
+
+    row = intents.normalise(raw)
+    action = str(row.get("action") or "")
+    if action not in intents.OVERLAY_ACTIONS or getattr(session, "narration_turnstile", None) is not None:
+        return {}, "", intents.OVERLAY_STALE
+    state = session.engine.state
+    sentence = intents.describe_overlay_intent(state, row)
+    if not sentence:
+        return {}, "", intents.overlay_refusal(state, row)
+    return {"action": action, "target": str(row.get("target") or "")}, sentence, ""
 
 
 def _evaluate_quests(session: GameSession) -> list[dict[str, Any]]:
@@ -1198,6 +1351,7 @@ def run_turn(
     intent: Optional[dict[str, Any]] = None,
     authored: Optional[dict[str, Any]] = None,
     emit_callback: Optional[Callable[[str, dict[str, Any]], None]] = None,
+    overlay: bool = False,
 ) -> dict[str, Any]:
     """
     Execute Storyteller + Assistant turn and build turn_update payload.
@@ -1216,6 +1370,9 @@ def run_turn(
             an authored opening's, which is every turn of every story that
             declares none.
         emit_callback: Optional (event_name, payload) emitter for Socket.IO.
+        overlay: The press came from an overlay (``resolve_overlay_intent``):
+            ``execute_intent`` checks it against the overlay's list under this
+            lock. False for every other caller.
 
     Returns:
         turn_update dict.
@@ -1295,7 +1452,7 @@ def run_turn(
         if intent:
             from engine.agents.tool_dispatcher import execute_intent
 
-            intent_receipts = execute_intent(intent, session.engine)
+            intent_receipts = execute_intent(intent, session.engine, overlay=overlay)
             if social.declared() and isinstance(intent, dict) and intent.get("typed"):
                 # A phone story's typed line, read under the lock (v0.23.0 addendum 4 §3): its receipt says so,
                 # and the narrator is told what the engine read it as. Only `engine/social/typed.py` sets `typed`.
@@ -1527,6 +1684,16 @@ def run_turn(
     # narrator was told after it has already written.
     quest_events = _evaluate_quests(session)
 
+    choices = _label_intents(state, merge_choices(agreed, storyteller_result.choices))
+    if social.declared():
+        # READ RECEIPTS: the world's own choices follow the narrator's, so a turn whose choices carry no
+        # intent never leaves the player with nothing that passes time. Every other story's row is unchanged.
+        from engine.social import away
+
+        choices = away.with_world_choices(state, choices)
+    else:
+        choices = _with_scene_choices(state, choices)
+
     turn_payload = {
         "session_id": state.session_id,
         "save_id": session.save_id,
@@ -1538,7 +1705,7 @@ def run_turn(
         # `_label_intents` adds the player-facing consequence to any option
         # that declared one, so a choice that will move or spend says so on
         # the chip instead of only in the save file afterwards.
-        "choices": _label_intents(state, merge_choices(agreed, storyteller_result.choices)),
+        "choices": choices,
         "state": state.to_client_dict(),
         "tool_receipts": storyteller_result.tool_receipts,
         "evaluation": storyteller_result.evaluation.to_dict(),

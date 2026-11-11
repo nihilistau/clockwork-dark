@@ -987,8 +987,43 @@
 
 /* The contents, not the button: `opacity` on the button would dim its focus
    ring under 3:1 (T13 review finding 1). */
-.approach[aria-disabled="true"] > * {
+.approach[aria-disabled="true"]:not(.is-unlit) > * {
   opacity: 0.6;
+}
+
+/* Not offered this turn (v0.25.0 §8.2): drawn UNLIT rather than dimmed --
+   dashed, on the bar's own card, in the phase's muted ink -- so its words keep
+   4.5:1 and its edge 3:1 (ui/tests/contrast.test.js), and nothing about it
+   says "press me". */
+.approach.is-unlit {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--approach-unlit-border, var(--text-muted));
+  border-left-width: var(--border-hair);
+  color: var(--approach-unlit-ink, var(--text-muted));
+}
+.approach.is-unlit .approach__text,
+.approach.is-unlit .approach__tag {
+  color: var(--approach-unlit-ink, var(--text-muted));
+}
+.approach.is-unlit:hover,
+.approach.is-unlit:active {
+  background: transparent;
+  transform: none;
+  box-shadow: none;
+}
+
+/* The digit that presses it, shown only while the choice row is empty. */
+.approach__key {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.4em;
+  margin-right: 0.5em;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  vertical-align: 0.1em;
 }
 
 
@@ -1452,7 +1487,9 @@
 
 /* ---------- barter ----------
    Ported from Screens.jsx::TradeScreen. Presentation only: the engine's
-   `trade` skill is the single writer of gold and inventory. */
+   `trade` skill is the single writer of gold and inventory, and each row's
+   button presses one buy or sell intent (v0.25.0 §8.1). The balance beam is
+   retired with the multi-item bargain. */
 
 .barter__columns {
   display: grid;
@@ -1474,12 +1511,6 @@
   border-radius: var(--radius-sm);
   color: var(--text-body);
   text-align: left;
-}
-
-
-.barter.is-on {
-  border-color: var(--accent-candle);
-  background: var(--surface-card);
 }
 
 
@@ -1522,14 +1553,6 @@
 }
 
 
-.barter__worth {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--text-candlelight);
-  font-variant-numeric: tabular-nums;
-}
-
-
 .barter__hint {
   margin: var(--space-1) 0 0;
   font-family: var(--font-narration);
@@ -1539,83 +1562,35 @@
 }
 
 
-.beam {
-  margin-top: var(--space-5);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-panel);
-  border: var(--border-hair) solid var(--line-soft);
-  border-radius: var(--radius-sm);
+/* An overlay action (v0.25.0 §8.1, parts/ActionButton.jsx) is `aria-disabled`,
+   never `disabled`, while a turn runs, a scene owns the turn or the server does
+   not list the pair: focus stays on it. Dimmed through its colour and its
+   fill, never `opacity` on the control, which would dim its focus ring too
+   (the chip's rule, styles/index.css). The hover and press rows outrank core's
+   `.btn:hover:not(:disabled)` and `.btn:active:not(:disabled)` (0,3,0), which
+   still match an aria-disabled button, so it neither glows nor sinks (T14). */
+.btn[aria-disabled="true"],
+.btn[aria-disabled="true"]:hover:not(:disabled),
+.btn[aria-disabled="true"]:active:not(:disabled) {
+  cursor: not-allowed;
+  background: var(--surface-card);
+  color: var(--text-disabled);
+  box-shadow: none;
+  filter: none;
+  transform: none;
 }
 
-
-.beam__row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-3);
+.barter .btn {
+  flex: none;
 }
 
-
-.beam__label {
-  font-size: var(--text-xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--text-muted);
+.overlay__hold {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-narration);
+  font-style: italic;
+  color: var(--text-candlelight);
 }
 
-
-.beam__value {
-  font-family: var(--font-mono);
-  font-size: var(--text-md);
-}
-
-
-.beam__value.is-fair {
-  color: var(--text-affirm);
-}
-
-
-.beam__value.is-short {
-  color: var(--text-danger);
-}
-
-
-.beam__track {
-  position: relative;
-  height: 8px;
-  margin-top: var(--space-2);
-  background: var(--line-ink);
-  border-radius: var(--radius-pill);
-  overflow: hidden;
-}
-
-
-.beam__pivot {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--accent-brass);
-}
-
-
-.beam__weight {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  transition: width var(--dur-base) var(--ease-quiet);
-}
-
-
-.beam__weight.is-fair {
-  background: var(--text-affirm);
-}
-
-
-.beam__weight.is-short {
-  background: var(--status-danger);
-}
 
 
 /* ============================================================
@@ -3092,4 +3067,67 @@
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+
+/* The encounter at narrow and short sizes (v0.25.0 §8.2): a letterbox of art
+   under 900px wide, and only the last two rounds of the log under 420px tall,
+   so the approaches stay within reach. */
+@media (max-width: 899px) {
+  .encounter__art {
+    /* The ratio sets the height, capped by the 900px rule's 16vh, so a
+       landscape phone never gets a taller plate than it had. */
+    height: auto;
+    max-height: 16vh;
+    aspect-ratio: 4 / 1;
+  }
+  .encounter {
+    flex-direction: column;
+  }
+}
+
+@media (max-height: 420px) {
+  .encounter__log > :nth-last-child(n + 3) {
+    display: none;
+  }
+}
+
+
+/* "The ways it ends" (v0.25.0 §8.4) and the ending's plate (§8.6). */
+.ends {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ends__row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-panel);
+  border-left: var(--border-mark) solid var(--accent-brass);
+  border-radius: var(--radius-sm);
+}
+
+.ends__title {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-md);
+  color: var(--text-on-dark);
+}
+
+.ends__tease {
+  margin: 0;
+  font-family: var(--font-narration);
+  color: var(--text-body);
+}
+
+.finale__plate {
+  width: min(100%, 22rem);
+  margin: var(--space-3) auto;
 }

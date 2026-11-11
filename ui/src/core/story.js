@@ -98,6 +98,9 @@
  *                 payload's render order and draws any story correctly; a
  *                 story overrides it only when its last page is typeset rather
  *                 than listed, which is the Garden's case and nobody else's.
+ *   EndingArt     EndingArt({ending}): draws the ending's gallery plate in place
+ *                 of core's gallery line (optional; v0.25.0 §8.6). Read by
+ *                 core's Ending only, so a story with its own `Ending` ignores it.
  *   PlayScreen    v0.22.0 (spec §18.1). Replaces core's whole play screen
  *                 (`Play`): {state, sessionId, busy, onAct, onOpenMenu,
  *                 onOpenSaves, blocked} -- `blocked` is true while core's
@@ -148,8 +151,11 @@
  * SLOT PROPS. Every slot is a React component and receives the same object, so
  * a story can ignore the ones it does not care about:
  *
- *     {state, busy, onChoose, onCustom, onOpenOverlay, onOpenMenu,
- *      showDiceBreakdown}
+ *     {state, busy, controlsOff, blocked, onChoose, onCustom, onOpenOverlay,
+ *      onOpenMenu, showDiceBreakdown}
+ *
+ * `blocked` is true while core's menu, settings, an overlay or a cutscene is
+ * up: a slot's own window-level keys stand down (v0.25.0 §8.2).
  *
  * A story-owned `PlayScreen` (not a slot) takes `{state, sessionId, busy, onAct, onChoose, onCustom, onOpenMenu,
  * onOpenSaves, blocked, prefs, onPrefs}`; `onCustom(text)` sends typed words as core's own compose box does (READ RECEIPTS'
@@ -159,6 +165,11 @@
  * An overlay's Component is NOT a slot and takes its own set:
  *
  *     {state, sessionId, busy, onAct, onClose}
+ *
+ * `onAct(act)`: a string (typed text) or `{action, target, label}` (an overlay
+ * intent, v0.25.0 §7.4), which the server checks against `GET
+ * /api/intents/overlay`'s list under the turn lock (`@core/overlayAct.js`,
+ * `@core/hooks/useOverlayIntents.js`).
  *
  * There is deliberately no `dispatch`. This paragraph used to say there was,
  * and `Play.jsx` has never passed one -- so the Garden reached for a

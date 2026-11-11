@@ -28,7 +28,7 @@
 import React from "react";
 
 /** A block this renderer knows how to draw. Anything else in `order` is skipped. */
-function Block({ name, ending }) {
+function Block({ name, ending, story }) {
   switch (name) {
     case "title":
       return (
@@ -74,6 +74,9 @@ function Block({ name, ending }) {
       return ending.time_line ? <p className="finale__time">{ending.time_line}</p> : null;
 
     case "gallery_unlock":
+      // A story may draw its gallery plate here instead (`story.EndingArt`);
+      // every other story keeps the line.
+      if (story?.EndingArt) return <story.EndingArt ending={ending} />;
       return ending.gallery_key ? (
         <p className="finale__gallery">
           Added to the gallery: <code>{ending.gallery_key}</code>
@@ -109,7 +112,7 @@ export default function Ending({ ending, story = {}, onNewRun, onOpenSaves }) {
     <div className="finale" role="document">
       <article className="finale__sheet" aria-label={`${ending.ending_id} ${ending.title}`}>
         {order.map((name) => (
-          <Block key={name} name={name} ending={ending} />
+          <Block key={name} name={name} ending={ending} story={story} />
         ))}
 
         <div className="finale__actions">

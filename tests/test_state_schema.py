@@ -67,10 +67,15 @@ def test_clockwork_schema_is_entirely_field_backed():
     schema = load_schema(CLOCKWORK_SCHEMA, slug="clockwork-dark")
 
     assert schema.values, "the flagship declares no state"
-    assert not schema.bag_backed, (
+    # A clock has no legacy attribute to drift from: it lives in the bag and is
+    # read only through the clocks module (engine/game/clocks.py), as every
+    # story's clocks are. The flagship's one, Sera's levy, came in v0.25.0 T8.
+    drifted = [v for v in schema.bag_backed if v.kind != "clock"]
+    assert not drifted, (
         f"bag-backed without moving their readers: "
-        f"{[v.name for v in schema.bag_backed]}"
+        f"{[v.name for v in drifted]}"
     )
+    assert [v.name for v in schema.bag_backed if v.kind == "clock"] == ["the_levy"]
 
 
 def test_field_backed_reads_the_real_attribute():

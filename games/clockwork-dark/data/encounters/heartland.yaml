@@ -1,0 +1,177 @@
+# The Heartland Road (v0.25.0 §5.3): the four danger_dc 14 lines, the toll
+# bridge<->the heartland road and the heartland road<->the Join.
+# Measured in v0.25.0 T10 (rule 10): 0.456 encounters a danger leg (160 legs,
+# the doors harness's pinner; seeds 0-39); band 0.40-0.70, met.
+band: heartland
+
+encounters:
+  - id: milestones_that_agree
+    tier: 2
+    weight: 30
+    triggers:
+      edges:
+        - "toll_bridge>heartland_road"
+        - "heartland_road>toll_bridge"
+        - "heartland_road>the_join"
+        - "the_join>heartland_road"
+    intro: >-
+      Every milestone on this stretch is cut in the same hand and weathered to
+      the same grey, and every one of them gives the same distance to
+      Millhaven, though you have been walking between them all morning.
+    threat: { name: "Milestones that agree too well", resolve: 3 }
+    approaches:
+      count:
+        skill: survival
+        difficulty: standard
+        text: "Count the miles yourself, by your own feet"
+      read:
+        skill: lore
+        difficulty: standard
+        text: "Read the stones properly, the cutting and the moss"
+    outcomes:
+      crit_success:
+        text: >-
+          Your feet and the stones disagree by four miles, and you know which
+          of them to believe, and you know now how much road has gone.
+        effects:
+          - { type: awareness, delta: 3 }
+          - type: ledger_fact
+            kind: engine
+            text: "The heartland road's milestones all give one distance; walked, the road is four miles short of them."
+      success:
+        text: >-
+          You stop reading the stones and walk by the sun, and arrive tired
+          but where you meant to.
+        effects:
+          - { type: awareness, delta: 2 }
+          - { type: stamina, delta: -8 }
+      partial:
+        text: >-
+          You lose count somewhere past the sixth stone, and the seventh tells
+          you the same thing the first did, kindly.
+        effects:
+          - { type: stamina, delta: -10 }
+          - { type: awareness, delta: 2 }
+      failure:
+        text: >-
+          You walk until dark by the stones and arrive no nearer, and spend
+          the night in a hedge-bottom with your feet telling you otherwise.
+        effects:
+          - { type: hp, delta: -2 }
+          - { type: stamina, delta: -12 }
+
+  - id: a_brass_hound
+    tier: 3
+    weight: 25
+    art: brass_hound
+    triggers:
+      edges:
+        - "toll_bridge>heartland_road"
+        - "heartland_road>toll_bridge"
+        - "heartland_road>the_join"
+        - "the_join>heartland_road"
+      phases: [spreading, consuming]
+    intro: >-
+      Something is quartering the field beside the road, nose down, and it is
+      the colour of a church candlestick, and it moves like a good hound and
+      sounds like a cart. It has found a scent. It is yours.
+    threat: { name: "A brass hound on the scent", resolve: 4 }
+    approaches:
+      still:
+        skill: nerve
+        difficulty: hard
+        text: "Stand absolutely still and let it lose interest"
+      scent:
+        skill: survival
+        difficulty: hard
+        text: "Break the scent through the ditch water and the nettles"
+    outcomes:
+      crit_success:
+        text: >-
+          It casts about, ticking, at the edge of the water, and gives up, and
+          trots off up the road with its head up like a dog called home.
+        effects:
+          - { type: awareness, delta: 4 }
+      success:
+        text: >-
+          It loses you at the ditch, and you lie in the nettles listening to it
+          go up and down the bank for a long time.
+        effects:
+          - { type: awareness, delta: 3 }
+          - { type: stamina, delta: -8 }
+      partial:
+        text: >-
+          It gets close enough to take the heel off your boot before it loses
+          the scent, and you walk on lopsided.
+        effects:
+          - { type: hp, delta: -3 }
+          - { type: stamina, delta: -8 }
+          - { type: awareness, delta: 2 }
+      failure:
+        text: >-
+          It brings you down the way a hound brings down a hare, and then
+          stands over you, ticking, until something only it can hear calls it off.
+        effects:
+          - { type: hp, delta: -6 }
+          - { type: stamina, delta: -12 }
+          - { type: awareness, delta: 2 }
+
+  - id: the_marching_column
+    tier: 3
+    weight: 20
+    triggers:
+      edges:
+        - "toll_bridge>heartland_road"
+        - "heartland_road>toll_bridge"
+        - "heartland_road>the_join"
+        - "the_join>heartland_road"
+      phases: [consuming]
+    intro: >-
+      A column is coming up the road, four abreast, in step, raising no dust.
+      There are coats on them from a dozen villages, and none of the faces is
+      looking anywhere, and the step does not change for the bend.
+    threat: { name: "A column that marches in step", resolve: 5 }
+    approaches:
+      pass:
+        skill: stealth
+        difficulty: hard
+        text: "Get down behind the hedge and let it pass"
+      fall_in:
+        skill: nerve
+        difficulty: severe
+        text: "Fall in at the back, match the step, and fall out at the next gate"
+    outcomes:
+      crit_success:
+        text: >-
+          You keep the step for a quarter mile and fall out at a field gate,
+          and the column goes on without a man short, because it never counted
+          you.
+        effects:
+          - { type: awareness, delta: 4 }
+          - { type: focus, delta: 1 }
+      success:
+        text: >-
+          It goes past the hedge for a long time. When it has gone, the road
+          is swept clean behind it.
+        effects:
+          - { type: awareness, delta: 3 }
+          - { type: stamina, delta: -8 }
+      partial:
+        text: >-
+          You get out of its way, but not out of its step: your feet keep the
+          count for an hour after, whatever you tell them.
+        effects:
+          - { type: awareness, delta: 3 }
+          - { type: stamina, delta: -10 }
+          - type: check_penalty
+            text: "your feet still keeping the column's step"
+            delta: -1
+            skills: [stealth]
+            days: 1
+      failure:
+        text: >-
+          The column walks through where you are standing, and you are knocked
+          down and walked over by people who never once look down.
+        effects:
+          - { type: hp, delta: -6 }
+          - { type: stamina, delta: -12 }

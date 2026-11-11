@@ -7,7 +7,7 @@
  */
 import React, { useEffect, useState } from "react";
 import { prettyPlace } from "@core/parts/Chrome.jsx";
-import { fetchItems } from "@core/api.js";
+import { fetchFactions, fetchItems } from "@core/api.js";
 import PaintFrame from "@core/parts/PaintFrame.jsx";
 
 function Meter({ label, value, max, tone }) {
@@ -67,11 +67,39 @@ function useItemArt(sessionId, signature) {
   return art;
 }
 
+/**
+ * faction id -> {name, band}, from `/api/factions` (v0.25.0 §8.3): the
+ * faction's own name and its band's word. Refetched when the standing moves.
+ * No answer yet, or a failed one, leaves the map empty and the rows fall back
+ * to the id and the number.
+ */
+function useFactions(sessionId, signature) {
+  const [factions, setFactions] = useState([]);
+  useEffect(() => {
+    if (!sessionId) return undefined;
+    let live = true;
+    fetchFactions(sessionId)
+      .then((rows) => {
+        if (live) setFactions(Array.isArray(rows) ? rows : []);
+      })
+      .catch(() => {
+        /* the ids and numbers stand */
+      });
+    return () => {
+      live = false;
+    };
+  }, [sessionId, signature]);
+  const map = {};
+  for (const row of factions) if (row && row.id) map[row.id] = row;
+  return map;
+}
+
 export default function Sheet({ world, sessionId, onOpenPack }) {
   const inventory = world?.inventory || [];
   // A stable signature so the effect refires when the pack changes but not on
   // every unrelated turn.
   const art = useItemArt(sessionId, inventory.map((i) => `${i.id}:${i.qty}`).join(","));
+  const factions = useFactions(sessionId, JSON.stringify(world?.reputations || {}));
 
   if (!world) return <aside className="sheet" aria-label="Character" />;
 
@@ -150,9 +178,18 @@ export default function Sheet({ world, sessionId, onOpenPack }) {
         <>
           <h3 className="sheet__heading">Standing</h3>
           <div className="sheet__lines">
-            {reputations.map(([faction, value]) => (
-              <Line key={faction} label={prettyPlace(faction)} value={value > 0 ? `+${value}` : value} />
-            ))}
+            {reputations.map(([faction, value]) => {
+              const row = factions[faction];
+              const number = value > 0 ? `+${value}` : value;
+              const band = row?.band?.label;
+              return (
+                <Line
+                  key={faction}
+                  label={row?.name || prettyPlace(faction)}
+                  value={band ? `${band} (${number})` : number}
+                />
+              );
+            })}
           </div>
         </>
       )}

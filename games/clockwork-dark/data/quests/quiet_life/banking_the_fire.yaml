@@ -1,11 +1,15 @@
-# Version: v0.1.0 [2026-08-14]
+# Version: v0.2.0 [2026-10-28]
 #
-# THE QUIET DOOR. The one quest in the game whose completion is the player
-# saying "this is my life now" -- and meaning it, because its on_complete
-# carries `{type: ending_lock}` with no id (whatever the run has EARNED:
-# engine/game/endings.py::resolve picks the highest-scoring eligible ending,
-# else the declared fail-forward) and then `{type: ending_module}` plays that
-# ending's Speak - Act - Seal. The epilogue card rides the same turn's payload.
+# THE QUIET DOOR. The quest in which the player says "this is my life now" --
+# and means it. Since v0.25.0 the door itself is a deck card, not this quest:
+# the morning firing's H1_the_question (data/scenes/the_morning_firing.yaml),
+# dealt at the bakery from four to ten while Maris is there, once this quest
+# stands at `the_question` and the larder has been walked (H0 sets
+# nf_hearth_taking_stock). Its `stay` beat locks The Hearth Holds BY NAME;
+# with that ending's gate shut, `stay_anyway` locks the fail-forward, The Dark
+# Keeps Its Hours; `not_yet` locks nothing. The quest's own on_complete locks
+# nothing any more: an id-less lock let the run's score pick the ending, and
+# every ending now has a door that names it (v0.25.0 §4.1).
 #
 # WHY THE GATE IS A WINTER RATION. The door opens when the larder is
 # provisioned -- winter_stores completed, or a winter_ration put up by hand
@@ -18,10 +22,10 @@
 # number.
 #
 # NOTHING HERE EVER FORCES THE DOOR. No expiry, no failure branch, and the
-# final stage completes only on nf_hearth_book_closed -- a narrative flag the
-# Storyteller sets when the player actually chooses to stay. Declining is not
-# a flag and deliberately never became one: "one more season" is expressed by
-# the quest simply staying open, forever if need be, and a flag nothing reads
+# final stage completes only on nf_hearth_book_closed -- which H1's `stay` and
+# `stay_anyway` beats write as they lock. Declining is not a flag and
+# deliberately never became one: "one more season" is expressed by the quest
+# simply staying open, forever if need be, and a flag nothing reads
 # would be a dead lever the model could spend a tool call on for no effect
 # (tests/test_quests.py::test_every_narrative_flag_is_reachable_from_some_stage
 # is the rule). Rest is never gated; nothing here is.
@@ -66,8 +70,11 @@ stages:
       Decide what this place is to you. Say it at the bakery, at the morning
       firing, where saying it counts -- or let the season turn and keep the
       question.
-    narrative_flags:
-      - nf_hearth_book_closed
+    # Answered on a card, not by the narrator (v0.25.0 §4.1, T14): the
+    # morning firing's H1 `stay` and `stay_anyway` beats write
+    # nf_hearth_book_closed as they lock The Hearth Holds. Offered to the
+    # model, the flag completed this stage with no lock, and H1's door (the
+    # fail-forward's morning door too) never came again.
     complete_when:
       all:
         - flag: nf_hearth_book_closed
@@ -86,9 +93,7 @@ on_complete:
     - type: ledger_fact
       text: "The fire is banked and the book is closed, by choice, at the hearth."
       kind: event
-    # Lock whatever the run earned, then play its Speak - Act - Seal.
-    - { type: ending_lock }
-    - { type: ending_module }
+    # No lock here (v0.25.0 §4.1): the morning firing's H1 locks by name.
 
 complete_text: >-
   Somewhere past the tree line the world keeps doing whatever the world does.
